@@ -1,0 +1,18 @@
+[package]
+name = "gate0-nnef-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Size probe: load tract NNEF archives (no ONNX parser) and run them in wasm32-wasip2"
+
+[dependencies]
+tract-nnef = "0.23.10"
+tract-onnx-opl = "0.23.10"
+anyhow = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

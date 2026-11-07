@@ -1,0 +1,6 @@
+{
+  "display": { "name": "Seams refactor 210 Gate 0 probe" },
+  "operations": ["echo", "storage", "https", "big", "fail", "infer"],
+  "storage_account": "predecessor",
+  "capabilities": { "network": ["rpc.testnet.near.org", {"host": "test.sign.seams.sh", "timeout_secs": 60}] }
+}

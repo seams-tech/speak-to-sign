@@ -1,0 +1,12 @@
+# Phala Cloud (dstack CVM, Intel TDX). dstack measures this file: its SHA-256
+# is the compose_hash in the attestation, so pin the image by digest.
+# Image: ghcr.io/seams-tech/speaker-service:gate0, pinned by digest.
+# No secrets and no environment: the signing key comes from dstack GetKey.
+services:
+  speaker:
+    image: ghcr.io/seams-tech/speaker-service@sha256:2f3475cd954b50f0752f5687971b05911aba8e916d903d47f59166d6df86fdfd
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock

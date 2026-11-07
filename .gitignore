@@ -1,0 +1,7 @@
+.env
+*.env
+target/
+target-z/
+__pycache__/
+*.pyc
+.DS_Store

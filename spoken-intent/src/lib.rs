@@ -25,6 +25,7 @@ mod normalize;
 mod numbers;
 mod parse;
 mod phonetic;
+mod punctuated;
 mod render;
 mod request;
 
@@ -37,6 +38,7 @@ pub use confusion::confusion_set;
 pub use normalize::normalize;
 pub use parse::{parse_transfer, ParseRefusal, ParseResult, ParsedTransfer};
 pub use phonetic::{phonetic_key, PhoneticKey};
+pub use punctuated::{normalize_punctuated, PunctuatedRefusal, PUNCTUATED_ALIASES};
 pub use render::{render, RenderedIntentV1, SpokenToken};
 pub use request::{Network, ProposalV1, SpokenRequestV1};
 

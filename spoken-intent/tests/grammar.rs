@@ -2,9 +2,9 @@
 //! negations, sound-alikes and the parse/render inverse.
 
 use spoken_intent::{
-    normalize, parse_transfer, phonetic_key, render, ChallengeWord, NearAmount, Network,
-    ParseRefusal, ParseResult, ProposalV1, SpokenAccount, SpokenRequestV1, UnsupportedReason,
-    CHALLENGE_WORDS,
+    normalize, normalize_punctuated, parse_transfer, phonetic_key, render, ChallengeWord,
+    NearAmount, Network, ParseRefusal, ParseResult, ProposalV1, PunctuatedRefusal, SpokenAccount,
+    SpokenRequestV1, UnsupportedReason, CHALLENGE_WORDS,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -200,6 +200,53 @@ fn sound_alike_accounts_are_confusable() {
     assert!(confusable("philip.testnet", "filip.testnet"));
     assert!(!confusable("alice.testnet", "bob.testnet"));
     assert!(!confusable("alice.testnet", "alice.near"));
+}
+
+#[test]
+fn punctuated_transcripts_read_like_the_rendered_text() {
+    let word = |w: &str| {
+        let index = CHALLENGE_WORDS
+            .iter()
+            .position(|c| *c == w)
+            .expect("listed") as u8;
+        ChallengeWord::from_index(index).expect("below 64")
+    };
+    let mut hash = [0u8; 32];
+    hash[0] = 0x17;
+    let rendered = render(&SpokenRequestV1::MultisigApproval {
+        network: Network::Testnet,
+        multisig: account("multisig.testnet"),
+        proposal_id: 999,
+        proposal: ProposalV1::SetVerifierVersion { version_hash: hash },
+        challenge: [word("compass"), word("meadow")],
+    });
+    let digits: String = rendered.display_text
+        ["Approve proposal 999: set verifier version ".len()..]
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    assert_eq!(digits.len(), 8, "{}", rendered.display_text);
+    let heard = format!("Approved Proposal 999 Set Verifier Version {digits} Compass Meadow.");
+    assert_eq!(
+        normalize_punctuated(&heard, &[]).expect("readable"),
+        rendered.spoken
+    );
+
+    // A sound-alike spelling resolves to the one contact with the same key.
+    let tokens = normalize_punctuated("Send 1,250 nir to Alice.Testnut.", &contacts());
+    assert_eq!(
+        tokens.as_ref().map(|t| parse_transfer(t, &contacts())),
+        Ok(ParseResult::Transfer(spoken_intent::ParsedTransfer {
+            receiver: account("alice.testnet"),
+            amount: NearAmount::from_hundredths(125_000).expect("speakable"),
+        }))
+    );
+    assert_eq!(
+        normalize_punctuated("Send 25 NEAR to carol.testnet", &contacts()),
+        Err(PunctuatedRefusal::RecipientNotContact)
+    );
+    // The CTC text step does not read the check digits one by one.
+    assert_ne!(normalize(&heard), Some(rendered.spoken));
 }
 
 #[test]

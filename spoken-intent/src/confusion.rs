@@ -3,7 +3,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::numbers::{digit_value, digit_word, push_integer_words};
-use crate::render::SpokenToken;
+use crate::render::{SpokenToken, VERSION_CHECK_DIGITS};
 use crate::{render, NearAmount, ProposalV1, SpokenAccount, SpokenRequestV1};
 
 /// The verbs of the grammar: the two request verbs, "reject" (the opposite
@@ -24,7 +24,7 @@ const NEGATIONS: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]
 /// - A receiver or member: each other account in `contacts`.
 /// - A proposal: the id one lower and one higher, the two challenge words
 ///   swapped, add and remove member exchanged, the threshold one lower and one
-///   higher, and each of the five version digits changed to each other digit.
+///   higher, and each of the eight version digits changed to each other digit.
 ///
 /// Sentence changes, at each verb (the first word, and for an approval also
 /// the first word of the proposal):
@@ -245,8 +245,8 @@ fn field_changes(
             }
             if let ProposalV1::SetVerifierVersion { .. } = proposal {
                 // The digits sit just before the two challenge words.
-                let first_digit = expected.len() - 7;
-                for position in first_digit..first_digit + 5 {
+                let first_digit = expected.len() - 2 - VERSION_CHECK_DIGITS;
+                for position in first_digit..first_digit + VERSION_CHECK_DIGITS {
                     let current = digit_value(expected[position].as_str());
                     for digit in (0..10u8).filter(|digit| Some(*digit) != current) {
                         let mut variant = expected.to_vec();

@@ -9,9 +9,10 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 use spoken_intent::{
-    confusion_set, normalize, parse_transfer, phonetic_key, render, request_digest,
-    spoken_text_digest, ChallengeWord, NearAmount, Network, ParseResult, ProposalV1, SpokenAccount,
-    SpokenRequestV1, SpokenToken, CHALLENGE_WORDS, RENDERER_VERSION,
+    confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
+    request_digest, spoken_text_digest, ChallengeWord, NearAmount, Network, ParseResult,
+    ProposalV1, SpokenAccount, SpokenRequestV1, SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES,
+    RENDERER_VERSION,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -448,6 +449,43 @@ fn parse_vectors() -> Value {
     )
 }
 
+/// Whisper-style transcripts, with the contacts of a vault that holds no two
+/// confusable keys.
+const PUNCTUATED_CASES: [&str; 16] = [
+    "Send 25 NEAR to alice.testnet.",
+    " Send 1,250 nir to Alice.Testnet!",
+    "Send 2.5 neer to bob-1.testnet",
+    "Send 8888 near to alice.testnut.",
+    "Send 0.05 NEAR to bob dot testnet",
+    "Send 25 NEAR to alicia.testnet.",
+    "Send 25 NEAR to a.testnet",
+    "Send 25 NIA to alice.testnet.",
+    "Don't send 25 NEAR to alice.testnet.",
+    "Send 25 NEAR to alice.testnet and send 100 NEAR to bob.testnet.",
+    "Approved Proposal 42 send 10 NEAR to payroll.testnet river lantern.",
+    "Approve proposal 999 set verifier version 10374 compass meadow.",
+    "Approve proposal 999 set verifier version 115-54 compass meadow.",
+    "Approve proposal 999 set verifier version 1,037,465 compass meadow",
+    "Approved proposal 7 add member pay_roll2.testnet tiger piano",
+    "send $25 to alice.testnet",
+];
+
+fn punctuated_vectors() -> Value {
+    let contacts = contacts();
+    Value::Array(
+        PUNCTUATED_CASES
+            .iter()
+            .map(|transcript| {
+                let result = match normalize_punctuated(transcript, &contacts) {
+                    Ok(tokens) => json!({ "tokens": text(&tokens) }),
+                    Err(reason) => json!({ "refused": format!("{reason:?}") }),
+                };
+                json!({ "transcript": transcript, "result": result })
+            })
+            .collect(),
+    )
+}
+
 const PHONETIC_ACCOUNTS: [&str; 16] = [
     "alice.testnet",
     "alicia.testnet",
@@ -512,6 +550,8 @@ fn generated_vectors_json() -> String {
         "invalid_borsh": invalid_borsh_vectors(),
         "normalize": normalize_vectors(),
         "parse_transfer": parse_vectors(),
+        "punctuated_aliases": PUNCTUATED_ALIASES.as_slice(),
+        "normalize_punctuated": punctuated_vectors(),
         "phonetic_keys": phonetic_keys,
         "confusable_pairs": confusable_pairs,
     });

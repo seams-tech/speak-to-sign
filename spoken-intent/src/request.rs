@@ -76,7 +76,7 @@ pub enum ProposalV1 {
     },
     /// Pin a new verifier version.
     SetVerifierVersion {
-        /// The 32-byte version hash. The text speaks its first five decimal
+        /// The 32-byte version hash. The text speaks its first eight decimal
         /// digits.
         version_hash: [u8; 32],
     },

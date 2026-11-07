@@ -1,4 +1,5 @@
 use alloc::string::String;
+use alloc::vec::Vec;
 
 use crate::SpokenAccount;
 
@@ -34,9 +35,16 @@ impl PhoneticKey {
 ///
 /// The words are joined, and each run of one letter becomes one letter.
 pub fn phonetic_key(account: &SpokenAccount) -> PhoneticKey {
+    let tokens = account.spoken_tokens();
+    let words: Vec<&str> = tokens.iter().map(|token| token.as_str()).collect();
+    words_key(&words)
+}
+
+/// The key of spoken words, as [`phonetic_key`] computes it for an account.
+pub(crate) fn words_key(words: &[&str]) -> PhoneticKey {
     let mut raw = String::new();
-    for token in account.spoken_tokens() {
-        encode_word(token.as_str().as_bytes(), &mut raw);
+    for word in words {
+        encode_word(word.as_bytes(), &mut raw);
     }
     let mut key = String::with_capacity(raw.len());
     for c in raw.chars() {

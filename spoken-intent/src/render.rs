@@ -163,10 +163,15 @@ fn push_proposal_words(words: &mut Words, proposal: &ProposalV1) -> String {
     }
 }
 
-/// The first five digits of the hash read as a big-endian integer in
-/// decimal, without leading zeros. A value below 10,000 is padded with
-/// leading zeros to five digits.
-pub(crate) fn version_check_digits(version_hash: &[u8; 32]) -> [u8; 5] {
+/// The number of version check digits that a "set verifier version"
+/// proposal speaks. With eight, an attacker needs about 10^8 builds to find
+/// another hash with the same spoken digits.
+pub(crate) const VERSION_CHECK_DIGITS: usize = 8;
+
+/// The first eight digits of the hash read as a big-endian integer in
+/// decimal, without leading zeros. A value below 10,000,000 is padded with
+/// leading zeros to eight digits.
+pub(crate) fn version_check_digits(version_hash: &[u8; 32]) -> [u8; VERSION_CHECK_DIGITS] {
     let mut value = *version_hash;
     // Remainders of repeated division by 10 give the decimal digits, lowest
     // first. 2^256 has 78 decimal digits.
@@ -180,10 +185,10 @@ pub(crate) fn version_check_digits(version_hash: &[u8; 32]) -> [u8; 5] {
         }
         digits_low_first.push(remainder as u8);
     }
-    while digits_low_first.len() < 5 {
+    while digits_low_first.len() < VERSION_CHECK_DIGITS {
         digits_low_first.push(0);
     }
-    let mut out = [0u8; 5];
+    let mut out = [0u8; VERSION_CHECK_DIGITS];
     for (slot, digit) in out.iter_mut().zip(digits_low_first.iter().rev()) {
         *slot = *digit;
     }

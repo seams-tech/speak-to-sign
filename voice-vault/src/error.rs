@@ -31,6 +31,7 @@ pub enum VaultError {
     VerdictRefused,
     VerdictMismatch,
     AudioReused,
+    BadEnrollmentDigest,
 }
 
 impl AsRef<str> for VaultError {
@@ -66,6 +67,7 @@ impl AsRef<str> for VaultError {
             Self::VerdictRefused => "the verifier refused",
             Self::VerdictMismatch => "verdict is for another request",
             Self::AudioReused => "audio digest was used before",
+            Self::BadEnrollmentDigest => "enrollment digest is not base64url of 32 bytes",
         }
     }
 }

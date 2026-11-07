@@ -10,7 +10,7 @@ static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest/outlayer.json").len()
 #[cfg(target_arch = "wasm32")]
 fn main() {
     let input = outlayer::env::input();
-    let mut host = wasm_host::WasmHost;
+    let mut host = wasm_host::WasmHost::default();
     let output = seams_voice_verifier::run(&input, &mut host);
     outlayer::env::output(&output);
 }
@@ -27,7 +27,10 @@ mod wasm_host {
     use seams_voice_verifier::config::SIGNING_KEY_PATH;
     use seams_voice_verifier::host::{Host, PostRequest, Timed};
 
-    pub struct WasmHost;
+    #[derive(Default)]
+    pub struct WasmHost {
+        batch: Option<concurrent::Batch>,
+    }
 
     impl Host for WasmHost {
         fn secret(&self, name: &str) -> Option<String> {
@@ -42,6 +45,10 @@ mod wasm_host {
             storage::set_if_absent(key, value).map_err(|error| error.to_string())
         }
 
+        fn storage_set_if_equals(&mut self, key: &str, expected: &[u8], value: &[u8]) -> Result<bool, String> {
+            storage::set_if_equals(key, expected, value).map(|(written, _)| written).map_err(|error| error.to_string())
+        }
+
         fn marker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
             storage::get_raw(key).map_err(|error| error.to_string())
         }
@@ -50,8 +57,17 @@ mod wasm_host {
             storage::set_if_absent_raw(key, value).map_err(|error| error.to_string())
         }
 
-        fn post_concurrent(&mut self, requests: &[PostRequest]) -> Vec<Timed> {
-            concurrent::post_all(requests)
+        fn post_start(&mut self, requests: Vec<PostRequest>) {
+            self.batch = None;
+            self.batch = Some(concurrent::Batch::start(requests));
+        }
+
+        fn post_wait(&mut self) -> Vec<Timed> {
+            self.batch.take().map(concurrent::Batch::wait).unwrap_or_default()
+        }
+
+        fn post_cancel(&mut self) {
+            self.batch = None;
         }
 
         fn random32(&mut self) -> Result<[u8; 32], String> {
@@ -78,6 +94,11 @@ mod wasm_host {
     /// and response pollable together. A response body is read as soon as its
     /// future is ready; its time is from the batch start to the end of that
     /// body.
+    ///
+    /// [`Batch::start`] returns when every body is sent (or a request has
+    /// failed or answered). The host then carries the requests while the
+    /// worker makes its blocking storage calls. [`Batch::wait`] polls the
+    /// responses. A dropped batch drops its futures and streams.
     mod concurrent {
         use seams_voice_verifier::host::{PostRequest, Timed};
         use std::time::{Duration, Instant};
@@ -85,8 +106,8 @@ mod wasm_host {
         use wasi::http::types::{Fields, IncomingResponse, Method, OutgoingBody, OutgoingRequest, RequestOptions, Scheme};
         use wasi::io::streams::{OutputStream, StreamError};
 
-        struct Flight<'a> {
-            request: &'a PostRequest,
+        struct Flight {
+            request: PostRequest,
             future: Option<FutureIncomingResponse>,
             // Drop order: the stream (a child of the body) before the body.
             stream: Option<OutputStream>,
@@ -145,7 +166,7 @@ mod wasm_host {
             Ok((status, out))
         }
 
-        impl Flight<'_> {
+        impl Flight {
             fn fail(&mut self, error: String, started: Instant) {
                 self.stream = None;
                 self.body = None;
@@ -207,52 +228,81 @@ mod wasm_host {
             }
         }
 
-        pub fn post_all(requests: &[PostRequest]) -> Vec<Timed> {
-            let started = Instant::now();
-            let mut flights: Vec<Flight> = requests
-                .iter()
-                .map(|request| {
-                    let mut flight = Flight { request, future: None, stream: None, body: None, sent: 0, done: None, ms: 0 };
-                    match start(request) {
-                        Ok((future, body, stream)) => {
-                            flight.future = Some(future);
-                            flight.body = Some(body);
-                            flight.stream = Some(stream);
+        /// Requests in flight, from one start time.
+        pub struct Batch {
+            started: Instant,
+            flights: Vec<Flight>,
+        }
+
+        impl Batch {
+            /// Starts every request and sends every body.
+            pub fn start(requests: Vec<PostRequest>) -> Self {
+                let started = Instant::now();
+                let flights = requests
+                    .into_iter()
+                    .map(|request| {
+                        let mut flight =
+                            Flight { request, future: None, stream: None, body: None, sent: 0, done: None, ms: 0 };
+                        match start(&flight.request) {
+                            Ok((future, body, stream)) => {
+                                flight.future = Some(future);
+                                flight.body = Some(body);
+                                flight.stream = Some(stream);
+                            }
+                            Err(error) => flight.fail(error, started),
                         }
-                        Err(error) => flight.fail(error, started),
-                    }
-                    flight
-                })
-                .collect();
-            loop {
-                let mut full = vec![false; flights.len()];
-                for (index, flight) in flights.iter_mut().enumerate() {
-                    if flight.done.is_none() {
-                        full[index] = flight.push(started);
-                        flight.collect(started);
-                    }
-                }
-                if flights.iter().all(|flight| flight.done.is_some()) {
-                    break;
-                }
-                // Wait for any stream with room or any response.
-                let pollables: Vec<_> = flights
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, flight)| flight.done.is_none())
-                    .flat_map(|(index, flight)| {
-                        let stream = flight.stream.as_ref().filter(|_| full[index]).map(OutputStream::subscribe);
-                        let future = flight.future.as_ref().map(FutureIncomingResponse::subscribe);
-                        stream.into_iter().chain(future)
+                        flight
                     })
                     .collect();
-                let refs: Vec<_> = pollables.iter().collect();
-                wasi::io::poll::poll(&refs);
+                let mut batch = Self { started, flights };
+                batch.drive(true);
+                batch
             }
-            flights
-                .into_iter()
-                .map(|flight| Timed { result: flight.done.expect("every flight is done"), ms: flight.ms })
-                .collect()
+
+            /// Waits for every response.
+            pub fn wait(mut self) -> Vec<Timed> {
+                self.drive(false);
+                self.flights
+                    .into_iter()
+                    .map(|flight| Timed { result: flight.done.expect("every flight is done"), ms: flight.ms })
+                    .collect()
+            }
+
+            /// Pushes bodies and takes responses until every body is sent
+            /// (`until_sent`) or every response is in.
+            fn drive(&mut self, until_sent: bool) {
+                let started = self.started;
+                loop {
+                    let mut full = vec![false; self.flights.len()];
+                    for (index, flight) in self.flights.iter_mut().enumerate() {
+                        if flight.done.is_none() {
+                            full[index] = flight.push(started);
+                            flight.collect(started);
+                        }
+                    }
+                    let open = |flight: &Flight| flight.done.is_none();
+                    if !self.flights.iter().any(open) {
+                        return;
+                    }
+                    if until_sent && !self.flights.iter().any(|flight| open(flight) && flight.stream.is_some()) {
+                        return;
+                    }
+                    // Wait for any stream with room or any response.
+                    let pollables: Vec<_> = self
+                        .flights
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, flight)| open(flight))
+                        .flat_map(|(index, flight)| {
+                            let stream = flight.stream.as_ref().filter(|_| full[index]).map(OutputStream::subscribe);
+                            let future = flight.future.as_ref().map(FutureIncomingResponse::subscribe);
+                            stream.into_iter().chain(future)
+                        })
+                        .collect();
+                    let refs: Vec<_> = pollables.iter().collect();
+                    wasi::io::poll::poll(&refs);
+                }
+            }
         }
     }
 }

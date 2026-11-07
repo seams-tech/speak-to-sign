@@ -1,9 +1,15 @@
 //! The operations `enroll` and `verify` (HTTPS path, plan Section 7.5).
 //!
 //! `verify` sends the canonical WAV to the speaker service and to NEAR AI at
-//! the same time, checks the speaker against the stored template and the
-//! words against `render(request)`, marks the audio used and signs the
-//! verdict with the manifest signing key.
+//! the same time, reads the template and the used-audio marker while those
+//! requests are in flight, checks the speaker against the template and the
+//! words against `render(request)`, marks the audio used (only after a
+//! decision) and signs the verdict with the manifest signing key.
+//!
+//! `enroll` needs the owner's authorization: the vault's pending enrollment
+//! digest (read over NEAR RPC) must equal the digest of the received audio
+//! (see [`crate::enrollment`]). A new authorization lets the owner enroll
+//! again; the template is replaced and its epoch grows by 1.
 use std::time::Instant;
 
 use serde_json::{json, Map, Value};
@@ -17,6 +23,7 @@ use crate::config::{
     NEAR_AI_API_KEY_ENV, SPEAKER_PINNED_KEY_HEX, TEMPLATE_EPOCH, VERIFIER_VERSION,
 };
 use crate::digest::{b64, b64u, from_b64, from_hex, near_ed25519_key, sha256};
+use crate::enrollment::{enrollment_digest, parse_pending, pending_request};
 use crate::host::{Host, Timed};
 use crate::input::{parse_yocto, EnrollInput, VerifyInput};
 use crate::output::{
@@ -197,27 +204,63 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
         }
     }
 
-    let key = template_key(vault.as_str(), owner.as_str());
-    match host.storage_get(&key) {
-        Ok(None) => {}
-        Ok(Some(_)) => return Err(Reason::TemplateExists),
-        Err(_) => return Err(Reason::Storage),
-    }
-    for digest in &output.audio_digests {
-        check_unused(host, digest)?;
-    }
+    let digests: Vec<[u8; 32]> = clips.iter().map(|clip| clip.digest).collect();
+    let authorization = b64u(&enrollment_digest(vault.as_str(), owner.as_str(), &digests));
+    output.enrollment_digest = Some(authorization.clone());
 
+    // The vault's pending authorization (NEAR RPC) and the three embeddings
+    // (speaker service), in one batch.
     let mut nonces = Vec::with_capacity(ENROLL_RECORDINGS);
     for _ in 0..ENROLL_RECORDINGS {
         nonces.push(host.random32().map_err(|_| Reason::SpeakerUnavailable)?);
     }
-    let requests: Vec<_> = clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)).collect();
-    let started = Instant::now();
-    let results = host.post_concurrent(&requests);
-    output.ms.insert("speaker".into(), elapsed(started));
+    let mut requests = vec![pending_request(vault.as_str(), owner.as_str())];
+    requests.extend(clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)));
+    let flight = Instant::now();
+    host.post_start(requests);
+    output.ms.insert("send".into(), elapsed(flight));
+
+    // Storage while the requests are in flight: the current template (for
+    // its epoch and the compare-and-swap) and the used-audio markers.
+    let key = template_key(vault.as_str(), owner.as_str());
+    let stored = Instant::now();
+    let previous = match enroll_storage(host, &key, &output.audio_digests) {
+        Ok(previous) => previous,
+        Err(reason) => {
+            host.post_cancel();
+            return Err(reason);
+        }
+    };
+    output.ms.insert("storage".into(), elapsed(stored));
+    let waited = Instant::now();
+    let results = host.post_wait();
+    output.ms.insert("wait".into(), elapsed(waited));
+    output.ms.insert("parallel".into(), elapsed(flight));
+    if let Some(timed) = results.first() {
+        output.ms.insert("rpc".into(), json!(timed.ms));
+    }
+    if let Some(slowest) = results.iter().skip(1).map(|timed| timed.ms).max() {
+        output.ms.insert("speaker".into(), json!(slowest));
+    }
+
+    // The owner's authorization, before the embeddings are used.
+    let pending = match results.first().map(|timed| &timed.result) {
+        Some(Ok((status, body))) => parse_pending(*status, body),
+        Some(Err(error)) => Err(format!("network: {error}")),
+        None => Err("no_result".into()),
+    }
+    .map_err(|error| {
+        output.detail = Some(short(&format!("rpc: {error}")));
+        Reason::AuthorizationUnavailable
+    })?;
+    if pending.as_deref() != Some(authorization.as_str()) {
+        output.detail = Some(if pending.is_some() { "authorization: other_audio" } else { "authorization: none" }.into());
+        return Err(Reason::NotAuthorized);
+    }
+
     let mut embeddings = Vec::with_capacity(ENROLL_RECORDINGS);
     for (index, (clip, nonce)) in clips.iter().zip(&nonces).enumerate() {
-        embeddings.push(speaker_reply(results.get(index), clip, nonce, pins, &mut output.detail)?.embedding);
+        embeddings.push(speaker_reply(results.get(index + 1), clip, nonce, pins, &mut output.detail)?.embedding);
     }
     let template = match speaker::enroll(&embeddings) {
         speaker::Enrollment::Agreed { template, agreement_milli } => {
@@ -229,15 +272,38 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
             return Err(Reason::Speaker);
         }
     };
+    let marked = Instant::now();
     for digest in &output.audio_digests {
         consume(host, digest)?;
     }
-    let record = TemplateRecord { epoch: TEMPLATE_EPOCH, model_sha256: model_sha256(), template };
-    match host.storage_set_if_absent(&key, &record.encode()) {
-        Ok(true) => Ok(()),
+    // A re-enrollment replaces the template and adds 1 to its epoch.
+    let epoch = previous
+        .as_deref()
+        .and_then(TemplateRecord::decode)
+        .map_or(TEMPLATE_EPOCH, |record| record.epoch.saturating_add(1));
+    let record = TemplateRecord { epoch, model_sha256: model_sha256(), template };
+    let written = match &previous {
+        None => host.storage_set_if_absent(&key, &record.encode()),
+        Some(bytes) => host.storage_set_if_equals(&key, bytes, &record.encode()),
+    };
+    output.ms.insert("write".into(), elapsed(marked));
+    match written {
+        Ok(true) => {
+            output.template_epoch = Some(epoch);
+            Ok(())
+        }
         Ok(false) => Err(Reason::TemplateExists),
         Err(_) => Err(Reason::Storage),
     }
+}
+
+/// The stored template bytes (if any), after a check that no clip was used.
+fn enroll_storage(host: &mut dyn Host, key: &str, digests: &[String]) -> Result<Option<Vec<u8>>, Reason> {
+    let previous = host.storage_get(key).map_err(|_| Reason::Storage)?;
+    for digest in digests {
+        check_unused(host, digest)?;
+    }
+    Ok(previous)
 }
 
 // ------------------------------------------------------------------ verify
@@ -298,30 +364,33 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
     }
     run.ms.insert("decode".into(), elapsed(started));
 
-    // 3. The template and the used-audio marker.
-    let stored = Instant::now();
-    let record = match host.storage_get(&template_key(&input.vault, &input.owner)) {
-        Ok(Some(bytes)) => TemplateRecord::decode(&bytes).ok_or(Reason::TemplateMissing)?,
-        Ok(None) => return Err(Reason::TemplateMissing),
-        Err(_) => return Err(Reason::Storage),
-    };
-    if record.model_sha256 != model_sha256() {
-        return Err(Reason::TemplateMissing);
-    }
-    check_unused(host, &digest_b64u)?;
-    run.ms.insert("storage".into(), elapsed(stored));
-
-    // 4. The speaker service and NEAR AI, at the same time.
+    // 3. The speaker service and NEAR AI, at the same time. The bodies go
+    //    out now; the responses are read after the storage calls.
     let Some(api_key) = host.secret(NEAR_AI_API_KEY_ENV).map(|key| key.trim().to_string()).filter(|key| !key.is_empty())
     else {
         run.detail = Some("transcriber: no_api_key".into());
         return Err(Reason::TranscriberUnavailable);
     };
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
-    let requests = [service_request(&clip.wav, &nonce), transcription_request(&api_key, &clip.wav)];
-    let parallel = Instant::now();
-    let results = host.post_concurrent(&requests);
-    run.ms.insert("parallel".into(), elapsed(parallel));
+    let flight = Instant::now();
+    host.post_start(vec![service_request(&clip.wav, &nonce), transcription_request(&api_key, &clip.wav)]);
+    run.ms.insert("send".into(), elapsed(flight));
+
+    // 4. The template and the used-audio check, while the requests are in
+    //    flight. A refusal here drops them.
+    let stored = Instant::now();
+    let record = match verify_storage(host, &input.vault, &input.owner, &digest_b64u) {
+        Ok(record) => record,
+        Err(reason) => {
+            host.post_cancel();
+            return Err(reason);
+        }
+    };
+    run.ms.insert("storage".into(), elapsed(stored));
+    let waited = Instant::now();
+    let results = host.post_wait();
+    run.ms.insert("wait".into(), elapsed(waited));
+    run.ms.insert("parallel".into(), elapsed(flight));
     if let Some(timed) = results.first() {
         run.ms.insert("speaker".into(), json!(timed.ms));
     }
@@ -351,7 +420,10 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
         run.detail = Some(short(&format!("transcriber: {error}")));
         Reason::TranscriberUnavailable
     })?;
-    consume(host, &digest_b64u)?;
+    let marked = Instant::now();
+    let consumed = consume(host, &digest_b64u);
+    run.ms.insert("mark".into(), elapsed(marked));
+    consumed?;
 
     // 7. Words: the heard tokens must equal the rendered tokens.
     let confusions = confusion_set(&request, &contacts);
@@ -362,6 +434,21 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
         return Err(Reason::Words);
     }
     Ok(())
+}
+
+/// The template of (vault, owner) for the pinned model, after a check that
+/// the audio was not used.
+fn verify_storage(host: &mut dyn Host, vault: &str, owner: &str, digest_b64u: &str) -> Result<TemplateRecord, Reason> {
+    let record = match host.storage_get(&template_key(vault, owner)) {
+        Ok(Some(bytes)) => TemplateRecord::decode(&bytes).ok_or(Reason::TemplateMissing)?,
+        Ok(None) => return Err(Reason::TemplateMissing),
+        Err(_) => return Err(Reason::Storage),
+    };
+    if record.model_sha256 != model_sha256() {
+        return Err(Reason::TemplateMissing);
+    }
+    check_unused(host, digest_b64u)?;
+    Ok(record)
 }
 
 /// Fits the output below [`MAX_OUTPUT_BYTES`] (by a shorter `heard`, which

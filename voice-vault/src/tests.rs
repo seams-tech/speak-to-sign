@@ -305,6 +305,80 @@ fn init_checks() {
     assert!(VoiceVault::new(key, args["contact_delay_seconds"].as_u64()).is_ok());
 }
 
+const ENROLLMENT_VECTOR: &str = include_str!("../../voice-verifier/testdata/enrollment_digest_v1.json");
+
+fn digest32(text: &str) -> [u8; 32] {
+    URL_SAFE_NO_PAD.decode(text).unwrap().try_into().unwrap()
+}
+
+#[test]
+fn enrollment_digest_shared_vector() {
+    let file: Value = serde_json::from_str(ENROLLMENT_VECTOR).unwrap();
+    assert_eq!(file["domain"].as_str().unwrap().as_bytes(), enrollment::ENROLLMENT_DOMAIN);
+    let digests: Vec<[u8; 32]> =
+        file["audio_digests"].as_array().unwrap().iter().map(|d| digest32(d.as_str().unwrap())).collect();
+    let digest = enrollment::enrollment_digest(&id(file["vault"].as_str().unwrap()), &id(file["owner"].as_str().unwrap()), &digests);
+    assert_eq!(URL_SAFE_NO_PAD.encode(digest), file["enrollment_digest"].as_str().unwrap());
+    // The vault stores and returns it as given.
+    let mut contract = setup();
+    call(&owner(), NearToken::from_yoctonear(0), T0);
+    let expires = contract.authorize_enrollment(file["enrollment_digest"].as_str().unwrap().to_string()).unwrap();
+    assert_eq!(expires, U64(T0 + enrollment::ENROLLMENT_TTL_NS));
+    assert_eq!(
+        contract.get_pending_enrollment(owner()),
+        Some(PendingEnrollmentView {
+            enrollment_digest: file["enrollment_digest"].as_str().unwrap().to_string(),
+            expires_at_ns: expires
+        })
+    );
+}
+
+#[test]
+fn enrollment_authorization_expires() {
+    let mut contract = setup();
+    call(&owner(), NearToken::from_yoctonear(0), T0);
+    let expires = contract.authorize_enrollment(URL_SAFE_NO_PAD.encode([1u8; 32])).unwrap().0;
+    assert_eq!(expires - T0, 600 * 1_000_000_000);
+    call(&owner(), NearToken::from_yoctonear(0), expires - 1);
+    assert!(contract.get_pending_enrollment(owner()).is_some());
+    call(&owner(), NearToken::from_yoctonear(0), expires);
+    assert_eq!(contract.get_pending_enrollment(owner()), None);
+    // Another owner never had one.
+    assert_eq!(contract.get_pending_enrollment(alice()), None);
+}
+
+#[test]
+fn enrollment_authorization_is_replaced() {
+    let mut contract = setup();
+    call(&owner(), NearToken::from_yoctonear(0), T0);
+    contract.authorize_enrollment(URL_SAFE_NO_PAD.encode([1u8; 32])).unwrap();
+    // Later, a new authorization: new digest and new expiry.
+    let later = T0 + 300 * 1_000_000_000;
+    call(&owner(), NearToken::from_yoctonear(0), later);
+    let expires = contract.authorize_enrollment(URL_SAFE_NO_PAD.encode([2u8; 32])).unwrap();
+    assert_eq!(expires, U64(later + enrollment::ENROLLMENT_TTL_NS));
+    let pending = contract.get_pending_enrollment(owner()).unwrap();
+    assert_eq!(pending.enrollment_digest, URL_SAFE_NO_PAD.encode([2u8; 32]));
+    // The first expiry has passed for the old digest, not for the new one.
+    call(&owner(), NearToken::from_yoctonear(0), T0 + enrollment::ENROLLMENT_TTL_NS);
+    assert_eq!(contract.get_pending_enrollment(owner()).unwrap().enrollment_digest, URL_SAFE_NO_PAD.encode([2u8; 32]));
+}
+
+#[test]
+fn enrollment_authorization_refusals() {
+    let mut contract = setup();
+    // Only an owner with a vault.
+    call(&alice(), NearToken::from_yoctonear(0), T0);
+    assert_eq!(contract.authorize_enrollment(URL_SAFE_NO_PAD.encode([1u8; 32])), Err(VaultError::NoVault));
+    assert_eq!(contract.get_pending_enrollment(alice()), None);
+    // Not 32 bytes, not canonical, not base64url.
+    call(&owner(), NearToken::from_yoctonear(0), T0);
+    for bad in [URL_SAFE_NO_PAD.encode([1u8; 31]), STANDARD.encode([1u8; 32]), "!!".to_string()] {
+        assert_eq!(contract.authorize_enrollment(bad.clone()), Err(VaultError::BadEnrollmentDigest), "{bad}");
+    }
+    assert_eq!(contract.get_pending_enrollment(owner()), None);
+}
+
 #[test]
 fn withdrawal_waits_and_pays_the_owner() {
     let mut contract = setup();

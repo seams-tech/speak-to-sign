@@ -51,6 +51,25 @@ pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
 
+/// The NEAR RPC endpoint that `enroll` reads the vault's pending
+/// enrollment from (a view call, finality `final`). The verifier trusts this
+/// endpoint for that read (see README.md).
+macro_rules! near_rpc_host {
+    () => {
+        "test.rpc.fastnear.com"
+    };
+}
+pub const NEAR_RPC_HOST: &str = near_rpc_host!();
+pub const NEAR_RPC_URL: &str = concat!("https://", near_rpc_host!(), "/");
+pub const NEAR_RPC_TIMEOUT_SECS: u64 = 10;
+pub const NEAR_RPC_MAX_RESPONSE_BYTES: usize = 8_192;
+/// The vault view that returns the pending enrollment of an owner.
+pub const PENDING_ENROLLMENT_VIEW: &str = "get_pending_enrollment";
+
+/// The prefix of the enrollment digest preimage:
+/// `SHA-256(ENROLLMENT_DOMAIN || vault || 0x00 || owner || 0x00 || d1 || d2 || d3)`.
+pub const ENROLLMENT_DOMAIN: &[u8] = b"seams:voice-enrollment:v1";
+
 /// The speaker cutoff in thousandths of cosine. The Wallet uses 0.45
 /// (`VOICE_MATCH_THRESHOLD`).
 pub const SPEAKER_CUTOFF_MILLI: i32 = 450;
@@ -82,7 +101,8 @@ pub const MAX_CONTACTS: usize = 32;
 /// `enroll` takes exactly this many recordings (plan Section 4.4).
 pub const ENROLL_RECORDINGS: usize = 3;
 
-/// The template epoch that a template records. The vault does not check it.
+/// The epoch of a first template. Each re-enrollment adds 1. The vault does
+/// not check it.
 pub const TEMPLATE_EPOCH: u32 = 1;
 
 /// The `heard` field is cut to this many bytes, or fewer if the output
@@ -119,9 +139,11 @@ mod tests {
         assert!(manifest.get("storage_account").is_none());
         let network = manifest["capabilities"]["network"].as_array().unwrap();
         let hosts: Vec<&str> = network.iter().map(|entry| entry["host"].as_str().unwrap()).collect();
-        assert_eq!(hosts, [SPEAKER_HOST, NEAR_AI_HOST]);
+        assert_eq!(hosts, [SPEAKER_HOST, NEAR_AI_HOST, NEAR_RPC_HOST]);
         assert_eq!(network[0]["timeout_secs"], SPEAKER_TIMEOUT_SECS);
         assert_eq!(network[1]["timeout_secs"], NEAR_AI_TIMEOUT_SECS);
+        assert_eq!(network[2]["timeout_secs"], NEAR_RPC_TIMEOUT_SECS);
+        assert!(NEAR_RPC_URL.starts_with(&format!("https://{NEAR_RPC_HOST}/")));
         assert_eq!(
             manifest["signing_keys"],
             json!([{ "path": SIGNING_KEY_PATH, "type": "ed25519", "bind": "project" }])

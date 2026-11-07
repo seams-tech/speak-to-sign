@@ -2,15 +2,19 @@
 """Speak-to-Sign demo client: it stands in for the Wallet on the HTTPS path
 (plan Section 7.5).
 
-  enroll  Makes three WAVs of a macOS `say` voice and calls the verifier
-          operation `enroll` over OutLayer's HTTPS API. Prints the result and
-          the verifier key to pin in the vault.
+  enroll  Makes three WAVs of a macOS `say` voice, computes their enrollment
+          digest, and signs and sends the owner's `authorize_enrollment` on
+          the vault over RPC (send_tx, FINAL: the verifier reads it with
+          finality final). Then it calls the verifier operation `enroll` over
+          OutLayer's HTTPS API. Prints the result and the verifier key to pin
+          in the vault.
   pay     Reads the vault state over RPC, makes a WAV that says
           "send <amount> near to <contact>", calls `verify`, checks the signed
           verdict locally, then signs and sends ONE vault transaction
-          `transfer_with_verdict` over RPC (send_tx, EXECUTED_OPTIMISTIC).
-          Prints the stage times and the time from the end of speech to the
-          executed receipt.
+          `transfer_with_verdict` over RPC (send_tx, NONE) and polls
+          EXPERIMENTAL_tx_status. Prints two times: "vault accepted" (the
+          function call receipt succeeded; the vault state is final) and
+          "settled" (the transfer and its callback ran too).
 
 The OutLayer payment key comes from an env file (OUTLAYER_PAYMENT_KEY=...).
 It is never printed. The NEAR key comes from a near-cli legacy key file; its
@@ -22,6 +26,7 @@ import argparse
 import base64
 import decimal
 import hashlib
+import io
 import json
 import os
 import re
@@ -40,9 +45,13 @@ RPC_URL = "https://test.rpc.fastnear.com"
 SECRETS_REF = {"profile": "main", "account_id": "cyan-loong.testnet"}
 PAYMENT_KEY_NAME = "OUTLAYER_PAYMENT_KEY"
 VERDICT_DOMAIN = b"seams:outlayer:voice-verdict:v1"
+ENROLLMENT_DOMAIN = b"seams:voice-enrollment:v1"
 YOCTO_PER_NEAR = 10 ** 24
 YOCTO_PER_HUNDREDTH = 10 ** 22
 TRANSFER_GAS = 50 * 10 ** 12
+AUTHORIZE_GAS = 10 * 10 ** 12
+POLL_SECONDS = 0.1
+SETTLE_TIMEOUT_SECONDS = 60
 ENROLL_PHRASES = [
     "My voice is my signature for this vault.",
     "I send money only to the contacts I saved.",
@@ -79,6 +88,63 @@ def b58decode(text):
         number = number * 58 + B58.index(char)
     raw = number.to_bytes((number.bit_length() + 7) // 8, "big")
     return b"\0" * (len(text) - len(text.lstrip("1"))) + raw
+
+
+def b58encode(data):
+    number = int.from_bytes(data, "big")
+    digits = ""
+    while number:
+        number, rest = divmod(number, 58)
+        digits = B58[rest] + digits
+    return "1" * (len(data) - len(data.lstrip(b"\0"))) + digits
+
+
+def b64u(data):
+    """Unpadded base64url."""
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def canonical_wav(data):
+    """The verifier's canonical WAV of a 16 kHz mono PCM16 WAV: a 44-byte
+    header, then the samples. Its SHA-256 is the audio digest."""
+    with wave.open(io.BytesIO(data), "rb") as handle:
+        shape = (handle.getnchannels(), handle.getsampwidth(), handle.getframerate(), handle.getcomptype())
+        if shape != (1, 2, 16000, "NONE"):
+            raise ValueError(f"not a 16 kHz mono PCM16 WAV: {shape}")
+        pcm = handle.readframes(handle.getnframes())
+    header = (b"RIFF" + struct.pack("<I", 36 + len(pcm)) + b"WAVEfmt "
+              + struct.pack("<IHHIIHH", 16, 1, 1, 16000, 32000, 2, 16) + b"data" + struct.pack("<I", len(pcm)))
+    return header + pcm
+
+
+def enrollment_digest(vault, owner, audio_digests):
+    """base64url SHA-256(domain || vault || 0 || owner || 0 || d1 || d2 || d3);
+    each audio digest is 32 raw bytes."""
+    preimage = ENROLLMENT_DOMAIN + vault.encode() + b"\0" + owner.encode() + b"\0" + b"".join(audio_digests)
+    return b64u(hashlib.sha256(preimage).digest())
+
+
+def tx_progress(result):
+    """What an EXPERIMENTAL_tx_status reply shows so far.
+
+    accepted: True or False once the first receipt (the function call on the
+    vault) has an outcome, else None. settled: the whole transaction has a
+    final status (every receipt ran)."""
+    first_ids = find_key(result.get("transaction_outcome", {}), "receipt_ids") or []
+    outcomes = {item.get("id"): item.get("outcome", {}) for item in result.get("receipts_outcome", [])}
+    accepted = None
+    if first_ids and first_ids[0] in outcomes:
+        status = outcomes[first_ids[0]].get("status", {})
+        if isinstance(status, dict) and ("SuccessValue" in status or "SuccessReceiptId" in status):
+            accepted = True
+        elif isinstance(status, dict) and "Failure" in status:
+            accepted = False
+    status = result.get("status")
+    settled = isinstance(status, dict) and ("SuccessValue" in status or "Failure" in status)
+    failures = [outcome["status"] for outcome in outcomes.values()
+                if isinstance(outcome.get("status"), dict) and "Failure" in outcome["status"]]
+    logs = [log for outcome in outcomes.values() for log in outcome.get("logs", [])]
+    return {"accepted": accepted, "settled": settled, "failures": failures, "logs": logs}
 
 
 def near_to_yocto(text):
@@ -183,8 +249,8 @@ def rpc(method, params, timeout=60):
     return reply["result"]
 
 
-def view(contract, method, args):
-    result = rpc("query", {"request_type": "call_function", "finality": "optimistic", "account_id": contract,
+def view(contract, method, args, finality="optimistic"):
+    result = rpc("query", {"request_type": "call_function", "finality": finality, "account_id": contract,
                            "method_name": method,
                            "args_base64": base64.b64encode(json.dumps(args).encode()).decode()})
     return json.loads(bytes(result["result"]))
@@ -236,21 +302,109 @@ def payment_key_from(path):
     return key
 
 
+def load_owner_key(path, owner):
+    """(nacl SigningKey, 32-byte public key, 'ed25519:...' text) from a
+    near-cli legacy key file. The private key is never printed."""
+    import nacl.signing  # PyNaCl
+
+    with open(os.path.expanduser(path), encoding="utf-8") as handle:
+        key_file = json.load(handle)
+    signer_id = key_file.get("account_id") or owner
+    if signer_id != owner:
+        sys.exit(f"error: the key file is for {signer_id}, not the owner {owner}")
+    signer = nacl.signing.SigningKey(b58decode(key_file["private_key"].split(":", 1)[1])[:32])
+    public_key = bytes(signer.verify_key)
+    if b58decode(key_file["public_key"].split(":", 1)[1]) != public_key:
+        sys.exit("error: the key file's public key does not match its private key")
+    return signer, public_key, key_file["public_key"]
+
+
+def tx_inputs(owner, public_key_text):
+    """(next access key nonce, recent final block hash)."""
+    access = rpc("query", {"request_type": "view_access_key", "finality": "optimistic",
+                           "account_id": owner, "public_key": public_key_text})
+    block_hash = b58decode(rpc("block", {"finality": "final"})["header"]["hash"])
+    return access["nonce"] + 1, block_hash
+
+
+def authorize(args, key, digest):
+    """Signs and sends the owner's authorize_enrollment(digest); waits for
+    FINAL, because the verifier reads the vault with finality final."""
+    signer, public_key, public_key_text = key
+    nonce, block_hash = tx_inputs(args.owner, public_key_text)
+    call_args = json.dumps({"enrollment_digest": digest}).encode()
+    tx = function_call_tx(args.owner, public_key, nonce, args.vault, block_hash, "authorize_enrollment", call_args,
+                          AUTHORIZE_GAS, 0)
+    started = time.monotonic()
+    result = rpc("send_tx", {"signed_tx_base64": signed_tx_base64(tx, signer), "wait_until": "FINAL"})
+    final_ms = round((time.monotonic() - started) * 1000)
+    tx_hash = result["transaction"]["hash"]
+    print(f"authorize  {tx_hash}  final in {final_ms} ms  https://testnet.nearblocks.io/txns/{tx_hash}")
+    status = result.get("status", {})
+    if "SuccessValue" not in status:
+        sys.exit(f"error: authorize_enrollment failed: {json.dumps(status)[:300]}")
+    pending = view(args.vault, "get_pending_enrollment", {"owner_id": args.owner}, finality="final")
+    if not pending or pending.get("enrollment_digest") != digest:
+        sys.exit(f"error: the vault's final pending enrollment is {pending}, not {digest}")
+    print(f"authorize  pending until {pending['expires_at_ns']} ns")
+
+
 def cmd_enroll(args):
     payment_key = payment_key_from(args.env_file)
+    key = load_owner_key(args.key_file, args.owner)
     with tempfile.TemporaryDirectory() as folder:
         clips = [make_wav(phrase, args.voice, folder) for phrase in ENROLL_PHRASES]
+    wavs = [canonical_wav(wav) for wav, _ in clips]
     for phrase, (_, seconds) in zip(ENROLL_PHRASES, clips):
         print(f"clip  {seconds:4.2f} s  {phrase}")
+    digest = enrollment_digest(args.vault, args.owner, [hashlib.sha256(wav).digest() for wav in wavs])
+    print(f"enrollment digest {digest}")
+
+    # The owner authorizes exactly these three recordings, then enrolls.
+    authorize(args, key, digest)
     payload = {"op": "enroll", "vault": args.vault, "owner": args.owner,
-               "audio_wav_b64": [base64.b64encode(wav).decode() for wav, _ in clips]}
+               "audio_wav_b64": [base64.b64encode(wav).decode() for wav in wavs]}
     output, wall_ms, time_ms = call_outlayer(args, payment_key, payload)
     print(json.dumps(output, indent=2))
     print(f"enroll: HTTPS wall {wall_ms} ms, OutLayer time_ms {time_ms}")
+    if output.get("enrollment_digest") not in (None, digest):
+        print(f"warning: the verifier computed {output['enrollment_digest']}, not {digest}")
     if output.get("verifier_public_key"):
         print("vault init args: " + json.dumps({"verifier_public_key": output["verifier_public_key"],
                                                 "contact_delay_seconds": 0}))
     return 0 if output.get("outcome") == "accept" else 1
+
+
+def send_and_follow(signed_tx, tx_hash, sender):
+    """Sends with wait_until NONE, then polls EXPERIMENTAL_tx_status.
+    Returns (accepted ms or None, settled ms or None, last progress, last
+    result). The times are from the send."""
+    sent = time.monotonic()
+    rpc("send_tx", {"signed_tx_base64": signed_tx, "wait_until": "NONE"})
+    accepted_ms = settled_ms = None
+    progress, result = {"accepted": None, "settled": False, "failures": [], "logs": []}, {}
+    while time.monotonic() - sent < SETTLE_TIMEOUT_SECONDS:
+        try:
+            result = rpc("EXPERIMENTAL_tx_status", {"tx_hash": tx_hash, "sender_account_id": sender,
+                                                    "wait_until": "NONE"}, timeout=15)
+        except RuntimeError as error:
+            # Not seen yet by this RPC node.
+            if "UNKNOWN_TRANSACTION" in str(error) or "TIMEOUT_ERROR" in str(error):
+                time.sleep(POLL_SECONDS)
+                continue
+            raise
+        progress = tx_progress(result)
+        now_ms = round((time.monotonic() - sent) * 1000)
+        if progress["accepted"] is not None and accepted_ms is None:
+            accepted_ms = now_ms
+            print(f"vault   {'accepted' if progress['accepted'] else 'refused'} {accepted_ms} ms after send")
+            if not progress["accepted"]:
+                break
+        if progress["settled"]:
+            settled_ms = now_ms
+            break
+        time.sleep(POLL_SECONDS)
+    return accepted_ms, settled_ms, progress, result
 
 
 def cmd_pay(args):
@@ -258,16 +412,7 @@ def cmd_pay(args):
 
     payment_key = payment_key_from(args.env_file)
     amount_yocto = near_to_yocto(args.amount)
-    with open(os.path.expanduser(args.key_file), encoding="utf-8") as handle:
-        key_file = json.load(handle)
-    signer_id = key_file.get("account_id") or args.owner
-    if signer_id != args.owner:
-        sys.exit(f"error: the key file is for {signer_id}, not the owner {args.owner}")
-    secret = b58decode(key_file["private_key"].split(":", 1)[1])
-    signer = nacl.signing.SigningKey(secret[:32])
-    public_key = bytes(signer.verify_key)
-    if b58decode(key_file["public_key"].split(":", 1)[1]) != public_key:
-        sys.exit("error: the key file's public key does not match its private key")
+    signer, public_key, public_key_text = load_owner_key(args.key_file, args.owner)
 
     # Before speech, as a Wallet would: vault state, pinned key, tx inputs.
     vault = view(args.vault, "get_vault", {"owner_id": args.owner})
@@ -280,9 +425,7 @@ def cmd_pay(args):
         sys.exit(f"error: {args.contact} is not an active contact (contacts: {active})")
     pinned = view(args.vault, "get_verifier", {})["verifier_public_key"]
     nonce = int(vault["next_nonce"])
-    access = rpc("query", {"request_type": "view_access_key", "finality": "optimistic",
-                           "account_id": args.owner, "public_key": key_file["public_key"]})
-    block_hash = b58decode(rpc("block", {"finality": "final"})["header"]["hash"])
+    access_nonce, block_hash = tx_inputs(args.owner, public_key_text)
 
     # --say speaks other words than the request, to show a refusal.
     phrase = args.say or pay_phrase(args.amount, args.contact)
@@ -315,27 +458,26 @@ def cmd_pay(args):
 
     call_args = json.dumps({"receiver_id": args.contact, "amount": str(amount_yocto), "nonce": str(nonce),
                             "verdict_json": verdict_text, "signature_b64": output["signature_b64"]}).encode()
-    tx = function_call_tx(args.owner, public_key, access["nonce"] + 1, args.vault, block_hash,
+    tx = function_call_tx(args.owner, public_key, access_nonce, args.vault, block_hash,
                           "transfer_with_verdict", call_args, TRANSFER_GAS, 0)
-    sent = time.monotonic()
-    result = rpc("send_tx", {"signed_tx_base64": signed_tx_base64(tx, signer), "wait_until": "EXECUTED_OPTIMISTIC"})
-    receipt_ms = round((time.monotonic() - sent) * 1000)
-    total_ms = round((time.monotonic() - t0) * 1000)
-
-    tx_hash = result["transaction"]["hash"]
-    status = result.get("status", {})
-    failures = [outcome["outcome"]["status"] for outcome in result.get("receipts_outcome", [])
-                if "Failure" in outcome["outcome"]["status"]]
-    logs = [log for outcome in result.get("receipts_outcome", []) for log in outcome["outcome"]["logs"]]
+    tx_hash = b58encode(hashlib.sha256(tx).digest())
     print(f"tx      {tx_hash}  https://testnet.nearblocks.io/txns/{tx_hash}")
-    print(f"status  {json.dumps(status)[:300]}")
-    for log in logs:
+    send_offset_ms = round((time.monotonic() - t0) * 1000)
+    accepted_ms, settled_ms, progress, result = send_and_follow(signed_tx_base64(tx, signer), tx_hash, args.owner)
+
+    print(f"status  {json.dumps(result.get('status', {}))[:300]}")
+    for log in progress["logs"]:
         print(f"log     {log[:300]}")
-    if failures:
-        print(f"failure {json.dumps(failures)[:400]}")
-    print(f"times   verify {verify_ms} ms + local check {check_ms} ms + tx to executed receipt {receipt_ms} ms")
-    print(f"total   end of speech to receipt {total_ms} ms (speech itself {seconds:.2f} s)")
-    return 0 if "SuccessValue" in status and not failures else 1
+    if progress["failures"]:
+        print(f"failure {json.dumps(progress['failures'])[:400]}")
+    shown = lambda ms: "n/a" if ms is None else f"{ms} ms"  # noqa: E731
+    print(f"times   verify {verify_ms} ms + local check {check_ms} ms + tx to vault accepted {shown(accepted_ms)}"
+          f" (to settled {shown(settled_ms)})")
+    to_end = lambda ms: "n/a" if ms is None else f"{send_offset_ms + ms} ms"  # noqa: E731
+    print(f"total   end of speech to vault accepted {to_end(accepted_ms)}, to settled {to_end(settled_ms)}"
+          f" (speech itself {seconds:.2f} s)")
+    status = result.get("status", {})
+    return 0 if progress["accepted"] and "SuccessValue" in status and not progress["failures"] else 1
 
 
 def main(argv=None):
@@ -350,8 +492,8 @@ def main(argv=None):
         command.add_argument("--rate", type=int, default=175, help="say rate in words per minute; a new rate makes a new recording")
         command.add_argument("--version-key", help="verifier version (WASM hash) to run")
         command.add_argument("--url", default=OUTLAYER_URL)
+        command.add_argument("--key-file", required=True, help="near-cli legacy key file of the owner")
         if name == "pay":
-            command.add_argument("--key-file", required=True, help="near-cli legacy key file of the owner")
             command.add_argument("--amount", required=True, help="NEAR, whole hundredths, e.g. 2 or 0.5")
             command.add_argument("--contact", required=True, help="an active vault contact")
             command.add_argument("--say", help="speak this text instead of the request (shows a refusal)")

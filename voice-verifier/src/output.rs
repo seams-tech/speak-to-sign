@@ -44,15 +44,21 @@ pub enum Reason {
     SpeakerUnavailable,
     /// Worker storage failed.
     Storage,
-    /// `enroll` only: this vault and owner already have a template.
+    /// `enroll` only: another enrollment of this vault and owner changed the
+    /// template during this one.
     TemplateExists,
     /// NEAR AI did not answer, answered with an error, or gave no text.
     TranscriberUnavailable,
+    /// `enroll` only: the vault holds no unexpired authorization for this
+    /// owner, or it is for other audio.
+    NotAuthorized,
+    /// `enroll` only: the NEAR RPC view call failed.
+    AuthorizationUnavailable,
 }
 
 impl Reason {
     /// Every reason, in declaration order.
-    pub const ALL: [Reason; 11] = [
+    pub const ALL: [Reason; 13] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -64,6 +70,8 @@ impl Reason {
         Reason::Storage,
         Reason::TemplateExists,
         Reason::TranscriberUnavailable,
+        Reason::NotAuthorized,
+        Reason::AuthorizationUnavailable,
     ];
 }
 
@@ -157,6 +165,12 @@ pub struct Enrollment {
     pub agreement_milli: Option<i32>,
     /// The three canonical WAV digests, in input order.
     pub audio_digests: Vec<String>,
+    /// base64url enrollment digest, which the vault's pending
+    /// authorization must equal.
+    pub enrollment_digest: Option<String>,
+    /// The epoch of the written template: 1, then 1 more on each
+    /// re-enrollment.
+    pub template_epoch: Option<u32>,
     /// `ed25519:<base58>` of the verdict signing key, to pin in the vault.
     pub verifier_public_key: Option<String>,
     pub ms: Map<String, Value>,
@@ -174,6 +188,8 @@ impl Enrollment {
             reason: Some(Reason::Unsupported),
             agreement_milli: None,
             audio_digests: Vec::new(),
+            enrollment_digest: None,
+            template_epoch: None,
             verifier_public_key: None,
             ms: Map::new(),
             detail: None,
@@ -234,7 +250,8 @@ mod tests {
             Value::Array(names),
             json!([
                 "quality", "speaker", "words", "audio_reused", "audio_invalid", "template_missing", "unsupported",
-                "speaker_unavailable", "storage", "template_exists", "transcriber_unavailable"
+                "speaker_unavailable", "storage", "template_exists", "transcriber_unavailable", "not_authorized",
+                "authorization_unavailable"
             ])
         );
     }

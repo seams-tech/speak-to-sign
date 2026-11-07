@@ -17,6 +17,7 @@
 pub mod audio;
 pub mod config;
 pub mod digest;
+pub mod enrollment;
 pub mod host;
 pub mod input;
 pub mod ops;

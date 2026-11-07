@@ -12,9 +12,10 @@ use sha2::{Digest, Sha256};
 use seams_voice_verifier::audio::wav_bytes;
 use seams_voice_verifier::config::{
     audio_used_key, template_key, EMBEDDING_DIM, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV, NEAR_AI_TRANSCRIPTIONS_URL,
-    REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
+    NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
 };
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex};
+use seams_voice_verifier::enrollment::enrollment_digest;
 use seams_voice_verifier::host::{Host, PostRequest, Timed};
 use seams_voice_verifier::output::{verdict_message, Verdict};
 use seams_voice_verifier::speaker::service_message;
@@ -49,7 +50,15 @@ struct Fake {
     transcript: Option<String>,
     speaker_down: bool,
     speaker_tamper: bool,
+    /// The vault view `get_pending_enrollment` of (VAULT, OWNER): the
+    /// pending digest, or `None` (none, or expired).
+    pending: Option<String>,
+    rpc_down: bool,
     posts: Vec<String>,
+    /// Host calls in order: "start", "wait", "cancel", "get", "marker_get",
+    /// "marker_set", "set".
+    events: Vec<&'static str>,
+    batch: Option<Vec<Timed>>,
 }
 
 impl Fake {
@@ -90,6 +99,34 @@ impl Fake {
         });
         Ok((200, reply.to_string().into_bytes()))
     }
+
+    /// A NEAR RPC `query` reply for the vault view.
+    fn rpc_reply(&self, request: &PostRequest) -> Result<(u16, Vec<u8>), String> {
+        if self.rpc_down {
+            return Err("connection refused".into());
+        }
+        let body: Value = serde_json::from_slice(&request.body).unwrap();
+        let params = &body["params"];
+        assert_eq!(params["finality"], "final");
+        assert_eq!(params["method_name"], "get_pending_enrollment");
+        let args: Value =
+            serde_json::from_slice(&STANDARD.decode(params["args_base64"].as_str().unwrap()).unwrap()).unwrap();
+        let view = match &self.pending {
+            Some(digest) if params["account_id"] == VAULT && args["owner_id"] == OWNER => {
+                json!({ "enrollment_digest": digest, "expires_at_ns": "1" })
+            }
+            _ => Value::Null,
+        };
+        let reply = json!({ "jsonrpc": "2.0", "id": body["id"], "result": {
+            "block_hash": "h", "block_height": 1, "logs": [], "result": view.to_string().into_bytes() } });
+        Ok((200, reply.to_string().into_bytes()))
+    }
+
+    /// Authorizes these clips as the vault would store it.
+    fn authorize(&mut self, clips: &[Vec<u8>]) {
+        let digests: Vec<[u8; 32]> = clips.iter().map(|wav| Sha256::digest(wav).into()).collect();
+        self.pending = Some(b64u(&enrollment_digest(VAULT, OWNER, &digests)));
+    }
 }
 
 impl Host for Fake {
@@ -97,27 +134,40 @@ impl Host for Fake {
         self.secrets.get(name).cloned()
     }
     fn storage_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
+        self.events.push("get");
         Ok(self.storage.get(key).cloned())
     }
     fn storage_set_if_absent(&mut self, key: &str, value: &[u8]) -> Result<bool, String> {
+        self.events.push("set");
         if self.storage.contains_key(key) {
             return Ok(false);
         }
         self.storage.insert(key.into(), value.to_vec());
         Ok(true)
     }
+    fn storage_set_if_equals(&mut self, key: &str, expected: &[u8], value: &[u8]) -> Result<bool, String> {
+        self.events.push("set");
+        if self.storage.get(key).map(Vec::as_slice) != Some(expected) {
+            return Ok(false);
+        }
+        self.storage.insert(key.into(), value.to_vec());
+        Ok(true)
+    }
     fn marker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
+        self.events.push("marker_get");
         Ok(self.markers.get(key).cloned())
     }
     fn marker_set_if_absent(&mut self, key: &str, value: &[u8]) -> Result<bool, String> {
+        self.events.push("marker_set");
         if self.markers.contains_key(key) {
             return Ok(false);
         }
         self.markers.insert(key.into(), value.to_vec());
         Ok(true)
     }
-    fn post_concurrent(&mut self, requests: &[PostRequest]) -> Vec<Timed> {
-        requests
+    fn post_start(&mut self, requests: Vec<PostRequest>) {
+        self.events.push("start");
+        let results = requests
             .iter()
             .map(|request| {
                 self.posts.push(request.url.clone());
@@ -128,12 +178,23 @@ impl Host for Fake {
                         Some(text) => Ok((200, json!({ "text": text }).to_string().into_bytes())),
                         None => Ok((503, b"{}".to_vec())),
                     }
+                } else if request.url == NEAR_RPC_URL {
+                    self.rpc_reply(request)
                 } else {
                     Err("unknown host".into())
                 };
                 Timed { result, ms: 7 }
             })
-            .collect()
+            .collect();
+        self.batch = Some(results);
+    }
+    fn post_wait(&mut self) -> Vec<Timed> {
+        self.events.push("wait");
+        self.batch.take().unwrap_or_default()
+    }
+    fn post_cancel(&mut self) {
+        self.events.push("cancel");
+        self.batch = None;
     }
     fn random32(&mut self) -> Result<[u8; 32], String> {
         Ok([0x5a; 32])
@@ -185,8 +246,10 @@ fn enrolled() -> Fake {
     for (index, wav) in clips.iter().enumerate() {
         fake.voice(wav, embedding(0, 0.1 * index as f32));
     }
+    fake.authorize(&clips);
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["outcome"], "accept", "{out}");
+    fake.events.clear();
     fake
 }
 
@@ -210,23 +273,91 @@ fn enroll_stores_the_template_and_returns_the_key() {
     for (index, wav) in clips.iter().enumerate() {
         fake.voice(wav, embedding(0, 0.2 * index as f32));
     }
+    fake.authorize(&clips);
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["outcome"], "accept", "{out}");
     assert_eq!(out["reason"], Value::Null);
     // cos(0.4) = 0.921
     assert_eq!(out["agreement_milli"], 921);
     assert_eq!(out["vault"], VAULT);
+    assert_eq!(out["template_epoch"], 1);
+    assert_eq!(out["enrollment_digest"], json!(fake.pending));
     let key = SigningKey::from_bytes(&VERDICT_SEED).verifying_key().to_bytes();
     assert_eq!(out["verifier_public_key"], format!("ed25519:{}", base58(&key)));
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL; 3]);
-    assert_eq!(fake.storage.get(&template_key(VAULT, OWNER)).map(Vec::len), Some(808));
+    // The RPC read and the three embeddings in one batch; storage reads
+    // while it is in flight; the writes after the decision.
+    assert_eq!(fake.posts, [NEAR_RPC_URL, SPEAKER_EMBED_URL, SPEAKER_EMBED_URL, SPEAKER_EMBED_URL]);
+    assert_eq!(
+        fake.events,
+        ["start", "get", "marker_get", "marker_get", "marker_get", "wait", "marker_set", "marker_set", "marker_set", "set"]
+    );
+    for stage in ["send", "storage", "wait", "parallel", "rpc", "speaker", "write", "total"] {
+        assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
+    }
+    let first = fake.storage.get(&template_key(VAULT, OWNER)).cloned().unwrap();
+    assert_eq!(first.len(), 808);
     for wav in &clips {
         assert!(fake.markers.contains_key(&audio_used_key(&b64u(&Sha256::digest(wav)))));
     }
-    // A second enrollment of the same vault and owner is refused.
+
+    // New audio under the old authorization is refused and changes nothing.
     let again = [clip(0.08), clip(0.09), clip(0.1)];
+    for (index, wav) in again.iter().enumerate() {
+        fake.voice(wav, embedding(4, 0.1 * index as f32));
+    }
     let out = call(&mut fake, enroll_input(&again));
-    assert_eq!(out["reason"], "template_exists");
+    assert_eq!(out["reason"], "not_authorized");
+    assert_eq!(out["detail"], "authorization: other_audio");
+    assert_eq!(fake.storage.get(&template_key(VAULT, OWNER)), Some(&first));
+    assert_eq!(fake.markers.len(), 3);
+
+    // A fresh authorization replaces the template and bumps the epoch.
+    fake.authorize(&again);
+    let out = call(&mut fake, enroll_input(&again));
+    assert_eq!(out["outcome"], "accept", "{out}");
+    assert_eq!(out["template_epoch"], 2);
+    let second = fake.storage.get(&template_key(VAULT, OWNER)).cloned().unwrap();
+    assert_ne!(second, first);
+    assert_eq!(&second[4..8], &2u32.to_le_bytes());
+    assert_eq!(fake.markers.len(), 6);
+
+    // The same authorization and audio again: the audio is used.
+    let out = call(&mut fake, enroll_input(&again));
+    assert_eq!(out["reason"], "audio_reused");
+    assert_eq!(fake.events.last(), Some(&"cancel"));
+}
+
+#[test]
+fn enroll_needs_the_owner_authorization() {
+    let clips = [clip(0.05), clip(0.06), clip(0.07)];
+    // None (never authorized, or expired: the vault view returns null).
+    let mut fake = Fake::new();
+    let out = call(&mut fake, enroll_input(&clips));
+    assert_eq!(out["outcome"], "refuse");
+    assert_eq!(out["reason"], "not_authorized");
+    assert_eq!(out["detail"], "authorization: none");
+    assert!(fake.storage.is_empty());
+    assert!(fake.markers.is_empty(), "a refused enrollment burns no audio");
+
+    // An authorization of the same clips in another order.
+    let mut fake = Fake::new();
+    fake.authorize(&[clips[1].clone(), clips[0].clone(), clips[2].clone()]);
+    assert_eq!(call(&mut fake, enroll_input(&clips))["reason"], "not_authorized");
+
+    // An authorization for another owner of the vault.
+    let mut fake = Fake::new();
+    let digests: Vec<[u8; 32]> = clips.iter().map(|wav| Sha256::digest(wav).into()).collect();
+    fake.pending = Some(b64u(&enrollment_digest(VAULT, "other.testnet", &digests)));
+    assert_eq!(call(&mut fake, enroll_input(&clips))["reason"], "not_authorized");
+
+    // The RPC is down.
+    let mut fake = Fake::new();
+    fake.authorize(&clips);
+    fake.rpc_down = true;
+    let out = call(&mut fake, enroll_input(&clips));
+    assert_eq!(out["reason"], "authorization_unavailable");
+    assert!(out["detail"].as_str().unwrap().starts_with("rpc: network"));
+    assert!(fake.markers.is_empty());
 }
 
 #[test]
@@ -235,6 +366,7 @@ fn enroll_refusals() {
     let mut fake = Fake::new();
     let clips = [clip(0.05), clip(0.06), clip(0.07)];
     fake.voice(&clips[2], embedding(7, 0.0));
+    fake.authorize(&clips);
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["reason"], "speaker");
     assert_eq!(out["agreement_milli"], 0);
@@ -250,6 +382,7 @@ fn enroll_refusals() {
     let out = call(&mut fake, enroll_input(&[clip(0.05), clip(0.06), silent]));
     assert_eq!(out["reason"], "quality");
     fake.speaker_down = true;
+    fake.authorize(&[clip(0.05), clip(0.06), clip(0.07)]);
     let out = call(&mut fake, enroll_input(&[clip(0.05), clip(0.06), clip(0.07)]));
     assert_eq!(out["reason"], "speaker_unavailable");
     assert!(out["detail"].as_str().unwrap().starts_with("speaker: network"));
@@ -273,17 +406,22 @@ fn verify_accepts_and_signs_the_verdict() {
     assert_eq!(verdict.request_digest.as_deref(), vector["request_digest"].as_str());
     assert_eq!(verdict.spoken_text_digest.as_deref(), vector["spoken_text_digest"].as_str());
     assert!(verdict.speaker_score_milli.unwrap() >= 450);
-    for stage in ["decode", "storage", "parallel", "speaker", "transcribe", "redimnet", "sign", "total"] {
+    for stage in [
+        "decode", "send", "storage", "wait", "parallel", "speaker", "transcribe", "redimnet", "mark", "sign", "total",
+    ] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
-    // Both calls went out in one batch.
-    assert_eq!(fake.posts[3..], [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
+    // Both calls went out in one batch, before the storage reads; the audio
+    // is marked used after the decision.
+    assert_eq!(fake.posts[4..], [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(fake.events, ["start", "get", "marker_get", "wait", "marker_set"]);
 
-    // The same audio again: refused before any network call.
-    let posts = fake.posts.len();
+    // The same audio again: refused by the storage check; the batch is
+    // dropped without a wait.
+    fake.events.clear();
     let again = call(&mut fake, verify_input(&wav));
     assert_eq!(checked_verdict(&again).reason.map(|r| serde_json::to_value(r).unwrap()), Some(json!("audio_reused")));
-    assert_eq!(fake.posts.len(), posts);
+    assert_eq!(fake.events, ["start", "get", "marker_get", "cancel"]);
 }
 
 fn reason(out: &Value) -> String {

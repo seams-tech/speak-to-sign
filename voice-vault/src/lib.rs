@@ -18,6 +18,7 @@ use near_sdk::store::{LookupMap, LookupSet};
 use near_sdk::{env, near, AccountId, CurveType, Gas, NearToken, PanicOnDefault, Promise, PromiseResult, PublicKey};
 use spoken_intent::{render, request_digest, spoken_text_digest, Network, SpokenRequestV1, RENDERER_VERSION};
 
+pub mod enrollment;
 mod error;
 mod state;
 mod verdict;
@@ -94,6 +95,14 @@ pub struct ContactView {
 pub struct PendingWithdrawalView {
     pub amount: U128,
     pub ready_at_ns: U64,
+}
+
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingEnrollmentView {
+    /// base64url, as `authorize_enrollment` received it.
+    pub enrollment_digest: String,
+    pub expires_at_ns: U64,
 }
 
 #[near(serializers = [json])]
@@ -187,6 +196,26 @@ impl VoiceVault {
         let active_at = self.owner_vault()?.add_contact(&account_id, now, delay)?;
         log_event("contact_added", json!({ "owner": owner_id, "contact": account_id, "active_at_ns": U64(active_at) }));
         Ok(U64(active_at))
+    }
+
+    /// Authorizes one enrollment of the caller's voice: the verifier enrolls
+    /// only audio whose enrollment digest (base64url, see [`enrollment`])
+    /// equals this one, until the expiry that this call returns (10 minutes).
+    /// A new call replaces the pending digest.
+    #[handle_result]
+    pub fn authorize_enrollment(&mut self, enrollment_digest: String) -> Result<U64, VaultError> {
+        let owner_id = env::predecessor_account_id();
+        if !self.vaults.contains_key(&owner_id) {
+            return Err(VaultError::NoVault);
+        }
+        let digest = verdict::decode_digest(&enrollment_digest).ok_or(VaultError::BadEnrollmentDigest)?;
+        let expires_at_ns = env::block_timestamp().saturating_add(enrollment::ENROLLMENT_TTL_NS);
+        enrollment::write(&owner_id, &enrollment::PendingEnrollment { digest, expires_at_ns });
+        log_event(
+            "enrollment_authorized",
+            json!({ "owner": owner_id, "enrollment_digest": enrollment_digest, "expires_at_ns": U64(expires_at_ns) }),
+        );
+        Ok(U64(expires_at_ns))
     }
 
     /// Removes a contact at once.
@@ -388,6 +417,17 @@ impl VoiceVault {
         })
     }
 
+    /// The owner's unexpired enrollment authorization, or `null`. The
+    /// verifier reads this with finality `final`.
+    pub fn get_pending_enrollment(&self, owner_id: AccountId) -> Option<PendingEnrollmentView> {
+        enrollment::read(&owner_id).filter(|pending| pending.is_live(env::block_timestamp())).map(|pending| {
+            PendingEnrollmentView {
+                enrollment_digest: verdict::encode_digest(&pending.digest),
+                expires_at_ns: U64(pending.expires_at_ns),
+            }
+        })
+    }
+
     pub fn get_contacts(&self, owner_id: AccountId) -> Vec<ContactView> {
         let now = env::block_timestamp();
         self.vaults
@@ -413,6 +453,15 @@ impl VoiceVault {
     }
 
     /// Sends `amount` and gives it back to the vault if the transfer fails.
+    ///
+    /// The callback stays. A transfer to a named account fails if the
+    /// account does not exist when the transfer receipt runs. A contract
+    /// cannot check that in the same call, and a contact (or the owner) can
+    /// delete its account after it was checked. A failed transfer refunds the
+    /// NEAR to this contract, so without the callback the owner's balance
+    /// here would lose it. The vault's state (nonce, used audio, balance)
+    /// is final when `transfer_with_verdict` succeeds; the client reports
+    /// that first receipt as "vault accepted", and all receipts as "settled".
     fn payout(owner_id: AccountId, receiver_id: AccountId, amount: NearToken, spent_day: Option<u64>) -> Promise {
         Promise::new(receiver_id).transfer(amount).then(
             Self::ext(env::current_account_id())

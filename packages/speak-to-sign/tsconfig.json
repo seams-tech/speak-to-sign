@@ -1,31 +1,9 @@
 {
   "extends": "../wallet/tsconfig.json",
   "compilerOptions": {
-    "noEmit": true,
-    "paths": {
-      "@seams/wallet": ["../wallet/src/index.ts"],
-      "@seams/wallet/advanced": ["../wallet/src/advanced.ts"],
-      "@seams/wallet/voiceid-host": ["../wallet/src/voiceid-host.ts"],
-      "@/core/runtime": ["../wallet/src/core/runtime/index.ts"],
-      "@/core/runtime/*": ["../wallet/src/core/runtime/*"],
-      "@/*": ["../wallet/src/*"],
-      "@shared/*": ["../shared-ts/src/*"],
-      "@server": ["../wallet-server/src/index.ts"],
-      "@server/*": ["../wallet-server/src/*"],
-      "@seams/wallet-server": ["../wallet-server/src/index.ts"],
-      "@seams/wallet-server/router/cloudflare": [
-        "../wallet-server/src/router/cloudflare-adaptor.ts"
-      ],
-      "@seams/wallet-server/router/ror": ["../wallet-server/src/router/ror-adaptor.ts"],
-      "@seams/wallet-server/wasm/signer": ["../wallet-server/src/wasm/signer.ts"],
-      "@build-paths": ["../wallet/build-paths.ts"],
-      "react": ["../wallet/node_modules/@types/react/index.d.ts"],
-      "react/jsx-runtime": ["../wallet/node_modules/@types/react/jsx-runtime.d.ts"],
-      "react-dom": ["../wallet/node_modules/@types/react-dom/index.d.ts"],
-      "react-dom/client": ["../wallet/node_modules/@types/react-dom/client.d.ts"],
-      "react-dom/server": ["../wallet/node_modules/@types/react-dom/server.d.ts"],
-      "qrcode": ["../wallet/node_modules/@types/qrcode/index.d.ts"]
-    }
+    "rootDir": "src",
+    "paths": {},
+    "noEmit": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

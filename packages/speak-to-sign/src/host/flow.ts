@@ -1,5 +1,7 @@
-import type { SpeakToSignHostPlugin, SpeakToSignTransferResult } from '@seams/wallet';
-import type { captureSpokenPayment } from './capture';
+import type {
+  SpeakToSignHostPlugin,
+  SpeakToSignTransferResult,
+} from '@seams/wallet/speak-to-sign-host';
 import {
   isSpeakableAccount,
   parseSpeakableNear,
@@ -12,16 +14,14 @@ import { checkVerdict, parseVerifyOutput } from './verdict';
 
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
 export type HostTransfer = NonNullable<TransferInput['transfer']>;
-type Capture = typeof captureSpokenPayment;
 
 /**
- * One spoken payment: read the vault, record the sentence, verify it on the Seams server,
- * check the signed verdict against the vault's pinned key, then send `transfer_with_verdict`.
- * Nothing reaches the vault unless the local check accepts the verdict.
+ * One spoken payment: read the vault, record the sentence on the VoiceID surface, verify it
+ * on the Seams server, check the signed verdict against the vault's pinned key, then send
+ * `transfer_with_verdict`. Nothing reaches the vault unless the local check accepts the verdict.
  */
 export async function runSpokenTransfer(
   input: Omit<TransferInput, 'transfer'> & { readonly transfer: HostTransfer },
-  capture: Capture,
 ): Promise<SpeakToSignTransferResult> {
   const { transfer, signal } = input;
   const amountYocto = parseSpeakableNear(transfer.amount);
@@ -44,12 +44,15 @@ export async function runSpokenTransfer(
     nonce: vault.state.nonce,
   };
 
-  const clip = await capture({
-    displayText: renderTransfer(request).displayText,
-    measurement: transfer.surfaceMeasurementBinding,
+  const clip = await transfer.operations.captureClip({
+    sentence: renderTransfer(request).displayText,
     signal,
+    surfaceMeasurementBinding: transfer.surfaceMeasurementBinding,
   });
   if (clip.kind === 'cancelled') return clip;
+  if (clip.kind === 'unavailable') {
+    return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: clip.detail };
+  }
 
   const verifyStartedAt = performance.now();
   const reply = await transfer.operations.verify(

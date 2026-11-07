@@ -2,7 +2,7 @@ import type {
   SPEAK_TO_SIGN_HOST_API_VERSION,
   SpeakToSignHostPlugin,
   SpeakToSignTransferResult,
-} from '@seams/wallet';
+} from '@seams/wallet/speak-to-sign-host';
 
 // The type makes a Wallet with a different host API version fail to compile.
 export const hostApiVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION = 1;
@@ -17,10 +17,7 @@ async function requestTransfer(input: TransferInput): Promise<SpeakToSignTransfe
   input.signal.throwIfAborted();
   // The Wallet iframe route always sends a transfer. A caller without one has no payment to run.
   if (!input.transfer) return { kind: 'unavailable', reason: 'flow_not_available' };
-  const [{ runSpokenTransfer }, { captureSpokenPayment }] = await Promise.all([
-    import('./host/flow'),
-    import('./host/capture'),
-  ]);
+  const { runSpokenTransfer } = await import('./host/flow');
   input.signal.throwIfAborted();
-  return await runSpokenTransfer({ ...input, transfer: input.transfer }, captureSpokenPayment);
+  return await runSpokenTransfer({ ...input, transfer: input.transfer });
 }

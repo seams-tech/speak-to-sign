@@ -1,8 +1,6 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "paths": { "@seams/wallet": ["../wallet/dist/types/wallet/src/index.d.ts"] },
     "noEmit": false,
     "declaration": true,
     "declarationMap": false,

@@ -1,4 +1,4 @@
-import { base64UrlEncode, isPlainObject } from '@seams/wallet/voiceid-host';
+import { base64UrlEncode, isPlainObject } from '@seams/wallet/speak-to-sign-host';
 import {
   concat,
   RENDERER_VERSION,

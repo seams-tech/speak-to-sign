@@ -1,4 +1,4 @@
-import { isPlainObject } from '@seams/wallet/voiceid-host';
+import { isPlainObject } from '@seams/wallet/speak-to-sign-host';
 import type { VaultTransferRequest } from './intent';
 import { base64Standard } from './verdict';
 

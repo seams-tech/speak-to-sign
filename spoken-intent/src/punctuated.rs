@@ -57,13 +57,19 @@ pub enum PunctuatedRefusal {
 ///
 /// Then [`normalize`] reads the text.
 ///
+/// Slot rules, only in a sentence whose first token is "send":
+///
+/// - Amount: [`two_heard_as_to`].
+/// - Network suffix: [`dot_before_testnet`], in the recipient step.
+///
 /// Recipient step: if the first token is "send" and a token "to" follows,
 /// the tokens after the first "to" must have the same [`phonetic_key`] as
-/// exactly one account in `contacts`. They are then replaced by the spoken
+/// exactly one account in `contacts` (if they match none, the words of
+/// [`dot_before_testnet`] are tried once). They are then replaced by the spoken
 /// tokens of that account. `contacts` must be a vault's contacts, which hold
 /// no two confusable keys. Other sentences (a multisig approval) have no
-/// recipient step. [`crate::parse_transfer`] with the same `contacts` then
-/// reads a transfer.
+/// slot rules and no recipient step. [`crate::parse_transfer`] with the same
+/// `contacts` then reads a transfer.
 pub fn normalize_punctuated(
     transcript: &str,
     contacts: &[SpokenAccount],
@@ -73,6 +79,7 @@ pub fn normalize_punctuated(
     if tokens.first().map(SpokenToken::as_str) != Some("send") {
         return Ok(tokens);
     }
+    two_heard_as_to(&mut tokens);
     let Some(to) = tokens.iter().position(|token| token.as_str() == "to") else {
         return Ok(tokens);
     };
@@ -86,7 +93,25 @@ pub fn normalize_punctuated(
     {
         return Err(PunctuatedRefusal::RecipientUnkeyable);
     }
-    let key = words_key(&recipient);
+    let contact = match contact_by_key(&recipient, contacts) {
+        Err(PunctuatedRefusal::RecipientNotContact) => {
+            let words =
+                dot_before_testnet(&recipient).ok_or(PunctuatedRefusal::RecipientNotContact)?;
+            contact_by_key(&words, contacts)?
+        }
+        other => other?,
+    };
+    tokens.truncate(to + 1);
+    tokens.extend(contact.spoken_tokens());
+    Ok(tokens)
+}
+
+/// The one contact whose [`phonetic_key`] equals the key of `words`.
+fn contact_by_key<'a>(
+    words: &[&str],
+    contacts: &'a [SpokenAccount],
+) -> Result<&'a SpokenAccount, PunctuatedRefusal> {
+    let key = words_key(words);
     let mut matches = contacts
         .iter()
         .filter(|contact| phonetic_key(contact) == key);
@@ -96,9 +121,48 @@ pub fn normalize_punctuated(
     if matches.next().is_some() {
         return Err(PunctuatedRefusal::RecipientAmbiguous);
     }
-    tokens.truncate(to + 1);
-    tokens.extend(contact.spoken_tokens());
-    Ok(tokens)
+    Ok(contact)
+}
+
+/// Amount slot rule. Whisper writes the spoken amount "two" as "to" or
+/// "too" ("Send to near to alice testnet"). In "send to near to …" or
+/// "send too near to …", the amount slot between "send" and "near" holds
+/// only that word, so it is read as "two".
+///
+/// The rule needs "near" and then "to" directly after the word, so it does
+/// not fill an empty amount: "send to alice dot testnet" (no amount and no
+/// "near") and "send near to alice dot testnet" (no amount) keep their words
+/// and [`crate::parse_transfer`] refuses them. It changes only the second
+/// token, so a negation or a changed verb is still refused.
+fn two_heard_as_to(tokens: &mut [SpokenToken]) {
+    let word = |index: usize| tokens.get(index).map(SpokenToken::as_str);
+    if matches!(word(1), Some("to" | "too")) && word(2) == Some("near") && word(3) == Some("to") {
+        tokens[1] = SpokenToken::from_static("two");
+    }
+}
+
+/// Network suffix rule. Whisper can drop the spoken "dot" before the
+/// network suffix ("seams v1 testnet", "alice testnet"). It is used only
+/// when the recipient words, as heard, match no contact. If the recipient
+/// has a word and then ends with "testnet", and the word before "testnet"
+/// is not "dot", it gives the words with "dot" before "testnet". These
+/// words are then matched by [`phonetic_key`] in the same way, so they must
+/// still equal exactly one contact.
+///
+/// The rule adds no word that names an account: a recipient that is not a
+/// contact stays refused, and a recipient of only "testnet" is not changed.
+/// It does not replace a match as heard: "umidot testnet" keeps the key of
+/// "uma dot testnet". On mainnet the suffix is "near", but this function
+/// does not know the request network and "near" is also the amount unit, so
+/// mainnet names have no such rule.
+fn dot_before_testnet<'a>(recipient: &[&'a str]) -> Option<Vec<&'a str>> {
+    let (last, rest) = recipient.split_last()?;
+    if *last != "testnet" || rest.last().is_none_or(|word| *word == "dot") {
+        return None;
+    }
+    let mut words = rest.to_vec();
+    words.extend(["dot", "testnet"]);
+    Some(words)
 }
 
 /// The text step of [`normalize_punctuated`], before [`normalize`].

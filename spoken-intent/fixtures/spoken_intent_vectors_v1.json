@@ -356,6 +356,48 @@
         "refused": "NotNormalizable"
       },
       "transcript": "send $25 to alice.testnet"
+    },
+    {
+      "result": {
+        "tokens": "send two near to alice dot testnet"
+      },
+      "transcript": "Send to near to alice testnet."
+    },
+    {
+      "result": {
+        "tokens": "send two near to alice dot testnet"
+      },
+      "transcript": "Send too near to alice.testnet"
+    },
+    {
+      "result": {
+        "tokens": "send to alice dot testnet"
+      },
+      "transcript": "Send to alice testnet."
+    },
+    {
+      "result": {
+        "tokens": "send near to alice dot testnet"
+      },
+      "transcript": "Send near to alice testnet"
+    },
+    {
+      "result": {
+        "refused": "RecipientNotContact"
+      },
+      "transcript": "Send to near alice testnet"
+    },
+    {
+      "result": {
+        "refused": "RecipientNotContact"
+      },
+      "transcript": "Send 25 NEAR to testnet"
+    },
+    {
+      "result": {
+        "refused": "RecipientNotContact"
+      },
+      "transcript": "Send 25 NEAR to carol testnet"
     }
   ],
   "parse_transfer": [

@@ -249,6 +249,128 @@ fn punctuated_transcripts_read_like_the_rendered_text() {
     assert_ne!(normalize(&heard), Some(rendered.spoken));
 }
 
+/// `normalize_punctuated` and then `parse_transfer`, with `contacts()`.
+fn read_punctuated(heard: &str) -> Result<ParseResult, PunctuatedRefusal> {
+    normalize_punctuated(heard, &contacts()).map(|tokens| parse_transfer(&tokens, &contacts()))
+}
+
+fn transfer_of(receiver: &str, hundredths: u64) -> Result<ParseResult, PunctuatedRefusal> {
+    Ok(ParseResult::Transfer(spoken_intent::ParsedTransfer {
+        receiver: account(receiver),
+        amount: NearAmount::from_hundredths(hundredths).expect("speakable"),
+    }))
+}
+
+#[test]
+fn two_heard_as_to_fills_only_a_one_word_amount_slot() {
+    // Whisper large-v3 on testnet: "send two near to alice dot testnet".
+    assert_eq!(
+        read_punctuated("Send to near to alice testnet."),
+        transfer_of("alice.testnet", 200)
+    );
+    assert_eq!(
+        read_punctuated("Send too near to alice.testnet"),
+        transfer_of("alice.testnet", 200)
+    );
+
+    // Near misses that must stay refused.
+    let not_transfer = Ok(ParseResult::Refused(ParseRefusal::NotTransfer));
+    // No amount and no "near".
+    assert_eq!(read_punctuated("Send to alice.testnet"), not_transfer);
+    assert_eq!(read_punctuated("Send to alice testnet"), not_transfer);
+    // No amount.
+    assert_eq!(
+        read_punctuated("Send near to alice testnet"),
+        Ok(ParseResult::Refused(ParseRefusal::Amount))
+    );
+    // "to" then "near" with no "to" after it: the recipient is not a contact.
+    assert_eq!(
+        read_punctuated("Send to near alice testnet"),
+        Err(PunctuatedRefusal::RecipientNotContact)
+    );
+    // A negation, a word after the verb, and a changed verb.
+    assert_eq!(
+        read_punctuated("Don't send to near to alice testnet"),
+        not_transfer
+    );
+    assert_eq!(
+        read_punctuated("Send not to near to alice testnet"),
+        Err(PunctuatedRefusal::RecipientNotContact)
+    );
+    assert_eq!(
+        read_punctuated("Approve to near to alice testnet"),
+        not_transfer
+    );
+    // An added clause stays one recipient that is not a contact.
+    assert_eq!(
+        read_punctuated("Send to near to alice testnet and send to near to bob testnet"),
+        Err(PunctuatedRefusal::RecipientNotContact)
+    );
+    // Other amounts are not changed.
+    assert_eq!(
+        read_punctuated("Send 20 near to alice testnet"),
+        transfer_of("alice.testnet", 2_000)
+    );
+}
+
+#[test]
+fn dot_before_testnet_keeps_the_contact_match() {
+    // Whisper large-v3 on testnet drops the spoken "dot".
+    assert_eq!(
+        read_punctuated("Send 5 near to bob testnet"),
+        transfer_of("bob.testnet", 500)
+    );
+    assert_eq!(
+        read_punctuated("Send 5 near to bob-1 testnet"),
+        transfer_of("bob-1.testnet", 500)
+    );
+    let seams = [account("seams-v1.testnet"), account("alice.testnet")];
+    let tokens = normalize_punctuated("Send 5 near to seams-v1 testnet.", &seams).expect("contact");
+    assert_eq!(
+        parse_transfer(&tokens, &seams),
+        ParseResult::Transfer(spoken_intent::ParsedTransfer {
+            receiver: account("seams-v1.testnet"),
+            amount: NearAmount::from_hundredths(500).expect("speakable"),
+        })
+    );
+
+    // A recipient that matches as heard keeps that match: "umidot testnet"
+    // has the key of "uma dot testnet", and "umidot dot testnet" does not.
+    let uma = [account("uma.testnet"), account("alice.testnet")];
+    let tokens = normalize_punctuated("Send 60 near to umidot testnet.", &uma).expect("contact");
+    assert_eq!(
+        parse_transfer(&tokens, &uma),
+        ParseResult::Transfer(spoken_intent::ParsedTransfer {
+            receiver: account("uma.testnet"),
+            amount: NearAmount::from_hundredths(6_000).expect("speakable"),
+        })
+    );
+
+    // Near misses that must stay refused.
+    let not_contact = Err(PunctuatedRefusal::RecipientNotContact);
+    // Another account, and no account before the suffix.
+    assert_eq!(read_punctuated("Send 5 near to carol testnet"), not_contact);
+    assert_eq!(read_punctuated("Send 5 near to testnet"), not_contact);
+    // No receiver.
+    assert_eq!(
+        read_punctuated("Send 5 near to"),
+        Err(PunctuatedRefusal::RecipientNotContact)
+    );
+    // A dropped "dash" is not put back: "bob one" is not "bob dash one".
+    assert_eq!(read_punctuated("Send 5 near to bob 1 testnet"), not_contact);
+    // An added clause after the receiver.
+    assert_eq!(
+        read_punctuated("Send 5 near to alice testnet and send 5 near to bob testnet"),
+        not_contact
+    );
+    // A mainnet suffix gets no "dot".
+    let mainnet = [account("alice.near")];
+    assert_eq!(
+        normalize_punctuated("Send 5 near to alice near", &mainnet),
+        Err(PunctuatedRefusal::RecipientNotContact)
+    );
+}
+
 #[test]
 fn unspeakable_accounts_are_refused() {
     let unsupported = Err(UnsupportedReason::AccountNotSpeakable);

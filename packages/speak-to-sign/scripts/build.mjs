@@ -15,15 +15,23 @@ await build(
   { dir: path.join(dist, 'esm'), format: 'esm', preserveModules: true, preserveModulesRoot: 'src' },
 );
 
-// The Wallet host loads this file from /sdk/speak-to-sign/host.js on first use.
+// The Wallet host loads this file from /sdk/speak-to-sign/host.js on first use. The flow
+// chunk loads when a payment starts. It bundles the VoiceID prompt and recorder, which
+// load their models from /sdk/voiceid/, and shares the Wallet's /sdk/voiceid-host.js.
 await build(
-  { input: { host: 'src/host.ts' } },
+  {
+    input: { host: 'src/host.ts' },
+    external: ['@seams/wallet/voiceid-host'],
+    plugins: [{ name: 'production-environment', transform: productionEnvironment }],
+    resolve: { alias: { react: 'preact/compat', 'react/jsx-runtime': 'preact/jsx-runtime' } },
+  },
   {
     dir: path.join(dist, 'public/sdk/speak-to-sign'),
     format: 'esm',
     entryFileNames: '[name].js',
     chunkFileNames: '[name]-[hash].js',
     minify: true,
+    paths: { '@seams/wallet/voiceid-host': '../voiceid-host.js' },
   },
 );
 
@@ -39,4 +47,8 @@ async function build(input, output) {
   } finally {
     await bundle.close();
   }
+}
+
+function productionEnvironment(code) {
+  return { code: code.replaceAll('process.env.NODE_ENV', '"production"'), map: null };
 }

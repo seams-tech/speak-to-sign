@@ -4,9 +4,15 @@ Optional spoken payments for Seams Wallet. The owner says a payment, such as
 "Send 25 NEAR to alice dot testnet", and a Speak-to-Sign vault pays only after
 an attested verifier checks the voice and the words.
 
-This package is a skeleton. The descriptor, the Wallet host loader and the host
-composition work. The spoken payment flow is not built yet: every request ends
-with `{ kind: 'unavailable', reason: 'flow_not_available' }`.
+The host plugin runs the spoken payment in the trusted Wallet host. It reads
+the vault, shows the expected sentence in the VoiceID prompt, records one clip
+of at most 8 s, sends it to the Seams server route `POST /speak-to-sign/v1/verify`,
+checks the signed verdict against the verifier key that the vault pinned, and
+asks the Wallet to send one `transfer_with_verdict` call as the owner.
+
+The app API does not carry a receiver and an amount yet. Until it does, every
+`seams.speakToSign.requestTransfer` call ends with
+`{ kind: 'unavailable', reason: 'flow_not_available' }`.
 
 Speak-to-Sign needs `@seams/voiceid` at the same version. It uses the VoiceID
 enrollment, capture surface and speech assets.

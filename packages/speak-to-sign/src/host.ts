@@ -13,8 +13,14 @@ export function createSpeakToSignHostPlugin(): SpeakToSignHostPlugin {
   return { requestTransfer };
 }
 
-// The spoken payment flow comes later. Until then, no request reaches the vault.
 async function requestTransfer(input: TransferInput): Promise<SpeakToSignTransferResult> {
   input.signal.throwIfAborted();
-  return { kind: 'unavailable', reason: 'flow_not_available' };
+  // The Wallet iframe route always sends a transfer. A caller without one has no payment to run.
+  if (!input.transfer) return { kind: 'unavailable', reason: 'flow_not_available' };
+  const [{ runSpokenTransfer }, { captureSpokenPayment }] = await Promise.all([
+    import('./host/flow'),
+    import('./host/capture'),
+  ]);
+  input.signal.throwIfAborted();
+  return await runSpokenTransfer({ ...input, transfer: input.transfer }, captureSpokenPayment);
 }

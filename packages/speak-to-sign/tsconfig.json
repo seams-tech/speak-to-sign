@@ -5,6 +5,7 @@
     "paths": {
       "@seams/wallet": ["../wallet/src/index.ts"],
       "@seams/wallet/advanced": ["../wallet/src/advanced.ts"],
+      "@seams/wallet/voiceid-host": ["../wallet/src/voiceid-host.ts"],
       "@/core/runtime": ["../wallet/src/core/runtime/index.ts"],
       "@/core/runtime/*": ["../wallet/src/core/runtime/*"],
       "@/*": ["../wallet/src/*"],

@@ -1,0 +1,61 @@
+{
+  "name": "@seams/speak-to-sign",
+  "version": "0.52.0",
+  "type": "module",
+  "description": "Optional spoken payments for Seams Wallet, built on VoiceID",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/seams-wallet.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./react": {
+      "types": "./dist/types/react.d.ts",
+      "import": "./dist/esm/react.js"
+    },
+    "./hosting": {
+      "types": "./dist/hosting.d.mts",
+      "import": "./dist/hosting.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE.md",
+    "!dist/**/*.map",
+    "src/README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs && tsrs -p tsconfig.build.json",
+    "type-check": "tsrs --noEmit",
+    "prepack": "node ../../scripts/package-license.mjs stage",
+    "postpack": "node ../../scripts/package-license.mjs clean"
+  },
+  "peerDependencies": {
+    "@seams/voiceid": "0.52.0",
+    "@seams/wallet": "0.52.0",
+    "react": ">=19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@seams/voiceid": "workspace:*",
+    "@seams/wallet": "workspace:*",
+    "rolldown": "1.0.0-rc.9"
+  },
+  "bin": {
+    "seams-speak-to-sign-host": "dist/compose-host.mjs"
+  }
+}

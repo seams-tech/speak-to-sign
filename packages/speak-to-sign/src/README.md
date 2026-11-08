@@ -24,6 +24,9 @@ The design is Refactor 210, Section 11.4, in `seams-monorepo/docs/refactor-210-v
   `/sdk/speak-to-sign-host.js`.
 - [`host/intent.ts`](host/intent.ts) ports the vault transfer rules of the `spoken-intent`
   crate. `tests/unit/speakToSignHost.unit.test.ts` checks it against the crate's vectors.
+  Both flows first check the owner with `isSpeakableAccount`, the crate's `SpokenAccount` rule,
+  and return `unavailable` `owner_not_speakable` before any capture, view or call: the vault
+  contract creates no vault for an owner that the grammar cannot speak.
 - [`host/verdict.ts`](host/verdict.ts) checks the signed verdict before the Wallet pays gas.
 - [`react.ts`](react.ts) will hold the pay button and the live text component.
 

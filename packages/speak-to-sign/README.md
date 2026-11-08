@@ -85,6 +85,42 @@ authorized. A new enrollment replaces the template.
 | `cancelled`   | The owner closed the surface. Nothing was authorized.                     |
 | `unavailable` | VoiceID, the vault or the verifier could not be reached, or no vault yet. |
 
+Create the vault and a contact with two owner calls on the vault contract.
+Each call opens the wallet confirmation:
+
+```ts
+import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
+
+const VAULT = 'seams-wallet.testnet';
+const GAS = '30000000000000';
+
+async function setUpVault(near: BoundNearSigner, contact: string): Promise<void> {
+  // 0.15 NEAR: the vault keeps 0.1 NEAR for storage.
+  await near.signAndSendTransaction({
+    receiverId: VAULT,
+    actions: [
+      functionCall({
+        method: 'create_vault',
+        args: {},
+        gas: GAS,
+        deposit: '150000000000000000000000',
+      }),
+    ],
+  });
+  await near.signAndSendTransaction({
+    receiverId: VAULT,
+    actions: [
+      functionCall({
+        method: 'add_contact',
+        args: { account_id: contact },
+        gas: GAS,
+        deposit: '0',
+      }),
+    ],
+  });
+}
+```
+
 On testnet the owner account needs about 0.3 NEAR: `create_vault` takes 0.15
 NEAR, and NEAR charges prepaid gas up front (about 0.03 NEAR for each 30 Tgas
 call and 0.051 NEAR for each spoken payment).

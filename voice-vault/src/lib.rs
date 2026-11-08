@@ -16,7 +16,9 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json::{self, json};
 use near_sdk::store::{LookupMap, LookupSet};
 use near_sdk::{env, near, AccountId, CurveType, Gas, NearToken, PanicOnDefault, Promise, PromiseResult, PublicKey};
-use spoken_intent::{render, request_digest, spoken_text_digest, Network, SpokenRequestV1, RENDERER_VERSION};
+use spoken_intent::{
+    render, request_digest, spoken_text_digest, NearAccount, Network, SpokenRequestV1, RENDERER_VERSION,
+};
 
 pub mod enrollment;
 mod error;
@@ -28,7 +30,7 @@ mod tests;
 
 pub use error::VaultError;
 use state::{
-    Limits, PendingLimits, PendingWithdrawal, Speakable, Vault, CONTACT_DELAY_SECONDS, LIMITS_DELAY_NS, NS_PER_SECOND,
+    Limits, PendingLimits, PendingWithdrawal, Vault, CONTACT_DELAY_SECONDS, LIMITS_DELAY_NS, NS_PER_SECOND,
     WITHDRAWAL_DELAY_NS,
 };
 
@@ -136,7 +138,6 @@ impl VoiceVault {
     #[init]
     #[handle_result]
     pub fn new(verifier_public_key: PublicKey, contact_delay_seconds: Option<u64>) -> Result<Self, VaultError> {
-        Speakable::new(&env::current_account_id())?;
         if verifier_public_key.curve_type() != CurveType::ED25519 {
             return Err(VaultError::BadConfig);
         }
@@ -161,12 +162,11 @@ impl VoiceVault {
     #[handle_result]
     pub fn create_vault(&mut self) -> Result<(), VaultError> {
         let owner_id = env::predecessor_account_id();
-        let owner = Speakable::new(&owner_id)?;
         if self.vaults.contains_key(&owner_id) {
             return Err(VaultError::AlreadyExists);
         }
         let balance = env::attached_deposit().checked_sub(STORAGE_RESERVE).ok_or(VaultError::InsufficientDeposit)?;
-        self.vaults.insert(owner_id.clone(), Vault::new(owner, balance, env::block_timestamp()));
+        self.vaults.insert(owner_id.clone(), Vault::new(owner_id.clone(), balance, env::block_timestamp()));
         log_event("vault_created", json!({ "owner": owner_id, "balance": U128(balance.as_yoctonear()) }));
         Ok(())
     }
@@ -278,7 +278,6 @@ impl VoiceVault {
         let accepted = verdict::parse_accepted(&verdict_json)?;
 
         let owner_id = env::predecessor_account_id();
-        let vault_spoken = Speakable::new(&env::current_account_id())?.spoken();
         let now = env::block_timestamp();
         let vault = self.vaults.get_mut(&owner_id).ok_or(VaultError::NoVault)?;
         vault.settle(now);
@@ -286,8 +285,8 @@ impl VoiceVault {
         let (receiver, spoken_amount) = vault.check_transfer(&receiver_id, amount, nonce.0, now)?;
         let request = SpokenRequestV1::VaultTransfer {
             network: NETWORK,
-            vault: vault_spoken,
-            owner: vault.owner.spoken(),
+            vault: near_account(&env::current_account_id()),
+            owner: near_account(&vault.owner),
             receiver: receiver.spoken(),
             amount: spoken_amount,
             nonce: nonce.0,
@@ -469,4 +468,9 @@ impl VoiceVault {
                 .on_payout_settled(owner_id, U128(amount.as_yoctonear()), spent_day.map(U64)),
         )
     }
+}
+
+/// A NEAR `AccountId` always meets the account id rules of [`NearAccount`].
+fn near_account(account_id: &AccountId) -> NearAccount {
+    NearAccount::new(account_id.as_str()).unwrap_or_else(|_| env::abort())
 }

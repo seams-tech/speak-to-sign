@@ -9,7 +9,9 @@ use near_sdk::mock::MockAction;
 use near_sdk::serde_json::{self, json, Value};
 use near_sdk::test_utils::{get_created_receipts, VMContextBuilder};
 use near_sdk::{testing_env, AccountId, Gas, NearToken};
-use spoken_intent::{render, request_digest, spoken_text_digest, NearAmount, SpokenAccount, SpokenRequestV1};
+use spoken_intent::{
+    render, request_digest, spoken_text_digest, NearAccount, NearAmount, SpokenAccount, SpokenRequestV1,
+};
 
 use super::*;
 use crate::state::DAY_NS;
@@ -89,12 +91,15 @@ fn sign(text: &str) -> String {
 /// An accept verdict for a transfer from this vault, as the verifier writes
 /// it (field order matters only for the signed bytes).
 fn verdict_for(receiver: &str, amount: NearToken, nonce: u64, audio_fill: u8) -> String {
-    let account = |name: &str| SpokenAccount::new(name).unwrap();
+    verdict_from(owner().as_str(), receiver, amount, nonce, audio_fill)
+}
+
+fn verdict_from(owner: &str, receiver: &str, amount: NearToken, nonce: u64, audio_fill: u8) -> String {
     let request = SpokenRequestV1::VaultTransfer {
         network: NETWORK,
-        vault: account("voicevault.testnet"),
-        owner: account("owner.testnet"),
-        receiver: account(receiver),
+        vault: NearAccount::new(vault_id().as_str()).unwrap(),
+        owner: NearAccount::new(owner).unwrap(),
+        receiver: SpokenAccount::new(receiver).unwrap(),
         amount: NearAmount::from_yocto(amount.as_yoctonear()).unwrap(),
         nonce,
     };
@@ -237,6 +242,25 @@ fn replayed_audio() {
     // Another recording pays.
     signed(&mut contract, "alice.testnet", near(1), 1, 9).unwrap();
     assert_eq!(view(&contract).next_nonce, U64(2));
+}
+
+#[test]
+fn implicit_owner_pays_by_voice() {
+    let implicit = id("98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de");
+    near_sdk::mock::with_mocked_blockchain(|b| drop(b.take_storage()));
+    call(&id("deployer.testnet"), NearToken::from_yoctonear(0), T0);
+    let mut contract = VoiceVault::new(pinned_key(), Some(0)).unwrap();
+    call(&implicit, near(10).saturating_add(STORAGE_RESERVE), T0);
+    contract.create_vault().unwrap();
+    call(&implicit, NearToken::from_yoctonear(0), T0);
+    contract.add_contact(alice()).unwrap();
+    let text = verdict_from(implicit.as_str(), "alice.testnet", near(1), 0, 8);
+    call(&implicit, NearToken::from_yoctonear(0), T0 + 1);
+    contract
+        .transfer_with_verdict(alice(), U128(near(1).as_yoctonear()), U64(0), text.clone(), sign(&text))
+        .map(drop)
+        .unwrap();
+    assert_eq!(transfers(), vec![(alice(), near(1))]);
 }
 
 #[test]

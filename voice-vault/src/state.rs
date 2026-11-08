@@ -113,7 +113,8 @@ pub struct PendingWithdrawal {
 #[near(serializers = [borsh])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Vault {
-    pub owner: Speakable,
+    /// Any NEAR account, named or implicit. The spoken text does not say it.
+    pub owner: AccountId,
     /// Funds that are free to send. A pending withdrawal and a payout in
     /// flight are already out of it.
     pub balance: NearToken,
@@ -126,7 +127,7 @@ pub struct Vault {
 }
 
 impl Vault {
-    pub fn new(owner: Speakable, balance: NearToken, now_ns: u64) -> Self {
+    pub fn new(owner: AccountId, balance: NearToken, now_ns: u64) -> Self {
         Self {
             owner,
             balance,

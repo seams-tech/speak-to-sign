@@ -98,7 +98,7 @@ pub fn cut_at(text: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use spoken_intent::{confusion_set, render, NearAmount, Network, SpokenRequestV1};
+    use spoken_intent::{confusion_set, render, NearAccount, NearAmount, Network, SpokenRequestV1};
 
     fn account(id: &str) -> SpokenAccount {
         SpokenAccount::new(id).unwrap()
@@ -107,8 +107,8 @@ mod tests {
     fn transfer(receiver: &str, hundredths: u64) -> SpokenRequestV1 {
         SpokenRequestV1::VaultTransfer {
             network: Network::Testnet,
-            vault: account("vault.testnet"),
-            owner: account("owner.testnet"),
+            vault: NearAccount::new("vault.testnet").unwrap(),
+            owner: NearAccount::new("owner.testnet").unwrap(),
             receiver: account(receiver),
             amount: NearAmount::from_hundredths(hundredths).unwrap(),
             nonce: 1,

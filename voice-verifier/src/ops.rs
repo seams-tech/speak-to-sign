@@ -14,7 +14,8 @@ use std::time::Instant;
 
 use serde_json::{json, Map, Value};
 use spoken_intent::{
-    confusion_set, render, request_digest, spoken_text_digest, NearAmount, Network, SpokenAccount, SpokenRequestV1,
+    confusion_set, render, request_digest, spoken_text_digest, NearAccount, NearAmount, Network, SpokenAccount,
+    SpokenRequestV1,
 };
 
 use crate::audio::{decode_wav, energy_gate, wav_bytes};
@@ -74,8 +75,8 @@ pub fn run_with(input: &[u8], host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
 }
 
 /// The request that the vault rebuilds from its state and the call
-/// arguments. Accounts must be speakable and distinct; the amount must be
-/// speakable.
+/// arguments. The accounts must be distinct, and the receiver and the amount
+/// must be speakable. The vault and the owner can be any NEAR account.
 pub fn transfer_request(
     vault: &str,
     owner: &str,
@@ -83,9 +84,10 @@ pub fn transfer_request(
     amount_yocto: u128,
     nonce: u64,
 ) -> Result<SpokenRequestV1, Reason> {
-    let account = |id: &str| SpokenAccount::new(id).map_err(|_| Reason::Unsupported);
-    let (vault, owner, receiver) = (account(vault)?, account(owner)?, account(receiver)?);
-    if vault == owner || receiver == owner || receiver == vault {
+    let account = |id: &str| NearAccount::new(id).map_err(|_| Reason::Unsupported);
+    let (vault, owner) = (account(vault)?, account(owner)?);
+    let receiver = SpokenAccount::new(receiver).map_err(|_| Reason::Unsupported)?;
+    if vault == owner || receiver.as_str() == owner.as_str() || receiver.as_str() == vault.as_str() {
         return Err(Reason::Unsupported);
     }
     let amount = NearAmount::from_yocto(amount_yocto).map_err(|_| Reason::Unsupported)?;
@@ -180,8 +182,8 @@ pub fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> Enrollment {
 
 fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enrollment) -> Result<(), Reason> {
     let input: EnrollInput = serde_json::from_value(value).map_err(|_| Reason::Unsupported)?;
-    let vault = SpokenAccount::new(&input.vault).map_err(|_| Reason::Unsupported)?;
-    let owner = SpokenAccount::new(&input.owner).map_err(|_| Reason::Unsupported)?;
+    let vault = NearAccount::new(&input.vault).map_err(|_| Reason::Unsupported)?;
+    let owner = NearAccount::new(&input.owner).map_err(|_| Reason::Unsupported)?;
     if input.op != "enroll" || vault == owner {
         return Err(Reason::Unsupported);
     }

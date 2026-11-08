@@ -510,3 +510,14 @@ fn unknown_op() {
     let out = call(&mut Fake::new(), json!({ "op": "audio_key" }));
     assert_eq!(out["reason"], "unsupported");
 }
+
+#[test]
+fn transfer_request_accepts_an_implicit_owner() {
+    use seams_voice_verifier::ops::transfer_request;
+    let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
+    let one_near = 1_000_000_000_000_000_000_000_000;
+    assert!(transfer_request("vault.testnet", implicit, "alice.testnet", one_near, 1).is_ok());
+    // The receiver is said, so it must still be speakable.
+    assert!(transfer_request("vault.testnet", "owner.testnet", implicit, one_near, 1).is_err());
+    assert!(transfer_request("vault.testnet", implicit, implicit, one_near, 1).is_err());
+}

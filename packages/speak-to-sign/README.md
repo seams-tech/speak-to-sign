@@ -1,6 +1,6 @@
 # @seams/speak-to-sign
 
-> **Experimental. NEAR testnet only. Not in a release.**
+> **Experimental. NEAR testnet only.** First released in 0.54.0.
 
 Optional spoken payments for Seams Wallet. The owner says a payment, such as
 "Send 2 NEAR to alice dot testnet". A Speak-to-Sign vault contract pays only
@@ -23,7 +23,7 @@ Speak-to-Sign needs `@seams/voiceid` for the enrollment, the capture surface
 and the speech assets. Install all three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION @seams/speak-to-sign@VERSION
+pnpm add @seams/wallet@0.54.0 @seams/voiceid@0.54.0 @seams/speak-to-sign@0.54.0
 ```
 
 `@seams/wallet` does not depend on this package. An app without the

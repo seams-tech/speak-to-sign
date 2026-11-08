@@ -59,26 +59,6 @@ The descriptor is a few bytes of data and loads no code.
 
 ## Owner setup
 
-The owner needs a named NEAR account, such as `alice.testnet`. Implicit
-accounts (64 hex characters) and `0x` accounts cannot use Speak-to-Sign. The
-owner's account is part of every spoken request, so the vault contract creates
-a vault only for an account that can be spoken as words: 2 to 64 characters,
-parts split by `.`, each part made of `a-z` and `0-9` with single `-` or `_`
-between them. For an implicit account, `create_vault` fails after the owner
-pays the gas.
-
-To give new wallets a named account, register them as named subaccounts of
-the relayer account (`alice` becomes `alice.<relayerAccount>`):
-
-- In the SDK configuration, set
-  `registration: { nearAccountProvisioning: { kind: 'relayer_named_subaccount' } }`.
-- In `HostedSeamsAuthMenu`, set
-  `registrationAccountInput: 'sponsored_named_near_account'`.
-
-For an owner whose account cannot be spoken, `enroll` and `requestTransfer`
-return `{ kind: 'unavailable', reason: 'owner_not_speakable' }` before any
-recording, vault read, verifier call or transaction.
-
 Before the first spoken payment, the owner needs three things:
 
 1. VoiceID is on for the wallet
@@ -104,9 +84,6 @@ authorized. A new enrollment replaces the template.
 | `refused`     | The verifier or the vault refused, for example `speaker` or `quality`.    |
 | `cancelled`   | The owner closed the surface. Nothing was authorized.                     |
 | `unavailable` | VoiceID, the vault or the verifier could not be reached, or no vault yet. |
-
-`enroll` and `requestTransfer` use the same `unavailable` reasons. See the
-table after the `requestTransfer` results.
 
 Create the vault and a contact with two owner calls on the vault contract.
 Each call opens the wallet confirmation:
@@ -156,15 +133,6 @@ call and 0.051 NEAR for each spoken payment).
 | `refused`     | The verifier, the local check or the vault refused. Nothing was sent. |
 | `cancelled`   | The owner closed the surface.                                         |
 | `unavailable` | VoiceID, the verifier or the vault could not be reached.              |
-
-| `unavailable` reason   | Meaning                                                                  |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `owner_not_speakable`  | The owner has an implicit or `0x` account. Nothing was recorded or sent. |
-| `voiceid_unavailable`  | VoiceID is not on for the wallet, or it could not record.                |
-| `vault_missing`        | The owner has no vault yet.                                              |
-| `verifier_unavailable` | The vault views or the Seams verify route did not answer usefully.       |
-| `not_submitted`        | The Wallet did not send the vault transaction. Nothing was paid.         |
-| `submission_unknown`   | The vault transaction may have been sent. Check it before you retry.     |
 
 ## Wallet host setup
 

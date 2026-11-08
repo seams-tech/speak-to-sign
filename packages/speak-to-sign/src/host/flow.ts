@@ -24,11 +24,6 @@ export async function runSpokenTransfer(
   input: Omit<TransferInput, 'transfer'> & { readonly transfer: HostTransfer },
 ): Promise<SpeakToSignTransferResult> {
   const { transfer, signal } = input;
-  // The owner is part of every spoken request, so the contract creates no vault for an
-  // implicit or `0x` account. Stop before any capture, verifier call or transaction.
-  if (!isSpeakableAccount(transfer.ownerAccountId)) {
-    return { kind: 'unavailable', reason: 'owner_not_speakable' };
-  }
   const amountYocto = parseSpeakableNear(transfer.amount);
   if (amountYocto === null) return { kind: 'refused', reason: 'amount_not_speakable' };
   if (!isSpeakableAccount(transfer.receiver)) {

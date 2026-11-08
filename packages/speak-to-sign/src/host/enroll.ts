@@ -4,7 +4,7 @@ import {
   type SpeakToSignEnrollmentResult,
   type SpeakToSignHostEnrollment,
 } from '@seams/wallet/speak-to-sign-host';
-import { concat, isSpeakableAccount, sha256, utf8 } from './intent';
+import { concat, sha256, utf8 } from './intent';
 import { base64Standard } from './verdict';
 
 const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v1';
@@ -38,16 +38,12 @@ type VerifierEnrollmentRefusal = (typeof ENROLLMENT_REFUSALS)[number];
 /**
  * One enrollment: record the three phrases on the VoiceID surface, authorize exactly these
  * recordings on the vault, wait until the vault shows the authorization, then ask the verifier
- * to store the template. The verifier enrolls nothing that the owner did not authorize. An owner
- * that the grammar cannot speak has no vault, so it stops before any capture or network call.
+ * to store the template. The verifier enrolls nothing that the owner did not authorize.
  */
 export async function runEnrollment(
   input: SpeakToSignHostEnrollment,
 ): Promise<SpeakToSignEnrollmentResult> {
   const { operations, signal } = input;
-  if (!isSpeakableAccount(input.ownerAccountId)) {
-    return { kind: 'unavailable', reason: 'owner_not_speakable' };
-  }
   try {
     if ((await operations.viewVault('get_vault', signal)) === null) {
       return { kind: 'unavailable', reason: 'vault_missing' };

@@ -158,7 +158,7 @@ variables are set. A partial set is a deployment error.
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `1e79327b0afa2a0f026aee519bd0d1801272e21cb21205d31788e4d1452231f0` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | The OutLayer payment key. Keep it in a secret store.               |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |

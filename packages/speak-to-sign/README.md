@@ -23,7 +23,7 @@ Speak-to-Sign needs `@seams/voiceid` for the enrollment, the capture surface
 and the speech assets. Install all three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.56.1 @seams/voiceid@0.56.1 @seams/speak-to-sign@0.56.1
+pnpm add @seams/wallet@0.56.2 @seams/voiceid@0.56.2 @seams/speak-to-sign@0.56.2
 ```
 
 `@seams/wallet` does not depend on this package. An app without the

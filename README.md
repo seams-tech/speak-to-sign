@@ -34,7 +34,7 @@ plan).
 
 | Item                   | Value |
 | ---------------------- | ----- |
-| Verifier               | `seams-v1.testnet/voice-verifier`, version `1e79327b0afa2a0f026aee519bd0d1801272e21cb21205d31788e4d1452231f0` |
+| Verifier               | `seams-v1.testnet/voice-verifier`, version `b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0` |
 | HTTPS API              | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier` |
 | `secrets_ref`          | `{"profile":"main","account_id":"cyan-loong.testnet"}` |
 | Vault contract         | `seams-wallet.testnet` |

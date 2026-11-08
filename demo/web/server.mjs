@@ -22,7 +22,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const OUTLAYER_URL = "https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier";
-export const VERSION_KEY = "1e79327b0afa2a0f026aee519bd0d1801272e21cb21205d31788e4d1452231f0";
+export const VERSION_KEY = "b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0";
 export const RPC_URL = "https://test.rpc.fastnear.com";
 const SECRETS_REF = { profile: "main", account_id: "cyan-loong.testnet" };
 const VERDICT_DOMAIN = Buffer.from("seams:outlayer:voice-verdict:v1");

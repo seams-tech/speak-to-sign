@@ -13,6 +13,10 @@ The design is Refactor 210, Section 11.4, in `seams-monorepo/docs/refactor-210-v
   `captureClip`, `viewVault`, `verify` and `submitTransfer`
   (`core/transactionFeatures/hostOperations.ts`). The plugin gets no signing context, key or
   session.
+- [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three `captureClip` calls,
+  `authorizeEnrollment` with the digest of exactly these clips, a wait until
+  `get_pending_enrollment` shows it, then `verify` with the verifier's `enroll` input.
+  `tests/unit/speakToSignEnroll.unit.test.ts` checks the digest against the verifier's vector.
 - `captureClip` loads the VoiceID host plugin through `loadWalletAuthMethodHostPlugin` and calls
   its `recordPhrase`, which shows the sentence and records one clip. Core returns it as a 16 kHz
   mono PCM16 WAV of at most 8 s. This package bundles no VoiceID code.

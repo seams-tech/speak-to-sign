@@ -1,6 +1,6 @@
 {
   "name": "@seams/speak-to-sign",
-  "version": "0.54.0",
+  "version": "0.55.0",
   "type": "module",
   "description": "Optional spoken payments for Seams Wallet, built on VoiceID",
   "license": "Apache-2.0",
@@ -41,8 +41,8 @@
     "postpack": "node ../../scripts/package-license.mjs clean"
   },
   "peerDependencies": {
-    "@seams/voiceid": "0.54.0",
-    "@seams/wallet": "0.54.0",
+    "@seams/voiceid": "0.55.0",
+    "@seams/wallet": "0.55.0",
     "react": ">=19.0.0"
   },
   "peerDependenciesMeta": {

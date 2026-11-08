@@ -3,8 +3,8 @@
 
 use spoken_intent::{
     normalize, normalize_punctuated, parse_transfer, phonetic_key, render, ChallengeWord,
-    NearAmount, Network, ParseRefusal, ParseResult, ProposalV1, PunctuatedRefusal, SpokenAccount,
-    SpokenRequestV1, UnsupportedReason, CHALLENGE_WORDS,
+    NearAccount, NearAmount, Network, ParseRefusal, ParseResult, ProposalV1, PunctuatedRefusal,
+    SpokenAccount, SpokenRequestV1, UnsupportedReason, CHALLENGE_WORDS,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -16,12 +16,16 @@ fn account(id: &str) -> SpokenAccount {
 fn vault_transfer(receiver: &str, amount: NearAmount) -> SpokenRequestV1 {
     SpokenRequestV1::VaultTransfer {
         network: Network::Testnet,
-        vault: account("voice-vault.testnet"),
-        owner: account("owner.testnet"),
+        vault: near_account("voice-vault.testnet"),
+        owner: near_account("owner.testnet"),
         receiver: account(receiver),
         amount,
         nonce: 1,
     }
+}
+
+fn near_account(id: &str) -> NearAccount {
+    NearAccount::new(id).expect("valid account")
 }
 
 fn contacts() -> Vec<SpokenAccount> {
@@ -73,7 +77,7 @@ fn plan_examples_render_exactly() {
     };
     let rendered = render(&SpokenRequestV1::MultisigApproval {
         network: Network::Testnet,
-        multisig: account("multisig.testnet"),
+        multisig: near_account("multisig.testnet"),
         proposal_id: 42,
         proposal: ProposalV1::Transfer {
             receiver: account("payroll.testnet"),
@@ -215,7 +219,7 @@ fn punctuated_transcripts_read_like_the_rendered_text() {
     hash[0] = 0x17;
     let rendered = render(&SpokenRequestV1::MultisigApproval {
         network: Network::Testnet,
-        multisig: account("multisig.testnet"),
+        multisig: near_account("multisig.testnet"),
         proposal_id: 999,
         proposal: ProposalV1::SetVerifierVersion { version_hash: hash },
         challenge: [word("compass"), word("meadow")],
@@ -382,4 +386,32 @@ fn unspeakable_accounts_are_refused() {
     );
     assert_eq!(SpokenAccount::new("Alice.testnet"), unsupported);
     assert_eq!(SpokenAccount::new("alice..testnet"), unsupported);
+}
+
+#[test]
+fn an_implicit_owner_is_valid_and_not_said() {
+    let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
+    let eth = format!("0x{}", "ab".repeat(20));
+    for owner in [implicit, eth.as_str()] {
+        let request = SpokenRequestV1::VaultTransfer {
+            network: Network::Testnet,
+            vault: near_account("voice-vault.testnet"),
+            owner: near_account(owner),
+            receiver: account("alice.testnet"),
+            amount: NearAmount::from_hundredths(50).expect("speakable"),
+            nonce: 1,
+        };
+        assert_eq!(
+            render(&request).spoken_text,
+            "send zero point five near to alice dot testnet"
+        );
+        let bytes = borsh::to_vec(&request).expect("serializes");
+        assert_eq!(
+            borsh::from_slice::<SpokenRequestV1>(&bytes).expect("decodes"),
+            request
+        );
+    }
+    assert!(NearAccount::new("Alice.testnet").is_err());
+    assert!(NearAccount::new("alice..testnet").is_err());
+    assert!(NearAccount::new("a").is_err());
 }

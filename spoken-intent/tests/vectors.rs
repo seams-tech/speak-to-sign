@@ -10,9 +10,9 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
-    request_digest, spoken_text_digest, ChallengeWord, NearAmount, Network, ParseResult,
-    ProposalV1, SpokenAccount, SpokenRequestV1, SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES,
-    RENDERER_VERSION,
+    request_digest, spoken_text_digest, ChallengeWord, NearAccount, NearAmount, Network,
+    ParseResult, ProposalV1, SpokenAccount, SpokenRequestV1, SpokenToken, CHALLENGE_WORDS,
+    PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -52,6 +52,10 @@ fn text(tokens: &[SpokenToken]) -> String {
         .join(" ")
 }
 
+fn near_account(id: &str) -> NearAccount {
+    NearAccount::new(id).expect("valid account")
+}
+
 fn contacts() -> Vec<SpokenAccount> {
     ["alice.testnet", "bob.testnet", "bob-1.testnet"]
         .into_iter()
@@ -62,8 +66,8 @@ fn contacts() -> Vec<SpokenAccount> {
 fn transfer(network: Network, receiver: &str, hundredths: u64, nonce: u64) -> SpokenRequestV1 {
     SpokenRequestV1::VaultTransfer {
         network,
-        vault: account("voice-vault.testnet"),
-        owner: account("owner.testnet"),
+        vault: near_account("voice-vault.testnet"),
+        owner: near_account("owner.testnet"),
         receiver: account(receiver),
         amount: near(hundredths),
         nonce,
@@ -73,7 +77,7 @@ fn transfer(network: Network, receiver: &str, hundredths: u64, nonce: u64) -> Sp
 fn approval(proposal_id: u64, proposal: ProposalV1, words: [&str; 2]) -> SpokenRequestV1 {
     SpokenRequestV1::MultisigApproval {
         network: Network::Testnet,
-        multisig: account("payroll-multisig.testnet"),
+        multisig: near_account("payroll-multisig.testnet"),
         proposal_id,
         proposal,
         challenge: [word(words[0]), word(words[1])],

@@ -5,10 +5,12 @@
 //! the same text. The crate uses no floats, no locale, no clock and no
 //! randomness: the caller passes the challenge words in.
 //!
-//! Types carry the grammar rules. A [`SpokenAccount`] holds only an account
-//! that the grammar can speak, and a [`NearAmount`] holds only an exact
-//! multiple of 0.01 NEAR up to 1,000,000 NEAR. So [`render`] cannot fail, and
-//! Borsh decoding refuses bytes that hold an unspeakable value.
+//! Types carry the grammar rules. Each account that the text says is a
+//! [`SpokenAccount`], which holds only an account that the grammar can speak.
+//! The vault, the owner and the multisig are not said, so each is a
+//! [`NearAccount`], which can be implicit. A [`NearAmount`] holds only an
+//! exact multiple of 0.01 NEAR up to 1,000,000 NEAR. So [`render`] cannot
+//! fail, and Borsh decoding refuses bytes that hold an unspeakable value.
 //!
 //! A change to any rendered text is a new renderer version.
 
@@ -31,7 +33,7 @@ mod request;
 
 use sha2::{Digest, Sha256};
 
-pub use account::SpokenAccount;
+pub use account::{InvalidAccountId, NearAccount, SpokenAccount};
 pub use amount::NearAmount;
 pub use challenge::{ChallengeWord, CHALLENGE_WORDS};
 pub use confusion::confusion_set;

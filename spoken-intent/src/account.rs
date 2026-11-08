@@ -61,18 +61,70 @@ impl SpokenAccount {
     }
 }
 
+/// Any valid NEAR account id, named or implicit, for a field of a request
+/// that nobody says: the vault, the owner and the multisig.
+///
+/// Borsh writes it as a string, as [`SpokenAccount`] does, so a named
+/// account gives the same request digest in either type.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NearAccount(String);
+
+/// The account id breaks the NEAR account id rules.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InvalidAccountId;
+
+impl NearAccount {
+    /// Accepts a valid NEAR account id, including implicit 64-hex and `0x`
+    /// accounts.
+    pub fn new(account_id: &str) -> Result<Self, InvalidAccountId> {
+        if is_valid_account_id(account_id) {
+            Ok(Self(String::from(account_id)))
+        } else {
+            Err(InvalidAccountId)
+        }
+    }
+
+    /// The account id.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<SpokenAccount> for NearAccount {
+    fn from(account: SpokenAccount) -> Self {
+        Self(account.0)
+    }
+}
+
+impl BorshSerialize for NearAccount {
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+        self.0.serialize(writer)
+    }
+}
+
+impl BorshDeserialize for NearAccount {
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
+        let account_id = String::deserialize_reader(reader)?;
+        Self::new(&account_id).map_err(|_| {
+            borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, "invalid account id")
+        })
+    }
+}
+
+fn is_valid_account_id(account_id: &str) -> bool {
+    let length = account_id.len();
+    (2..=64).contains(&length) && account_id.split('.').all(is_valid_part)
+}
+
 fn is_speakable(account_id: &str) -> bool {
     let bytes = account_id.as_bytes();
-    if bytes.len() < 2 || bytes.len() > 64 {
-        return false;
-    }
     if bytes.len() == 64 && bytes.iter().all(|byte| byte.is_ascii_hexdigit()) {
         return false;
     }
     if account_id.starts_with("0x") {
         return false;
     }
-    account_id.split('.').all(is_valid_part)
+    is_valid_account_id(account_id)
 }
 
 fn is_valid_part(part: &str) -> bool {

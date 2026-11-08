@@ -2,7 +2,7 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{ChallengeWord, NearAmount, SpokenAccount};
+use crate::{ChallengeWord, NearAccount, NearAmount, SpokenAccount};
 
 /// The NEAR network of a request. It is part of the request digest, not of
 /// the spoken text.
@@ -17,6 +17,7 @@ pub enum Network {
 }
 
 /// A request that a person confirms by voice. It has only speakable kinds.
+/// Only the fields that the text says are [`SpokenAccount`]s.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize)]
 pub enum SpokenRequestV1 {
     /// A native NEAR transfer from a voice vault to a saved contact.
@@ -24,9 +25,9 @@ pub enum SpokenRequestV1 {
         /// The network of the vault.
         network: Network,
         /// The vault contract.
-        vault: SpokenAccount,
-        /// The vault owner.
-        owner: SpokenAccount,
+        vault: NearAccount,
+        /// The vault owner, named or implicit. The text does not say it.
+        owner: NearAccount,
         /// The contact that receives the amount.
         receiver: SpokenAccount,
         /// The amount. Borsh writes it as the `u128` yoctoNEAR value.
@@ -39,7 +40,7 @@ pub enum SpokenRequestV1 {
         /// The network of the multisig.
         network: Network,
         /// The multisig contract.
-        multisig: SpokenAccount,
+        multisig: NearAccount,
         /// The proposal id.
         proposal_id: u64,
         /// The proposal. No kind holds free text or a free function call.

@@ -1,6 +1,6 @@
 # @seams/speak-to-sign
 
-> **Experimental. NEAR testnet only.** First released in 0.54.0.
+> **Experimental. NEAR testnet only.** First released in 0.54.0. `enroll` is not in a published release yet.
 
 Optional spoken payments for Seams Wallet. The owner says a payment, such as
 "Send 2 NEAR to alice dot testnet". A Speak-to-Sign vault contract pays only
@@ -23,7 +23,7 @@ Speak-to-Sign needs `@seams/voiceid` for the enrollment, the capture surface
 and the speech assets. Install all three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.54.0 @seams/voiceid@0.54.0 @seams/speak-to-sign@0.54.0
+pnpm add @seams/wallet@0.55.0 @seams/voiceid@0.55.0 @seams/speak-to-sign@0.55.0
 ```
 
 `@seams/wallet` does not depend on this package. An app without the
@@ -56,6 +56,38 @@ if (seams.speakToSign) {
 
 `seams.speakToSign` exists only when the configuration names the descriptor.
 The descriptor is a few bytes of data and loads no code.
+
+## Owner setup
+
+Before the first spoken payment, the owner needs three things:
+
+1. VoiceID is on for the wallet
+   (`seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`).
+2. A vault with at least one contact. The owner calls `create_vault` (with a
+   deposit; the vault keeps 0.1 NEAR for storage) and `add_contact` on the
+   vault contract, for example with `seams.near.signAndSendTransaction`.
+3. A voice template at the verifier:
+
+```ts
+const enrollment = await seams.speakToSign.enroll({ walletId });
+```
+
+`enroll` shows three short phrases on the VoiceID surface, one at a time. Then
+the owner approves one `authorize_enrollment` call. That call authorizes the
+digest of exactly these three recordings for 10 minutes. The Wallet sends the
+recordings to the verifier, which enrolls only audio that the vault
+authorized. A new enrollment replaces the template.
+
+| `kind`        | Meaning                                                                   |
+| ------------- | ------------------------------------------------------------------------- |
+| `enrolled`    | The verifier stored the template. The result has its epoch and the hash.  |
+| `refused`     | The verifier or the vault refused, for example `speaker` or `quality`.    |
+| `cancelled`   | The owner closed the surface. Nothing was authorized.                     |
+| `unavailable` | VoiceID, the vault or the verifier could not be reached, or no vault yet. |
+
+On testnet the owner account needs about 0.3 NEAR: `create_vault` takes 0.15
+NEAR, and NEAR charges prepaid gas up front (about 0.03 NEAR for each 30 Tgas
+call and 0.051 NEAR for each spoken payment).
 
 `requestTransfer` returns one of these results:
 
@@ -97,9 +129,12 @@ variables are set. A partial set is a deployment error.
 
 The route:
 
-- requires an active Wallet Session that can sign NEAR transactions;
+- requires the caller's Wallet Session as identity (401 `unauthorized`
+  without one, 503 `session_unavailable` when the session store fails); it
+  spends no signing use;
 - refuses a request whose `owner` is not the session's NEAR account;
-- accepts a body of at most 400 KB;
+- serves both verifier operations, `verify` and `enroll`;
+- accepts a body of at most 1,100 KB (three 8 s enrollment clips);
 - calls `<base URL>/call/<project>` with the pinned `version_key` and
   `secrets_ref`, and puts the payment key only in the `X-Payment-Key` header;
 - returns the verifier output unchanged. It does not read the audio.
@@ -110,18 +145,20 @@ The vault is a NEAR contract. On testnet it is `seams-wallet.testnet`, with
 the verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` pinned
 at init.
 
-| Method                  | Use                                                                                 |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `transfer_with_verdict` | Pays an active contact on a verdict that the pinned key signed. The owner calls it. |
-| `authorize_enrollment`  | The owner allows one enrollment of exactly these recordings, for 10 minutes.        |
-| `get_vault`             | Balance, limits and the next nonce of an owner.                                     |
-| `get_contacts`          | The owner's contacts and whether each one is active.                                |
-| `get_verifier`          | The pinned verifier key.                                                            |
+| Method                   | Use                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| `transfer_with_verdict`  | Pays an active contact on a verdict that the pinned key signed. The owner calls it. |
+| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings, for 10 minutes.        |
+| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.                |
+| `get_vault`              | Balance, limits and the next nonce of an owner.                                     |
+| `get_contacts`           | The owner's contacts and whether each one is active.                                |
+| `get_verifier`           | The pinned verifier key.                                                            |
 
 The vault rebuilds the request from its own state and the call arguments. It
 checks the signature, the nonce, the contact, the limits and audio reuse.
 Any failure changes no state. The host plugin reads only `get_vault`,
-`get_contacts` and `get_verifier`, and sends only `transfer_with_verdict`.
+`get_contacts`, `get_verifier` and `get_pending_enrollment`, and sends only
+`transfer_with_verdict` and `authorize_enrollment`, with no deposit.
 
 ## Trust model
 

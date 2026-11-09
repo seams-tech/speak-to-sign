@@ -33,7 +33,7 @@ async function rpcQuery(rpcUrl: string, params: Record<string, unknown>): Promis
   const response = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 'seams-voice-intents', method: 'query', params }),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 'speak-to-pay', method: 'query', params }),
   });
   if (!response.ok) throw new Error(`NEAR RPC answered HTTP ${response.status}.`);
   const body: unknown = await response.json();

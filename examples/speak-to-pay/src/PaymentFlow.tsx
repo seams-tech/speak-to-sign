@@ -508,7 +508,7 @@ function useWalletConnection(): Connection {
     seams.connection.connect().then(
       () => live && setConnection('ready'),
       (error: unknown) => {
-        console.error('[seams-voice-intents] The Wallet iframe did not load', error);
+        console.error('[speak-to-pay] The Wallet iframe did not load', error);
         if (live) setConnection('failed');
       },
     );

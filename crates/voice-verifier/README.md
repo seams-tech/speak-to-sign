@@ -12,15 +12,16 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.5.1 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.5.2 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
 | ------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0.3.0   | `09f4ce1b…` (330,322 bytes, commit `3dab63d`)                      | Replaced. Verdict v2, the policy step, the `AccountTransfer` request, NEP-413 enrollment and `template:v3:<owner>`. It removed the vault.             |
-| 0.3.1   | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | **Live.** 334,704 bytes, commit `446882b`. It adds the forgiving word check for a send sentence. `deployment/wallet-system/targets.json` pins this key. |
+| 0.3.1   | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | Replaced. 334,704 bytes, commit `446882b`. It adds the forgiving word check for a send sentence. |
 | 0.4.0   | `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | Built and added to the OutLayer project on 2026-11-09. **Not active**: a call reaches it only if the caller sets `version_key`. It adds `community_note` and `note_rating`. Transfers are unchanged. |
-| 0.5.1   | `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258` | **Active** since 2026-11-10 (365,426 bytes, `build.sh --docker`, FastFS tx `A4zDd9E6sm1ZjSj3uVukTcTnoYZG83ntv1DqnS7A9w8R`, `add_version` tx `BGZ3QRPGaUzJ4x3Z7wcNq3yJ3xMYnAwS3rnPQfY69MTb`). It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. It includes the merge approvals of 0.5.0. The Mac build of the same source was `aae02d5e…`. |
+| 0.5.1   | `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258` | Replaced on 2026-11-09 at 17:04 UTC (365,426 bytes, `build.sh --docker`, FastFS tx `A4zDd9E6sm1ZjSj3uVukTcTnoYZG83ntv1DqnS7A9w8R`, `add_version` tx `BGZ3QRPGaUzJ4x3Z7wcNq3yJ3xMYnAwS3rnPQfY69MTb`). It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. It includes the merge approvals of 0.5.0. The Mac build of the same source was `aae02d5e…`. |
+| 0.5.2   | `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5` | **Active** since 2026-11-09 at 17:04 UTC (373,865 bytes, `build.sh --docker`, FastFS tx `7zwppPbVm5AMmFQ18m9dWCYax4mA4zTrHupVnuhQpFnD`, `add_version` tx `A81vUiuvEdsCyFKrFwzZdQe3gVfFTXuse5ue4Qi5g7L2`). No change in behaviour: the code is reorganised. The signed output is the same as 0.5.1, except the version. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -58,12 +59,12 @@ takes about 40 s.
 crates/voice-verifier/build.sh --docker
 ```
 
-Expected for the source of version 0.5.1:
+Expected for the source of version 0.5.2:
 
 ```text
 host   x86_64-unknown-linux-gnu
-bytes  365426
-sha256 cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258
+bytes  373865
+sha256 96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5
 ```
 
 A change to the source of this crate or of `spoken-intent`, to

@@ -76,15 +76,21 @@ normalization, transcript parsing and sound-alike words.
 (cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (23 tests):
+Expected (27 tests):
 
 ```text
      Running unittests src/lib.rs (target/debug/deps/spoken_intent-a16e3c61734de2f2)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/grammar.rs (target/debug/deps/grammar-4adb1047d5dc1887)
-test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/accounts.rs (target/debug/deps/accounts-01376625692ffcf7)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/normalize.rs (target/debug/deps/normalize-cfb59b3220c05961)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/punctuated.rs (target/debug/deps/punctuated-679c9bdf9b6ce233)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/render.rs (target/debug/deps/render-4db1d85cafcf77f4)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/vectors.rs (target/debug/deps/vectors-21056aa4746d8cc3)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
    Doc-tests spoken_intent
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
@@ -114,26 +120,26 @@ the 24 request vectors are the same
 (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (52 tests). The 16-digit hex suffix of each verifier test binary
+Expected (63 tests). The 16-digit hex suffix of each verifier test binary
 depends on the folder of your clone, so yours can differ; the test names and
 counts do not.
 
 ```text
-     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-61b138f53f973e2c)
-test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-79a2f81a10d9f285)
+     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-295e294e9723da61)
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-159a9fbb1adef904)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-078cd8692115c4a4)
+     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-f91d633521215fb8)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/ops.rs (target/debug/deps/ops-b4ae252bc60fd0b0)
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
-     Running tests/signed_vector.rs (target/debug/deps/signed_vector-8a4c243fa9593ecf)
+     Running tests/ops/main.rs (target/debug/deps/ops-1be840971268f48f)
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
+     Running tests/signed_vector.rs (target/debug/deps/signed_vector-356786a2eeb0f383)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
    Doc-tests seams_voice_verifier
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
-The note tests are in `tests/ops.rs`. They run the real `verify` operation
+The note tests are in `tests/ops/notes.rs`. They run the real `verify` operation
 with a fake host. The fake host has an enrolled owner and returns the given
 transcript. Each test checks the ed25519 signature of the verdict.
 
@@ -144,10 +150,10 @@ transcript. Each test checks the ed25519 signature of the verdict.
 Expected:
 
 ```text
-test note_inputs_that_are_not_speakable_are_unsupported ... ok
-test verify_accepts_a_spoken_rating_with_exact_words ... ok
-test verify_accepts_a_spoken_note_summary ... ok
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.86s
+test notes::note_inputs_that_are_not_speakable_are_unsupported ... ok
+test notes::verify_accepts_a_spoken_rating_with_exact_words ... ok
+test notes::verify_accepts_a_spoken_note_summary ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.82s
 ```
 
 `verify_accepts_a_spoken_note_summary` uses the summary "The bridge stays
@@ -166,7 +172,7 @@ For the summary "The bridge is not closed for six months", the transcript
 "The bridge is closed for six months." is refused (`words`): a dropped "not"
 does not pass. A summary of fewer than four words, and every rating, needs the
 exact words. "This note is not helpful." for a `helpful` rating is refused.
-The rule is `words_pass` in `crates/voice-verifier/src/ops.rs`.
+The rule is `words_pass` in `crates/voice-verifier/src/words.rs`.
 
 ### 3. The Wallet verdict check
 
@@ -311,9 +317,9 @@ Expected:
 ```
 
 The active version, which a caller gets when it sets no `version_key`, is
-`d078eb11…`. It is verifier 0.4.1, the source on this branch, added on
-2026-11-09 at 12:23 UTC. It keeps the note and rating rules of 0.4.0 and
-forgives more words in a spoken transfer.
+`96b79b51…`. It is verifier 0.5.2, the source on this branch, added on
+2026-11-09 at 17:04 UTC. It is 0.5.1 with the code reorganised: the signed
+output is the same, except the version.
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -c '{owner, active_version}'
@@ -322,17 +328,17 @@ view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifie
 Expected:
 
 ```text
-{"owner":"seams-v1.testnet","active_version":"d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c"}
+{"owner":"seams-v1.testnet","active_version":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5"}
 ```
 
 ```bash
-view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c"}' | jq -c '{wasm_hash, is_active, added_at}'
+view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5"}' | jq -c '{wasm_hash, is_active, added_at}'
 ```
 
 Expected:
 
 ```text
-{"wasm_hash":"d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c","is_active":true,"added_at":1794227029277031521}
+{"wasm_hash":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5","is_active":true,"added_at":1794243895396184670}
 ```
 
 The notes contract `notes.seams-v1.testnet` answers `get_notes`. Note 1 is
@@ -488,9 +494,9 @@ The code is under the Apache License 2.0 (`LICENSE`).
 
 | Item                | Value                                                                                        |
 | ------------------- | -------------------------------------------------------------------------------------------- |
-| Verifier            | `seams-v1.testnet/voice-verifier`, version 0.4.1, `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`, active since 2026-11-09 12:23 UTC. Notes and ratings as in 0.4.0; a more forgiving word check for transfers. |
+| Verifier            | `seams-v1.testnet/voice-verifier`, version 0.5.2, `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`, active since 2026-11-09 17:04 UTC. Transfers, notes, ratings and merge approvals. |
 | Verifier with notes | version 0.4.0, `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`, added 2026-11-09 and not active (FastFS tx `GPzHTAuC2VADuGR46ks7Mij8oPcZ4xVW9h7VuEkyqfuh`, `add_version` tx `9k7qWvG1JcCVyfzRjWjbWsjdK5MjXwQQ7vh71rT8me7y`). It adds `community_note` and `note_rating`; transfers are unchanged. A caller selects it by `version_key`. |
-| Earlier verifier    | version 0.3.1, `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`, transfers only, not active. |
+| Earlier verifiers   | version 0.5.1, `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258`, and version 0.4.1, `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`, not active. Version 0.3.1, `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`, transfers only, not active. |
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |

@@ -36,3 +36,39 @@ export function formatNear(yocto: bigint): string {
   const fraction = ((yocto % YOCTO_PER_NEAR) * 10_000n) / YOCTO_PER_NEAR;
   return `${whole}.${fraction.toString().padStart(4, '0')} NEAR`;
 }
+
+/** One USDC in base units (testnet USDC has 6 decimals). */
+export const USDC_UNIT = 1_000_000n;
+/** The smallest bet of the note market (pm-notes MIN_BET): 1 USDC. */
+export const USDC_NEED = USDC_UNIT;
+
+/** A NEP-141 token balance in base units: 0 when the account holds none or is not registered. */
+export async function readTokenBalance(rpcUrl: string, token: string, accountId: string): Promise<bigint> {
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'notes-demo',
+      method: 'query',
+      params: {
+        request_type: 'call_function',
+        finality: 'final',
+        account_id: token,
+        method_name: 'ft_balance_of',
+        args_base64: btoa(JSON.stringify({ account_id: accountId })),
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`NEAR RPC answered ${response.status}.`);
+  const body = (await response.json()) as { result?: { result?: number[] }; error?: { message?: string } };
+  if (body.error || !body.result?.result) throw new Error(body.error?.message ?? 'NEAR RPC error.');
+  const text = new TextDecoder().decode(Uint8Array.from(body.result.result));
+  return BigInt(JSON.parse(text) as string);
+}
+
+export function formatUsdc(units: bigint): string {
+  const whole = units / USDC_UNIT;
+  const cents = ((units % USDC_UNIT) * 100n) / USDC_UNIT;
+  return `${whole}.${cents.toString().padStart(2, '0')} USDC`;
+}

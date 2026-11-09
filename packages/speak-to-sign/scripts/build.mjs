@@ -9,9 +9,9 @@ process.chdir(root);
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, 'public/sdk/speak-to-sign'), { recursive: true });
 
-// The descriptor and React entries import only types from @seams/wallet.
+// The descriptor entry imports only types from @seams/wallet.
 await build(
-  { input: ['src/index.ts', 'src/react.ts'] },
+  { input: ['src/index.ts'] },
   { dir: path.join(dist, 'esm'), format: 'esm', preserveModules: true, preserveModulesRoot: 'src' },
 );
 

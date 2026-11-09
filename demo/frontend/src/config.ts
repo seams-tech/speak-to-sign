@@ -23,6 +23,7 @@ export const config = {
   marketRpcUrl: env(e.VITE_MARKET_RPC_URL, env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com')),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),
   faucetUrl: 'https://docs.near.org/getting-started/faucet',
+  usdcFaucetUrl: 'https://faucet.circle.com',
   /** The Speak to pay page on the same site. */
   payPath: '/pay/',
   seams: {

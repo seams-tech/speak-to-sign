@@ -21,7 +21,7 @@ pub enum Decision {
 
 /// The stub rule: a voice payment above this many yoctoNEAR (10 NEAR) needs
 /// a passkey.
-pub const STEP_UP_ABOVE_YOCTO: u128 = 10 * 10u128.pow(24);
+const STEP_UP_ABOVE_YOCTO: u128 = 10 * 10u128.pow(24);
 
 pub const STUB_AMOUNT_RULE: Rule =
     Rule { id: "stub_voice_amount_above_10_near", text: "A voice payment above 10 NEAR needs a passkey." };

@@ -2,6 +2,7 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::challenge::CHALLENGE_LEN;
 use crate::{ChallengeWord, NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary};
 
 /// The NEAR network of a request. It is part of the request digest, not of
@@ -37,7 +38,7 @@ pub enum SpokenRequestV1 {
         /// The proposal. No kind holds free text or a free function call.
         proposal: ProposalV1,
         /// The two fresh words that the contract issued.
-        challenge: [ChallengeWord; 2],
+        challenge: [ChallengeWord; CHALLENGE_LEN],
     } = 1,
     /// A native NEAR transfer from the owner's own account to a named account.
     AccountTransfer {

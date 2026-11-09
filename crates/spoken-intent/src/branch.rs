@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::SpokenToken;
+use crate::token::SpokenToken;
 
 /// The most letters of a [`SpokenBranch`].
 pub const MAX_BRANCH_LETTERS: usize = 32;

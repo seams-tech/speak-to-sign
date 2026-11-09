@@ -1,6 +1,6 @@
 //! The word check, Rule A: `spoken_intent::normalize_punctuated` reads the
 //! Whisper transcript, and its tokens must equal `render(request).spoken`.
-use spoken_intent::{normalize_punctuated, SpokenAccount, SpokenToken};
+use spoken_intent::{normalize_punctuated, spoken_text, SpokenAccount, SpokenRequestV1, SpokenToken};
 
 use crate::config::MAX_HEARD_BYTES;
 
@@ -49,11 +49,31 @@ pub fn check_words(
         _ => None,
     };
     WordCheck {
-        heard: cut(&heard_words.join(" ")),
+        heard: cut(&spoken_text(&tokens)),
         matched: tokens.as_slice() == expected,
         distance: Some(to_expected),
         margin_milli,
     }
+}
+
+/// A note summary is free text, so one word heard in another way is
+/// forgiven when the summary has at least this many words.
+const SUMMARY_FORGIVE_MIN_WORDS: usize = 4;
+
+/// The word decision. A transfer, an approval, a rating and a merge
+/// approval need the exact words. A note summary also passes with one word
+/// changed or dropped, when the heard words are still closer to the summary
+/// than to every near miss. An added word is as close to the near miss with
+/// "not" in its place, so it does not pass, and an added or dropped "not"
+/// never passes.
+pub(crate) fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected_words: usize) -> bool {
+    if check.matched {
+        return true;
+    }
+    matches!(request, SpokenRequestV1::CommunityNote { .. })
+        && expected_words >= SUMMARY_FORGIVE_MIN_WORDS
+        && check.distance == Some(1)
+        && check.margin_milli.is_some_and(|margin| margin > 0)
 }
 
 /// Word-level Levenshtein distance.

@@ -13,9 +13,9 @@ use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
 use serde_json::{json, Value};
 
+use seams_voice_verifier::authorization::{authorization_message, check_authorization, enrollment_digest, nep413_hash};
 use seams_voice_verifier::config::{ENROLLMENT_DOMAIN, ENROLLMENT_RECIPIENT, NEP413_TAG};
 use seams_voice_verifier::digest::{b64u, hex, near_ed25519_key, sha256};
-use seams_voice_verifier::enrollment::{authorization_message, check_authorization, enrollment_digest, nep413_hash};
 use seams_voice_verifier::input::EnrollAuthorization;
 
 const DIGEST_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/enrollment_digest_v2.json");

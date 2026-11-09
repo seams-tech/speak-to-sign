@@ -12,16 +12,21 @@ const openDialogs: object[] = [];
 let scrollLocks = 0;
 let bodyOverflow = '';
 
-/** An X-style dialog over a grey overlay. Escape and a click outside close it unless `locked`. */
+/**
+ * An X-style dialog over a grey overlay. Escape and a click outside close it unless `locked`.
+ * A `bare` dialog has no panel of its own, for content that brings its own card.
+ */
 export function Modal({
   labelledBy,
   onClose,
   locked,
+  bare = false,
   children,
 }: {
   labelledBy: string;
   onClose: () => void;
   locked: boolean;
+  bare?: boolean;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -55,17 +60,40 @@ export function Modal({
     };
   }, []);
 
-  return createPortal(
+  const closeOutside = () => {
+    if (!lockedRef.current) onCloseRef.current();
+  };
+  const dialog = (
     <div
-      className="overlay"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !lockedRef.current) onCloseRef.current();
-      }}
+      ref={dialogRef}
+      className={bare ? 'dialog dialog-bare' : 'dialog'}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+      tabIndex={-1}
     >
-      <div ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}>
-        {children}
+      {children}
+    </div>
+  );
+
+  // A bare dialog's card can be the Seams Wallet iframe, which the SDK paints between the grey
+  // backdrop and the dialog. So the dialog's own controls can sit on top of the card.
+  return createPortal(
+    bare ? (
+      <>
+        <div className="overlay-backdrop" onMouseDown={closeOutside} />
+        <div className="overlay overlay-bare">{dialog}</div>
+      </>
+    ) : (
+      <div
+        className="overlay"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeOutside();
+        }}
+      >
+        {dialog}
       </div>
-    </div>,
+    ),
     document.body,
   );
 }

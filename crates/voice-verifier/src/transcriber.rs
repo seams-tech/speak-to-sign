@@ -1,4 +1,4 @@
-//! The word model: Whisper large-v3 on NEAR AI Cloud (plan Section 8.2).
+//! The word model: Whisper large-v3 on NEAR AI Cloud.
 //!
 //! The request holds only the audio and the fields `model` and `language`.
 //! It never holds the expected text or a prompt. NEAR AI is a trusted party
@@ -14,7 +14,7 @@ use crate::host::PostRequest;
 /// `multipart/form-data` with exactly the fields `model`, `language` and
 /// `file`. The boundary comes from the WAV digest, so it is deterministic
 /// and is not in the body. Returns (content type, body).
-pub fn multipart_body(wav: &[u8]) -> (String, Vec<u8>) {
+fn multipart_body(wav: &[u8]) -> (String, Vec<u8>) {
     let boundary = format!("seams{}", hex(&sha256(wav)));
     let mut body = Vec::with_capacity(wav.len() + 512);
     for (name, value) in [("model", NEAR_AI_MODEL), ("language", NEAR_AI_LANGUAGE)] {
@@ -87,7 +87,10 @@ mod tests {
 
     #[test]
     fn replies() {
-        assert_eq!(parse_reply(200, br#"{"text":" Send 25 NEAR to alice.testnet."}"#).unwrap(), " Send 25 NEAR to alice.testnet.");
+        assert_eq!(
+            parse_reply(200, br#"{"text":" Send 25 NEAR to alice.testnet."}"#).unwrap(),
+            " Send 25 NEAR to alice.testnet."
+        );
         assert_eq!(parse_reply(503, br#"{"text":"hi"}"#), Err("status_503".into()));
         assert_eq!(parse_reply(200, br#"{"text":"  "}"#), Err("no_text".into()));
         assert_eq!(parse_reply(200, br#"{"text":null}"#), Err("bad_reply".into()));

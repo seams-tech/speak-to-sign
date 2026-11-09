@@ -131,8 +131,12 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
    So the first setup records twice. One recording for both needs a change in
    the Seams Wallet SDK. The page remembers the enrollment in your browser only,
    because the verifier has no status call.
-3. **Testnet NEAR for gas.** Each note or rating pays a little gas from your
-   account. The panel shows the free balance and links to the faucet.
+3. **Testnet NEAR and USDC.** Each note or rating pays a little gas, and a bet
+   on the note market pays USDC (1 USDC or more). **Get** asks the demo's faucet
+   (`/api/faucet`): in one transaction it sends 0.2 NEAR and 2 USDC, once per
+   account. The faucet is a small contract on `seams-faucet.testnet`
+   (`../contracts/faucet/`). If it is empty, the step links to the public
+   NEAR and USDC (faucet.circle.com) faucets.
 
 A note shows on the post ("Readers added context …") when it has 2 or more
 `helpful` ratings and more `helpful` than `not_helpful` ratings. The author
@@ -178,6 +182,9 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | ----------------- | ----------------------------------------------------------------------- |
 | `NEAR_AI_API_KEY` | Key for `https://cloud-api.near.ai/v1/chat/completions`. Required.      |
 | `NEAR_AI_MODEL`   | Optional. Default `Qwen/Qwen3.8-27B`, a small model that NEAR AI hosts. |
+| `FAUCET_PRIVATE_KEY` | The faucet's function-call key (`ed25519:…`). It can call `drip` on `seams-faucet.testnet` and nothing else, with a 1 NEAR gas allowance. Required for `/api/faucet`. |
+| `FAUCET_ACCOUNT`  | Optional. Default `seams-faucet.testnet`.                               |
+| `NEAR_RPC_URL`    | Optional, for `/api/faucet`. Default `https://test.rpc.fastnear.com`.   |
 
 ## How the page talks to the Wallet
 
@@ -236,6 +243,10 @@ pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name seams-voice-i
 ```
 
 ```bash
+pnpm exec wrangler pages secret put FAUCET_PRIVATE_KEY --project-name seams-voice-intents
+```
+
+```bash
 pnpm build:site && pnpm exec wrangler pages deploy dist --project-name seams-voice-intents --branch main
 ```
 
@@ -268,6 +279,8 @@ rate-limiting rule on `/api/summary`.
 | `src/components/`                | Timeline, post page, notes box, modals, setup panel.       |
 | `src/data/posts.ts`              | Fictional posts.                                           |
 | `functions/api/summary.ts`       | The Cloudflare Pages Function for NEAR AI summaries.       |
+| `functions/api/faucet.ts`        | The testnet faucet: one `drip` transaction for an account. |
+| `src/faucet/nearTx.ts`           | A small NEAR signer for it (Borsh, WebCrypto Ed25519).     |
 
 ## Design rules
 

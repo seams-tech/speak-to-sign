@@ -31,8 +31,8 @@ export function readSettings(): Settings {
       ...(projectEnvironmentId ? { projectEnvironmentId } : {}),
       chains: [{ network: 'near-testnet' }],
     }),
-    /* SDK 0.60.0 derives the passkey RP ID (the Wallet host) and the Router A/B
-       signing worker of a Seams-hosted Wallet origin, so this config sets neither. */
+    /* The SDK derives the passkey RP ID (the Wallet host) and the Router A/B
+       signing worker from a Seams-hosted Wallet origin, so this config sets neither. */
     signingSessionPersistenceMode: 'sealed_refresh_v1',
     appearance: { locale: 'en' },
     // VoiceID records the spoken sentence; Speak-to-Sign verifies it and pays.

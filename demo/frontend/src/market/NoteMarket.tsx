@@ -43,6 +43,8 @@ export function NoteMarketStrip({
   account,
   onSignIn,
   context,
+  directBet = false,
+  placeholder = false,
 }: {
   noteId: number;
   source: MarketSource;
@@ -55,6 +57,18 @@ export function NoteMarketStrip({
    * `source.createMarket`, a note without a market shows "Open a market".
    */
   context?: string;
+  /**
+   * With it, "Bet yes" and "Bet no" place one bet at once: the Wallet's own confirm is the only
+   * step, with no bet sheet on top. `true` bets the sheet's default stake (the middle chip); an
+   * amount (base units) bets that.
+   */
+  directBet?: boolean | bigint;
+  /**
+   * While the market is read the first time, show the strip's shapes (the odds bar, the odds line
+   * and the two bet buttons) grey and pulsing, in place of nothing. For a place where the market
+   * is known to exist, so that nothing appears and then goes away.
+   */
+  placeholder?: boolean;
 }) {
   const currency = source.currency ?? NEAR_CURRENCY;
   const [market, setMarket] = useState<NoteMarket | null>(null);
@@ -64,6 +78,10 @@ export function NoteMarketStrip({
   const [notice, setNotice] = useState<Notice | null>(null);
   /** A claim or a JEV request waits for the Wallet. */
   const [busy, setBusy] = useState<'claim' | 'ask' | 'close' | null>(null);
+  /** A direct bet on this side waits for the Wallet. */
+  const [placing, setPlacing] = useState<Side | null>(null);
+  /** The first read of the market has answered (or failed). */
+  const [loaded, setLoaded] = useState(false);
   /** The note has no market, and a new one can open: show "Open a market". */
   const [canOpen, setCanOpen] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -80,9 +98,11 @@ export function NoteMarketStrip({
   }, [source, noteId, account, context]);
 
   useEffect(() => {
-    load().catch((cause: unknown) =>
-      setNotice({ text: `Cannot read the market: ${cause instanceof Error ? cause.message : String(cause)}`, isError: true }),
-    );
+    load()
+      .catch((cause: unknown) =>
+        setNotice({ text: `Cannot read the market: ${cause instanceof Error ? cause.message : String(cause)}`, isError: true }),
+      )
+      .finally(() => setLoaded(true));
   }, [load]);
 
   // While a JEV request waits for its answer, read the market again every 5 s.
@@ -92,6 +112,29 @@ export function NoteMarketStrip({
     const timer = setInterval(() => void load().catch(() => undefined), 5_000);
     return () => clearInterval(timer);
   }, [resolving, load]);
+
+  if (!market && !loaded && placeholder) {
+    return (
+      <div className="nm-strip nm-loading" aria-busy="true" onClick={(event) => event.stopPropagation()}>
+        <span className="nm-bar" aria-hidden="true" />
+        <div className="nm-row" aria-hidden="true">
+          <span className="nm-sk" style={{ width: 120 }} />
+          <span className="nm-sk" style={{ width: 100 }} />
+        </div>
+        <div className="nm-buttons">
+          <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
+            Bet yes
+          </button>
+          <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
+            Bet no
+          </button>
+        </div>
+        <span className="sr-only" role="status">
+          Reading the market
+        </span>
+      </div>
+    );
+  }
 
   if (!market) {
     if (!canOpen || context === undefined || !source.createMarket) {
@@ -140,9 +183,23 @@ export function NoteMarketStrip({
     );
   }
 
+  const placeNow = async (side: Side) => {
+    const amount = typeof directBet === 'bigint' ? directBet : (currency.chips[1] ?? currency.chips[0] ?? 0n);
+    setPlacing(side);
+    const result = await source.bet({ marketId: market.id, side, amount });
+    setPlacing(null);
+    if (result.kind !== 'sent') {
+      setNotice({ text: result.kind === 'cancelled' ? 'You closed the Wallet. Nothing was signed.' : result.reason, isError: true });
+      return;
+    }
+    setNotice({ text: `Your bet of ${amountText(amount, currency)} on ${side} is in.`, isError: false });
+    await load();
+  };
+
   const openBet = (side: Side) => {
     setNotice(null);
     if (!account) onSignIn();
+    else if (directBet) void placeNow(side);
     else setBetSide(side);
   };
 
@@ -232,11 +289,11 @@ export function NoteMarketStrip({
                 )}
               </p>
               <div className="nm-buttons">
-                <button type="button" className="btn btn-outline btn-sm nm-bet" onClick={() => openBet('yes')}>
-                  Bet yes
+                <button type="button" className="btn btn-outline btn-sm nm-bet" disabled={placing !== null} onClick={() => openBet('yes')}>
+                  {placing === 'yes' ? 'Confirm in the Wallet…' : 'Bet yes'}
                 </button>
-                <button type="button" className="btn btn-outline btn-sm nm-bet" onClick={() => openBet('no')}>
-                  Bet no
+                <button type="button" className="btn btn-outline btn-sm nm-bet" disabled={placing !== null} onClick={() => openBet('no')}>
+                  {placing === 'no' ? 'Confirm in the Wallet…' : 'Bet no'}
                 </button>
               </div>
             </>

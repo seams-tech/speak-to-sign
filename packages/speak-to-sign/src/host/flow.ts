@@ -1,5 +1,4 @@
 import {
-  base64Encode,
   isSpeakableAccount,
   noteActionRefusal,
   noteVerifyRequest,
@@ -21,18 +20,21 @@ import {
   stepUpView,
   verifyingView,
   type CardInput,
-  type FailedResult,
 } from './card';
+import { recordClip, withPrompt } from './prompt';
+import {
+  mapPayment,
+  shortDetail,
+  stageTimes,
+  verifierUnavailable,
+  type FailedResult,
+  type SpokenResult,
+} from './result';
+import { verifyInput } from './verifier';
 
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
 export type HostTransfer = NonNullable<TransferInput['transfer']>;
 type NoteInput = Parameters<SpeakToSignHostPlugin['requestNoteAction']>[0];
-
-/** What a spoken request returns once its card opened. Both result types accept it. */
-type SpokenResult =
-  | Extract<SpeakToSignTransferResult, { kind: 'sent' }>
-  | Readonly<{ kind: 'cancelled' }>
-  | FailedResult;
 
 /**
  * One spoken request on the VoiceID card: the sentence to say, the request that the verifier
@@ -60,7 +62,7 @@ type SpokenRequest = Readonly<{
  * again" records the sentence again, up to five recordings in all.
  */
 export async function runSpokenTransfer(
-  input: Omit<TransferInput, 'transfer'> & { readonly transfer: HostTransfer },
+  input: Pick<TransferInput, 'network' | 'signal'> & { readonly transfer: HostTransfer },
 ): Promise<SpeakToSignTransferResult> {
   const { transfer, signal } = input;
   const amountYocto = parseSpeakableNear(transfer.amount);
@@ -106,7 +108,9 @@ export async function runSpokenTransfer(
  * One spoken community note or note rating, as a payment: the owner says the note's summary or
  * the rating sentence, and core signs `add_note` or `rate_note` on an approved verdict.
  */
-export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteResult> {
+export async function runSpokenNote(
+  input: Pick<NoteInput, 'network' | 'signal' | 'note'>,
+): Promise<SpeakToSignNoteResult> {
   const { note, signal } = input;
   const { action } = note;
   const refusal = noteActionRefusal(action);
@@ -121,7 +125,11 @@ export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteRe
       surfaceMeasurementBinding: note.surfaceMeasurementBinding,
       sentence: rendered.displayText,
       verifyRequest,
-      card: noteCard(input.network, action, rendered),
+      card: {
+        network: input.network,
+        ...noteCopy(action, rendered.displayText),
+        spokenText: rendered.spokenText,
+      },
       sign: (output, signal, hooks) =>
         note.operations.signNoteWithVerdict(action, output, signal, hooks),
     },
@@ -133,23 +141,18 @@ export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteRe
 const MAX_RECORDINGS = 5;
 
 async function runSpoken(request: SpokenRequest, signal: AbortSignal): Promise<SpokenResult> {
-  const opened = await request.operations.openPrompt({
-    sentence: request.sentence,
-    signal,
-    surfaceMeasurementBinding: request.surfaceMeasurementBinding,
-  });
-  if (opened.kind === 'unavailable') {
-    return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: opened.detail };
-  }
-  const run: Run = { request, signal, prompt: opened.prompt };
-  try {
-    for (let recording = 1; ; recording += 1) {
-      const attempt = await signOnce(run, recording < MAX_RECORDINGS);
-      if (attempt.kind === 'final') return attempt.result;
-    }
-  } finally {
-    opened.prompt.close();
-  }
+  const { sentence, surfaceMeasurementBinding } = request;
+  return await withPrompt(
+    request.operations,
+    { sentence, signal, surfaceMeasurementBinding },
+    async (prompt) => {
+      const run: Run = { request, signal, prompt };
+      for (let recording = 1; ; recording += 1) {
+        const attempt = await signOnce(run, recording < MAX_RECORDINGS);
+        if (attempt.kind === 'final') return attempt.result;
+      }
+    },
+  );
 }
 
 type Run = Readonly<{
@@ -168,125 +171,90 @@ type Attempt =
  */
 async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
   const { request, prompt, signal } = run;
-  const clip = await prompt.record();
-  if (clip.kind === 'cancelled') return { kind: 'final', result: clip };
-  if (clip.kind === 'unavailable') {
-    return {
-      kind: 'final',
-      result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: clip.detail },
-    };
-  }
+  const clip = await recordClip(prompt);
+  if (clip.kind !== 'captured') return { kind: 'final', result: clip };
   void prompt.show(verifyingView());
 
   const verifyStartedAt = performance.now();
   const reply = await request.operations.verify(
-    {
-      op: 'verify',
-      owner: request.ownerAccountId,
-      request: request.verifyRequest,
-      contacts: [],
-      audio_wav_b64: base64Encode(clip.wav),
-    },
+    verifyInput(request.ownerAccountId, request.verifyRequest, clip.wav),
     signal,
   );
   const verifiedAt = performance.now();
   if (reply.kind === 'failed') {
-    return await showFailure(
-      run,
-      { kind: 'unavailable', reason: 'verifier_unavailable', detail: reply.code },
-      canRetry,
-    );
+    return await showFailure(run, verifierUnavailable(reply.code), canRetry);
   }
 
-  // A step-up waits for the owner, so the signed time then starts at the approval.
-  let signedFrom = clip.endOfSpeechAt;
-  let approved = false;
-  // A plain transfer shows as sent when a block holds it; the result still waits for the outcome.
-  const sent: { choice: Promise<unknown> | null } = { choice: null };
-  const { noun } = request.card;
-  const result = mapPayment(
-    await request.sign(reply.output, signal, {
-      accepted: () => void prompt.show(sendingView(request.card, 'voice')),
-      approveStepUp: async (policyText) => {
-        const choice = await prompt.show(stepUpView(noun, policyText, false));
-        if (choice !== 'action') return false;
-        approved = true;
-        signedFrom = performance.now();
-        void prompt.show(stepUpView(noun, policyText, true));
-        return true;
-      },
-      broadcasting: () => {
-        if (approved) void prompt.show(sendingView(request.card, 'passkey'));
-      },
-      included: (transactionHash) => {
-        sent.choice = prompt.show(paidView(request.card, transactionHash, seconds(signedFrom)));
-      },
-    }),
-    {
-      speechMs: clip.speechMs,
-      verifyMs: Math.round(verifiedAt - verifyStartedAt),
-      verifiedAt,
-      endOfSpeechAt: clip.endOfSpeechAt,
-    },
-  );
+  const onCard = paymentHooks(prompt, request.card, clip.endOfSpeechAt);
+  const payment = await request.sign(reply.output, signal, onCard.hooks);
+  const times = stageTimes({
+    speechMs: clip.speechMs,
+    endOfSpeechAt: clip.endOfSpeechAt,
+    verifyStartedAt,
+    verifiedAt,
+    receiptAt: performance.now(),
+  });
+  const result = mapPayment(payment, times);
   if (result.kind === 'cancelled') return { kind: 'final', result };
   if (result.kind === 'sent') {
-    // The card already shows "Sent" from the block; keep it and wait for "Done" there.
-    if (sent.choice) await sent.choice;
-    else await prompt.show(paidView(request.card, result.transactionHash, seconds(signedFrom)));
+    await onCard.paid(result.transactionHash);
     return { kind: 'final', result };
   }
   return await showFailure(run, result, canRetry);
 }
 
-function seconds(from: number): number {
-  return (performance.now() - from) / 1_000;
+/**
+ * How the owner approved the payment. A step-up waits for the owner, so the time on the paid card
+ * then starts at the passkey approval, not at the end of speech.
+ */
+type Approval = Readonly<{ kind: 'voice' }> | Readonly<{ kind: 'passkey'; approvedAt: number }>;
+
+type PaymentHooks = Readonly<{
+  hooks: SpeakToSignPaymentHooks;
+  /** Shows the paid card, unless a block already showed it, and waits for "Done" there. */
+  paid(transactionHash: string): Promise<unknown>;
+}>;
+
+/**
+ * The hooks that make the card follow the payment in core. A plain transfer shows as sent when a
+ * block holds it; the result still waits for the outcome.
+ */
+function paymentHooks(
+  prompt: SpeakToSignPrompt,
+  card: CardInput,
+  endOfSpeechAt: number,
+): PaymentHooks {
+  let approval: Approval = { kind: 'voice' };
+  let paidCard: Promise<unknown> | null = null;
+  const showPaid = (transactionHash: string) => {
+    const from = approval.kind === 'passkey' ? approval.approvedAt : endOfSpeechAt;
+    return prompt.show(paidView(card, transactionHash, (performance.now() - from) / 1_000));
+  };
+  return {
+    hooks: {
+      accepted: () => void prompt.show(sendingView(card, 'voice')),
+      approveStepUp: async (policyText) => {
+        const choice = await prompt.show(stepUpView(card.noun, policyText, 'asking'));
+        if (choice !== 'action') return false;
+        approval = { kind: 'passkey', approvedAt: performance.now() };
+        void prompt.show(stepUpView(card.noun, policyText, 'waiting'));
+        return true;
+      },
+      broadcasting: () => {
+        if (approval.kind === 'passkey') void prompt.show(sendingView(card, 'passkey'));
+      },
+      included: (transactionHash) => {
+        paidCard = showPaid(transactionHash);
+      },
+    },
+    paid: (transactionHash) => paidCard ?? showPaid(transactionHash),
+  };
 }
 
 async function showFailure(run: Run, result: FailedResult, canRetry: boolean): Promise<Attempt> {
   const failure = failureView(run.request.card, result, canRetry);
   const choice = await run.prompt.show(failure.view);
   return choice === 'action' && failure.retry ? { kind: 'again' } : { kind: 'final', result };
-}
-
-type StageTimes = Readonly<{
-  speechMs: number;
-  verifyMs: number;
-  verifiedAt: number;
-  endOfSpeechAt: number;
-}>;
-
-function mapPayment(payment: SpeakToSignPayment, times: StageTimes): SpokenResult {
-  const receiptAt = performance.now();
-  switch (payment.kind) {
-    case 'executed':
-      return {
-        kind: 'sent',
-        transactionHash: payment.transactionHash,
-        approval: payment.approval,
-        times: {
-          speechMs: times.speechMs,
-          verifyMs: times.verifyMs,
-          transactionMs: Math.round(receiptAt - times.verifiedAt),
-          endOfSpeechToReceiptMs: Math.round(receiptAt - times.endOfSpeechAt),
-        },
-      };
-    case 'reverted':
-      return { kind: 'refused', reason: 'transaction_failed', detail: payment.error };
-    case 'refused':
-      return payment.detail === undefined
-        ? { kind: 'refused', reason: payment.reason }
-        : { kind: 'refused', reason: payment.reason, detail: payment.detail };
-    case 'cancelled':
-      return payment;
-    case 'unavailable':
-      return { kind: 'unavailable', reason: 'verifier_unavailable', detail: payment.detail };
-    case 'not_submitted':
-    case 'submission_unknown':
-      return { kind: 'unavailable', reason: payment.kind, detail: payment.error };
-    default:
-      return payment satisfies never;
-  }
 }
 
 type ReceiverCheck =
@@ -300,40 +268,23 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
     }
   } catch (error) {
     signal.throwIfAborted();
-    const detail = error instanceof Error ? error.message.slice(0, 200) : 'account view failed';
-    return {
-      kind: 'failed',
-      result: { kind: 'unavailable', reason: 'verifier_unavailable', detail },
-    };
+    const detail = error instanceof Error ? shortDetail(error.message) : 'account view failed';
+    return { kind: 'failed', result: verifierUnavailable(detail) };
   }
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
 }
 
 /** The card copy of a spoken note, rating or merge approval. */
-function noteCard(
-  network: NoteInput['network'],
+function noteCopy(
   action: NoteInput['note']['action'],
-  rendered: Readonly<{ displayText: string; spokenText: string }>,
-): CardInput {
-  const { spokenText } = rendered;
+  displayText: string,
+): Pick<CardInput, 'noun' | 'doneHeadline' | 'doneCaption'> {
   switch (action.kind) {
     case 'community_note':
-      return {
-        network,
-        noun: 'note',
-        doneHeadline: 'Note posted',
-        doneCaption: `“${action.summary}”`,
-        spokenText,
-      };
+      return { noun: 'note', doneHeadline: 'Note posted', doneCaption: `“${action.summary}”` };
     case 'note_rating':
-      return { network, noun: 'rating', doneHeadline: 'Rating saved', doneCaption: rendered.displayText, spokenText };
+      return { noun: 'rating', doneHeadline: 'Rating saved', doneCaption: displayText };
     case 'merge_approval':
-      return {
-        network,
-        noun: 'approval',
-        doneHeadline: 'Merge approved',
-        doneCaption: rendered.displayText,
-        spokenText,
-      };
+      return { noun: 'approval', doneHeadline: 'Merge approved', doneCaption: displayText };
   }
 }

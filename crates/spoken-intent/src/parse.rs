@@ -1,6 +1,4 @@
-use alloc::vec::Vec;
-
-use crate::render::SpokenToken;
+use crate::token::{token_words, SpokenToken};
 use crate::{NearAmount, SpokenAccount};
 
 /// The spoken fields of a transfer. The owner and the network are not spoken;
@@ -40,7 +38,7 @@ pub enum ParseResult {
 /// [`crate::render`]: for each accepted list, the rendered `spoken` tokens
 /// of the transfer equal `tokens`.
 pub fn parse_transfer(tokens: &[SpokenToken], contacts: &[SpokenAccount]) -> ParseResult {
-    let words: Vec<&str> = tokens.iter().map(SpokenToken::as_str).collect();
+    let words = token_words(tokens);
     if words.first() != Some(&"send") {
         return ParseResult::Refused(ParseRefusal::NotTransfer);
     }

@@ -2,3 +2,7 @@
 NEAR_AI_API_KEY=
 # Optional. The default is Qwen/Qwen3.8-27B.
 NEAR_AI_MODEL=
+# The faucet's function-call key (ed25519:...), for /api/faucet. It can call drip only.
+FAUCET_PRIVATE_KEY=
+# Optional. The default is seams-faucet.testnet.
+FAUCET_ACCOUNT=

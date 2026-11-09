@@ -1,13 +1,12 @@
-import {
-  base64Encode,
-  isPlainObject,
-  type SpeakToSignEnrollmentResult,
-  type SpeakToSignHostEnrollment,
-  type SpeakToSignPrompt,
+import type {
+  SpeakToSignEnrollmentResult,
+  SpeakToSignHostEnrollment,
+  SpeakToSignPrompt,
 } from '@seams/wallet/speak-to-sign-host';
 import { enrolledView, enrollSavingView, enrollSigningView, notEnrolledView } from './card';
-
-const ENROLLMENT_OUTPUT_KIND = 'seams_voice_enrollment_v3';
+import { recordClip, withPrompt } from './prompt';
+import { shortDetail, verifierUnavailable } from './result';
+import { enrollInput, readEnrollmentOutput } from './verifier';
 
 /** The owner reads these three phrases. The verifier needs exactly three recordings. */
 export const ENROLLMENT_PHRASES = [
@@ -15,20 +14,6 @@ export const ENROLLMENT_PHRASES = [
   'I send money only when I say so.',
   'Seams, please learn how I sound today.',
 ] as const;
-
-const ENROLLMENT_REFUSALS = [
-  'quality',
-  'speaker',
-  'audio_reused',
-  'audio_invalid',
-  'unsupported',
-  'speaker_unavailable',
-  'storage',
-  'template_exists',
-  'not_authorized',
-  'authorization_unavailable',
-] as const;
-type VerifierEnrollmentRefusal = (typeof ENROLLMENT_REFUSALS)[number];
 
 /**
  * One enrollment: record the three phrases on the VoiceID surface, have the owner sign one
@@ -42,56 +27,26 @@ type VerifierEnrollmentRefusal = (typeof ENROLLMENT_REFUSALS)[number];
 export async function runEnrollment(
   input: SpeakToSignHostEnrollment,
 ): Promise<SpeakToSignEnrollmentResult> {
-  const recorded = await recordPhrases(input);
-  if (recorded.kind === 'stopped') return recorded.result;
-  const { clips, prompt } = recorded;
-  try {
-    return await enrollOnCard(input, clips, prompt);
-  } finally {
-    prompt.close();
+  const clips: Uint8Array<ArrayBuffer>[] = [];
+  for (const sentence of ENROLLMENT_PHRASES.slice(0, -1)) {
+    const clip = await withPrompt(input.operations, promptRequest(input, sentence), recordClip);
+    if (clip.kind !== 'captured') return clip;
+    clips.push(clip.wav);
   }
+  const lastPhrase = ENROLLMENT_PHRASES[ENROLLMENT_PHRASES.length - 1];
+  return await withPrompt(input.operations, promptRequest(input, lastPhrase), async (prompt) => {
+    const clip = await recordClip(prompt);
+    if (clip.kind !== 'captured') return clip;
+    return await enrollOnCard(input, [...clips, clip.wav], prompt);
+  });
 }
 
-type Recorded =
-  | Readonly<{ kind: 'recorded'; clips: Uint8Array<ArrayBuffer>[]; prompt: SpeakToSignPrompt }>
-  | Readonly<{ kind: 'stopped'; result: SpeakToSignEnrollmentResult }>;
-
-/** Records the three phrases. The card of the last one stays open for the caller. */
-async function recordPhrases(input: SpeakToSignHostEnrollment): Promise<Recorded> {
-  const { operations, signal } = input;
-  const clips: Uint8Array<ArrayBuffer>[] = [];
-  for (const [index, sentence] of ENROLLMENT_PHRASES.entries()) {
-    const opened = await operations.openPrompt({
-      sentence,
-      signal,
-      surfaceMeasurementBinding: input.surfaceMeasurementBinding,
-    });
-    if (opened.kind === 'unavailable') {
-      const result: SpeakToSignEnrollmentResult = {
-        kind: 'unavailable',
-        reason: 'voiceid_unavailable',
-        detail: opened.detail,
-      };
-      return { kind: 'stopped', result };
-    }
-    const { prompt } = opened;
-    const clip = await prompt.record().catch((error: unknown) => {
-      prompt.close();
-      throw error;
-    });
-    if (clip.kind !== 'captured') {
-      prompt.close();
-      const result: SpeakToSignEnrollmentResult =
-        clip.kind === 'cancelled'
-          ? clip
-          : { kind: 'unavailable', reason: 'voiceid_unavailable', detail: clip.detail };
-      return { kind: 'stopped', result };
-    }
-    clips.push(clip.wav);
-    if (index === ENROLLMENT_PHRASES.length - 1) return { kind: 'recorded', clips, prompt };
-    prompt.close();
-  }
-  throw new Error('The enrollment has no phrases.');
+function promptRequest(input: SpeakToSignHostEnrollment, sentence: string) {
+  return {
+    sentence,
+    signal: input.signal,
+    surfaceMeasurementBinding: input.surfaceMeasurementBinding,
+  };
 }
 
 async function enrollOnCard(
@@ -103,23 +58,16 @@ async function enrollOnCard(
   void prompt.show(enrollSigningView());
   const signed = await operations.authorizeEnrollment(clips, signal);
   if (signed.kind === 'not_signed') {
-    return { kind: 'unavailable', reason: 'not_submitted', detail: signed.error.slice(0, 200) };
+    return { kind: 'unavailable', reason: 'not_submitted', detail: shortDetail(signed.error) };
   }
 
   void prompt.show(enrollSavingView());
   const reply = await operations.verify(
-    {
-      op: 'enroll',
-      owner: input.ownerAccountId,
-      audio_wav_b64: clips.map(base64Encode),
-      authorization: signed.authorization,
-    },
+    enrollInput(input.ownerAccountId, clips, signed.authorization),
     signal,
   );
   const result: SpeakToSignEnrollmentResult =
-    reply.kind === 'failed'
-      ? { kind: 'unavailable', reason: 'verifier_unavailable', detail: reply.code }
-      : readEnrollmentOutput(reply.output);
+    reply.kind === 'failed' ? verifierUnavailable(reply.code) : readEnrollmentOutput(reply.output);
   switch (result.kind) {
     case 'enrolled':
       await prompt.show(enrolledView(result.templateEpoch, result.agreementMilli));
@@ -132,29 +80,4 @@ async function enrollOnCard(
       break;
   }
   return result;
-}
-
-/** Reads the verifier's `enroll` output that the Seams route passes through unchanged. */
-export function readEnrollmentOutput(output: unknown): SpeakToSignEnrollmentResult {
-  if (!isPlainObject(output) || output.kind !== ENROLLMENT_OUTPUT_KIND) {
-    return { kind: 'unavailable', reason: 'verifier_unavailable', detail: 'invalid output' };
-  }
-  const detail = typeof output.detail === 'string' ? output.detail.slice(0, 200) : undefined;
-  if (output.outcome === 'accept') {
-    const epoch = output.template_epoch;
-    const agreement = output.agreement_milli;
-    if (!Number.isSafeInteger(epoch) || (epoch as number) < 1 || !Number.isSafeInteger(agreement)) {
-      return { kind: 'unavailable', reason: 'verifier_unavailable', detail: 'invalid output' };
-    }
-    return { kind: 'enrolled', templateEpoch: epoch as number, agreementMilli: agreement as number };
-  }
-  const reason = ENROLLMENT_REFUSALS.find(isReason.bind(null, output.reason));
-  if (output.outcome !== 'refuse' || reason === undefined) {
-    return { kind: 'unavailable', reason: 'verifier_unavailable', detail: 'invalid output' };
-  }
-  return detail === undefined ? { kind: 'refused', reason } : { kind: 'refused', reason, detail };
-}
-
-function isReason(value: unknown, reason: VerifierEnrollmentRefusal): boolean {
-  return value === reason;
 }

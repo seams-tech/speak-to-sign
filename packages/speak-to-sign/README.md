@@ -116,6 +116,52 @@ The receiver can be any named NEAR account that the owner can say. An implicit
 or `0x` account gives `receiver_not_speakable`, and an account that does not
 exist gives `receiver_missing`.
 
+## Spoken community notes
+
+The same card can sign a community note or a note rating, on a notes contract
+that has `add_note({ post_id, text, summary })` and
+`rate_note({ note_id, rating })`. The author types the note and reads aloud only
+a short summary. The verdict binds the full note by its SHA-256. On an approved
+verdict, Wallet core itself builds one call from the owner's account, with no
+deposit and no confirm.
+
+```ts
+import { summaryRefusal } from '@seams/wallet';
+
+// null when the summary is 1 to 12 plain words of ASCII letters.
+if (summaryRefusal(summary) === null) {
+  const posted = await seams.speakToSign.requestNote({
+    walletId,
+    contract: 'community-notes.testnet',
+    postId: 7,
+    text: 'The city closes one lane for two weeks. The bridge stays open.',
+    summary: 'Only one lane closes for two weeks.',
+  });
+}
+
+const rated = await seams.speakToSign.requestRating({
+  walletId,
+  contract: 'community-notes.testnet',
+  noteId: 3,
+  rating: 'helpful', // or 'somewhat_helpful', 'not_helpful'
+});
+```
+
+- A summary has 1 to 12 words of ASCII letters, with one space between two
+  words. A word can end with a comma, and the summary can end with `.`, `!` or
+  `?`. Digits, apostrophes, hyphens, URLs and handles are refused
+  (`summary_not_speakable`), because a speech-to-text model can write them in
+  another way. Write numbers as words.
+- A rating is said as "this note is helpful", "this note is somewhat helpful"
+  or "this note is not helpful".
+- The words must match. A summary of 4 or more words also passes with one word
+  heard differently or dropped, but never with an added or dropped "not".
+- Both calls return the result kinds of `requestTransfer`. The refusals are the
+  verifier's, `summary_not_speakable`, `note_not_valid` (the contract, the id,
+  the note of 1 to 280 characters or the rating), `verdict_mismatch` and
+  `transaction_failed`.
+- Notes need verifier 0.4.0 or later.
+
 ## Wallet host setup
 
 The operator of `walletOrigin` installs the same three packages. Then the

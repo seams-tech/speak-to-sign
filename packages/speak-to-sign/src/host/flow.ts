@@ -25,6 +25,7 @@ import { recordClip, withPrompt } from './prompt';
 import {
   mapPayment,
   shortDetail,
+  stageTimes,
   verifierUnavailable,
   type FailedResult,
   type SpokenResult,
@@ -61,7 +62,7 @@ type SpokenRequest = Readonly<{
  * again" records the sentence again, up to five recordings in all.
  */
 export async function runSpokenTransfer(
-  input: Omit<TransferInput, 'transfer'> & { readonly transfer: HostTransfer },
+  input: Pick<TransferInput, 'network' | 'signal'> & { readonly transfer: HostTransfer },
 ): Promise<SpeakToSignTransferResult> {
   const { transfer, signal } = input;
   const amountYocto = parseSpeakableNear(transfer.amount);
@@ -107,7 +108,9 @@ export async function runSpokenTransfer(
  * One spoken community note or note rating, as a payment: the owner says the note's summary or
  * the rating sentence, and core signs `add_note` or `rate_note` on an approved verdict.
  */
-export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteResult> {
+export async function runSpokenNote(
+  input: Pick<NoteInput, 'network' | 'signal' | 'note'>,
+): Promise<SpeakToSignNoteResult> {
   const { note, signal } = input;
   const { action } = note;
   const refusal = noteActionRefusal(action);
@@ -122,7 +125,11 @@ export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteRe
       surfaceMeasurementBinding: note.surfaceMeasurementBinding,
       sentence: rendered.displayText,
       verifyRequest,
-      card: noteCard(input.network, action, rendered),
+      card: {
+        network: input.network,
+        ...noteCopy(action, rendered.displayText),
+        spokenText: rendered.spokenText,
+      },
       sign: (output, signal, hooks) =>
         note.operations.signNoteWithVerdict(action, output, signal, hooks),
     },
@@ -178,49 +185,70 @@ async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
     return await showFailure(run, verifierUnavailable(reply.code), canRetry);
   }
 
-  // A step-up waits for the owner, so the signed time then starts at the approval.
-  let signedFrom = clip.endOfSpeechAt;
-  let approved = false;
-  // A plain transfer shows as sent when a block holds it; the result still waits for the outcome.
-  const sent: { choice: Promise<unknown> | null } = { choice: null };
-  const { noun } = request.card;
-  const result = mapPayment(
-    await request.sign(reply.output, signal, {
-      accepted: () => void prompt.show(sendingView(request.card, 'voice')),
-      approveStepUp: async (policyText) => {
-        const choice = await prompt.show(stepUpView(noun, policyText, 'asking'));
-        if (choice !== 'action') return false;
-        approved = true;
-        signedFrom = performance.now();
-        void prompt.show(stepUpView(noun, policyText, 'waiting'));
-        return true;
-      },
-      broadcasting: () => {
-        if (approved) void prompt.show(sendingView(request.card, 'passkey'));
-      },
-      included: (transactionHash) => {
-        sent.choice = prompt.show(paidView(request.card, transactionHash, seconds(signedFrom)));
-      },
-    }),
-    {
-      speechMs: clip.speechMs,
-      verifyMs: Math.round(verifiedAt - verifyStartedAt),
-      verifiedAt,
-      endOfSpeechAt: clip.endOfSpeechAt,
-    },
-  );
+  const onCard = paymentHooks(prompt, request.card, clip.endOfSpeechAt);
+  const payment = await request.sign(reply.output, signal, onCard.hooks);
+  const times = stageTimes({
+    speechMs: clip.speechMs,
+    endOfSpeechAt: clip.endOfSpeechAt,
+    verifyStartedAt,
+    verifiedAt,
+    receiptAt: performance.now(),
+  });
+  const result = mapPayment(payment, times);
   if (result.kind === 'cancelled') return { kind: 'final', result };
   if (result.kind === 'sent') {
-    // The card already shows "Sent" from the block; keep it and wait for "Done" there.
-    if (sent.choice) await sent.choice;
-    else await prompt.show(paidView(request.card, result.transactionHash, seconds(signedFrom)));
+    await onCard.paid(result.transactionHash);
     return { kind: 'final', result };
   }
   return await showFailure(run, result, canRetry);
 }
 
-function seconds(from: number): number {
-  return (performance.now() - from) / 1_000;
+/**
+ * How the owner approved the payment. A step-up waits for the owner, so the time on the paid card
+ * then starts at the passkey approval, not at the end of speech.
+ */
+type Approval = Readonly<{ kind: 'voice' }> | Readonly<{ kind: 'passkey'; approvedAt: number }>;
+
+type PaymentHooks = Readonly<{
+  hooks: SpeakToSignPaymentHooks;
+  /** Shows the paid card, unless a block already showed it, and waits for "Done" there. */
+  paid(transactionHash: string): Promise<unknown>;
+}>;
+
+/**
+ * The hooks that make the card follow the payment in core. A plain transfer shows as sent when a
+ * block holds it; the result still waits for the outcome.
+ */
+function paymentHooks(
+  prompt: SpeakToSignPrompt,
+  card: CardInput,
+  endOfSpeechAt: number,
+): PaymentHooks {
+  let approval: Approval = { kind: 'voice' };
+  let paidCard: Promise<unknown> | null = null;
+  const showPaid = (transactionHash: string) => {
+    const from = approval.kind === 'passkey' ? approval.approvedAt : endOfSpeechAt;
+    return prompt.show(paidView(card, transactionHash, (performance.now() - from) / 1_000));
+  };
+  return {
+    hooks: {
+      accepted: () => void prompt.show(sendingView(card, 'voice')),
+      approveStepUp: async (policyText) => {
+        const choice = await prompt.show(stepUpView(card.noun, policyText, 'asking'));
+        if (choice !== 'action') return false;
+        approval = { kind: 'passkey', approvedAt: performance.now() };
+        void prompt.show(stepUpView(card.noun, policyText, 'waiting'));
+        return true;
+      },
+      broadcasting: () => {
+        if (approval.kind === 'passkey') void prompt.show(sendingView(card, 'passkey'));
+      },
+      included: (transactionHash) => {
+        paidCard = showPaid(transactionHash);
+      },
+    },
+    paid: (transactionHash) => paidCard ?? showPaid(transactionHash),
+  };
 }
 
 async function showFailure(run: Run, result: FailedResult, canRetry: boolean): Promise<Attempt> {
@@ -247,30 +275,16 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
 }
 
 /** The card copy of a spoken note, rating or merge approval. */
-function noteCard(
-  network: NoteInput['network'],
+function noteCopy(
   action: NoteInput['note']['action'],
-  rendered: Readonly<{ displayText: string; spokenText: string }>,
-): CardInput {
-  const { spokenText } = rendered;
+  displayText: string,
+): Pick<CardInput, 'noun' | 'doneHeadline' | 'doneCaption'> {
   switch (action.kind) {
     case 'community_note':
-      return {
-        network,
-        noun: 'note',
-        doneHeadline: 'Note posted',
-        doneCaption: `“${action.summary}”`,
-        spokenText,
-      };
+      return { noun: 'note', doneHeadline: 'Note posted', doneCaption: `“${action.summary}”` };
     case 'note_rating':
-      return { network, noun: 'rating', doneHeadline: 'Rating saved', doneCaption: rendered.displayText, spokenText };
+      return { noun: 'rating', doneHeadline: 'Rating saved', doneCaption: displayText };
     case 'merge_approval':
-      return {
-        network,
-        noun: 'approval',
-        doneHeadline: 'Merge approved',
-        doneCaption: rendered.displayText,
-        spokenText,
-      };
+      return { noun: 'approval', doneHeadline: 'Merge approved', doneCaption: displayText };
   }
 }

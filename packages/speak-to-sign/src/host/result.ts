@@ -23,10 +23,8 @@ export type FailedResult =
     }>;
 
 /** What a spoken request returns once its card opened. Both result types accept it. */
-export type SpokenResult =
-  | Extract<SpeakToSignTransferResult, { kind: 'sent' }>
-  | Readonly<{ kind: 'cancelled' }>
-  | FailedResult;
+export type SpokenResult = SentResult | Readonly<{ kind: 'cancelled' }> | FailedResult;
+type SentResult = Extract<SpeakToSignTransferResult, { kind: 'sent' }>;
 
 /** A result carries at most this much of a free-text detail from core or the verifier. */
 const MAX_DETAIL_CHARS = 200;
@@ -42,27 +40,33 @@ export function verifierUnavailable(
   return { kind: 'unavailable', reason: 'verifier_unavailable', detail };
 }
 
-type StageTimes = Readonly<{
+/** The `performance.now()` marks of one recording, its verify call and core's outcome. */
+type StageMarks = Readonly<{
   speechMs: number;
-  verifyMs: number;
-  verifiedAt: number;
   endOfSpeechAt: number;
+  verifyStartedAt: number;
+  verifiedAt: number;
+  receiptAt: number;
 }>;
 
-export function mapPayment(payment: SpeakToSignPayment, times: StageTimes): SpokenResult {
-  const receiptAt = performance.now();
+/** Milliseconds of each stage of a sent request. */
+export function stageTimes(marks: StageMarks): SentResult['times'] {
+  return {
+    speechMs: marks.speechMs,
+    verifyMs: Math.round(marks.verifiedAt - marks.verifyStartedAt),
+    transactionMs: Math.round(marks.receiptAt - marks.verifiedAt),
+    endOfSpeechToReceiptMs: Math.round(marks.receiptAt - marks.endOfSpeechAt),
+  };
+}
+
+export function mapPayment(payment: SpeakToSignPayment, times: SentResult['times']): SpokenResult {
   switch (payment.kind) {
     case 'executed':
       return {
         kind: 'sent',
         transactionHash: payment.transactionHash,
         approval: payment.approval,
-        times: {
-          speechMs: times.speechMs,
-          verifyMs: times.verifyMs,
-          transactionMs: Math.round(receiptAt - times.verifiedAt),
-          endOfSpeechToReceiptMs: Math.round(receiptAt - times.endOfSpeechAt),
-        },
+        times,
       };
     case 'reverted':
       return { kind: 'refused', reason: 'transaction_failed', detail: payment.error };

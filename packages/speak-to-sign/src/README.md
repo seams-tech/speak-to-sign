@@ -31,8 +31,8 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
 - [`host/verifier.ts`](host/verifier.ts) is the verifier wire format: the `verify` and `enroll`
   inputs, and the reader of the `enroll` output.
 - [`host/result.ts`](host/result.ts) holds the results of a spoken request after its card
-  opened, the map from core's payment outcome to them, `verifier_unavailable`, and the length
-  limit of a result detail.
+  opened, the map from core's payment outcome to them, the stage times of a sent request,
+  `verifier_unavailable`, and the length limit of a result detail.
 - [`host/card.ts`](host/card.ts) holds the copy and the line segments of each state of the card:
   the check, the payment, the step-up question, the paid result, each refusal, and the
   enrollment states.
@@ -49,7 +49,7 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   v2 format and the pinned verifier key are in `shared-ts/src/speakToSign/`, which the Wallet
   and the co-signer share. seams-wallet `tests/unit/speakToSignHost.unit.test.ts` checks them
   against the crate's vectors and the verifier's signed verdicts. `tests/flow.test.ts` here
-  checks the payment and note flows.
+  checks the payment and note flows, against the fake Wallet core in `tests/fakeHost.ts`.
 - [`react.ts`](react.ts) will hold the pay button and the live text component.
 
 Speak-to-Sign is a transaction feature, not an auth method. It never unlocks a wallet or

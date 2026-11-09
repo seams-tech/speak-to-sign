@@ -1,11 +1,10 @@
-// Two real posts that got a Community Note on Twitter (now X). They show the kind of
-// post that a note corrects.
-// - The White House post is a work of the US government (public domain). It shows as posted.
-// - The Pentagon post is re-created from news reports. Its account impersonated a news
-//   outlet, so the page does not show that name. The picture is a drawing, not the fake image.
-// The page does not invent reply, repost, like or view counts for these posts.
+// A real case that got a Community Note on X in 2026. It shows the kind of post that a note
+// corrects. Posts here stay away from politics.
+// - The post is re-created from news reports. Its account farms engagement, so the page does
+//   not show its name or handle. The picture is a drawing of the claim, not the original video.
+// The page does not invent reply, repost, like or view counts.
 
-export type MediaKind = 'pentagon';
+export type MediaKind = 'thumbnails';
 
 export interface PostAuthor {
   name: string;
@@ -50,50 +49,25 @@ export const POSTS: Post[] = [
   {
     id: 1,
     author: {
-      name: 'Impersonator account',
-      handle: 'suspended',
+      name: 'Engagement account',
+      handle: 'hidden',
       initials: '?',
       color: '#536471',
       kind: 'person',
-      badge: 'blue',
       logo: 'unknown',
     },
-    text: 'Large explosion near the Pentagon complex in Washington, D.C. Initial report.',
-    media: 'pentagon',
-    mediaCaption: 'AI-generated fake',
-    age: 'May 22, 2023',
-    postedAt: 'May 22, 2023',
+    text: 'Claude Code just found 145,763 photos I deleted from my iPhone. Three years of them, still sitting in PhotoData/Thumbnails, with my passport and a screenshot of my crypto recovery phrase.',
+    media: 'thumbnails',
+    mediaCaption: 'Drawing of the claim',
+    age: 'Oct 24',
+    postedAt: 'Oct 24, 2026',
     history: {
       short: 'Re-created from news reports · got a Community Note',
       detail:
-        'Re-created from news reports of May 22, 2023. A paid-verified account that impersonated a news outlet posted an AI-generated picture of smoke near the Pentagon. Stocks dipped for a few minutes. The Arlington fire department said that there was no explosion, a Community Note said that the picture was fake, and the account was suspended.',
+        'Re-created from news reports of Oct 24, 2026. The post reached about 4.1 million views, and copies on other accounts gave other numbers. A Community Note said that the account posts AI-written text every day to farm engagement, with different numbers each time. Thumbnails can outlive deleted photos, but the claims that any app can read them, that they are full size and that Apple never removes them have no support, and the attached video did not show the search.',
       source: {
-        title: 'NPR: fake viral images of an explosion at the Pentagon were probably created by AI',
-        url: 'https://www.wusf.org/2023-05-22/fake-viral-images-of-an-explosion-at-the-pentagon-were-probably-created-by-ai',
-      },
-    },
-  },
-  {
-    id: 2,
-    author: {
-      name: 'The White House',
-      handle: 'WhiteHouse',
-      initials: 'WH',
-      color: '#0b2a4a',
-      kind: 'person',
-      badge: 'gray',
-      logo: 'government',
-    },
-    text: "Seniors are getting the biggest increase in their Social Security checks in 10 years through President Biden's leadership.",
-    age: 'Nov 1, 2022',
-    postedAt: 'Nov 1, 2022',
-    history: {
-      short: 'Real post · got a Community Note, then was deleted',
-      detail:
-        'Real post of Nov 1, 2022. A Community Note said that the increase was the yearly cost-of-living adjustment, which a 1972 law ties to inflation. The White House deleted the post the next day.',
-      source: {
-        title: 'WFAA Verify: the Social Security increase comes from a formula, not the President',
-        url: 'https://www.wfaa.com/article/news/verify/social-security-verify/social-security-benefit-cola-increase-comes-from-formula-not-president-joe-biden/536-3d106c3d-048e-41d4-9ca2-a94848ee4837',
+        title: 'Fact-check: the viral post on deleted iPhone photos and Claude Code falls apart',
+        url: 'https://pasqualepillitteri.it/en/news/28147/deleted-iphone-photos-claude-code-viral-post',
       },
     },
   },

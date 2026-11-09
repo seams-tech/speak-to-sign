@@ -26,10 +26,10 @@ answers with the reason.
 ## Community Notes (`/notes/`)
 
 A Community Notes page in the light style of X. You post a note and rate a
-note with your voice, through Seams Speak-to-Sign. Testnet only. The two
-posts are real cases that got a Community Note on Twitter (now X): the White
-House post on Social Security of 1 Nov 2022, and the AI-made "explosion near
-the Pentagon" picture of 22 May 2023.
+note with your voice, through Seams Speak-to-Sign. Testnet only. The post is
+a real case that got a Community Note on X: the viral claim of 24 Oct 2026 that
+Claude Code found 145,763 deleted iPhone photos. The page stays away from
+political posts.
 
 - **Post a note.** You type the note. NEAR AI suggests a summary of 12 words
   or fewer. You read the summary aloud in the Seams Wallet card. The attested
@@ -270,12 +270,12 @@ rate-limiting rule on `/api/summary`.
   notes box, the "Do you find this helpful? Rate it" row, the modals and the
   blue toast.
 - No X logo or wordmark. The logo slot holds a neutral icon.
-- The two posts are real cases, shown with care (`src/data/posts.ts`):
-  - The White House post is a work of the US government (public domain). It
-    shows as posted, with its date.
-  - The Pentagon post is re-created from news reports. Its account impersonated
-    a news outlet, so the page shows "Impersonator account" and not that name.
-    The picture is a drawing, labeled "AI-generated fake", not the fake image.
-  - Each post has a line that says what happened and links to a news source.
-  - The page does not invent reply, repost, like or view counts for them.
+- The post is a real case, shown with care (`src/data/posts.ts`):
+  - It is re-created from news reports. Its account farms engagement, so the
+    page shows "Engagement account" and not its name or handle.
+  - The picture is a drawing of the claim, labeled "Drawing of the claim", not
+    the original video.
+  - A line says what happened and links to a fact-check.
+  - The page does not invent reply, repost, like or view counts.
+  - No political posts.
 - System fonts. X's own font is proprietary.

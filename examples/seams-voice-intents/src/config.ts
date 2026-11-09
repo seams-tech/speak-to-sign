@@ -17,6 +17,8 @@ const DEFAULT_RP_ID = 'staging.sign.seams.sh';
 /* Managed registration (a publishable key) needs Router A/B normal signing,
    which the SDK default turns off. This is the staging signing worker. */
 const DEFAULT_SIGNING_WORKER_ID = 'router-ab-signing-worker-staging';
+/* SDK 0.60.0 sets the RP ID and the signing worker itself (seams-wallet 1b5f1da1a,
+   bdcc7cd50). Delete both settings when this example moves to 0.60.0. */
 
 export type Settings =
   | Readonly<{ kind: 'ready'; seamsConfig: SeamsConfigsInput; nearRpcUrl: string }>

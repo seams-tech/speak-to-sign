@@ -25,6 +25,8 @@ export function buildSeamsConfig(): SeamsConfigsInput | null {
     }),
     // Managed registration (a publishable key) needs Router A/B normal signing, as in the
     // staging console. The SDK default turns it off.
+    // SDK 0.60.0 sets both this and the RP ID itself (seams-wallet 1b5f1da1a, bdcc7cd50):
+    // delete rpIdOverride and routerAb here when the page moves to 0.60.0.
     routerAb: { normalSigning: { mode: 'enabled', signingWorkerId: seams.signingWorkerId } },
     signingSessionPersistenceMode: 'sealed_refresh_v1',
     appearance: { locale: 'en' },

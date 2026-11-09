@@ -1,0 +1,151 @@
+/* The note market strip and bet sheet. They use the X-style variables of src/styles.css
+   (--ink, --muted, --line, --green, --red, --accent), so they sit inside a note card. */
+.nm-strip {
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  cursor: auto;
+}
+.nm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.nm-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.nm-muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+.nm-small {
+  margin: 4px 0 0;
+}
+.nm-yes {
+  color: var(--green);
+}
+.nm-no {
+  color: var(--red);
+}
+.nm-bar {
+  display: flex;
+  height: 8px;
+  margin: 8px 0 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+.nm-bar-yes {
+  background: var(--green);
+}
+.nm-bar-no {
+  background: var(--red);
+}
+.nm-spark {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin-top: 6px;
+}
+.nm-spark-mid {
+  stroke: var(--line-strong);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.nm-spark-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.nm-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.nm-bet,
+.nm-side,
+.nm-chip {
+  flex: 1;
+}
+.nm-side.nm-side-on.nm-side-yes,
+.nm-side.nm-side-on.nm-side-yes:not(:disabled):hover {
+  border-color: var(--green);
+  background: rgba(0, 186, 124, 0.1);
+  color: #00704a;
+}
+.nm-side.nm-side-on.nm-side-no,
+.nm-side.nm-side-on.nm-side-no:not(:disabled):hover {
+  border-color: var(--red);
+  background: rgba(244, 33, 46, 0.08);
+  color: #b4121b;
+}
+.nm-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 186, 124, 0.12);
+  color: #00704a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.nm-payout {
+  margin-top: 8px;
+}
+.nm-why {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.nm-why summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+.nm-why summary::-webkit-details-marker {
+  display: none;
+}
+.nm-why[open] summary svg {
+  transform: rotate(180deg);
+}
+.nm-why p {
+  margin: 6px 0 0;
+}
+.nm-sheet > p {
+  margin: 0 0 12px;
+}
+.nm-sheet .nm-buttons {
+  margin: 0 0 12px;
+}
+.nm-say {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
+.nm-say .nm-muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.nm-say b {
+  font-size: 16px;
+}
+.nm-done {
+  margin: 8px 0 0;
+  color: #00704a;
+  font-size: 13px;
+}
+.nm-error {
+  margin: 8px 0 0;
+  color: var(--red);
+  font-size: 13px;
+}

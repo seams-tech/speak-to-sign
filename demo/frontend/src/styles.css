@@ -1495,6 +1495,35 @@ fieldset:disabled .choice {
 .note-input {
   min-height: 92px;
 }
+/* The write dialog: the note in a soft box, then the sentence to read aloud. */
+.wn-label {
+  display: block;
+  margin: 4px 0 4px;
+}
+.wn-note {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  font: inherit;
+  line-height: 20px;
+  resize: vertical;
+}
+.wn-note:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  background: #fff;
+}
+.wn-note ~ .q-block {
+  margin-top: 16px;
+}
+/* While the prefilled sentence types itself in. */
+.summary-typing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
 .summary-input {
   font-size: 17px;
   resize: none;

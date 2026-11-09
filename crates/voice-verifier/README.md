@@ -12,7 +12,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.4.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.5.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -89,8 +89,19 @@ Stage times (`ms`, not signed), in ms:
       `rating` `helpful`, `somewhat_helpful` or `not_helpful`, as
       `SpokenRequestV1::NoteRating`. The owner says "this note is helpful",
       "this note is somewhat helpful" or "this note is not helpful".
-  - The words must match the rendered text of the request. Two kinds of
-    forgiveness exist; each applies to words that hold no value:
+    - `merge_approval` (0.5.0 and later):
+      `{"contract","repo_sha256_hex","pull_request","base","head_commit_hex"}`,
+      as `SpokenRequestV1::MergeApproval`. The owner says "merge pull request
+      <number> into <base>", for example "merge pull request forty two into
+      main". `pull_request` is 1 or more. `base` is 1 to 32 ASCII lowercase
+      letters (`spoken_intent::SpokenBranch`). The repository is bound by the
+      SHA-256 of its name (64 lowercase hex characters) and the head commit
+      by its 20-byte id (40 lowercase hex characters). It moves no value: the
+      Wallet calls only `approve_merge`, with no deposit. Any other value
+      refuses with `unsupported`.
+  - The words must match the rendered text of the request. A rating and a
+    merge approval need the exact words. Two kinds of forgiveness exist;
+    each applies to words that hold no value:
     - Send sentence (0.3.1 and later; `spoken-intent` commit `92c21bc`,
       `976167297` in seams-wallet): the
       first word "sent" or "sends" counts as "send"; a closed list of

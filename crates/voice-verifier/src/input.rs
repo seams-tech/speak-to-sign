@@ -66,6 +66,20 @@ pub enum RequestInput {
         note_id: u64,
         rating: RatingInput,
     },
+    /// An approval to merge the head commit of a pull request into its
+    /// base. The owner says the pull request number and the base.
+    MergeApproval {
+        /// The merge approvals contract.
+        contract: String,
+        /// SHA-256 of the UTF-8 repository name, 64 lowercase hex characters.
+        repo_sha256_hex: String,
+        /// 1 or more.
+        pull_request: u64,
+        /// 1 to 32 ASCII lowercase letters.
+        base: String,
+        /// The head commit id, 40 lowercase hex characters.
+        head_commit_hex: String,
+    },
 }
 
 /// The rating of a `note_rating` request.
@@ -132,6 +146,22 @@ mod tests {
         let mut unknown_rating = rating;
         unknown_rating["rating"] = json!("great");
         assert!(serde_json::from_value::<RequestInput>(unknown_rating).is_err());
+
+        let merge = json!({
+            "kind": "merge_approval",
+            "contract": "merges.testnet",
+            "repo_sha256_hex": "00",
+            "pull_request": 42,
+            "base": "main",
+            "head_commit_hex": "00",
+        });
+        assert!(matches!(
+            serde_json::from_value::<RequestInput>(merge.clone()).unwrap(),
+            RequestInput::MergeApproval { pull_request: 42, ref base, .. } if base == "main"
+        ));
+        let mut negative = merge;
+        negative["pull_request"] = json!(-1);
+        assert!(serde_json::from_value::<RequestInput>(negative).is_err());
     }
 
     #[test]

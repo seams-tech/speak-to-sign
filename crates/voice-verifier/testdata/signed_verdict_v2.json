@@ -8,7 +8,7 @@
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
       "expires_at_ms": 1762700120000,
-      "message_sha256_hex": "6f70543843d5cc8bbe629d8c377cd990b27bf58c78de3706d4b4bdd26801e8ef",
+      "message_sha256_hex": "1656a29238adc9679164962be004e64d9fbe431cca5b4d640663147c3005d479",
       "name": "accept",
       "outcome": "accept",
       "policy_rule": null,
@@ -22,15 +22,15 @@
       },
       "request_borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000042db999d3784a7010000000000",
       "request_digest": "uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws",
-      "signature_b64": "0edas71XE9pMCRPad1fBqyPJGRRJ/0FgjoxIhe2S6QFPgzsmp43Li2J826lBHLEwylgolg+BiC7IZbw/soELDA==",
+      "signature_b64": "zAzulPSpPZssFiS4qTmIWOS7bmNvnlKE7vB1Slki5M/Fm3GBOB2w11JrLClFJ6Fx/Xx3emkIyYXPO7JJg0PxBQ==",
       "spoken_text": "send two near to alice dot testnet",
       "spoken_text_digest": "mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys",
-      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.4.1\",\"request_digest\":\"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws\",\"spoken_text_digest\":\"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"policy_rule\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send two near to alice dot testnet\"}"
+      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.5.0\",\"request_digest\":\"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws\",\"spoken_text_digest\":\"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"policy_rule\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send two near to alice dot testnet\"}"
     },
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
       "expires_at_ms": 1762700120000,
-      "message_sha256_hex": "488e9eec63b60fb2c7e85c0c885aec9c71c4a211b3663920f66134a093784437",
+      "message_sha256_hex": "64061ca46c99b1e0ce86d87888b23ecf9f35e0bc9d8b3140e7c435e63eeaa334",
       "name": "step_up",
       "outcome": "step_up",
       "policy_rule": "stub_voice_amount_above_10_near",
@@ -44,10 +44,10 @@
       },
       "request_borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000eb35cee2315719090000000000",
       "request_digest": "xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs",
-      "signature_b64": "IvKipdcFMV4Y3y9r1zlsdJ0i95wAncSg3l5aIzNal92EVGNWRaYOZesRKS4GosHENkcPdPDNBw9RRXZnU/eWBA==",
+      "signature_b64": "6rQInhNW4CXnwSmuwXzfHomRgTj6puD50Q23VtGdRaJOHR4nbK/3ChX/zu0vsHv3yOq6syT3OjSzvqtRs4MMCA==",
       "spoken_text": "send eleven near to alice dot testnet",
       "spoken_text_digest": "KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk",
-      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.4.1\",\"request_digest\":\"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs\",\"spoken_text_digest\":\"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"step_up\",\"reason\":null,\"policy_rule\":\"stub_voice_amount_above_10_near\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send eleven near to alice dot testnet\"}"
+      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.5.0\",\"request_digest\":\"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs\",\"spoken_text_digest\":\"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"step_up\",\"reason\":null,\"policy_rule\":\"stub_voice_amount_above_10_near\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send eleven near to alice dot testnet\"}"
     }
   ]
 }

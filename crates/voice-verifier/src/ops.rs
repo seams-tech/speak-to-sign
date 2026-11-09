@@ -16,7 +16,7 @@ use std::time::Instant;
 use serde_json::{json, Map, Value};
 use spoken_intent::{
     confusion_set, render, request_digest, spoken_text_digest, NearAccount, NearAmount, Network, NoteRatingV1,
-    SpokenAccount, SpokenRequestV1, SpokenSummary,
+    SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
 };
 
 use crate::audio::{decode_wav, energy_gate, wav_bytes};
@@ -89,6 +89,12 @@ pub fn transfer_request(owner: &str, receiver: &str, amount_yocto: u128) -> Resu
     Ok(SpokenRequestV1::AccountTransfer { network: SERVED_NETWORK, owner, receiver, amount })
 }
 
+/// `2 * N` lowercase hex characters.
+fn lowercase_hex<const N: usize>(text: &str) -> Result<[u8; N], Reason> {
+    let lowercase = text.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
+    from_hex::<N>(text).filter(|_| lowercase).ok_or(Reason::Unsupported)
+}
+
 /// The typed request of a `verify` input.
 fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1, Reason> {
     match request {
@@ -97,14 +103,12 @@ fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1,
             transfer_request(owner, receiver, amount)
         }
         RequestInput::CommunityNote { contract, post_id, note_sha256_hex, summary } => {
-            let lowercase_hex = note_sha256_hex.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
-            let note_sha256 = from_hex::<32>(note_sha256_hex).filter(|_| lowercase_hex).ok_or(Reason::Unsupported)?;
             Ok(SpokenRequestV1::CommunityNote {
                 network: SERVED_NETWORK,
                 owner: NearAccount::new(owner).map_err(|_| Reason::Unsupported)?,
                 contract: NearAccount::new(contract).map_err(|_| Reason::Unsupported)?,
                 post_id: *post_id,
-                note_sha256,
+                note_sha256: lowercase_hex::<32>(note_sha256_hex)?,
                 summary: SpokenSummary::new(summary).map_err(|_| Reason::Unsupported)?,
             })
         }
@@ -119,6 +123,20 @@ fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1,
                 RatingInput::NotHelpful => NoteRatingV1::NotHelpful,
             },
         }),
+        RequestInput::MergeApproval { contract, repo_sha256_hex, pull_request, base, head_commit_hex } => {
+            if *pull_request == 0 {
+                return Err(Reason::Unsupported);
+            }
+            Ok(SpokenRequestV1::MergeApproval {
+                network: SERVED_NETWORK,
+                owner: NearAccount::new(owner).map_err(|_| Reason::Unsupported)?,
+                contract: NearAccount::new(contract).map_err(|_| Reason::Unsupported)?,
+                repo_sha256: lowercase_hex::<32>(repo_sha256_hex)?,
+                pull_request: *pull_request,
+                base: SpokenBranch::new(base).map_err(|_| Reason::Unsupported)?,
+                head_commit: lowercase_hex::<20>(head_commit_hex)?,
+            })
+        }
     }
 }
 
@@ -126,11 +144,12 @@ fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1,
 /// forgiven when the summary has at least this many words.
 pub const SUMMARY_FORGIVE_MIN_WORDS: usize = 4;
 
-/// The word decision. A transfer, an approval and a rating need the exact
-/// words. A note summary also passes with one word changed or dropped, when
-/// the heard words are still closer to the summary than to every near miss.
-/// An added word is as close to the near miss with "not" in its place, so
-/// it does not pass, and an added or dropped "not" never passes.
+/// The word decision. A transfer, an approval, a rating and a merge
+/// approval need the exact words. A note summary also passes with one word
+/// changed or dropped, when the heard words are still closer to the summary
+/// than to every near miss. An added word is as close to the near miss with
+/// "not" in its place, so it does not pass, and an added or dropped "not"
+/// never passes.
 fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected_words: usize) -> bool {
     if check.matched {
         return true;

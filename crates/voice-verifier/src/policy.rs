@@ -39,7 +39,7 @@ pub fn decide(request: &SpokenRequestV1) -> Decision {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use spoken_intent::{NearAccount, NearAmount, Network, SpokenAccount};
+    use spoken_intent::{NearAccount, NearAmount, Network, SpokenAccount, SpokenBranch};
 
     fn transfer(hundredths: u64) -> SpokenRequestV1 {
         SpokenRequestV1::AccountTransfer {
@@ -55,5 +55,19 @@ mod tests {
         assert_eq!(decide(&transfer(1_000)), Decision::Allow);
         assert_eq!(decide(&transfer(1_001)), Decision::StepUp(&STUB_AMOUNT_RULE));
         assert_eq!(decide(&transfer(1)), Decision::Allow);
+    }
+
+    #[test]
+    fn a_merge_approval_is_allowed() {
+        let merge = SpokenRequestV1::MergeApproval {
+            network: Network::Testnet,
+            owner: NearAccount::new("owner.testnet").unwrap(),
+            contract: NearAccount::new("merges.testnet").unwrap(),
+            repo_sha256: [1; 32],
+            pull_request: 42,
+            base: SpokenBranch::new("main").unwrap(),
+            head_commit: [2; 20],
+        };
+        assert_eq!(decide(&merge), Decision::Allow);
     }
 }

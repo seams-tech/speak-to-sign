@@ -129,7 +129,7 @@ async function enrollOnce(speakToSign: SpeakToSign, walletId: string): Promise<S
   }
 }
 
-function toSignResult(result: SpeakToSignNoteResult): SignResult {
+export function toSignResult(result: SpeakToSignNoteResult): SignResult {
   switch (result.kind) {
     case 'sent':
       return {
@@ -193,6 +193,6 @@ function withDetail(text: string, detail: string | undefined): string {
   return detail ? `${text} ${detail}` : text;
 }
 
-function errorText(cause: unknown): string {
+export function errorText(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }

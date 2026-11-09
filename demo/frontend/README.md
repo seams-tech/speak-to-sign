@@ -6,6 +6,21 @@ the applications as framed screens. The live one is Community Notes
 concepts. The page style is warm paper, ink lines and monospace type, in the
 spirit of hand-inked product pages. Its code is in `src/showcase/`.
 
+## PR merge by voice (`/merge/`)
+
+A demo pull request page in the style of a code host. **Merge with voice**
+asks the Seams Wallet for a spoken approval: the owner says "merge pull
+request four hundred twelve into main", the verifier checks the voice and the
+words, and the Wallet signs `approve_merge` on the merge approvals contract
+(`../contracts/merge-approvals/`, proposed account `merges.seams-v1.testnet`).
+Nothing in a repository changes; the on-chain approval is the signed merge
+message. The page lists the approvals that the contract holds.
+
+It waits for two things. The contract must be deployed. The Wallet must have
+the new spoken request kind and `seams.speakToSign.requestMergeApproval`
+(`merge-approval-spec.md` in the session notes). Until then the button
+answers with the reason. The code is in `src/merge/`.
+
 ## Community Notes (`/notes/`)
 
 A Community Notes page in the light style of X. You post a note and rate a
@@ -28,9 +43,10 @@ signed output: one call, for a short time.
 There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
-The site has three pages on one origin, `https://seams-voice-intents.pages.dev`:
-the Speak-to-Sign page at `/` (`index.html`), this Community Notes page at
-`/notes/` (`notes/index.html`), and the Speak to pay example
+The site has four pages on one origin, `https://seams-voice-intents.pages.dev`:
+the Speak-to-Sign page at `/` (`index.html`), the Community Notes page at
+`/notes/` (`notes/index.html`), the PR merge page at `/merge/`
+(`merge/index.html`), and the Speak to pay example
 (`../../examples/speak-to-pay`) at `/pay/`. All use the same Seams project, so
 one wallet works on all of them. The Speak-to-Sign page shows a live preview of
 `/notes/` in an iframe; a click opens it full size.

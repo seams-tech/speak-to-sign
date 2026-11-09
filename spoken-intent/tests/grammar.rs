@@ -560,6 +560,33 @@ fn account_separators_can_be_said_differently_or_left_out() {
 }
 
 #[test]
+fn note_summaries_keep_separator_words_and_oh() {
+    // The send-sentence rules must not touch a note summary: it is read
+    // word for word, so "period", "dash", "oh" and "point" stay as said.
+    for text in [
+        "The period on the chart is wrong",
+        "Oh this dash cam clip is old",
+        "Point one is not in the source",
+        "Full stop hyphen and minus are mixed up",
+    ] {
+        let request = SpokenRequestV1::CommunityNote {
+            network: Network::Testnet,
+            owner: near_account("owner.testnet"),
+            contract: near_account("notes.testnet"),
+            post_id: 7,
+            note_sha256: [3; 32],
+            summary: spoken_intent::SpokenSummary::new(text).expect("speakable summary"),
+        };
+        let rendered = render(&request);
+        assert_eq!(
+            normalize_punctuated(&rendered.display_text, &[]).expect(text),
+            rendered.spoken,
+            "{text}"
+        );
+    }
+}
+
+#[test]
 fn joined_words_match_by_the_sound_of_the_sentence_end() {
     // Whisper large-v3: "to" joined with the receiver.
     let contacts = [account("ken.testnet"), account("dana.testnet")];

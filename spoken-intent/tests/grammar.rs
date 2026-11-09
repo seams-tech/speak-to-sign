@@ -374,6 +374,87 @@ fn dot_before_testnet_keeps_the_contact_match() {
 }
 
 #[test]
+fn send_slots_forgive_words_that_hold_no_value() {
+    // Staging: "send zero point zero one year to seams dash v one dot testnet".
+    let seams = [account("seams-v1.testnet")];
+    let tokens =
+        normalize_punctuated("Send 0.01 year to seams-v1.testnet.", &seams).expect("contact");
+    assert_eq!(
+        parse_transfer(&tokens, &seams),
+        ParseResult::Transfer(spoken_intent::ParsedTransfer {
+            receiver: account("seams-v1.testnet"),
+            amount: NearAmount::from_hundredths(1).expect("speakable"),
+        })
+    );
+
+    // Whisper large-v3 forms of the verb, the unit, the suffix and the receiver.
+    for (heard, receiver, hundredths) in [
+        ("Send 25 NIA to alice.testnet.", "alice.testnet", 2_500),
+        ("Send 25 here to alice.testnet.", "alice.testnet", 2_500),
+        ("Send 1,300 nair to bob.testnet", "bob.testnet", 130_000),
+        ("Sent 25 near to alice.testnet.", "alice.testnet", 2_500),
+        ("Sends 25 near to alice.testnet", "alice.testnet", 2_500),
+        ("Send 25 to alice.testnet.", "alice.testnet", 2_500),
+        ("Send free near to alice.testnet.", "alice.testnet", 300),
+        ("Send twenty for near to bob.testnet", "bob.testnet", 2_400),
+        (
+            "Send 200-1587.5 near to bob.testnet.",
+            "bob.testnet",
+            20_158_750,
+        ),
+        ("Send 25 near to alice.testnode.", "alice.testnet", 2_500),
+        (
+            "Send 25 near to alice dot test node",
+            "alice.testnet",
+            2_500,
+        ),
+        ("Send 25 near to alice testament", "alice.testnet", 2_500),
+        ("Send 25 near to alicia.testnet.", "alice.testnet", 2_500),
+        ("Send 25 near to bob-1.testmode.", "bob-1.testnet", 2_500),
+    ] {
+        assert_eq!(
+            read_punctuated(heard),
+            transfer_of(receiver, hundredths),
+            "{heard}"
+        );
+    }
+
+    // The amount is not changed: the caller compares it with the request.
+    assert_eq!(
+        read_punctuated("Send 26 NIA to alice.testnet"),
+        transfer_of("alice.testnet", 2_600)
+    );
+
+    // Near misses that must stay refused.
+    let is_transfer = |heard: &str| matches!(read_punctuated(heard), Ok(ParseResult::Transfer(_)));
+    for heard in [
+        "Send 25 dollars to alice.testnet.",
+        "Send not to alice.testnet.",
+        "Send near to alice.testnet.",
+        "Send NIA to alice.testnet.",
+        "Sent not 25 near to alice.testnet",
+        "Do not send 25 NIA to alice.testnet.",
+        "Approve 25 NIA to alice.testnet.",
+        "Send 25 NIA to alice.testnet and send 100 NIA to bob.testnet.",
+    ] {
+        assert!(!is_transfer(heard), "{heard}");
+    }
+    let not_contact = Err(PunctuatedRefusal::RecipientNotContact);
+    assert_eq!(read_punctuated("Send 25 NIA to carol.testnet"), not_contact);
+    // One edit, but another first sound.
+    let leo = [account("leo.testnet"), account("uma.testnet")];
+    for heard in ["Send 5 near to zoe.testnet", "Send 5 near to anna.testnet"] {
+        assert_eq!(
+            normalize_punctuated(heard, &leo),
+            Err(PunctuatedRefusal::RecipientNotContact),
+            "{heard}"
+        );
+    }
+    assert_eq!(read_punctuated("Send 25 near to testnode"), not_contact);
+    assert_eq!(read_punctuated("Send 25 near to test node"), not_contact);
+}
+
+#[test]
 fn unspeakable_accounts_are_refused() {
     let unsupported = Err(UnsupportedReason::AccountNotSpeakable);
     let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";

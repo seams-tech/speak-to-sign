@@ -6,7 +6,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::numbers::digit_word;
+use crate::numbers::{digit_word, is_number_word};
 use crate::phonetic::words_key;
 use crate::render::SpokenToken;
 use crate::{normalize, phonetic_key, SpokenAccount};
@@ -15,6 +15,47 @@ use crate::{normalize, phonetic_key, SpokenAccount};
 /// alias is a grammar word, and each target is one.
 pub const PUNCTUATED_ALIASES: [(&str, &str); 3] =
     [("approved", "approve"), ("nir", "near"), ("neer", "near")];
+
+/// Words that Whisper writes for the spoken verb "send", as the first word.
+const SEND_SOUND_ALIKES: [&str; 2] = ["sent", "sends"];
+
+/// Words that Whisper writes for the unit "near", in the unit slot of a send
+/// sentence only. A transfer has one unit, so a word in this slot cannot
+/// change the amount or the receiver.
+const UNIT_SOUND_ALIKES: [&str; 16] = [
+    "nia", "nir", "nair", "neer", "nier", "nea", "nit", "nid", "net", "nee", "knee", "here",
+    "hear", "year", "ear", "mir",
+];
+
+/// Words that Whisper writes for a number word, in the amount slot of a send
+/// sentence only. None of them is a number word, so a spoken number cannot
+/// become another number.
+const AMOUNT_SOUND_ALIKES: [(&str, &str); 6] = [
+    ("free", "three"),
+    ("tree", "three"),
+    ("for", "four"),
+    ("fore", "four"),
+    ("won", "one"),
+    ("ate", "eight"),
+];
+
+/// Words that Whisper writes for the network suffix "testnet", as the last
+/// word of the recipient.
+const TESTNET_SOUND_ALIKES: [&str; 10] = [
+    "testnut",
+    "testnit",
+    "testnid",
+    "testnode",
+    "testmode",
+    "testnote",
+    "testament",
+    "testnacht",
+    "testnets",
+    "testneat",
+];
+
+/// The second word when Whisper writes "testnet" as two words ("test node").
+const TESTNET_SECOND_WORDS: [&str; 6] = ["net", "nut", "nit", "node", "note", "mode"];
 
 /// Punctuation that is removed from the edges of a word before the alias and
 /// account checks.
@@ -57,29 +98,43 @@ pub enum PunctuatedRefusal {
 ///
 /// Then [`normalize`] reads the text.
 ///
-/// Slot rules, only in a sentence whose first token is "send":
+/// Slot rules, only in a send sentence. A first token in
+/// [`SEND_SOUND_ALIKES`] ("sent") becomes "send" first.
 ///
-/// - Amount: [`two_heard_as_to`].
-/// - Network suffix: [`dot_before_testnet`], in the recipient step.
+/// - Amount: [`two_heard_as_to`], then [`unit_slot`].
+/// - Network suffix: [`testnet_heard_differently`] and
+///   [`dot_before_testnet`], in the recipient step.
 ///
-/// Recipient step: if the first token is "send" and a token "to" follows,
-/// the tokens after the first "to" must have the same [`phonetic_key`] as
-/// exactly one account in `contacts` (if they match none, the words of
-/// [`dot_before_testnet`] are tried once). They are then replaced by the spoken
-/// tokens of that account. `contacts` must hold no two confusable keys; the
-/// caller checks this. Other sentences (a multisig approval) have no
-/// slot rules and no recipient step. [`crate::parse_transfer`] with the same
-/// `contacts` then reads a transfer.
+/// The slot rules change only words that hold no value: the verb, the unit,
+/// the network suffix and a number word heard as a word that is not a
+/// number. [`crate::parse_transfer`] and the caller still compare the amount
+/// and the receiver with the request.
+///
+/// Recipient step: if a token "to" follows, the tokens after the first "to"
+/// must match exactly one account in `contacts` by [`phonetic_key`]. The
+/// match tries each reading of [`recipient_readings`] with equal keys, and
+/// then each reading with keys one edit apart. They are then replaced by the
+/// spoken tokens of that account. `contacts` must hold no two confusable
+/// keys; the caller checks this. Other sentences (a multisig approval) have
+/// no slot rules and no recipient step. [`crate::parse_transfer`] with the
+/// same `contacts` then reads a transfer.
 pub fn normalize_punctuated(
     transcript: &str,
     contacts: &[SpokenAccount],
 ) -> Result<Vec<SpokenToken>, PunctuatedRefusal> {
     let cleaned = clean_punctuated(transcript);
     let mut tokens = normalize(&cleaned).ok_or(PunctuatedRefusal::NotNormalizable)?;
+    if tokens
+        .first()
+        .is_some_and(|token| SEND_SOUND_ALIKES.contains(&token.as_str()))
+    {
+        tokens[0] = SpokenToken::from_static("send");
+    }
     if tokens.first().map(SpokenToken::as_str) != Some("send") {
         return Ok(tokens);
     }
     two_heard_as_to(&mut tokens);
+    unit_slot(&mut tokens);
     let Some(to) = tokens.iter().position(|token| token.as_str() == "to") else {
         return Ok(tokens);
     };
@@ -93,28 +148,69 @@ pub fn normalize_punctuated(
     {
         return Err(PunctuatedRefusal::RecipientUnkeyable);
     }
-    let contact = match contact_by_key(&recipient, contacts) {
-        Err(PunctuatedRefusal::RecipientNotContact) => {
-            let words =
-                dot_before_testnet(&recipient).ok_or(PunctuatedRefusal::RecipientNotContact)?;
-            contact_by_key(&words, contacts)?
-        }
-        other => other?,
-    };
+    let contact = recipient_contact(&recipient, contacts)?;
     tokens.truncate(to + 1);
     tokens.extend(contact.spoken_tokens());
     Ok(tokens)
 }
 
-/// The one contact whose [`phonetic_key`] equals the key of `words`.
+/// The recipient match: first the readings with an equal key, in order, and
+/// then the readings with a key one edit apart. A reading that matches two
+/// contacts ends the match as ambiguous.
+fn recipient_contact<'a>(
+    recipient: &[&str],
+    contacts: &'a [SpokenAccount],
+) -> Result<&'a SpokenAccount, PunctuatedRefusal> {
+    let readings = recipient_readings(recipient);
+    for one_edit in [false, true] {
+        for words in &readings {
+            match contact_by_key(words, contacts, one_edit) {
+                Err(PunctuatedRefusal::RecipientNotContact) => continue,
+                other => return other,
+            }
+        }
+    }
+    Err(PunctuatedRefusal::RecipientNotContact)
+}
+
+/// The recipient words as heard, then with the suffix of
+/// [`testnet_heard_differently`], then each of these with
+/// [`dot_before_testnet`].
+fn recipient_readings<'a>(recipient: &[&'a str]) -> Vec<Vec<&'a str>> {
+    let mut readings = Vec::from([recipient.to_vec()]);
+    readings.extend(testnet_heard_differently(recipient));
+    let with_dot: Vec<Vec<&str>> = readings
+        .iter()
+        .filter_map(|words| dot_before_testnet(words))
+        .collect();
+    readings.extend(with_dot);
+    readings
+}
+
+/// The one contact whose [`phonetic_key`] equals the key of `words`, or,
+/// with `one_edit`, is at most one edit from it and starts with the same
+/// two letters. A short name with another first sound ("zoe" for "leo",
+/// "jon" for "dan", "anna" for "uma") is one edit away, so the first two
+/// letters must stay.
 fn contact_by_key<'a>(
     words: &[&str],
     contacts: &'a [SpokenAccount],
+    one_edit: bool,
 ) -> Result<&'a SpokenAccount, PunctuatedRefusal> {
     let key = words_key(words);
-    let mut matches = contacts
-        .iter()
-        .filter(|contact| phonetic_key(contact) == key);
+    let mut matches = contacts.iter().filter(|contact| {
+        let contact_key = phonetic_key(contact);
+        if one_edit {
+            contact_key
+                .as_str()
+                .bytes()
+                .take(2)
+                .eq(key.as_str().bytes().take(2))
+                && contact_key.is_confusable_with(&key)
+        } else {
+            contact_key == key
+        }
+    });
     let contact = matches
         .next()
         .ok_or(PunctuatedRefusal::RecipientNotContact)?;
@@ -122,6 +218,83 @@ fn contact_by_key<'a>(
         return Err(PunctuatedRefusal::RecipientAmbiguous);
     }
     Ok(contact)
+}
+
+/// Unit and amount slot rule. In "send <amount> <unit> to …", the amount
+/// slot is the words after "send", and the unit slot is the word directly
+/// before the first "to".
+///
+/// - A unit word in [`UNIT_SOUND_ALIKES`] becomes "near". If the word
+///   before "to" is part of the amount, the unit was not heard, and "near"
+///   is put in before "to".
+/// - In the amount slot, a word in [`AMOUNT_SOUND_ALIKES`] becomes its
+///   number word, and "dash" is removed ("200-1587.5").
+///
+/// The rule applies only if the amount slot holds a number word or an
+/// amount sound-alike, and every other word in it is "point" or "dash". So
+/// an empty amount ("send near to …"), a negation ("send not to …") and
+/// any other unit ("send five dollars to …") keep their words.
+fn unit_slot(tokens: &mut Vec<SpokenToken>) {
+    let Some(to) = tokens.iter().position(|token| token.as_str() == "to") else {
+        return;
+    };
+    // The verb is token 0, so the unit slot is token 1 or later.
+    let Some(before_to) = to.checked_sub(1).filter(|index| *index >= 1) else {
+        return;
+    };
+    let word = tokens[before_to].as_str();
+    let unit_heard = word == "near" || UNIT_SOUND_ALIKES.contains(&word);
+    let amount_end = if unit_heard { before_to } else { to };
+    let amount = &tokens[1..amount_end];
+    let number = |word: &str| is_number_word(word) || amount_sound_alike(word).is_some();
+    let slot_word = |token: &SpokenToken| {
+        let word = token.as_str();
+        number(word) || word == "point" || word == "dash"
+    };
+    if !amount.iter().any(|token| number(token.as_str())) || !amount.iter().all(slot_word) {
+        return;
+    }
+    let mut read: Vec<SpokenToken> = Vec::with_capacity(tokens.len() + 1);
+    read.push(SpokenToken::from_static("send"));
+    for token in amount {
+        match (token.as_str(), amount_sound_alike(token.as_str())) {
+            ("dash", _) => {}
+            (_, Some(number)) => read.push(SpokenToken::from_static(number)),
+            _ => read.push(token.clone()),
+        }
+    }
+    read.push(SpokenToken::from_static("near"));
+    read.extend(tokens.drain(to..));
+    *tokens = read;
+}
+
+/// The number word that a word of [`AMOUNT_SOUND_ALIKES`] stands for.
+fn amount_sound_alike(word: &str) -> Option<&'static str> {
+    AMOUNT_SOUND_ALIKES
+        .iter()
+        .find(|(heard, _)| *heard == word)
+        .map(|(_, number)| *number)
+}
+
+/// Network suffix rule. If the recipient ends with a word of
+/// [`TESTNET_SOUND_ALIKES`], or with "test" and a word of
+/// [`TESTNET_SECOND_WORDS`], and an account word comes before it, it gives
+/// the words with "testnet" in its place.
+fn testnet_heard_differently<'a>(recipient: &[&'a str]) -> Option<Vec<&'a str>> {
+    let (last, rest) = recipient.split_last()?;
+    let rest = if TESTNET_SOUND_ALIKES.contains(last) {
+        rest
+    } else if TESTNET_SECOND_WORDS.contains(last) {
+        rest.strip_suffix(&["test"])?
+    } else {
+        return None;
+    };
+    if rest.is_empty() {
+        return None;
+    }
+    let mut words = rest.to_vec();
+    words.push("testnet");
+    Some(words)
 }
 
 /// Amount slot rule. Whisper writes the spoken amount "two" as "to" or
@@ -142,8 +315,8 @@ fn two_heard_as_to(tokens: &mut [SpokenToken]) {
 }
 
 /// Network suffix rule. Whisper can drop the spoken "dot" before the
-/// network suffix ("seams v1 testnet", "alice testnet"). It is used only
-/// when the recipient words, as heard, match no contact. If the recipient
+/// network suffix ("seams v1 testnet", "alice testnet"). Its reading comes
+/// after the reading as heard in [`recipient_readings`]. If the recipient
 /// has a word and then ends with "testnet", and the word before "testnet"
 /// is not "dot", it gives the words with "dot" before "testnet". These
 /// words are then matched by [`phonetic_key`] in the same way, so they must
@@ -358,6 +531,19 @@ mod tests {
         for (from, to) in PUNCTUATED_ALIASES {
             assert!(!grammar(from), "{from}");
             assert!(grammar(to), "{to}");
+        }
+        // The slot sound-alikes are not grammar words, so a slot rule never
+        // changes a word that the grammar reads.
+        let slot_words = SEND_SOUND_ALIKES
+            .iter()
+            .chain(&UNIT_SOUND_ALIKES)
+            .chain(AMOUNT_SOUND_ALIKES.iter().map(|(heard, _)| heard))
+            .chain(&TESTNET_SOUND_ALIKES);
+        for word in slot_words {
+            assert!(!grammar(word), "{word}");
+        }
+        for (_, number) in AMOUNT_SOUND_ALIKES {
+            assert!(crate::numbers::is_number_word(number), "{number}");
         }
     }
 }

@@ -297,7 +297,7 @@
     },
     {
       "result": {
-        "refused": "RecipientNotContact"
+        "tokens": "send twenty five near to alice dot testnet"
       },
       "transcript": "Send 25 NEAR to alicia.testnet."
     },
@@ -309,7 +309,7 @@
     },
     {
       "result": {
-        "tokens": "send twenty five nia to alice dot testnet"
+        "tokens": "send twenty five near to alice dot testnet"
       },
       "transcript": "Send 25 NIA to alice.testnet."
     },
@@ -402,6 +402,66 @@
         "refused": "RecipientNotContact"
       },
       "transcript": "Send 25 NEAR to carol testnet"
+    },
+    {
+      "result": {
+        "tokens": "send zero point zero one near to alice dot testnet"
+      },
+      "transcript": "Send 0.01 year to alice.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send twenty five near to alice dot testnet"
+      },
+      "transcript": "Sent 25 NEAR to alice.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send twenty five near to alice dot testnet"
+      },
+      "transcript": "Send 25 NEAR to alice.testnode."
+    },
+    {
+      "result": {
+        "tokens": "send twenty five near to alice dot testnet"
+      },
+      "transcript": "Send 25 NEAR to alice dot test node"
+    },
+    {
+      "result": {
+        "tokens": "send three near to alice dot testnet"
+      },
+      "transcript": "Send free NEAR to alice.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send twenty five near to alice dot testnet"
+      },
+      "transcript": "Send 25 to alice.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send two hundred one thousand five hundred eighty seven point five near to bob dot testnet"
+      },
+      "transcript": "Send 200-1587.5 NEAR to bob.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send twenty five dollars to alice dot testnet"
+      },
+      "transcript": "Send 25 dollars to alice.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send not to alice dot testnet"
+      },
+      "transcript": "Send not to alice.testnet."
+    },
+    {
+      "result": {
+        "refused": "RecipientNotContact"
+      },
+      "transcript": "Send 25 NEAR to huma.testnet."
     }
   ],
   "parse_transfer": [

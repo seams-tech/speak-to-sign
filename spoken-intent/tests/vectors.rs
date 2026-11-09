@@ -452,7 +452,7 @@ fn parse_vectors() -> Value {
 
 /// Whisper-style transcripts, with contacts that hold no two
 /// confusable keys.
-const PUNCTUATED_CASES: [&str; 23] = [
+const PUNCTUATED_CASES: [&str; 33] = [
     "Send 25 NEAR to alice.testnet.",
     " Send 1,250 nir to Alice.Testnet!",
     "Send 2.5 neer to bob-1.testnet",
@@ -476,6 +476,16 @@ const PUNCTUATED_CASES: [&str; 23] = [
     "Send to near alice testnet",
     "Send 25 NEAR to testnet",
     "Send 25 NEAR to carol testnet",
+    "Send 0.01 year to alice.testnet.",
+    "Sent 25 NEAR to alice.testnet.",
+    "Send 25 NEAR to alice.testnode.",
+    "Send 25 NEAR to alice dot test node",
+    "Send free NEAR to alice.testnet.",
+    "Send 25 to alice.testnet.",
+    "Send 200-1587.5 NEAR to bob.testnet.",
+    "Send 25 dollars to alice.testnet.",
+    "Send not to alice.testnet.",
+    "Send 25 NEAR to huma.testnet.",
 ];
 
 fn punctuated_vectors() -> Value {

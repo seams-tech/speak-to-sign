@@ -43,7 +43,7 @@ export function Media({ kind, caption, compact = false }: { kind: MediaKind; cap
         />
       ) : (
         <button type="button" className="media-play" onClick={play} aria-label="Play the drawing of the claim">
-          <IconPlayerPlayFilled size={compact ? 24 : 28} aria-hidden="true" />
+          <IconPlayerPlayFilled size={compact ? 20 : 28} aria-hidden="true" />
         </button>
       )}
       {caption && <figcaption className="media-caption">{caption}</figcaption>}

@@ -60,7 +60,6 @@ export function PostContextBox({ post }: { post: Post }) {
           </button>
         </div>
       </section>
-      <p className="notes-caption">Context is written by people who use X, and appears when rated helpful by others.</p>
       {open && <NoteDialog post={post} context={context} onClose={() => setOpen(false)} />}
     </>
   );

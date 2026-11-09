@@ -95,6 +95,8 @@ function fakeCore(input: {
           }
           hooks.broadcasting();
         }
+        // Core tells the card when a block holds a plain transfer, before the outcome.
+        if (payment.kind === 'executed') hooks.included(payment.transactionHash);
         return payment;
       },
       async signNoteWithVerdict(action, output, _signal, hooks) {

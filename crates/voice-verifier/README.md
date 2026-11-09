@@ -20,7 +20,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.3.0   | `09f4ce1b…` (330,322 bytes, commit `3dab63d`)                      | Replaced. Verdict v2, the policy step, the `AccountTransfer` request, NEP-413 enrollment and `template:v3:<owner>`. It removed the vault.             |
 | 0.3.1   | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | **Live.** 334,704 bytes, commit `446882b`. It adds the forgiving word check for a send sentence. `deployment/wallet-system/targets.json` pins this key. |
 | 0.4.0   | `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | Built and added to the OutLayer project on 2026-11-09. **Not active**: a call reaches it only if the caller sets `version_key`. It adds `community_note` and `note_rating`. Transfers are unchanged. |
-| 0.5.1   | `aae02d5e8a89aff155fde9ccc96a591614bc48e77197bf6e09caef20f83de4f5` | Built on 2026-11-09 (366,594 bytes), not deployed. It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. |
+| 0.5.1   | `aae02d5e8a89aff155fde9ccc96a591614bc48e77197bf6e09caef20f83de4f5` | Built on 2026-11-09 (366,594 bytes), not deployed. It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. The reproducible build of the same source gives `cdb46fea…` (see Reproducible build). |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -28,11 +28,77 @@ in the repository README.
 ## Build and test
 
 ```sh
-cargo test          # native tests (fake host), and the shared vectors
-./build.sh          # release WASM, size and SHA-256; fails at 1,000,000 bytes
+cargo test           # native tests (fake host), and the shared vectors
+./build.sh           # release WASM, size and SHA-256; fails at 1,000,000 bytes
+./build.sh --docker  # the same build in the pinned x86_64 Linux image
 ```
 
-`build.sh` honors `CARGO_TARGET_DIR`.
+`build.sh` honors `CARGO_TARGET_DIR`. `rust-toolchain.toml` pins Rust 1.97.1
+with the `wasm32-wasip2` target. rustup installs it on the first call.
+
+## Reproducible build
+
+The OutLayer version key is the SHA-256 of the WASM. So you can check that a
+version comes from this source: build it and compare the hash.
+
+One commit gives the same bytes in any folder and on any machine of the same
+host platform. The reference platform is x86_64 Linux
+(`x86_64-unknown-linux-gnu`). On such a machine, run this from the root of
+the clone:
+
+```sh
+crates/voice-verifier/build.sh
+```
+
+On any machine with Docker, run this. On a Mac with Apple silicon, Docker
+runs the x86_64 image under emulation. After the image download, the build
+takes about 40 s.
+
+```sh
+crates/voice-verifier/build.sh --docker
+```
+
+Expected for the source of version 0.5.1:
+
+```text
+host   x86_64-unknown-linux-gnu
+bytes  365426
+sha256 cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258
+```
+
+A change to the source of this crate or of `spoken-intent`, to
+`../Cargo.lock` or to `build.sh` gives another hash. Deploy the WASM of
+`./build.sh --docker`, so that its version key can be built again.
+
+These things make the bytes the same:
+
+- `rust-toolchain.toml` pins the compiler. `../Cargo.lock` pins the crates.
+- `../Cargo.toml` is the workspace root. Cargo hashes the path of each path
+  dependency into the symbol names: a path below the workspace root as a
+  relative path, any other path as an absolute one. With this root,
+  `../spoken-intent` is a relative path.
+- `build.sh` remaps the local folders that rustc writes into panic locations:
+  the clone to `/speak-to-sign`, `CARGO_HOME` to `/cargo`, and the rust-src of
+  the toolchain to `/rustc/<commit>`. It replaces any `RUSTFLAGS`.
+
+The host platform changes the bytes. The Cargo hash of each crate that uses a
+build script or a procedural macro (for example `serde` and `sha2`) is
+different on each host platform. So macOS on arm64 gives
+`79ca912f376f4859ff77cc7152c3cd7be391c32db18d56ec3746e70f7e7f1fea`, and Linux
+on arm64 gives another hash. A Cargo config with `[profile.release]`
+settings, for example in `~/.cargo/config.toml`, also changes the bytes.
+
+Checks on 2026-11-10, each from a fresh clone:
+
+| Build                                                                                     | Host                       | SHA-256     |
+| ----------------------------------------------------------------------------------------- | -------------------------- | ----------- |
+| `build.sh` in two clones on macOS 15.7.1: one with rust-src, one in a folder with a space | `aarch64-apple-darwin`     | `79ca912f…` |
+| `build.sh --docker` from the same two clones                                              | `x86_64-unknown-linux-gnu` | `cdb46fea…` |
+| `build.sh` with a fresh rustup and rust-src, another `CARGO_HOME`, a folder with a space  | `x86_64-unknown-linux-gnu` | `cdb46fea…` |
+
+The versions up to 0.5.1 in the Versions table were built on a Mac before
+these changes. Their version keys depend on the folders of that Mac, so
+another machine cannot build them again.
 
 ## Services
 

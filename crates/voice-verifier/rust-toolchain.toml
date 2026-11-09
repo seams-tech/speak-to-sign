@@ -1,0 +1,6 @@
+# The OutLayer version key is the SHA-256 of the WASM, so the compiler is
+# pinned: another rustc gives other bytes. See build.sh.
+[toolchain]
+channel = "1.97.1"
+targets = ["wasm32-wasip2"]
+profile = "minimal"

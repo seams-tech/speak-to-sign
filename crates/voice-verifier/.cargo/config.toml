@@ -1,0 +1,4 @@
+# The workspace root is ../Cargo.toml. This keeps the build output of this
+# crate in its own target folder.
+[build]
+target-dir = "target"

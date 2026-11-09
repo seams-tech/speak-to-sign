@@ -1,5 +1,5 @@
 //! Deploys `res/jev_prediction_market.wasm` and `res/fake_outlayer.wasm` to a local nearcore
-//! sandbox and runs a market from create to redeem: trades, an OutLayer run that fails, an
+//! sandbox and runs a market from create to claim: parimutuel bets, an OutLayer run that fails, an
 //! OutLayer answer at a grey weight, and the admin fallback.
 //!
 //! Run `./build.sh` first, or set `PM_NOTES_WASM` and `FAKE_OUTLAYER_WASM` to WASM paths.
@@ -89,7 +89,7 @@ fn keys(value: &Value) -> Vec<&str> {
 }
 
 #[tokio::test]
-async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
+async fn a_market_from_create_to_claim_in_the_sandbox() -> anyhow::Result<()> {
     let worker = near_workspaces::sandbox().await?;
     let outlayer = worker.dev_deploy(&wasm("FAKE_OUTLAYER_WASM", "fake_outlayer.wasm")?).await?;
     let contract = worker.dev_deploy(&wasm("PM_NOTES_WASM", "jev_prediction_market.wasm")?).await?;
@@ -135,54 +135,49 @@ async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
     );
     assert_eq!(events(&result)[0].0, "market_created");
 
-    // Trade.
-    let result = call(&kenji, &contract, "buy", json!({ "market_id": 1, "outcome": "yes" }), 2 * NEAR, CALL_GAS).await?;
-    check_success("buy (new position)", &result, GAS_BUDGET);
-    let kenji_yes = yocto(&result.json::<Value>()?);
-    assert_eq!(kenji_yes, 2_666_666 * NEAR / 1_000_000, "1 NEAR pool, 2 NEAR of YES");
-    let result = call(&kenji, &contract, "buy", json!({ "market_id": 1, "outcome": "yes" }), NEAR / 100, CALL_GAS).await?;
-    check_success("buy (same position)", &result, GAS_BUDGET);
-    let result = call(&ana, &contract, "buy", json!({ "market_id": 1, "outcome": "no" }), NEAR, CALL_GAS).await?;
-    check_success("buy NO", &result, GAS_BUDGET);
-    let before = balance(&kenji).await?;
-    let result = call(
-        &kenji,
-        &contract,
-        "sell",
-        json!({ "market_id": 1, "outcome": "yes", "amount": (NEAR / 5).to_string() }),
-        0,
-        CALL_GAS,
-    )
-    .await?;
-    check_success("sell", &result, GAS_BUDGET);
-    let gained = balance(&kenji).await? - before;
-    assert!(gained > NEAR / 5 - NEAR / 100 && gained <= NEAR / 5, "the sell paid {gained}");
+    // Bet. Maya's 1 NEAR seed is 0.5 YES + 0.5 NO.
+    let result = call(&kenji, &contract, "bet", json!({ "market_id": 1, "outcome": "yes" }), 2 * NEAR, CALL_GAS).await?;
+    check_success("bet (new stake)", &result, GAS_BUDGET);
+    assert_eq!(yocto(&result.clone().json::<Value>()?), 2 * NEAR);
+    assert_eq!(events(&result)[0].1["yes_share_bps"], 8_333);
+    let result = call(&kenji, &contract, "bet", json!({ "market_id": 1, "outcome": "yes" }), NEAR / 2, CALL_GAS).await?;
+    check_success("bet (same stake)", &result, GAS_BUDGET);
+    let result = call(&ana, &contract, "bet", json!({ "market_id": 1, "outcome": "no" }), NEAR / 2, CALL_GAS).await?;
+    check_success("bet NO", &result, GAS_BUDGET);
+    let result = call(&ana, &contract, "bet", json!({ "market_id": 1, "outcome": "no" }), NEAR / 10 - 1, CALL_GAS).await?;
+    check_failure("bet below 0.1 NEAR", &result, "bet at least 0.1 NEAR");
 
     let market = view(&contract, "get_market", json!({ "market_id": 1 })).await?;
     assert_eq!(
         keys(&market),
         vec![
-            "closes_at_ms", "collateral", "context", "created_at_ms", "creator", "id", "no_pool",
-            "note_id", "pending", "question", "resolution", "status", "yes_pool", "yes_price_bps",
+            "bets", "closes_at_ms", "context", "created_at_ms", "creator", "id", "no_pool", "note_id",
+            "paid_out", "pending", "question", "refund_all", "resolution", "status", "total_pool",
+            "yes_pool", "yes_share_bps",
         ]
     );
     assert_eq!(market["status"], "open");
-    assert_eq!(yocto(&market["collateral"]), NEAR + 2 * NEAR + NEAR / 100 + NEAR - NEAR / 5);
+    assert_eq!(market["bets"], 3);
+    assert_eq!(market["yes_share_bps"], 7_500, "YES 3 of 4 NEAR");
+    assert_eq!(yocto(&market["total_pool"]), 4 * NEAR);
     let position = view(&contract, "get_position", json!({ "market_id": 1, "account_id": kenji.id() })).await?;
-    assert_eq!(keys(&position), vec!["no", "redeemable", "yes"]);
-    assert_eq!(position["redeemable"], Value::Null);
-    let quote = view(&contract, "quote_buy", json!({ "market_id": 1, "outcome": "no", "amount": NEAR.to_string() })).await?;
-    assert_eq!(keys(&quote), vec!["amount", "shares", "yes_price_bps"]);
+    assert_eq!(keys(&position), vec!["claimed", "no", "payout", "yes"]);
+    assert_eq!(position["payout"], Value::Null);
+    let quote = view(&contract, "quote_bet", json!({ "market_id": 1, "outcome": "no", "amount": NEAR.to_string() })).await?;
+    assert_eq!(keys(&quote), vec!["amount", "payout_if_right", "yes_share_bps"]);
+    let odds = view(&contract, "get_odds_history", json!({ "market_id": 1 })).await?;
+    let odds: Vec<u64> = odds.as_array().unwrap().iter().map(|p| p["yes_bps"].as_u64().unwrap()).collect();
+    assert_eq!(odds, vec![5_000, 8_333, 8_571, 7_500]);
 
     // Resolve: not before the close.
     let result = call(&kenji, &contract, "request_resolution", json!({ "market_id": 1 }), NEAR / 20, REQUEST_GAS).await?;
-    check_failure("request_resolution while open", &result, "this market is still open for trading");
+    check_failure("request_resolution while open", &result, "this market is still open for betting");
     let result = call(&kenji, &contract, "close_market", json!({ "market_id": 1 }), 0, CALL_GAS).await?;
     check_failure("close_market by a trader", &result, "only the creator or the admin can close this market");
     let result = call(&maya, &contract, "close_market", json!({ "market_id": 1 }), 0, CALL_GAS).await?;
     check_success("close_market", &result, GAS_BUDGET);
-    let result = call(&kenji, &contract, "buy", json!({ "market_id": 1, "outcome": "yes" }), NEAR, CALL_GAS).await?;
-    check_failure("buy after the close", &result, "this market is closed for trading");
+    let result = call(&kenji, &contract, "bet", json!({ "market_id": 1, "outcome": "yes" }), NEAR, CALL_GAS).await?;
+    check_failure("bet after the close", &result, "this market is closed for betting");
 
     // An OutLayer run that fails: the market stays closed for a new request.
     outlayer.call("set_failure").transact().await?.into_result()?;
@@ -266,24 +261,31 @@ async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
     let result = call(&kenji, &contract, "on_resolution", json!({ "market_id": 1, "request_id": 4 }), 0, CALL_GAS).await?;
     check_failure("on_resolution from outside", &result, "Method on_resolution is private");
 
-    // Redeem at the weight. First let the gas refunds of the 300 Tgas requests arrive, so that
+    // Claim at the weight. First let the gas refunds of the 300 Tgas requests arrive, so that
     // they do not count as payouts.
     worker.fast_forward(5).await?;
-    let collateral = yocto(&market["collateral"]);
+    // T = 4 NEAR, w = 0.73. Kenji: 2.5 / 3 × 2.92 = 2.4333. Ana: 0.5 / 1 × 1.08 = 0.54.
+    // Maya: 0.5 / 3 × 2.92 + 0.5 / 1 × 1.08 = 0.4866 + 0.54 = 1.0266.
     let mut paid = 0;
-    for (label, who) in [("redeem (YES holder)", &kenji), ("redeem (NO holder)", &ana), ("redeem (creator)", &maya)] {
-        let expected = yocto(&view(&contract, "get_position", json!({ "market_id": 1, "account_id": who.id() })).await?["redeemable"]);
+    for (label, who, expected) in [
+        ("claim (YES bettor)", &kenji, 2_433_333),
+        ("claim (NO bettor)", &ana, 540_000),
+        ("claim (creator seed)", &maya, 1_026_666),
+    ] {
+        let expected = expected * 1_000_000_000_000_000_000;
+        let position = view(&contract, "get_position", json!({ "market_id": 1, "account_id": who.id() })).await?;
+        assert_eq!(yocto(&position["payout"]), expected, "{label}");
         let before = balance(who).await?;
-        let result = call(who, &contract, "redeem", json!({ "market_id": 1 }), 0, CALL_GAS).await?;
+        let result = call(who, &contract, "claim", json!({ "market_id": 1 }), 0, CALL_GAS).await?;
         check_success(label, &result, GAS_BUDGET);
         assert_eq!(yocto(&result.json::<Value>()?), expected);
         let gained = balance(who).await? - before;
         assert!(gained > expected - NEAR / 100 && gained <= expected, "{label}: gained {gained} of {expected}");
         paid += expected;
     }
-    assert!(paid <= collateral && collateral - paid <= 3 * 1_000_000_000_000_000_000);
-    let result = call(&kenji, &contract, "redeem", json!({ "market_id": 1 }), 0, CALL_GAS).await?;
-    check_failure("redeem twice", &result, "nothing to redeem");
+    assert!(paid <= 4 * NEAR && 4 * NEAR - paid <= 6 * 1_000_000_000_000_000_000);
+    let result = call(&kenji, &contract, "claim", json!({ "market_id": 1 }), 0, CALL_GAS).await?;
+    check_failure("claim twice", &result, "already claimed");
 
     // The admin fallback on a second market.
     let result = call(
@@ -305,9 +307,9 @@ async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
     let market = view(&contract, "get_market", json!({ "market_id": 2 })).await?;
     assert_eq!(market["resolution"]["payout_yes_bps"], 10_000, "95% snaps to a full YES");
     assert_eq!(market["resolution"]["source"], "admin");
-    let result = call(&ana, &contract, "redeem", json!({ "market_id": 2 }), 0, CALL_GAS).await?;
-    check_success("redeem (creator, admin market)", &result, GAS_BUDGET);
-    assert_eq!(yocto(&result.json::<Value>()?), NEAR / 10, "the creator's pool pays the liquidity back");
+    let result = call(&ana, &contract, "claim", json!({ "market_id": 2 }), 0, CALL_GAS).await?;
+    check_success("claim (creator, admin market)", &result, GAS_BUDGET);
+    assert_eq!(yocto(&result.json::<Value>()?), NEAR / 10, "the seed alone pays itself back");
 
     // Views.
     let markets = view(&contract, "get_markets", json!({})).await?;

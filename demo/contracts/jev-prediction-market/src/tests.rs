@@ -6,6 +6,8 @@ use near_sdk::{PromiseResult, RuntimeFeesConfig, test_vm_config, testing_env};
 
 const NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 const MILLI: u128 = NEAR / 1_000;
+/// One micro-NEAR unit count: 1 NEAR = 10^6 units.
+const UNIT: u128 = 1_000_000;
 /// 10 Nov 2026, 12:00 UTC.
 const T0: u64 = 1_794_312_000_000;
 const HOUR: u64 = 60 * 60 * 1_000;
@@ -48,6 +50,9 @@ fn as_callback(at_ms: u64, result: PromiseResult) {
 
 fn setup() -> PredictionMarkets {
     call("admin", T0, 0);
+    // The mocked storage lives on between contracts in one test: start empty.
+    near_sdk::mock::with_mocked_blockchain(|b| drop(b.take_storage()));
+    call("admin", T0, 0);
     PredictionMarkets::new(account("admin"), None)
 }
 
@@ -57,9 +62,9 @@ fn open_market(contract: &mut PredictionMarkets) -> u64 {
     contract.create_market(QUESTION.into(), Some("Note 2 on post 7".into()), Some(2), T0 + HOUR)
 }
 
-fn buy(contract: &mut PredictionMarkets, who: &str, outcome: Outcome, amount: u128) -> u128 {
+fn bet(contract: &mut PredictionMarkets, who: &str, outcome: Outcome, amount: u128) -> u128 {
     call(who, T0 + 1, amount);
-    contract.buy(1, outcome, None).0
+    contract.bet(1, outcome).0
 }
 
 fn events() -> Vec<Value> {
@@ -89,51 +94,37 @@ fn stored(contract: &PredictionMarkets, id: u64) -> Market {
     contract.markets.get(&id).cloned().unwrap()
 }
 
-// --- pool math ---
+// --- parimutuel math ---
 
 #[test]
-fn buy_quote_mints_sets_and_rounds_for_the_pool() {
-    // 100 × 100 = 10,000. After 10 sets: other = 110, chosen = ceil(10,000 / 110) = 91.
-    let quote = buy_quote(100, 100, 10).unwrap();
-    assert_eq!(quote, Quote { shares: 19, chosen_after: 91, other_after: 110 });
-    assert!(quote.chosen_after * quote.other_after >= 100 * 100);
+fn the_odds_are_the_pool_split() {
+    assert_eq!(yes_share_bps(3, 1), 7_500);
+    assert_eq!(yes_share_bps(1, 2), 3_333);
+    assert_eq!(yes_share_bps(0, 0), 5_000);
+    assert_eq!(yes_share_bps(5, 0), 10_000);
 }
 
 #[test]
-fn sell_quote_burns_sets_and_rounds_for_the_pool() {
-    // Selling back for the same 10 NEAR takes 20 shares: one more than the buy gave.
-    let quote = sell_quote(91, 110, 10).unwrap();
-    assert_eq!(quote, Quote { shares: 20, chosen_after: 101, other_after: 100 });
-    assert!(quote.chosen_after * quote.other_after >= 91 * 110);
+fn the_payout_shares_the_pool_by_the_weight() {
+    // Pools 3 YES and 1 NO (T = 4), JEV says 72%: YES bets share 2.88, NO bets share 1.12.
+    let (yes, no) = (3 * UNIT, UNIT);
+    assert_eq!(payout(UNIT, 0, yes, no, 7_200), 960_000, "1/3 of 2.88");
+    assert_eq!(payout(0, UNIT, yes, no, 7_200), 1_120_000, "all of 1.12");
+    assert_eq!(payout(3 * UNIT, 0, yes, no, 7_200) + payout(0, UNIT, yes, no, 7_200), 4 * UNIT);
+    assert_eq!(payout(UNIT, UNIT, yes, no, 10_000), 4 * UNIT / 3, "a full YES pays NO nothing");
+    assert_eq!(payout(UNIT, UNIT, yes, no, 0), 4 * UNIT, "a full NO pays YES nothing");
 }
 
 #[test]
-fn quotes_refuse_empty_pools_and_amounts_out_of_range() {
-    assert_eq!(buy_quote(0, 100, 10), None);
-    assert_eq!(buy_quote(100, 0, 10), None);
-    assert_eq!(buy_quote(100, 100, 0), None);
-    assert_eq!(buy_quote(100, 100, MAX_AMOUNT_UNITS + 1), None);
-    assert_eq!(sell_quote(100, 100, 100), None, "the pool cannot burn all its other shares");
-    assert_eq!(sell_quote(100, 100, 101), None);
-    assert_eq!(sell_quote(100, 100, 0), None);
+fn the_payout_rounds_down() {
+    assert_eq!(payout(1, 0, 3, 0, 5_000), 1, "one pool empty: the stake back");
+    assert_eq!(payout(1, 0, 3, 1, 5_000), 0, "1/3 × 0.5 × 4 = 0.67 rounds down");
 }
 
 #[test]
-fn quotes_never_lower_the_pool_product() {
-    let mut rng = Rng(7);
-    for _ in 0..5_000 {
-        let chosen = 1 + rng.below(1_000_000_000);
-        let other = 1 + rng.below(1_000_000_000);
-        let amount = 1 + rng.below(100_000_000);
-        if let Some(q) = buy_quote(chosen, other, amount) {
-            assert!(q.chosen_after * q.other_after >= chosen * other);
-            assert_eq!(q.chosen_after, chosen + amount - q.shares);
-        }
-        if let Some(q) = sell_quote(chosen, other, amount) {
-            assert!(q.chosen_after * q.other_after >= chosen * other);
-            assert_eq!(q.chosen_after, chosen + q.shares - amount);
-        }
-    }
+fn an_empty_pool_refunds_the_stakes() {
+    assert_eq!(payout(5, 0, 5, 0, 7_000), 5);
+    assert_eq!(payout(0, 4, 0, 4, 10_000), 4);
 }
 
 #[test]
@@ -153,15 +144,6 @@ fn snapping_pays_clear_answers_in_full() {
 }
 
 #[test]
-fn weighted_payout_rounds_down() {
-    // 100 YES × 0.73 + 50 NO × 0.27 = 86.5.
-    assert_eq!(weighted_payout(100, 50, 7_300), 86);
-    assert_eq!(weighted_payout(100, 50, 10_000), 100);
-    assert_eq!(weighted_payout(100, 50, 0), 50);
-    assert_eq!(weighted_payout(7, 7, 3_333), 7, "a complete set pays exactly 1");
-}
-
-#[test]
 fn percent_has_two_decimals_only_when_needed() {
     assert_eq!(percent(7_300), "73%");
     assert_eq!(percent(7_325), "73.25%");
@@ -171,7 +153,7 @@ fn percent_has_two_decimals_only_when_needed() {
 // --- create_market ---
 
 #[test]
-fn create_market_stores_the_market_and_counts_ids_from_1() {
+fn create_market_seeds_both_pools_and_counts_ids_from_1() {
     let mut contract = setup();
     assert_eq!(open_market(&mut contract), 1);
     assert_eq!(
@@ -186,13 +168,12 @@ fn create_market_stores_the_market_and_counts_ids_from_1() {
                 "question": QUESTION,
                 "note_id": 2,
                 "closes_at_ms": T0 + HOUR,
-                "liquidity": NEAR.to_string(),
+                "seed": NEAR.to_string(),
             }]
         })
     );
-    let view = contract.get_market(1).unwrap();
     assert_eq!(
-        view,
+        contract.get_market(1).unwrap(),
         MarketView {
             id: 1,
             question: QUESTION.into(),
@@ -201,15 +182,24 @@ fn create_market_stores_the_market_and_counts_ids_from_1() {
             creator: account("maya"),
             created_at_ms: T0,
             closes_at_ms: T0 + HOUR,
-            yes_pool: U128(NEAR),
-            no_pool: U128(NEAR),
-            yes_price_bps: 5_000,
-            collateral: U128(NEAR),
+            yes_pool: U128(NEAR / 2),
+            no_pool: U128(NEAR / 2),
+            total_pool: U128(NEAR),
+            yes_share_bps: 5_000,
+            bets: 0,
+            refund_all: false,
+            paid_out: U128(0),
             status: MarketStatus::Open,
             pending: None,
             resolution: None,
         }
     );
+    assert_eq!(
+        contract.get_position(1, account("maya")),
+        PositionView { yes: U128(NEAR / 2), no: U128(NEAR / 2), payout: None, claimed: false },
+        "the seed is the creator's stakes"
+    );
+    assert_eq!(contract.get_odds_history(1), vec![OddsPoint { at_ms: T0, yes_bps: 5_000 }]);
     call("kenji", T0, NEAR / 10);
     assert_eq!(contract.create_market("  Second?  ".into(), None, None, T0 + HOUR), 2);
     assert_eq!(contract.get_market(2).unwrap().question, "Second?");
@@ -217,11 +207,12 @@ fn create_market_stores_the_market_and_counts_ids_from_1() {
 }
 
 #[test]
-fn create_market_keeps_less_than_a_micro_near_in_the_contract() {
+fn an_odd_seed_puts_the_extra_micro_near_on_no() {
     let mut contract = setup();
-    call("maya", T0, NEAR / 10 + 999);
+    call("maya", T0, NEAR / 10 + YOCTO_PER_UNIT + 999);
     contract.create_market(QUESTION.into(), None, None, T0 + HOUR);
-    assert_eq!(contract.get_market(1).unwrap().collateral, U128(NEAR / 10));
+    let market = stored(&contract, 1);
+    assert_eq!((market.yes_pool, market.no_pool), (50_000, 50_001));
 }
 
 fn create_fails(question: &str, context: Option<&str>, closes_at_ms: u64, deposit: u128, message: &str) {
@@ -246,7 +237,7 @@ fn create_market_rules() {
     create_fails(QUESTION, Some(&"n".repeat(1_001)), T0 + HOUR, NEAR, "context must have at most 1000 characters");
     create_fails(QUESTION, None, T0, NEAR, "closes_at_ms must be in the future");
     create_fails(QUESTION, None, T0 + MAX_OPEN_MS + 1, NEAR, "closes_at_ms must be at most 30 days ahead");
-    create_fails(QUESTION, None, T0 + HOUR, NEAR / 10 - 1, "attach at least 0.1 NEAR of liquidity");
+    create_fails(QUESTION, None, T0 + HOUR, NEAR / 10 - 1, "attach at least 0.1 NEAR as the seed");
     create_fails(QUESTION, None, T0 + HOUR, 1_000_001 * NEAR, "attach at most 1,000,000 NEAR");
 }
 
@@ -257,162 +248,105 @@ fn create_market_allows_200_characters_and_30_days() {
     contract.create_market("é".repeat(200), Some("n".repeat(1_000)), None, T0 + MAX_OPEN_MS);
 }
 
-// --- buy and sell ---
+// --- bet ---
 
 #[test]
-fn buy_gives_shares_and_moves_the_price() {
+fn a_bet_goes_into_its_pool_and_moves_the_odds() {
     let mut contract = setup();
     open_market(&mut contract);
-    // 1 NEAR pool, buy 1 NEAR of YES: other = 2, chosen = 0.5, shares = 1 + 1 − 0.5 = 1.5.
-    let shares = buy(&mut contract, "kenji", Outcome::Yes, NEAR);
-    assert_eq!(shares, 3 * NEAR / 2);
+    assert_eq!(bet(&mut contract, "kenji", Outcome::Yes, NEAR), NEAR);
     let view = contract.get_market(1).unwrap();
-    assert_eq!(view.yes_pool, U128(NEAR / 2));
-    assert_eq!(view.no_pool, U128(2 * NEAR));
-    assert_eq!(view.yes_price_bps, 8_000);
-    assert_eq!(view.collateral, U128(2 * NEAR));
-    assert_eq!(
-        contract.get_position(1, account("kenji")),
-        PositionView { yes: U128(3 * NEAR / 2), no: U128(0), redeemable: None }
-    );
+    assert_eq!((view.yes_pool, view.no_pool, view.total_pool), (U128(3 * NEAR / 2), U128(NEAR / 2), U128(2 * NEAR)));
+    assert_eq!((view.yes_share_bps, view.bets), (7_500, 1));
     assert_eq!(
         last_event()["data"][0],
         json!({
             "market_id": 1,
             "account_id": "kenji.testnet",
-            "side": "buy",
             "outcome": "yes",
             "amount": NEAR.to_string(),
-            "shares": (3 * NEAR / 2).to_string(),
-            "yes_price_bps": 8_000,
+            "yes_pool": (3 * NEAR / 2).to_string(),
+            "no_pool": (NEAR / 2).to_string(),
+            "yes_share_bps": 7_500,
+            "bets": 1,
         })
     );
+    assert_eq!(bet(&mut contract, "kenji", Outcome::Yes, NEAR / 2), 3 * NEAR / 2, "the stake adds up");
+    assert_eq!(bet(&mut contract, "kenji", Outcome::No, NEAR / 10), NEAR / 10, "both sides are allowed");
+    assert_eq!(
+        contract.get_position(1, account("kenji")),
+        PositionView { yes: U128(3 * NEAR / 2), no: U128(NEAR / 10), payout: None, claimed: false }
+    );
+    let odds: Vec<u16> = contract.get_odds_history(1).iter().map(|p| p.yes_bps).collect();
+    assert_eq!(odds, vec![5_000, 7_500, 8_000, 7_692]);
 }
 
 #[test]
-#[should_panic(expected = "fewer shares than min_shares")]
-fn buy_checks_min_shares() {
+fn the_odds_history_keeps_the_last_50_points() {
     let mut contract = setup();
     open_market(&mut contract);
-    call("kenji", T0 + 1, NEAR);
-    contract.buy(1, Outcome::Yes, Some(U128(3 * NEAR / 2 + 1)));
+    for _ in 0..60 {
+        bet(&mut contract, "kenji", Outcome::No, NEAR / 10);
+    }
+    let odds = contract.get_odds_history(1);
+    assert_eq!(odds.len(), 50);
+    assert_eq!(odds[49].yes_bps, yes_share_bps(NEAR / 2, NEAR / 2 + 6 * NEAR) as u16);
+    assert_eq!(contract.get_market(1).unwrap().bets, 60);
+    assert_eq!(contract.get_odds_history(9), vec![]);
 }
 
 #[test]
-#[should_panic(expected = "attach at least 0.01 NEAR to buy")]
-fn buy_needs_a_hundredth_of_a_near() {
+#[should_panic(expected = "bet at least 0.1 NEAR")]
+fn a_bet_needs_a_tenth_of_a_near() {
     let mut contract = setup();
     open_market(&mut contract);
-    buy(&mut contract, "kenji", Outcome::Yes, 10 * MILLI - 1);
+    bet(&mut contract, "kenji", Outcome::Yes, NEAR / 10 - 1);
 }
 
 #[test]
-#[should_panic(expected = "this market is closed for trading")]
-fn buy_stops_at_the_close() {
+#[should_panic(expected = "this market is closed for betting")]
+fn betting_stops_at_the_close() {
     let mut contract = setup();
     open_market(&mut contract);
     call("kenji", T0 + HOUR, NEAR);
-    contract.buy(1, Outcome::Yes, None);
+    contract.bet(1, Outcome::Yes);
 }
 
 #[test]
 #[should_panic(expected = "market 9 does not exist")]
-fn buy_needs_a_market() {
+fn a_bet_needs_a_market() {
     let mut contract = setup();
     call("kenji", T0, NEAR);
-    contract.buy(9, Outcome::Yes, None);
+    contract.bet(9, Outcome::Yes);
 }
 
 #[test]
-fn sell_pays_near_and_takes_shares() {
+#[should_panic(expected = "the pool is full")]
+fn the_pool_has_a_limit() {
     let mut contract = setup();
-    open_market(&mut contract);
-    let bought = buy(&mut contract, "kenji", Outcome::No, NEAR);
-    call("kenji", T0 + 2, 0);
-    let taken = contract.sell(1, Outcome::No, U128(NEAR / 2), None).0;
-    assert!(taken > NEAR / 2 && taken < bought);
-    let receipts = get_created_receipts();
-    assert_eq!(receipts.len(), 1);
-    assert_eq!(receipts[0].receiver_id, account("kenji"));
-    assert!(matches!(
-        receipts[0].actions[..],
-        [MockAction::Transfer { deposit, .. }] if deposit == NearToken::from_yoctonear(NEAR / 2)
-    ));
-    assert_eq!(contract.get_market(1).unwrap().collateral, U128(3 * NEAR / 2));
-    assert_eq!(contract.get_position(1, account("kenji")).no, U128(bought - taken));
-    assert_eq!(last_event()["data"][0]["side"], "sell");
+    call("maya", T0, 1_000_000 * NEAR);
+    contract.create_market(QUESTION.into(), None, None, T0 + HOUR);
+    bet(&mut contract, "kenji", Outcome::Yes, NEAR / 10);
 }
 
 #[test]
-fn sell_of_everything_removes_the_position() {
+fn quote_bet_shows_the_payout_if_right() {
     let mut contract = setup();
     open_market(&mut contract);
-    let bought = buy(&mut contract, "kenji", Outcome::Yes, NEAR);
-    // Find the largest sell that the shares cover.
-    let mut amount = NEAR;
-    loop {
-        let quote = contract.quote_sell(1, Outcome::Yes, U128(amount)).unwrap();
-        if quote.shares.0 <= bought {
-            break;
-        }
-        amount -= MILLI;
-    }
-    call("kenji", T0 + 2, 0);
-    let taken = contract.sell(1, Outcome::Yes, U128(amount), None).0;
-    assert!(taken <= bought);
-    if taken == bought {
-        assert!(!contract.positions.contains_key(&(1, account("kenji"))));
-    }
-}
-
-#[test]
-#[should_panic(expected = "not enough shares for this amount")]
-fn sell_needs_the_shares() {
-    let mut contract = setup();
-    open_market(&mut contract);
-    buy(&mut contract, "kenji", Outcome::Yes, NEAR / 10);
-    call("kenji", T0 + 2, 0);
-    contract.sell(1, Outcome::Yes, U128(NEAR / 5), None);
-}
-
-#[test]
-#[should_panic(expected = "more shares than max_shares")]
-fn sell_checks_max_shares() {
-    let mut contract = setup();
-    open_market(&mut contract);
-    buy(&mut contract, "kenji", Outcome::Yes, NEAR);
-    call("kenji", T0 + 2, 0);
-    contract.sell(1, Outcome::Yes, U128(NEAR / 2), Some(U128(NEAR / 2)));
-}
-
-#[test]
-#[should_panic(expected = "amount must be at least 0.000001 NEAR")]
-fn sell_needs_a_micro_near() {
-    let mut contract = setup();
-    open_market(&mut contract);
-    call("kenji", T0 + 2, 0);
-    contract.sell(1, Outcome::Yes, U128(YOCTO_PER_UNIT - 1), None);
-}
-
-#[test]
-fn quotes_match_the_trades() {
-    let mut contract = setup();
-    open_market(&mut contract);
-    let quote = contract.quote_buy(1, Outcome::Yes, U128(NEAR)).unwrap();
+    // Pools 0.5 / 0.5. A 1 NEAR YES bet: 1 of 1.5 YES, and a full YES pays all of T = 2.
+    let quote = contract.quote_bet(1, Outcome::Yes, U128(NEAR)).unwrap();
     assert_eq!(
         quote,
-        QuoteView { amount: U128(NEAR), shares: U128(3 * NEAR / 2), yes_price_bps: 8_000 }
+        BetQuote { amount: U128(NEAR), payout_if_right: U128(1_333_333 * YOCTO_PER_UNIT), yes_share_bps: 7_500 }
     );
-    assert_eq!(buy(&mut contract, "kenji", Outcome::Yes, NEAR), quote.shares.0);
-    let quote = contract.quote_sell(1, Outcome::Yes, U128(NEAR / 2)).unwrap();
-    call("kenji", T0 + 2, 0);
-    assert_eq!(contract.sell(1, Outcome::Yes, U128(NEAR / 2), None), quote.shares);
-    assert_eq!(contract.get_market(1).unwrap().yes_price_bps, quote.yes_price_bps);
-    assert_eq!(contract.quote_buy(1, Outcome::No, U128(10 * MILLI - 1)), None);
-    assert_eq!(contract.quote_buy(9, Outcome::No, U128(NEAR)), None);
+    let quote = contract.quote_bet(1, Outcome::No, U128(NEAR / 2 + 7)).unwrap();
+    assert_eq!(quote.amount, U128(NEAR / 2));
+    assert_eq!(quote.payout_if_right, U128(3 * NEAR / 4), "0.5 of 1 NO pays half of T = 1.5");
+    assert_eq!(quote.yes_share_bps, 3_333);
+    assert_eq!(contract.quote_bet(1, Outcome::No, U128(NEAR / 10 - 1)), None);
+    assert_eq!(contract.quote_bet(9, Outcome::No, U128(NEAR)), None);
     call("kenji", T0 + HOUR, 0);
-    assert_eq!(contract.quote_buy(1, Outcome::No, U128(NEAR)), None, "closed");
-    assert_eq!(contract.quote_sell(1, Outcome::No, U128(MILLI)), None, "closed");
+    assert_eq!(contract.quote_bet(1, Outcome::No, U128(NEAR)), None, "closed");
 }
 
 // --- close_market ---
@@ -445,7 +379,7 @@ fn others_cannot_close() {
 }
 
 #[test]
-#[should_panic(expected = "this market is closed for trading")]
+#[should_panic(expected = "this market is closed for betting")]
 fn a_closed_market_cannot_close_again() {
     let mut contract = setup();
     open_market(&mut contract);
@@ -557,7 +491,7 @@ fn request_resolution_sends_the_secrets_ref_and_the_version() {
 }
 
 #[test]
-#[should_panic(expected = "this market is still open for trading")]
+#[should_panic(expected = "this market is still open for betting")]
 fn request_resolution_waits_for_the_close() {
     let mut contract = setup();
     open_market(&mut contract);
@@ -841,7 +775,7 @@ fn only_the_admin_resolves() {
 }
 
 #[test]
-#[should_panic(expected = "this market is still open for trading")]
+#[should_panic(expected = "this market is still open for betting")]
 fn the_admin_resolves_only_after_the_close() {
     resolve_fails("admin", T0 + HOUR - 1, 5_000, None);
 }
@@ -878,103 +812,88 @@ fn a_resolved_market_takes_no_request() {
     request(&mut contract, "kenji", T0 + HOUR + 1);
 }
 
-// --- redeem ---
+// --- claim ---
 
 #[test]
-fn redeem_pays_each_share_at_the_weight() {
+fn claim_pays_each_stake_its_share_of_the_weighted_pool() {
     let mut contract = setup();
-    open_market(&mut contract);
-    let kenji_yes = buy(&mut contract, "kenji", Outcome::Yes, NEAR); // 1.5 YES
-    let ana_no = buy(&mut contract, "ana", Outcome::No, NEAR);
+    open_market(&mut contract); // Maya: 0.5 YES + 0.5 NO.
+    bet(&mut contract, "kenji", Outcome::Yes, 5 * NEAR / 2); // YES pool 3
+    bet(&mut contract, "ana", Outcome::No, NEAR / 2); // NO pool 1, T = 4
     call("admin", T0 + HOUR, 0);
-    contract.resolve(1, 7_300, None);
-    let collateral = stored(&contract, 1).collateral * YOCTO_PER_UNIT;
-    assert_eq!(collateral, 3 * NEAR);
+    contract.resolve(1, 7_200, None);
 
-    let expected_kenji = kenji_yes / YOCTO_PER_UNIT * 7_300 / 10_000 * YOCTO_PER_UNIT;
-    assert_eq!(contract.get_position(1, account("kenji")).redeemable, Some(U128(expected_kenji)));
-    call("kenji", T0 + HOUR + 1, 0);
-    assert_eq!(contract.redeem(1).0, expected_kenji);
-    let receipts = get_created_receipts();
-    assert_eq!(receipts[0].receiver_id, account("kenji"));
-    assert!(matches!(
-        receipts[0].actions[..],
-        [MockAction::Transfer { deposit, .. }] if deposit.as_yoctonear() == expected_kenji
-    ));
-    assert_eq!(
-        last_event()["data"][0],
-        json!({
-            "market_id": 1,
-            "account_id": "kenji.testnet",
-            "pool": false,
-            "amount": expected_kenji.to_string(),
-        })
-    );
-
-    call("ana", T0 + HOUR + 1, 0);
-    let ana = contract.redeem(1).0;
-    assert_eq!(ana, ana_no / YOCTO_PER_UNIT * 2_700 / 10_000 * YOCTO_PER_UNIT);
-
-    // Maya created the market: the pool's shares are hers.
-    let market = stored(&contract, 1);
-    let pool = weighted_payout(market.yes_pool, market.no_pool, 7_300) * YOCTO_PER_UNIT;
-    call("maya", T0 + HOUR + 1, 0);
-    assert_eq!(contract.get_position(1, account("maya")).redeemable, Some(U128(pool)));
-    assert_eq!(contract.redeem(1).0, pool);
-    assert_eq!(last_event()["data"][0]["pool"], true);
-    assert_eq!(contract.get_position(1, account("maya")).redeemable, Some(U128(0)));
-
-    let paid = expected_kenji + ana + pool;
-    assert!(paid <= collateral);
-    assert!(collateral - paid <= 3 * YOCTO_PER_UNIT, "at most one micro-NEAR of dust per redeem");
-    assert_eq!(stored(&contract, 1).collateral * YOCTO_PER_UNIT, collateral - paid);
+    // Kenji: 2.5 / 3 × 0.72 × 4 = 2.4. Ana: 0.5 / 1 × 0.28 × 4 = 0.56.
+    // Maya: 0.5 / 3 × 2.88 + 0.5 / 1 × 1.12 = 0.48 + 0.56 = 1.04.
+    for (who, expected) in [("kenji", 2_400_000), ("ana", 560_000), ("maya", 1_040_000)] {
+        let expected = expected * YOCTO_PER_UNIT;
+        assert_eq!(contract.get_position(1, account(who)).payout, Some(U128(expected)), "{who}");
+        call(who, T0 + HOUR + 1, 0);
+        assert_eq!(contract.claim(1).0, expected, "{who}");
+        let receipts = get_created_receipts();
+        assert_eq!(receipts[0].receiver_id, account(who));
+        assert!(matches!(
+            receipts[0].actions[..],
+            [MockAction::Transfer { deposit, .. }] if deposit.as_yoctonear() == expected
+        ));
+        assert_eq!(
+            last_event()["data"][0],
+            json!({ "market_id": 1, "account_id": format!("{who}.testnet"), "amount": expected.to_string(), "refund": false })
+        );
+        let position = contract.get_position(1, account(who));
+        assert!(position.claimed);
+        assert_eq!(position.payout, Some(U128(expected)), "the payout stays visible after the claim");
+    }
+    assert_eq!(contract.get_market(1).unwrap().paid_out, U128(4 * NEAR));
 }
 
 #[test]
-#[should_panic(expected = "nothing to redeem")]
-fn redeem_twice_fails() {
+fn a_full_answer_pays_the_losing_side_nothing() {
     let mut contract = setup();
     open_market(&mut contract);
-    buy(&mut contract, "kenji", Outcome::Yes, NEAR);
-    call("admin", T0 + HOUR, 0);
-    contract.resolve(1, 10_000, None);
-    call("kenji", T0 + HOUR + 1, 0);
-    contract.redeem(1);
-    contract.redeem(1);
-}
-
-#[test]
-fn a_losing_position_redeems_to_zero_without_a_transfer() {
-    let mut contract = setup();
-    open_market(&mut contract);
-    buy(&mut contract, "kenji", Outcome::No, NEAR);
+    bet(&mut contract, "kenji", Outcome::No, NEAR);
     call("admin", T0 + HOUR, 0);
     contract.resolve(1, 9_500, None);
     call("kenji", T0 + HOUR + 1, 0);
-    assert_eq!(contract.redeem(1), U128(0));
-    assert!(get_created_receipts().is_empty());
-    assert!(!contract.positions.contains_key(&(1, account("kenji"))));
+    assert_eq!(contract.claim(1), U128(0));
+    assert!(get_created_receipts().is_empty(), "no transfer of 0");
+    assert!(contract.get_position(1, account("kenji")).claimed);
+    call("maya", T0 + HOUR + 1, 0);
+    assert_eq!(contract.claim(1), U128(2 * NEAR), "Maya's 0.5 YES is the whole YES pool");
+}
+
+#[test]
+#[should_panic(expected = "already claimed")]
+fn a_claim_happens_once() {
+    let mut contract = setup();
+    open_market(&mut contract);
+    bet(&mut contract, "kenji", Outcome::Yes, NEAR);
+    call("admin", T0 + HOUR, 0);
+    contract.resolve(1, 10_000, None);
+    call("kenji", T0 + HOUR + 1, 0);
+    contract.claim(1);
+    contract.claim(1);
 }
 
 #[test]
 #[should_panic(expected = "this market is not resolved yet")]
-fn redeem_waits_for_the_resolution() {
+fn a_claim_waits_for_the_resolution() {
     let mut contract = setup();
     open_market(&mut contract);
-    buy(&mut contract, "kenji", Outcome::Yes, NEAR);
+    bet(&mut contract, "kenji", Outcome::Yes, NEAR);
     call("kenji", T0 + HOUR, 0);
-    contract.redeem(1);
+    contract.claim(1);
 }
 
 #[test]
-#[should_panic(expected = "nothing to redeem")]
-fn redeem_needs_a_position() {
+#[should_panic(expected = "nothing to claim")]
+fn a_claim_needs_a_stake() {
     let mut contract = setup();
     open_market(&mut contract);
     call("admin", T0 + HOUR, 0);
     contract.resolve(1, 5_000, None);
     call("kenji", T0 + HOUR, 0);
-    contract.redeem(1);
+    contract.claim(1);
 }
 
 // --- views and config ---
@@ -996,7 +915,7 @@ fn views_list_markets_newest_first() {
     assert_eq!(contract.get_market(4), None);
     assert_eq!(
         contract.get_position(1, account("nobody")),
-        PositionView { yes: U128(0), no: U128(0), redeemable: None }
+        PositionView { yes: U128(0), no: U128(0), payout: None, claimed: false }
     );
 }
 
@@ -1010,8 +929,8 @@ fn get_config_shows_the_rules() {
             resolver: ResolverConfig::default(),
             snap_high_bps: 9_000,
             snap_low_bps: 1_000,
-            min_liquidity: U128(NEAR / 10),
-            min_buy: U128(NEAR / 100),
+            min_seed: U128(NEAR / 10),
+            min_bet: U128(NEAR / 10),
             min_resolution_deposit: U128(NEAR / 20),
             max_open_ms: 30 * 24 * HOUR,
         }
@@ -1105,60 +1024,27 @@ impl Rng {
     }
 }
 
-/// YES total = NO total = collateral, with the pool and every holder.
-fn check_sets(contract: &PredictionMarkets, traders: &[&str]) {
-    let market = stored(contract, 1);
-    let (mut yes, mut no) = (market.yes_pool, market.no_pool);
-    for trader in traders {
-        if let Some(position) = contract.positions.get(&(1, account(trader))) {
-            yes += position.yes;
-            no += position.no;
-        }
-    }
-    assert_eq!(yes, market.collateral, "YES total");
-    assert_eq!(no, market.collateral, "NO total");
-}
-
 #[test]
-fn random_trades_stay_solvent_for_any_weight() {
-    let traders = ["t1", "t2", "t3", "t4", "t5"];
-    for seed in 1..=20u64 {
+fn random_bets_stay_solvent_for_any_weight() {
+    let bettors = ["t1", "t2", "t3", "t4", "t5"];
+    for seed in 1..=30u64 {
         let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15));
         let mut contract = setup();
-        let liquidity = NEAR / 10 + rng.below(10 * NEAR);
-        call("maya", T0, liquidity);
+        let seed_near = NEAR / 10 + rng.below(3 * NEAR);
+        call("maya", T0, seed_near);
         contract.create_market(QUESTION.into(), None, None, T0 + HOUR);
-        let mut paid_in = liquidity / YOCTO_PER_UNIT;
-        let mut paid_out = 0u128;
-
-        for step in 0..150 {
-            let trader = traders[rng.below(5) as usize];
-            let outcome = if rng.below(2) == 0 { Outcome::Yes } else { Outcome::No };
-            let at = T0 + 1 + step;
-            if rng.below(3) > 0 {
-                let amount = 10 * MILLI + rng.below(5 * NEAR);
-                call(trader, at, amount);
-                contract.buy(1, outcome, None);
-                paid_in += amount / YOCTO_PER_UNIT;
-            } else {
-                let held = contract.get_position(1, account(trader));
-                let held = match outcome {
-                    Outcome::Yes => held.yes.0,
-                    Outcome::No => held.no.0,
-                };
-                let amount = rng.below(held / 2 + 1) / YOCTO_PER_UNIT * YOCTO_PER_UNIT;
-                let Some(quote) = contract.quote_sell(1, outcome, U128(amount)) else {
-                    continue;
-                };
-                if quote.shares.0 > held {
-                    continue;
-                }
-                call(trader, at, 0);
-                contract.sell(1, outcome, U128(amount), None);
-                paid_out += amount / YOCTO_PER_UNIT;
-            }
-            check_sets(&contract, &traders);
+        let mut paid_in = seed_near / YOCTO_PER_UNIT;
+        // Some markets get bets on one side only, so the seed is the other side.
+        let one_side = seed % 5 == 0;
+        for step in 0..(1 + rng.below(60) as u64) {
+            let outcome = if one_side || rng.below(3) > 0 { Outcome::Yes } else { Outcome::No };
+            let amount = NEAR / 10 + rng.below(5 * NEAR);
+            call(bettors[rng.below(5) as usize], T0 + 1 + step, amount);
+            contract.bet(1, outcome);
+            paid_in += amount / YOCTO_PER_UNIT;
         }
+        let market = stored(&contract, 1);
+        assert_eq!(market.yes_pool + market.no_pool, paid_in, "seed {seed}: the pools hold every bet");
 
         let weight = match seed % 4 {
             0 => 0,
@@ -1167,26 +1053,19 @@ fn random_trades_stay_solvent_for_any_weight() {
         };
         call("admin", T0 + HOUR, 0);
         contract.resolve(1, weight, None);
-        let collateral = stored(&contract, 1).collateral;
-        assert_eq!(collateral, paid_in - paid_out);
 
-        let mut payouts = 0u128;
-        let mut redeemers = 0u128;
-        for who in traders.iter().chain(std::iter::once(&"maya")) {
-            let held = contract.get_position(1, account(who));
-            if held.redeemable.is_none() || (held.yes.0 == 0 && held.no.0 == 0 && *who != "maya") {
+        let mut paid = 0u128;
+        let mut claims = 0u128;
+        for who in bettors.iter().chain(std::iter::once(&"maya")) {
+            if !contract.stakes.contains_key(&(1, account(who))) {
                 continue;
             }
             call(who, T0 + HOUR + 1, 0);
-            payouts += contract.redeem(1).0 / YOCTO_PER_UNIT;
-            redeemers += 1;
+            paid += contract.claim(1).0 / YOCTO_PER_UNIT;
+            claims += 1;
         }
-        assert!(payouts <= collateral, "seed {seed}: paid {payouts} of {collateral}");
-        assert!(
-            collateral - payouts <= redeemers,
-            "seed {seed}: dust {} for {redeemers} redeems",
-            collateral - payouts
-        );
-        assert_eq!(stored(&contract, 1).collateral, collateral - payouts);
+        assert!(paid <= paid_in, "seed {seed}: paid {paid} of {paid_in}");
+        assert!(paid_in - paid <= 2 * claims, "seed {seed}: dust {} for {claims} claims", paid_in - paid);
+        assert_eq!(stored(&contract, 1).paid_out, paid);
     }
 }

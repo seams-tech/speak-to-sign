@@ -1,13 +1,14 @@
 # JEV prediction market for community notes: plan
 
-Status: approved by the user on 10 Nov 2026. Demo only, testnet only.
+Status: approved by the user on 10 Nov 2026, then changed to parimutuel bets
+(the user's decision, 10 Nov 2026). Demo only, testnet only.
 Hackathon end: 14 Nov 2026, 23:59 UTC.
 
 ## Goal
 
 A mini prediction market on community notes. Anyone can open a yes-or-no
-market about a note ("Is this note accurate and helpful context for this
-post?"), trade YES and NO shares with NEAR, and close it. An OutLayer AI call
+market about a note ("Will this note hold up?"), bet NEAR on YES or NO, and
+close it. An OutLayer AI call
 to JEV (Typesafe) resolves it. JEV answers with a probability (a "noul"). That
 probability becomes a payout weight, so a grey, disputed note pays
 fractionally.
@@ -19,24 +20,26 @@ fractionally.
 | Contract `pm-notes` | `demo/contracts/jev-prediction-market/` | near-sdk 5.30.1, Rust 1.97.0, setup copied from `merge-approvals/` |
 | Sandbox test and fake OutLayer | `demo/contracts/jev-prediction-market/sandbox/` | near-workspaces 0.24.0 (nearcore 2.14.0) |
 | Resolver worker | `demo/contracts/jev-prediction-market/resolver/` | OutLayer worker, `wasm32-wasip2`, Rust 1.97.1, `wasi-http-client` 0.2.1 |
-| Market widget | `demo/frontend` | Not this session. The demo page session owns it. I give it the interface below. |
+| Market strip | `demo/frontend` (the notes example) | The user asked this session to build it (10 Nov 2026), after the contract. I agree the files with the demo page session. |
 
-## Market rules
+## Market rules (parimutuel)
 
 - **Create.** `create_market({question, context, note_id, closes_at_ms})`,
-  payable. The attached NEAR (at least 0.1) is the starting liquidity. The
-  pool gets that many YES and NO shares, so both prices start at 50%.
+  payable, at least 0.1 NEAR. The attached NEAR is the creator's seed: half is
+  a YES stake and half is a NO stake, so the odds start at 50% and one early
+  bet cannot swing them to 100%. The seed is paid like any other bet.
   - `question`: 1 to 200 characters. `context`: 0 to 1,000 characters (the
-    note text and the post text, for the AI). `note_id`: optional.
+    note text and the post text, for the AI). It is frozen at the open, so
+    bettors cannot change the evidence. `note_id`: optional. Any note can
+    have a market.
   - `closes_at_ms`: in the future, at most 30 days ahead.
-- **Trade.** `buy({market_id, outcome, min_shares})` (payable, at least
-  0.01 NEAR) and `sell({market_id, outcome, amount, max_shares})`. A
-  fixed-product pool with complete sets: 1 YES + 1 NO is backed by 1 NEAR. A
-  buy names the NEAR in, and a sell names the NEAR out, so the contract needs
-  no square root. No fee. Units inside are micro-NEAR (10^18 yoctoNEAR), so
-  every product fits in a `u128`. Trading stops at the close time.
+- **Bet.** `bet({market_id, outcome})`, payable, at least 0.1 NEAR. The NEAR
+  goes into the YES pool or the NO pool. There is no sell: a bet stays until
+  the payout. The odds are the pool split: YES share = YES pool / total pool.
+  Betting stops at the close time. Each bet adds a point to the odds history
+  (the last 50 points).
 - **Close early.** `close_market({market_id})`: the creator or the admin can
-  stop the trading now. This keeps the demo short.
+  stop the betting now. This keeps the demo short.
 - **Resolve.** After the close time:
   - `request_resolution({market_id})`, payable (at least 0.05 NEAR for the
     OutLayer fee), 300 Tgas. Any account can call it. The contract calls
@@ -47,30 +50,31 @@ fractionally.
   - `resolve({market_id, yes_bps, rationale})`: the admin fallback. The
     admin can use it at any time after the close, also while a request is
     pending. A late AI answer is then ignored.
-  - A resolution is final.
-- **Redeem.** `redeem({market_id})` pays the caller for all their YES and NO
-  shares at the weight. The creator also gets the pool's shares.
+  - A resolution is final. Bettors' ratings of the note do not count: only
+    the AI (or the admin) resolves.
+- **Claim.** `claim({market_id})` sends the caller's payout to the wallet.
 - **Views.** `get_market`, `get_markets` (newest first, at most 50),
-  `get_market_for_note`, `get_position`, `quote_buy`, `quote_sell`,
+  `get_market_for_note`, `get_position`, `quote_bet`, `get_odds_history`,
   `get_config`.
-- **Events.** NEP-297, standard `pm_notes`: `market_created`, `trade`,
+- **Events.** NEP-297, standard `pm_notes`: `market_created`, `bet`,
   `market_closed`, `resolution_requested`, `resolution_failed`,
-  `market_resolved`, `redeemed`.
+  `market_resolved`, `claimed`.
 
 ## Weighted payout and snapping
 
 - The resolution has a raw probability `raw_yes_bps` (0 to 10,000) and a
   payout weight `w` = `payout_yes_bps` / 10,000.
-- A YES share pays `w` NEAR. A NO share pays `1 − w` NEAR. A complete set
-  still pays exactly 1 NEAR.
-- Snapping (proposed): `raw ≥ 9,000` gives `w = 1`. `raw ≤ 1,000` gives
-  `w = 0`. Otherwise `w = raw`. A clear answer then pays like a normal
-  market, and only a grey answer pays fractionally.
+- With the total pool `T`, the YES bets share `w × T` and the NO bets share
+  `(1 − w) × T`, each in proportion to the stakes.
+- Snapping: `raw ≥ 9,000` gives `w = 1`. `raw ≤ 1,000` gives `w = 0`.
+  Otherwise `w = raw`. A clear answer then pays like a normal market, and
+  only a grey answer pays fractionally.
+- If one pool is empty, everyone gets the stake back. (With the seed, both
+  pools always have NEAR.)
 - Each payout rounds down to the micro-NEAR. The contract keeps the dust.
-- Solvency: every YES and NO share comes from a complete set. So the total
-  YES shares (pool plus holders) equal the total NO shares, and both equal
-  the collateral. The sum of the payouts is then at most the collateral, for
-  any weight. A test checks this with random trades.
+- Solvency: the shares of the payouts add up to `w × T + (1 − w) × T = T`, and
+  each payout rounds down. So the sum is at most the pool. A test checks this
+  with random bets and random weights.
 
 ## Resolver worker
 
@@ -106,18 +110,18 @@ fractionally.
 
 ## Tests
 
-- Contract unit tests: the pool math (rounding favors the pool), every rule
-  and its failure message, the snapping, the weighted redeem, the callback
-  parsing (good answer, `yes_bps` above 10,000, bad JSON, `null`, a promise
-  error, a late answer after an admin resolve).
-- Solvency test: many seeded random trades over 5 accounts and random
-  weights. After each step, YES total = NO total = collateral. After all
-  redeems, the sum of payouts ≤ collateral, and the dust is at most one
-  micro-NEAR for each redeemer.
+- Contract unit tests: every rule and its failure message, the seed, the odds
+  and the odds history, the quote, the snapping, the weighted claim, the
+  refund, the callback parsing (good answer, `yes_bps` above 10,000, bad
+  JSON, `null`, a worker error, a promise error, a late answer after an admin
+  resolve).
+- Solvency test: many seeded random bets over 5 accounts and random weights.
+  After all claims, the sum of payouts ≤ the pool, and the dust is at most
+  one micro-NEAR for each claim.
 - Sandbox test: a fake OutLayer contract with a scripted answer. It covers
-  create → buy → sell → close → `request_resolution` → callback → redeem
-  (with real balances), a failed run, the admin resolve, the private
-  callback, and the gas.
+  create → bet → close → `request_resolution` → callback → claim (with real
+  balances), a failed run, the admin resolve, the private callback, and the
+  gas.
 - Worker tests: native tests with a fake HTTP host. They cover the JEV
   request JSON, the Noul parse, the NEAR AI parse, the fallback order and the
   errors.
@@ -134,18 +138,32 @@ fractionally.
 5. Smoke test: a 0.1 NEAR market that closes after 2 minutes, then
    `request_resolution`.
 
-## Interface for the market widget
+## Market strip in the notes example
 
-I write the views and change methods in the README and in a note for the demo
-page session. The widget calls the contract with a normal wallet signature.
+The design is `pm-ui-mock.html` in the shared notes. One strip inside the
+note card, no new page:
+
+1. **Open:** "Will this note hold up?", "JEV decides · closes in …", the
+   pool bar, the pool size and the bet count, Bet yes and Bet no. A note
+   without a market shows "Open a market" (0.1 NEAR seed).
+2. **Bet sheet:** the side with its share, the chips 0.1, 0.5 and 1 NEAR,
+   "Win about X NEAR if JEV says 100% yes and the pools stay as they are",
+   "A grey answer pays by its probability", and "Odds change until the
+   close". The bet is signed with the Wallet's normal confirm. Spoken bets
+   need a new spoken request kind and a Wallet release: later.
+3. **Resolved:** "JEV: 72% this note holds up", the bar, "Yes bets share 72%
+   of 4.7 NEAR", the account's bet and payout with Claim, and "Why JEV
+   decided this" (the rationale).
+
 `request_resolution` needs 300 Tgas, so it does not fit the 30 Tgas of a
-spoken request.
+spoken request. The strip signs it as a normal wallet call.
 
 ## Timeline
 
 - 10 Nov: plan, contract, unit tests.
-- 11 Nov: sandbox test, resolver worker, README.
-- 12 Nov: deploy after the user's yes, and the hand-over to the widget.
+- 11 Nov: sandbox test, resolver worker, README. Change to parimutuel bets.
+- 11–12 Nov: the market strip in the notes example.
+- 12 Nov: deploy after the user's yes.
 
 ## Decisions (10 Nov 2026)
 
@@ -153,8 +171,19 @@ spoken request.
    `TYPESAFE_API_KEY` to the OutLayer secrets at deploy time.
 2. **Snapping.** ≥ 90% → 1 and ≤ 10% → 0, as proposed.
 3. **Signal code.** The user allows us to copy Signal code. The README
-   credits Signal for the pool formulas and the JEV and NEAR AI request shapes.
+   credits Signal for the JEV and NEAR AI request shapes and the OutLayer
+   callback pattern.
 4. **Who resolves.** As proposed: any account requests the AI resolution after
    the close; the creator and the admin can close early.
 5. **Contract account.** `pm-notes.seams-v1.testnet` is the proposal. I ask
    again with the deploy proposal.
+6. **Parimutuel bets, not an AMM** (the user's words: "parimutuel bets are
+   MUCH simpler, and better/easier to embed into a twitter community note").
+7. **Money flow.** Each bet attaches its NEAR. Claim sends the payout to the
+   wallet. No balance inside the contract.
+8. **Seed.** The creator seeds at least 0.1 NEAR, split 50/50.
+9. **Bet sizes.** At least 0.1 NEAR; chips 0.1, 0.5 and 1 NEAR.
+10. **Which notes.** Any note: a user can open a market on any note, so the
+    demo is easy to use.
+11. **Front end.** This session builds the market strip into the notes
+    example after the contract.

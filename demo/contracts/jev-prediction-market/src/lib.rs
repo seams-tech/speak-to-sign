@@ -1,22 +1,21 @@
-//! `pm-notes`: a mini prediction market on community notes, for the Speak-to-Sign demo.
+//! `pm-notes`: a parimutuel prediction market on community notes, for the Speak-to-Sign demo.
 //!
-//! - **Create:** anyone opens a yes-or-no market with a question, an optional community note
-//!   id, context text for the AI and a close time. The attached NEAR is the starting liquidity.
-//! - **Trade:** buy or sell YES or NO shares against a fixed-product pool until the close.
+//! - **Create:** anyone opens a yes-or-no market about a note ("Will this note hold up?") with
+//!   context text for the AI and a close time. The attached NEAR (at least 0.1) is the
+//!   creator's seed, split 50/50 into a YES stake and a NO stake.
+//! - **Bet:** anyone puts NEAR (at least 0.1) into the YES pool or the NO pool until the close.
+//!   The odds are the pool split.
 //! - **Resolve:** after the close, any account calls `request_resolution`. The contract calls
 //!   the OutLayer resolver worker, which asks JEV (Typesafe) or NEAR AI for the probability
 //!   that the answer is YES. The admin can resolve instead (`resolve`).
-//! - **Redeem:** the probability, snapped at the ends, is the payout weight `w`. A YES share
-//!   pays `w` NEAR and a NO share pays `1 - w` NEAR, so a grey answer pays fractionally.
+//! - **Claim:** the probability, snapped at the ends, is the payout weight `w`. With the total
+//!   pool `T`, the YES bets share `w × T` and the NO bets share `(1 − w) × T`, each in
+//!   proportion to the stakes. So a grey answer pays both sides. If one pool is empty,
+//!   everyone gets the stake back.
 //!
-//! The pool is the fixed-product market maker of Signal's market-core (`math.rs`): a buy names
-//! the NEAR in, and a sell names the NEAR out, so the contract needs no square root. There is
-//! no fee. Amounts inside the contract are in micro-NEAR units (10^18 yoctoNEAR), so every
-//! product fits in a `u128`. The JSON shows NEAR amounts and shares in yoctoNEAR.
-//!
-//! Solvency: every share comes from a complete set (1 YES + 1 NO for 1 NEAR). So the YES total
-//! and the NO total (pool plus holders) both equal the collateral, and the weighted payouts,
-//! each rounded down, can never be more than the collateral.
+//! Amounts inside the contract are in micro-NEAR units (10^18 yoctoNEAR), so every product
+//! fits in a `u128`. The JSON shows NEAR amounts in yoctoNEAR. Each payout rounds down, so the
+//! payouts never add up to more than the pool.
 
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
@@ -26,14 +25,14 @@ use near_sdk::{
     AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError, env, near,
 };
 
-/// One unit: a micro-NEAR. One share is 10^6 units, and a complete set pays 1 NEAR.
+/// One unit: a micro-NEAR.
 pub const YOCTO_PER_UNIT: u128 = 1_000_000_000_000_000_000;
-/// The smallest starting liquidity: 0.1 NEAR.
-pub const MIN_LIQUIDITY_UNITS: u128 = 100_000;
-/// The smallest buy: 0.01 NEAR. A new position costs storage, so a buy must be worth it.
-pub const MIN_BUY_UNITS: u128 = 10_000;
-/// The largest starting liquidity, or trade: 1,000,000 NEAR. It keeps every product in a u128.
-pub const MAX_AMOUNT_UNITS: u128 = 1_000_000_000_000;
+/// The smallest seed of a new market: 0.1 NEAR.
+pub const MIN_SEED_UNITS: u128 = 100_000;
+/// The smallest bet: 0.1 NEAR.
+pub const MIN_BET_UNITS: u128 = 100_000;
+/// The largest total pool of one market: 1,000,000 NEAR. It keeps every product in a u128.
+pub const MAX_POOL_UNITS: u128 = 1_000_000_000_000;
 /// The longest question, in Unicode scalar values.
 pub const MAX_QUESTION_CHARS: usize = 200;
 /// The longest context (the note text and the post text for the AI).
@@ -44,11 +43,13 @@ pub const MAX_RATIONALE_CHARS: usize = 500;
 pub const MAX_OPEN_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 /// `get_markets` returns at most this many markets.
 pub const MAX_MARKETS_PER_VIEW: u64 = 50;
+/// The odds history keeps this many points for each market.
+pub const MAX_ODDS_POINTS: usize = 50;
 /// 100% in basis points.
 pub const BPS: u16 = 10_000;
-/// A probability at or above this pays YES in full (`w` = 1).
+/// A probability at or above this pays the YES bets in full (`w` = 1).
 pub const SNAP_HIGH_BPS: u16 = 9_000;
-/// A probability at or below this pays NO in full (`w` = 0).
+/// A probability at or below this pays the NO bets in full (`w` = 0).
 pub const SNAP_LOW_BPS: u16 = 1_000;
 /// The smallest deposit for `request_resolution`. It pays the OutLayer run.
 pub const MIN_RESOLUTION_DEPOSIT: NearToken = NearToken::from_millinear(50);
@@ -98,7 +99,7 @@ pub enum ResolutionSource {
 pub struct Resolution {
     /// The probability of YES that the resolver gave, in basis points.
     pub raw_yes_bps: u16,
-    /// The payout weight after the snapping: a YES share pays this / 10,000 NEAR.
+    /// The payout weight after the snapping: the YES bets share this / 10,000 of the pool.
     pub payout_yes_bps: u16,
     pub source: ResolutionSource,
     /// `jev` or `near-ai` for an AI resolution.
@@ -119,46 +120,38 @@ pub struct PendingRequest {
     pub requested_at_ms: u64,
 }
 
+/// One point of the odds history: the YES share of the pool after a bet.
+#[near(serializers = [json, borsh])]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OddsPoint {
+    pub at_ms: u64,
+    pub yes_bps: u16,
+}
+
 /// A market as the contract stores it. Amounts are in units.
 #[near(serializers = [borsh])]
 #[derive(Clone, Debug)]
 pub struct Market {
     pub creator: AccountId,
     pub question: String,
+    /// The note and the post for the AI. Frozen at the open.
     pub context: String,
     pub note_id: Option<u64>,
     pub created_at_ms: u64,
     pub closes_at_ms: u64,
-    /// The pool's YES and NO shares.
     pub yes_pool: u128,
     pub no_pool: u128,
-    /// The NEAR that backs the market: liquidity plus buys, less sells and redemptions.
-    pub collateral: u128,
-    /// True after the creator took the pool's shares.
-    pub pool_redeemed: bool,
+    /// The number of bets (the seed is not a bet).
+    pub bets: u32,
+    /// The NEAR that the claims paid.
+    pub paid_out: u128,
     pub pending: Option<PendingRequest>,
     pub resolution: Option<Resolution>,
 }
 
 impl Market {
-    /// The pool reserves as (the chosen outcome, the other outcome).
-    fn reserves(&self, outcome: Outcome) -> (u128, u128) {
-        match outcome {
-            Outcome::Yes => (self.yes_pool, self.no_pool),
-            Outcome::No => (self.no_pool, self.yes_pool),
-        }
-    }
-
-    fn set_reserves(&mut self, outcome: Outcome, chosen: u128, other: u128) {
-        match outcome {
-            Outcome::Yes => (self.yes_pool, self.no_pool) = (chosen, other),
-            Outcome::No => (self.no_pool, self.yes_pool) = (chosen, other),
-        }
-    }
-
-    /// The YES price in basis points: NO pool / (YES pool + NO pool).
-    fn yes_price_bps(&self) -> u32 {
-        price_bps(self.yes_pool, self.no_pool)
+    fn total(&self) -> u128 {
+        self.yes_pool + self.no_pool
     }
 
     /// True while a request waits for its answer and is not older than the timeout.
@@ -191,8 +184,11 @@ impl Market {
             closes_at_ms: self.closes_at_ms,
             yes_pool: to_yocto(self.yes_pool),
             no_pool: to_yocto(self.no_pool),
-            yes_price_bps: self.yes_price_bps(),
-            collateral: to_yocto(self.collateral),
+            total_pool: to_yocto(self.total()),
+            yes_share_bps: yes_share_bps(self.yes_pool, self.no_pool),
+            bets: self.bets,
+            refund_all: self.yes_pool == 0 || self.no_pool == 0,
+            paid_out: to_yocto(self.paid_out),
             status: self.status(env::block_timestamp_ms()),
             pending: self.pending.clone(),
             resolution: self.resolution.clone(),
@@ -200,36 +196,29 @@ impl Market {
     }
 }
 
+/// An account's stakes in one market.
 #[near(serializers = [borsh])]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Position {
+pub struct Stake {
     pub yes: u128,
     pub no: u128,
-}
-
-impl Position {
-    fn get_mut(&mut self, outcome: Outcome) -> &mut u128 {
-        match outcome {
-            Outcome::Yes => &mut self.yes,
-            Outcome::No => &mut self.no,
-        }
-    }
+    pub claimed: bool,
 }
 
 #[near(serializers = [json])]
 #[serde(rename_all = "snake_case")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MarketStatus {
-    /// Trading is on.
+    /// Betting is on.
     Open,
-    /// Trading is off. The market waits for `request_resolution` or `resolve`.
+    /// Betting is off. The market waits for `request_resolution` or `resolve`.
     Closed,
     /// An OutLayer request waits for its answer.
     Resolving,
     Resolved,
 }
 
-/// A market as the views return it. NEAR amounts and shares are yoctoNEAR strings.
+/// A market as the views return it. NEAR amounts are yoctoNEAR strings.
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MarketView {
@@ -242,9 +231,13 @@ pub struct MarketView {
     pub closes_at_ms: u64,
     pub yes_pool: U128,
     pub no_pool: U128,
-    /// The YES price in basis points (0 to 10,000). The NO price is 10,000 less this.
-    pub yes_price_bps: u32,
-    pub collateral: U128,
+    pub total_pool: U128,
+    /// The YES share of the pool in basis points (0 to 10,000): the odds.
+    pub yes_share_bps: u32,
+    pub bets: u32,
+    /// True when one pool is empty: every claim is then a refund of the stakes.
+    pub refund_all: bool,
+    pub paid_out: U128,
     pub status: MarketStatus,
     pub pending: Option<PendingRequest>,
     pub resolution: Option<Resolution>,
@@ -253,23 +246,24 @@ pub struct MarketView {
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PositionView {
+    /// The account's YES and NO stakes (the creator's seed included).
     pub yes: U128,
     pub no: U128,
-    /// What `redeem` pays this account now (also the pool for the creator). Null before the
-    /// resolution.
-    pub redeemable: Option<U128>,
+    /// What `claim` pays (or paid) this account. Null before the resolution.
+    pub payout: Option<U128>,
+    pub claimed: bool,
 }
 
-/// What a trade would do now.
+/// What a bet would do now.
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct QuoteView {
-    /// The NEAR in (buy) or out (sell), in yoctoNEAR, rounded down to the micro-NEAR.
+pub struct BetQuote {
+    /// The bet, in yoctoNEAR, rounded down to the micro-NEAR.
     pub amount: U128,
-    /// The shares that the buy gives or the sell takes, in yoctoNEAR.
-    pub shares: U128,
-    /// The YES price after the trade, in basis points.
-    pub yes_price_bps: u32,
+    /// What this bet alone pays if the verdict is 100% its side and no other bet comes.
+    pub payout_if_right: U128,
+    /// The YES share after the bet, in basis points.
+    pub yes_share_bps: u32,
 }
 
 #[near(serializers = [json, borsh])]
@@ -313,8 +307,8 @@ pub struct ConfigView {
     pub resolver: ResolverConfig,
     pub snap_high_bps: u16,
     pub snap_low_bps: u16,
-    pub min_liquidity: U128,
-    pub min_buy: U128,
+    pub min_seed: U128,
+    pub min_bet: U128,
     pub min_resolution_deposit: U128,
     pub max_open_ms: u64,
 }
@@ -332,8 +326,9 @@ pub struct AiAnswer {
 #[derive(BorshStorageKey)]
 enum StorageKey {
     Markets,
-    Positions,
+    Stakes,
     NoteMarkets,
+    Odds,
 }
 
 #[near(contract_state)]
@@ -347,9 +342,11 @@ pub struct PredictionMarkets {
     /// The id of the newest OutLayer request. The first request gets id 1.
     last_request_id: u64,
     markets: LookupMap<u64, Market>,
-    positions: LookupMap<(u64, AccountId), Position>,
+    stakes: LookupMap<(u64, AccountId), Stake>,
     /// The newest market of each community note.
     note_markets: LookupMap<u64, u64>,
+    /// The last 50 odds points of each market.
+    odds: LookupMap<u64, Vec<OddsPoint>>,
 }
 
 #[near]
@@ -366,13 +363,15 @@ impl PredictionMarkets {
             last_market_id: 0,
             last_request_id: 0,
             markets: LookupMap::new(StorageKey::Markets),
-            positions: LookupMap::new(StorageKey::Positions),
+            stakes: LookupMap::new(StorageKey::Stakes),
             note_markets: LookupMap::new(StorageKey::NoteMarkets),
+            odds: LookupMap::new(StorageKey::Odds),
         }
     }
 
-    /// Opens a market and returns its id. The attached NEAR (at least 0.1) is the starting
-    /// liquidity: the pool gets that many YES and NO shares, so both prices start at 50%.
+    /// Opens a market and returns its id. The attached NEAR (at least 0.1) is the creator's
+    /// seed: half goes into the YES pool and half into the NO pool, as the creator's stakes.
+    /// So the odds start at 50%.
     #[payable]
     pub fn create_market(
         &mut self,
@@ -397,11 +396,13 @@ impl PredictionMarkets {
         if closes_at_ms - now > MAX_OPEN_MS {
             env::panic_str("closes_at_ms must be at most 30 days ahead");
         }
-        let liquidity = deposit_units();
-        if liquidity < MIN_LIQUIDITY_UNITS {
-            env::panic_str("attach at least 0.1 NEAR of liquidity");
+        let seed = deposit_units();
+        if seed < MIN_SEED_UNITS {
+            env::panic_str("attach at least 0.1 NEAR as the seed");
         }
         let creator = env::predecessor_account_id();
+        let yes = seed / 2;
+        let no = seed - yes;
 
         self.last_market_id += 1;
         let id = self.last_market_id;
@@ -414,14 +415,16 @@ impl PredictionMarkets {
                 note_id,
                 created_at_ms: now,
                 closes_at_ms,
-                yes_pool: liquidity,
-                no_pool: liquidity,
-                collateral: liquidity,
-                pool_redeemed: false,
+                yes_pool: yes,
+                no_pool: no,
+                bets: 0,
+                paid_out: 0,
                 pending: None,
                 resolution: None,
             },
         );
+        self.stakes.insert((id, creator.clone()), Stake { yes, no, claimed: false });
+        self.odds.insert(id, vec![OddsPoint { at_ms: now, yes_bps: yes_share_bps(yes, no) as u16 }]);
         if let Some(note_id) = note_id {
             self.note_markets.insert(note_id, id);
         }
@@ -433,90 +436,71 @@ impl PredictionMarkets {
                 question: &question,
                 note_id,
                 closes_at_ms,
-                liquidity: to_yocto(liquidity),
+                seed: to_yocto(seed),
             },
         );
         id
     }
 
-    /// Buys shares of `outcome` with the attached NEAR (at least 0.01) and returns the shares
-    /// (yoctoNEAR). Fails when the shares are fewer than `min_shares`.
+    /// Bets the attached NEAR (at least 0.1) on `outcome`. Returns the caller's stake on that
+    /// outcome after the bet (yoctoNEAR).
     #[payable]
-    pub fn buy(&mut self, market_id: u64, outcome: Outcome, min_shares: Option<U128>) -> U128 {
+    pub fn bet(&mut self, market_id: u64, outcome: Outcome) -> U128 {
         let amount = deposit_units();
-        if amount < MIN_BUY_UNITS {
-            env::panic_str("attach at least 0.01 NEAR to buy");
+        if amount < MIN_BET_UNITS {
+            env::panic_str("bet at least 0.1 NEAR");
         }
         let account = env::predecessor_account_id();
         let mut market = self.open_market(market_id);
-        let (chosen, other) = market.reserves(outcome);
-        let quote = buy_quote(chosen, other, amount)
-            .unwrap_or_else(|| env::panic_str("the pool cannot fill this buy"));
-        if min_shares.is_some_and(|min| to_yocto(quote.shares).0 < min.0) {
-            env::panic_str("fewer shares than min_shares");
+        if market.total() + amount > MAX_POOL_UNITS {
+            env::panic_str("the pool is full");
         }
-        market.set_reserves(outcome, quote.chosen_after, quote.other_after);
-        market.collateral += amount;
-        let yes_price_bps = market.yes_price_bps();
-        self.markets.insert(market_id, market);
+        match outcome {
+            Outcome::Yes => market.yes_pool += amount,
+            Outcome::No => market.no_pool += amount,
+        }
+        market.bets += 1;
+        let share = yes_share_bps(market.yes_pool, market.no_pool);
 
         let key = (market_id, account.clone());
-        let mut position = self.positions.get(&key).copied().unwrap_or_default();
-        *position.get_mut(outcome) += quote.shares;
-        self.positions.insert(key, position);
+        let mut stake = self.stakes.get(&key).copied().unwrap_or_default();
+        let staked = match outcome {
+            Outcome::Yes => {
+                stake.yes += amount;
+                stake.yes
+            }
+            Outcome::No => {
+                stake.no += amount;
+                stake.no
+            }
+        };
+        self.stakes.insert(key, stake);
 
-        emit_trade(market_id, &account, "buy", outcome, amount, quote.shares, yes_price_bps);
-        to_yocto(quote.shares)
-    }
+        let mut odds = self.odds.get(&market_id).cloned().unwrap_or_default();
+        if odds.len() >= MAX_ODDS_POINTS {
+            odds.remove(0);
+        }
+        odds.push(OddsPoint { at_ms: env::block_timestamp_ms(), yes_bps: share as u16 });
+        self.odds.insert(market_id, odds);
 
-    /// Sells shares of `outcome` for `amount` NEAR (yoctoNEAR, rounded down to the micro-NEAR)
-    /// and returns the shares that it took. Fails when it would take more than `max_shares`,
-    /// or more than the caller holds.
-    pub fn sell(
-        &mut self,
-        market_id: u64,
-        outcome: Outcome,
-        amount: U128,
-        max_shares: Option<U128>,
-    ) -> U128 {
-        let amount_units = amount.0 / YOCTO_PER_UNIT;
-        if amount_units == 0 {
-            env::panic_str("amount must be at least 0.000001 NEAR");
-        }
-        let account = env::predecessor_account_id();
-        let mut market = self.open_market(market_id);
-        let (chosen, other) = market.reserves(outcome);
-        let quote = sell_quote(chosen, other, amount_units)
-            .unwrap_or_else(|| env::panic_str("the pool cannot pay this amount"));
-        if max_shares.is_some_and(|max| to_yocto(quote.shares).0 > max.0) {
-            env::panic_str("more shares than max_shares");
-        }
-        let key = (market_id, account.clone());
-        let mut position = self.positions.get(&key).copied().unwrap_or_default();
-        let held = position.get_mut(outcome);
-        if *held < quote.shares {
-            env::panic_str("not enough shares for this amount");
-        }
-        *held -= quote.shares;
-        if position == Position::default() {
-            self.positions.remove(&key);
-        } else {
-            self.positions.insert(key, position);
-        }
-
-        market.set_reserves(outcome, quote.chosen_after, quote.other_after);
-        market.collateral -= amount_units;
-        let yes_price_bps = market.yes_price_bps();
+        emit(
+            "bet",
+            BetPlaced {
+                market_id,
+                account_id: &account,
+                outcome,
+                amount: to_yocto(amount),
+                yes_pool: to_yocto(market.yes_pool),
+                no_pool: to_yocto(market.no_pool),
+                yes_share_bps: share,
+                bets: market.bets,
+            },
+        );
         self.markets.insert(market_id, market);
-
-        emit_trade(market_id, &account, "sell", outcome, amount_units, quote.shares, yes_price_bps);
-        Promise::new(account)
-            .transfer(NearToken::from_yoctonear(amount_units * YOCTO_PER_UNIT))
-            .detach();
-        to_yocto(quote.shares)
+        to_yocto(staked)
     }
 
-    /// Stops the trading now. Only the creator or the admin, and only while the market is open.
+    /// Stops the betting now. Only the creator or the admin, and only while the market is open.
     pub fn close_market(&mut self, market_id: u64) {
         let caller = env::predecessor_account_id();
         let mut market = self.open_market(market_id);
@@ -544,7 +528,7 @@ impl PredictionMarkets {
         let mut market = self.market(market_id);
         match market.status(now) {
             MarketStatus::Closed => {}
-            MarketStatus::Open => env::panic_str("this market is still open for trading"),
+            MarketStatus::Open => env::panic_str("this market is still open for betting"),
             MarketStatus::Resolving => env::panic_str("a resolution request is already pending"),
             MarketStatus::Resolved => env::panic_str("this market is resolved"),
         }
@@ -596,10 +580,7 @@ impl PredictionMarkets {
             return false;
         };
         let failed = |reason: &str| {
-            emit(
-                "resolution_failed",
-                ResolutionFailed { market_id, request_id, reason },
-            );
+            emit("resolution_failed", ResolutionFailed { market_id, request_id, reason });
             false
         };
         if market.resolution.is_some() {
@@ -660,7 +641,7 @@ impl PredictionMarkets {
         let mut market = self.market(market_id);
         match market.status(now) {
             MarketStatus::Closed | MarketStatus::Resolving => {}
-            MarketStatus::Open => env::panic_str("this market is still open for trading"),
+            MarketStatus::Open => env::panic_str("this market is still open for betting"),
             MarketStatus::Resolved => env::panic_str("this market is resolved"),
         }
         let yes_bps = yes_bps as u16;
@@ -670,7 +651,11 @@ impl PredictionMarkets {
             source: ResolutionSource::Admin,
             provider: None,
             model: None,
-            rationale: if rationale.is_empty() { "Resolved by the admin.".to_owned() } else { rationale },
+            rationale: if rationale.is_empty() {
+                "Resolved by the admin.".to_owned()
+            } else {
+                rationale
+            },
             resolved_by: caller,
             resolved_at_ms: now,
         };
@@ -680,40 +665,41 @@ impl PredictionMarkets {
         self.markets.insert(market_id, market);
     }
 
-    /// Pays the caller for all their shares at the payout weight: `w` NEAR for each YES share
-    /// and `1 - w` NEAR for each NO share, rounded down to the micro-NEAR. The creator also
-    /// gets the pool's shares, once. Returns the NEAR paid (yoctoNEAR).
-    pub fn redeem(&mut self, market_id: u64) -> U128 {
+    /// Sends the caller's payout to the wallet, once: the caller's share of `w × T` for the YES
+    /// stake and of `(1 − w) × T` for the NO stake, rounded down to the micro-NEAR. If one pool
+    /// is empty, the payout is the stakes. Returns the NEAR paid (yoctoNEAR).
+    pub fn claim(&mut self, market_id: u64) -> U128 {
         let account = env::predecessor_account_id();
         let mut market = self.market(market_id);
         let Some(weight) = market.resolution.as_ref().map(|r| r.payout_yes_bps) else {
             env::panic_str("this market is not resolved yet");
         };
-        let position = self.positions.remove(&(market_id, account.clone()));
-        let pool = account == market.creator && !market.pool_redeemed;
-        if position.is_none() && !pool {
-            env::panic_str("nothing to redeem");
+        let key = (market_id, account.clone());
+        let Some(mut stake) = self.stakes.get(&key).copied() else {
+            env::panic_str("nothing to claim");
+        };
+        if stake.claimed {
+            env::panic_str("already claimed");
         }
-        let mut payout = position.map_or(0, |p| weighted_payout(p.yes, p.no, weight));
-        if pool {
-            market.pool_redeemed = true;
-            payout += weighted_payout(market.yes_pool, market.no_pool, weight);
+        let amount = payout(stake.yes, stake.no, market.yes_pool, market.no_pool, weight);
+        stake.claimed = true;
+        self.stakes.insert(key, stake);
+        market.paid_out += amount;
+        if market.paid_out > market.total() {
+            env::panic_str("the market has too little NEAR");
         }
-        market.collateral = market
-            .collateral
-            .checked_sub(payout)
-            .unwrap_or_else(|| env::panic_str("the market has too little collateral"));
+        let refund = market.yes_pool == 0 || market.no_pool == 0;
         self.markets.insert(market_id, market);
         emit(
-            "redeemed",
-            Redeemed { market_id, account_id: &account, pool, amount: to_yocto(payout) },
+            "claimed",
+            Claimed { market_id, account_id: &account, amount: to_yocto(amount), refund },
         );
-        if payout > 0 {
+        if amount > 0 {
             Promise::new(account)
-                .transfer(NearToken::from_yoctonear(payout * YOCTO_PER_UNIT))
+                .transfer(NearToken::from_yoctonear(amount * YOCTO_PER_UNIT))
                 .detach();
         }
-        to_yocto(payout)
+        to_yocto(amount)
     }
 
     /// Changes where `request_resolution` sends the request. Only the admin.
@@ -746,56 +732,52 @@ impl PredictionMarkets {
 
     /// The newest market about a community note.
     pub fn get_market_for_note(&self, note_id: u64) -> Option<MarketView> {
-        self.note_markets
-            .get(&note_id)
-            .and_then(|id| self.get_market(*id))
+        self.note_markets.get(&note_id).and_then(|id| self.get_market(*id))
     }
 
     pub fn get_position(&self, market_id: u64, account_id: AccountId) -> PositionView {
-        let position = self
-            .positions
-            .get(&(market_id, account_id.clone()))
-            .copied()
-            .unwrap_or_default();
-        let redeemable = self.markets.get(&market_id).and_then(|market| {
+        let stake = self.stakes.get(&(market_id, account_id)).copied().unwrap_or_default();
+        let payout = self.markets.get(&market_id).and_then(|market| {
             let weight = market.resolution.as_ref()?.payout_yes_bps;
-            let mut payout = weighted_payout(position.yes, position.no, weight);
-            if account_id == market.creator && !market.pool_redeemed {
-                payout += weighted_payout(market.yes_pool, market.no_pool, weight);
-            }
-            Some(to_yocto(payout))
+            Some(to_yocto(payout(stake.yes, stake.no, market.yes_pool, market.no_pool, weight)))
         });
         PositionView {
-            yes: to_yocto(position.yes),
-            no: to_yocto(position.no),
-            redeemable,
+            yes: to_yocto(stake.yes),
+            no: to_yocto(stake.no),
+            payout,
+            claimed: stake.claimed,
         }
     }
 
-    /// What a buy of `amount` NEAR (yoctoNEAR) would give now, or null when the market is not
-    /// open or the amount is below 0.01 NEAR.
-    pub fn quote_buy(&self, market_id: u64, outcome: Outcome, amount: U128) -> Option<QuoteView> {
+    /// What a bet of `amount` NEAR (yoctoNEAR) on `outcome` would do now, or null when the
+    /// market is not open or the amount is below 0.1 NEAR.
+    pub fn quote_bet(&self, market_id: u64, outcome: Outcome, amount: U128) -> Option<BetQuote> {
         let market = self.markets.get(&market_id)?;
         let units = amount.0 / YOCTO_PER_UNIT;
-        if market.status(env::block_timestamp_ms()) != MarketStatus::Open || units < MIN_BUY_UNITS {
+        if market.status(env::block_timestamp_ms()) != MarketStatus::Open
+            || units < MIN_BET_UNITS
+            || market.total() + units > MAX_POOL_UNITS
+        {
             return None;
         }
-        let (chosen, other) = market.reserves(outcome);
-        let quote = buy_quote(chosen, other, units)?;
-        Some(quote_view(outcome, units, &quote))
+        let (yes, no) = match outcome {
+            Outcome::Yes => (market.yes_pool + units, market.no_pool),
+            Outcome::No => (market.yes_pool, market.no_pool + units),
+        };
+        let paid = match outcome {
+            Outcome::Yes => payout(units, 0, yes, no, BPS),
+            Outcome::No => payout(0, units, yes, no, 0),
+        };
+        Some(BetQuote {
+            amount: to_yocto(units),
+            payout_if_right: to_yocto(paid),
+            yes_share_bps: yes_share_bps(yes, no),
+        })
     }
 
-    /// What a sell for `amount` NEAR (yoctoNEAR) would take now, or null when the market is
-    /// not open or the pool cannot pay.
-    pub fn quote_sell(&self, market_id: u64, outcome: Outcome, amount: U128) -> Option<QuoteView> {
-        let market = self.markets.get(&market_id)?;
-        if market.status(env::block_timestamp_ms()) != MarketStatus::Open {
-            return None;
-        }
-        let units = amount.0 / YOCTO_PER_UNIT;
-        let (chosen, other) = market.reserves(outcome);
-        let quote = sell_quote(chosen, other, units)?;
-        Some(quote_view(outcome, units, &quote))
+    /// The last 50 odds points of a market, oldest first. The first point is the open.
+    pub fn get_odds_history(&self, market_id: u64) -> Vec<OddsPoint> {
+        self.odds.get(&market_id).cloned().unwrap_or_default()
     }
 
     pub fn get_config(&self) -> ConfigView {
@@ -804,8 +786,8 @@ impl PredictionMarkets {
             resolver: self.resolver.clone(),
             snap_high_bps: SNAP_HIGH_BPS,
             snap_low_bps: SNAP_LOW_BPS,
-            min_liquidity: to_yocto(MIN_LIQUIDITY_UNITS),
-            min_buy: to_yocto(MIN_BUY_UNITS),
+            min_seed: to_yocto(MIN_SEED_UNITS),
+            min_bet: to_yocto(MIN_BET_UNITS),
             min_resolution_deposit: U128(MIN_RESOLUTION_DEPOSIT.as_yoctonear()),
             max_open_ms: MAX_OPEN_MS,
         }
@@ -825,58 +807,23 @@ impl PredictionMarkets {
         match market.status(env::block_timestamp_ms()) {
             MarketStatus::Open => market,
             MarketStatus::Closed | MarketStatus::Resolving => {
-                env::panic_str("this market is closed for trading")
+                env::panic_str("this market is closed for betting")
             }
             MarketStatus::Resolved => env::panic_str("this market is resolved"),
         }
     }
 }
 
-// --- pool math ---
+// --- parimutuel math ---
 
-/// A quote in units: the shares that the trade moves, and the pool after it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Quote {
-    pub shares: u128,
-    pub chosen_after: u128,
-    pub other_after: u128,
-}
-
-/// A buy of `amount` sets: the pool gets `amount` YES and NO, and gives out chosen shares so
-/// that the product stays at least the same (rounded for the pool).
-pub fn buy_quote(chosen: u128, other: u128, amount: u128) -> Option<Quote> {
-    if chosen == 0 || other == 0 || amount == 0 || amount > MAX_AMOUNT_UNITS {
-        return None;
-    }
-    let other_after = other.checked_add(amount)?;
-    let chosen_after = chosen.checked_mul(other)?.div_ceil(other_after);
-    let shares = chosen.checked_add(amount)?.checked_sub(chosen_after)?;
-    (shares > 0).then_some(Quote { shares, chosen_after, other_after })
-}
-
-/// A sell that pays out `amount` sets: the pool takes chosen shares, then burns `amount` YES
-/// and NO, so that the product stays at least the same (rounded for the pool).
-pub fn sell_quote(chosen: u128, other: u128, amount: u128) -> Option<Quote> {
-    if chosen == 0 || other == 0 || amount == 0 || amount > MAX_AMOUNT_UNITS {
-        return None;
-    }
-    let other_after = other.checked_sub(amount)?;
-    if other_after == 0 {
-        return None;
-    }
-    let chosen_after = chosen.checked_mul(other)?.div_ceil(other_after);
-    let shares = amount.checked_add(chosen_after)?.checked_sub(chosen)?;
-    Some(Quote { shares, chosen_after, other_after })
-}
-
-/// The YES price in basis points for a pool: NO / (YES + NO).
-pub fn price_bps(yes_pool: u128, no_pool: u128) -> u32 {
+/// The YES share of the pool in basis points. 50% for an empty pool.
+pub fn yes_share_bps(yes_pool: u128, no_pool: u128) -> u32 {
     let total = yes_pool + no_pool;
-    if total == 0 { 5_000 } else { (no_pool * u128::from(BPS) / total) as u32 }
+    if total == 0 { 5_000 } else { (yes_pool * u128::from(BPS) / total) as u32 }
 }
 
-/// The payout weight for a YES probability: at or above 90% pays YES in full, at or below 10%
-/// pays NO in full, and the grey zone between pays the probability itself.
+/// The payout weight for a YES probability: at or above 90% pays the YES bets in full, at or
+/// below 10% pays the NO bets in full, and the grey zone between pays the probability itself.
 pub fn snap(raw_yes_bps: u16) -> u16 {
     if raw_yes_bps >= SNAP_HIGH_BPS {
         BPS
@@ -887,11 +834,17 @@ pub fn snap(raw_yes_bps: u16) -> u16 {
     }
 }
 
-/// The NEAR (units) for `yes` and `no` shares at the weight: (yes × w + no × (1 − w)),
-/// rounded down.
-pub fn weighted_payout(yes: u128, no: u128, payout_yes_bps: u16) -> u128 {
+/// The payout (units) of the stakes `yes` and `no` at the weight `w`:
+/// `yes / yes_pool × w × T + no / no_pool × (1 − w) × T`, each part rounded down. If one pool
+/// is empty, the payout is the stakes.
+pub fn payout(yes: u128, no: u128, yes_pool: u128, no_pool: u128, payout_yes_bps: u16) -> u128 {
+    if yes_pool == 0 || no_pool == 0 {
+        return yes + no;
+    }
+    let total = yes_pool + no_pool;
     let w = u128::from(payout_yes_bps.min(BPS));
-    (yes * w + no * (u128::from(BPS) - w)) / u128::from(BPS)
+    let bps = u128::from(BPS);
+    yes * w * total / (yes_pool * bps) + no * (bps - w) * total / (no_pool * bps)
 }
 
 // --- resolver answer ---
@@ -1034,7 +987,7 @@ fn check_resolver_config(config: &ResolverConfig) {
 /// The attached deposit in units. Less than one unit (10^18 yoctoNEAR) stays in the contract.
 fn deposit_units() -> u128 {
     let units = env::attached_deposit().as_yoctonear() / YOCTO_PER_UNIT;
-    if units > MAX_AMOUNT_UNITS {
+    if units > MAX_POOL_UNITS {
         env::panic_str("attach at most 1,000,000 NEAR");
     }
     units
@@ -1044,18 +997,6 @@ fn to_yocto(units: u128) -> U128 {
     U128(units * YOCTO_PER_UNIT)
 }
 
-fn quote_view(outcome: Outcome, units: u128, quote: &Quote) -> QuoteView {
-    let (yes, no) = match outcome {
-        Outcome::Yes => (quote.chosen_after, quote.other_after),
-        Outcome::No => (quote.other_after, quote.chosen_after),
-    };
-    QuoteView {
-        amount: to_yocto(units),
-        shares: to_yocto(quote.shares),
-        yes_price_bps: price_bps(yes, no),
-    }
-}
-
 /// 7300 → "73%", 7325 → "73.25%".
 fn percent(bps: u16) -> String {
     if bps % 100 == 0 {
@@ -1063,29 +1004,6 @@ fn percent(bps: u16) -> String {
     } else {
         format!("{}.{:02}%", bps / 100, bps % 100)
     }
-}
-
-fn emit_trade(
-    market_id: u64,
-    account: &AccountId,
-    side: &'static str,
-    outcome: Outcome,
-    amount: u128,
-    shares: u128,
-    yes_price_bps: u32,
-) {
-    emit(
-        "trade",
-        Trade {
-            market_id,
-            account_id: account,
-            side,
-            outcome,
-            amount: to_yocto(amount),
-            shares: to_yocto(shares),
-            yes_price_bps,
-        },
-    );
 }
 
 fn emit_resolved(market_id: u64, resolution: &Resolution) {
@@ -1169,19 +1087,20 @@ struct MarketCreated<'a> {
     question: &'a str,
     note_id: Option<u64>,
     closes_at_ms: u64,
-    liquidity: U128,
+    seed: U128,
 }
 
 #[derive(Serialize)]
 #[serde(crate = "near_sdk::serde")]
-struct Trade<'a> {
+struct BetPlaced<'a> {
     market_id: u64,
     account_id: &'a AccountId,
-    side: &'static str,
     outcome: Outcome,
     amount: U128,
-    shares: U128,
-    yes_price_bps: u32,
+    yes_pool: U128,
+    no_pool: U128,
+    yes_share_bps: u32,
+    bets: u32,
 }
 
 #[derive(Serialize)]
@@ -1222,11 +1141,11 @@ struct MarketResolved<'a> {
 
 #[derive(Serialize)]
 #[serde(crate = "near_sdk::serde")]
-struct Redeemed<'a> {
+struct Claimed<'a> {
     market_id: u64,
     account_id: &'a AccountId,
-    pool: bool,
     amount: U128,
+    refund: bool,
 }
 
 #[derive(Serialize)]
@@ -1242,8 +1161,8 @@ struct EventLog<'a, T: Serialize> {
 /// one object.
 fn emit<T: Serialize>(event: &str, data: T) {
     let log = EventLog { standard: EVENT_STANDARD, version: EVENT_VERSION, event, data: [data] };
-    let json = serde_json::to_string(&log)
-        .unwrap_or_else(|_| env::panic_str("cannot serialize the event"));
+    let json =
+        serde_json::to_string(&log).unwrap_or_else(|_| env::panic_str("cannot serialize the event"));
     env::log_str(&format!("EVENT_JSON:{json}"));
 }
 

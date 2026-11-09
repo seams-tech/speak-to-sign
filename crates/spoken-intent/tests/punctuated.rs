@@ -1,218 +1,16 @@
-//! Focused checks of the grammar rules: the plan's examples, amounts,
-//! negations, sound-alikes and the parse/render inverse.
+//! Checks of `normalize_punctuated`, the reading of transcripts from a
+//! model that writes numerals, punctuation and account ids (Whisper).
+
+pub mod support;
 
 use spoken_intent::{
-    normalize, normalize_punctuated, parse_transfer, phonetic_key, render, ChallengeWord,
-    NearAccount, NearAmount, Network, ParseRefusal, ParseResult, ProposalV1, PunctuatedRefusal,
-    SpokenAccount, SpokenRequestV1, UnsupportedReason, CHALLENGE_WORDS,
+    normalize, normalize_punctuated, parse_transfer, render, Network, ParseRefusal, ParseResult,
+    ProposalV1, PunctuatedRefusal, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
 };
-
-const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
-
-fn account(id: &str) -> SpokenAccount {
-    SpokenAccount::new(id).expect("speakable account")
-}
-
-fn account_transfer(receiver: &str, amount: NearAmount) -> SpokenRequestV1 {
-    SpokenRequestV1::AccountTransfer {
-        network: Network::Testnet,
-        owner: near_account("owner.testnet"),
-        receiver: account(receiver),
-        amount,
-    }
-}
-
-fn near_account(id: &str) -> NearAccount {
-    NearAccount::new(id).expect("valid account")
-}
-
-fn contacts() -> Vec<SpokenAccount> {
-    ["alice.testnet", "bob.testnet", "bob-1.testnet"]
-        .into_iter()
-        .map(account)
-        .collect()
-}
-
-fn parse(transcript: &str) -> ParseResult {
-    parse_transfer(&normalize(transcript).expect("normalizable"), &contacts())
-}
-
-#[test]
-fn plan_examples_render_exactly() {
-    let cases = [
-        (
-            "alice.testnet",
-            25 * ONE_NEAR,
-            "Send 25 NEAR to alice.testnet",
-            "send twenty five near to alice dot testnet",
-        ),
-        (
-            "bob-1.testnet",
-            25 * ONE_NEAR / 10,
-            "Send 2.5 NEAR to bob-1.testnet",
-            "send two point five near to bob dash one dot testnet",
-        ),
-        (
-            "alice.testnet",
-            1_250 * ONE_NEAR,
-            "Send 1,250 NEAR to alice.testnet",
-            "send one thousand two hundred fifty near to alice dot testnet",
-        ),
-    ];
-    for (receiver, yocto, display, spoken) in cases {
-        let amount = NearAmount::from_yocto(yocto).expect("speakable");
-        let rendered = render(&account_transfer(receiver, amount));
-        assert_eq!(rendered.display_text, display);
-        assert_eq!(rendered.spoken_text, spoken);
-    }
-
-    let word = |w: &str| {
-        let index = CHALLENGE_WORDS
-            .iter()
-            .position(|c| *c == w)
-            .expect("listed") as u8;
-        ChallengeWord::from_index(index).expect("below 64")
-    };
-    let rendered = render(&SpokenRequestV1::MultisigApproval {
-        network: Network::Testnet,
-        multisig: near_account("multisig.testnet"),
-        proposal_id: 42,
-        proposal: ProposalV1::Transfer {
-            receiver: account("payroll.testnet"),
-            amount: NearAmount::from_hundredths(1_000).expect("speakable"),
-        },
-        challenge: [word("river"), word("lantern")],
-    });
-    assert_eq!(
-        rendered.display_text,
-        "Approve proposal 42: send 10 NEAR to payroll.testnet. Then say: river lantern."
-    );
-    assert_eq!(
-        rendered.spoken_text,
-        "approve proposal forty two send ten near to payroll dot testnet river lantern"
-    );
-}
-
-#[test]
-fn amounts_are_exact_and_bounded() {
-    let unsupported = Err(UnsupportedReason::AmountNotSpeakable);
-    assert_eq!(NearAmount::from_yocto(ONE_NEAR / 1_000), unsupported);
-    assert_eq!(NearAmount::from_yocto(0), unsupported);
-    assert_eq!(
-        NearAmount::from_yocto(1_000_000 * ONE_NEAR + ONE_NEAR / 100),
-        unsupported
-    );
-    assert!(NearAmount::from_yocto(1_000_000 * ONE_NEAR).is_ok());
-    assert!(NearAmount::from_yocto(ONE_NEAR / 100).is_ok());
-
-    // Teens and tens differ; a trailing zero is not canonical.
-    let thirteen = render(&account_transfer(
-        "alice.testnet",
-        NearAmount::from_hundredths(1_300).expect("ok"),
-    ));
-    let thirty = render(&account_transfer(
-        "alice.testnet",
-        NearAmount::from_hundredths(3_000).expect("ok"),
-    ));
-    assert_ne!(thirteen.spoken, thirty.spoken);
-    assert_eq!(
-        parse("send two point five zero near to bob dot testnet"),
-        ParseResult::Refused(ParseRefusal::Amount)
-    );
-    assert_eq!(
-        parse("send twelve hundred near to alice dot testnet"),
-        ParseResult::Refused(ParseRefusal::Amount)
-    );
-    assert_eq!(
-        parse("send zero point zero zero one near to alice dot testnet"),
-        ParseResult::Refused(ParseRefusal::Amount)
-    );
-}
-
-#[test]
-fn speech_to_text_forms_normalize_to_the_rendered_tokens() {
-    let expected = normalize("send one thousand two hundred fifty near to alice dot testnet");
-    for transcript in [
-        "Send 1,250 NEAR to alice.testnet.",
-        "send 1250 near to alice dot testnet",
-        "send one thousand two hundred and fifty near to alice dot testnet",
-    ] {
-        assert_eq!(normalize(transcript), expected, "{transcript}");
-    }
-    assert_eq!(
-        normalize("send a hundred near to alice dot testnet"),
-        normalize("send one hundred near to alice dot testnet")
-    );
-    assert_eq!(
-        normalize("send twenty-five near to alice.testnet"),
-        normalize("send twenty five near to alice dot testnet")
-    );
-    assert_eq!(normalize("send $25 to alice.testnet"), None);
-}
-
-#[test]
-fn negations_and_added_clauses_are_refused() {
-    let not_transfer = ParseResult::Refused(ParseRefusal::NotTransfer);
-    assert_eq!(
-        parse("do not send twenty five near to alice dot testnet"),
-        not_transfer
-    );
-    assert_eq!(parse("Don't send 25 NEAR to alice.testnet"), not_transfer);
-    assert_eq!(parse("never send 25 NEAR to alice.testnet"), not_transfer);
-    assert_eq!(
-        parse("send 25 NEAR to alice.testnet and send 100 NEAR to bob.testnet"),
-        ParseResult::Refused(ParseRefusal::TrailingWords)
-    );
-    assert_eq!(
-        parse("send 25 NEAR to alice.testnet not"),
-        ParseResult::Refused(ParseRefusal::TrailingWords)
-    );
-    assert_eq!(
-        parse("send 25 NEAR to alicia.testnet"),
-        ParseResult::Refused(ParseRefusal::UnknownRecipient)
-    );
-}
-
-#[test]
-fn accepted_parses_render_back_to_the_same_tokens() {
-    for transcript in [
-        "send twenty five near to alice dot testnet",
-        "send 2.5 NEAR to bob-1.testnet",
-        "send 0.05 near to bob.testnet",
-        "send 1,000,000 near to alice.testnet",
-        "send 999,999.99 near to bob.testnet",
-    ] {
-        let tokens = normalize(transcript).expect("normalizable");
-        let ParseResult::Transfer(parsed) = parse_transfer(&tokens, &contacts()) else {
-            panic!("refused: {transcript}");
-        };
-        let request = account_transfer(parsed.receiver.as_str(), parsed.amount);
-        assert_eq!(render(&request).spoken, tokens, "{transcript}");
-    }
-}
-
-#[test]
-fn sound_alike_accounts_are_confusable() {
-    let confusable =
-        |a: &str, b: &str| phonetic_key(&account(a)).is_confusable_with(&phonetic_key(&account(b)));
-    assert!(confusable("alice.testnet", "alicia.testnet"));
-    assert!(confusable("jon.testnet", "john.testnet"));
-    assert!(confusable("rob.testnet", "bob.testnet"));
-    assert!(confusable("payroll.testnet", "payrolls.testnet"));
-    assert!(confusable("philip.testnet", "filip.testnet"));
-    assert!(!confusable("alice.testnet", "bob.testnet"));
-    assert!(!confusable("alice.testnet", "alice.near"));
-}
+use support::{account, challenge_word, contacts, near_account, parsed};
 
 #[test]
 fn punctuated_transcripts_read_like_the_rendered_text() {
-    let word = |w: &str| {
-        let index = CHALLENGE_WORDS
-            .iter()
-            .position(|c| *c == w)
-            .expect("listed") as u8;
-        ChallengeWord::from_index(index).expect("below 64")
-    };
     let mut hash = [0u8; 32];
     hash[0] = 0x17;
     let rendered = render(&SpokenRequestV1::MultisigApproval {
@@ -220,7 +18,7 @@ fn punctuated_transcripts_read_like_the_rendered_text() {
         multisig: near_account("multisig.testnet"),
         proposal_id: 999,
         proposal: ProposalV1::SetVerifierVersion { version_hash: hash },
-        challenge: [word("compass"), word("meadow")],
+        challenge: [challenge_word("compass"), challenge_word("meadow")],
     });
     let digits: String = rendered.display_text
         ["Approve proposal 999: set verifier version ".len()..]
@@ -238,10 +36,7 @@ fn punctuated_transcripts_read_like_the_rendered_text() {
     let tokens = normalize_punctuated("Send 1,250 nir to Alice.Testnut.", &contacts());
     assert_eq!(
         tokens.as_ref().map(|t| parse_transfer(t, &contacts())),
-        Ok(ParseResult::Transfer(spoken_intent::ParsedTransfer {
-            receiver: account("alice.testnet"),
-            amount: NearAmount::from_hundredths(125_000).expect("speakable"),
-        }))
+        Ok(parsed("alice.testnet", 125_000))
     );
     assert_eq!(
         normalize_punctuated("Send 25 NEAR to carol.testnet", &contacts()),
@@ -256,23 +51,16 @@ fn read_punctuated(heard: &str) -> Result<ParseResult, PunctuatedRefusal> {
     normalize_punctuated(heard, &contacts()).map(|tokens| parse_transfer(&tokens, &contacts()))
 }
 
-fn transfer_of(receiver: &str, hundredths: u64) -> Result<ParseResult, PunctuatedRefusal> {
-    Ok(ParseResult::Transfer(spoken_intent::ParsedTransfer {
-        receiver: account(receiver),
-        amount: NearAmount::from_hundredths(hundredths).expect("speakable"),
-    }))
-}
-
 #[test]
 fn two_heard_as_to_fills_only_a_one_word_amount_slot() {
     // Whisper large-v3 on testnet: "send two near to alice dot testnet".
     assert_eq!(
         read_punctuated("Send to near to alice testnet."),
-        transfer_of("alice.testnet", 200)
+        Ok(parsed("alice.testnet", 200))
     );
     assert_eq!(
         read_punctuated("Send too near to alice.testnet"),
-        transfer_of("alice.testnet", 200)
+        Ok(parsed("alice.testnet", 200))
     );
 
     // Near misses that must stay refused.
@@ -311,7 +99,7 @@ fn two_heard_as_to_fills_only_a_one_word_amount_slot() {
     // Other amounts are not changed.
     assert_eq!(
         read_punctuated("Send 20 near to alice testnet"),
-        transfer_of("alice.testnet", 2_000)
+        Ok(parsed("alice.testnet", 2_000))
     );
 }
 
@@ -320,33 +108,24 @@ fn dot_before_testnet_keeps_the_contact_match() {
     // Whisper large-v3 on testnet drops the spoken "dot".
     assert_eq!(
         read_punctuated("Send 5 near to bob testnet"),
-        transfer_of("bob.testnet", 500)
+        Ok(parsed("bob.testnet", 500))
     );
     assert_eq!(
         read_punctuated("Send 5 near to bob-1 testnet"),
-        transfer_of("bob-1.testnet", 500)
+        Ok(parsed("bob-1.testnet", 500))
     );
     let seams = [account("seams-v1.testnet"), account("alice.testnet")];
     let tokens = normalize_punctuated("Send 5 near to seams-v1 testnet.", &seams).expect("contact");
     assert_eq!(
         parse_transfer(&tokens, &seams),
-        ParseResult::Transfer(spoken_intent::ParsedTransfer {
-            receiver: account("seams-v1.testnet"),
-            amount: NearAmount::from_hundredths(500).expect("speakable"),
-        })
+        parsed("seams-v1.testnet", 500)
     );
 
     // A recipient that matches as heard keeps that match: "umidot testnet"
     // has the key of "uma dot testnet", and "umidot dot testnet" does not.
     let uma = [account("uma.testnet"), account("alice.testnet")];
     let tokens = normalize_punctuated("Send 60 near to umidot testnet.", &uma).expect("contact");
-    assert_eq!(
-        parse_transfer(&tokens, &uma),
-        ParseResult::Transfer(spoken_intent::ParsedTransfer {
-            receiver: account("uma.testnet"),
-            amount: NearAmount::from_hundredths(6_000).expect("speakable"),
-        })
-    );
+    assert_eq!(parse_transfer(&tokens, &uma), parsed("uma.testnet", 6_000));
 
     // Near misses that must stay refused.
     let not_contact = Err(PunctuatedRefusal::RecipientNotContact);
@@ -361,7 +140,7 @@ fn dot_before_testnet_keeps_the_contact_match() {
     // A dropped "dash" matches by the loose key ("bob one" is `bob-1`).
     assert_eq!(
         read_punctuated("Send 5 near to bob 1 testnet"),
-        transfer_of("bob-1.testnet", 500)
+        Ok(parsed("bob-1.testnet", 500))
     );
     // An added clause after the receiver.
     assert_eq!(
@@ -374,10 +153,7 @@ fn dot_before_testnet_keeps_the_contact_match() {
     assert_eq!(
         normalize_punctuated("Send 5 near to alice near", &mainnet)
             .map(|tokens| parse_transfer(&tokens, &mainnet)),
-        Ok(ParseResult::Transfer(spoken_intent::ParsedTransfer {
-            receiver: account("alice.near"),
-            amount: NearAmount::from_hundredths(500).expect("speakable"),
-        }))
+        Ok(parsed("alice.near", 500))
     );
 }
 
@@ -389,10 +165,7 @@ fn send_slots_forgive_words_that_hold_no_value() {
         normalize_punctuated("Send 0.01 year to seams-v1.testnet.", &seams).expect("contact");
     assert_eq!(
         parse_transfer(&tokens, &seams),
-        ParseResult::Transfer(spoken_intent::ParsedTransfer {
-            receiver: account("seams-v1.testnet"),
-            amount: NearAmount::from_hundredths(1).expect("speakable"),
-        })
+        parsed("seams-v1.testnet", 1)
     );
 
     // Whisper large-v3 forms of the verb, the unit, the suffix and the receiver.
@@ -422,7 +195,7 @@ fn send_slots_forgive_words_that_hold_no_value() {
     ] {
         assert_eq!(
             read_punctuated(heard),
-            transfer_of(receiver, hundredths),
+            Ok(parsed(receiver, hundredths)),
             "{heard}"
         );
     }
@@ -430,7 +203,7 @@ fn send_slots_forgive_words_that_hold_no_value() {
     // The amount is not changed: the caller compares it with the request.
     assert_eq!(
         read_punctuated("Send 26 NIA to alice.testnet"),
-        transfer_of("alice.testnet", 2_600)
+        Ok(parsed("alice.testnet", 2_600))
     );
 
     // Near misses that must stay refused.
@@ -500,7 +273,7 @@ fn account_separators_can_be_said_differently_or_left_out() {
     ] {
         assert_eq!(
             read_punctuated(heard),
-            transfer_of(receiver, hundredths),
+            Ok(parsed(receiver, hundredths)),
             "{heard}"
         );
     }
@@ -529,10 +302,7 @@ fn account_separators_can_be_said_differently_or_left_out() {
         let tokens = normalize_punctuated(heard, contacts).expect(heard);
         assert_eq!(
             parse_transfer(&tokens, contacts),
-            ParseResult::Transfer(spoken_intent::ParsedTransfer {
-                receiver: account(receiver),
-                amount: NearAmount::from_hundredths(100).expect("speakable"),
-            }),
+            parsed(receiver, 100),
             "{heard}"
         );
     }
@@ -575,7 +345,7 @@ fn note_summaries_keep_separator_words_and_oh() {
             contract: near_account("notes.testnet"),
             post_id: 7,
             note_sha256: [3; 32],
-            summary: spoken_intent::SpokenSummary::new(text).expect("speakable summary"),
+            summary: SpokenSummary::new(text).expect("speakable summary"),
         };
         let rendered = render(&request);
         assert_eq!(
@@ -602,7 +372,7 @@ fn merge_approval_transcripts_match() {
             contract: near_account("merges.seams-v1.testnet"),
             repo_sha256: [1; 32],
             pull_request,
-            base: spoken_intent::SpokenBranch::new(base).expect("speakable base"),
+            base: SpokenBranch::new(base).expect("speakable base"),
             head_commit: [2; 20],
         };
         assert_eq!(
@@ -629,10 +399,7 @@ fn joined_words_match_by_the_sound_of_the_sentence_end() {
         let tokens = normalize_punctuated(heard, &contacts).expect(heard);
         assert_eq!(
             parse_transfer(&tokens, &contacts),
-            ParseResult::Transfer(spoken_intent::ParsedTransfer {
-                receiver: account(receiver),
-                amount: NearAmount::from_hundredths(hundredths).expect("speakable"),
-            }),
+            parsed(receiver, hundredths),
             "{heard}"
         );
     }
@@ -648,43 +415,4 @@ fn joined_words_match_by_the_sound_of_the_sentence_end() {
     assert!(refused("Send 856 near toucane.testnet.", &alice));
     assert!(refused("Send near toucane.testnet.", &contacts));
     assert!(refused("Send 856 near tobob.testnet.", &contacts));
-}
-
-#[test]
-fn unspeakable_accounts_are_refused() {
-    let unsupported = Err(UnsupportedReason::AccountNotSpeakable);
-    let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
-    assert_eq!(SpokenAccount::new(implicit), unsupported);
-    assert_eq!(
-        SpokenAccount::new(&format!("0x{}", "ab".repeat(20))),
-        unsupported
-    );
-    assert_eq!(SpokenAccount::new("Alice.testnet"), unsupported);
-    assert_eq!(SpokenAccount::new("alice..testnet"), unsupported);
-}
-
-#[test]
-fn an_implicit_owner_is_valid_and_not_said() {
-    let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
-    let eth = format!("0x{}", "ab".repeat(20));
-    for owner in [implicit, eth.as_str()] {
-        let request = SpokenRequestV1::AccountTransfer {
-            network: Network::Testnet,
-            owner: near_account(owner),
-            receiver: account("alice.testnet"),
-            amount: NearAmount::from_hundredths(50).expect("speakable"),
-        };
-        assert_eq!(
-            render(&request).spoken_text,
-            "send zero point five near to alice dot testnet"
-        );
-        let bytes = borsh::to_vec(&request).expect("serializes");
-        assert_eq!(
-            borsh::from_slice::<SpokenRequestV1>(&bytes).expect("decodes"),
-            request
-        );
-    }
-    assert!(NearAccount::new("Alice.testnet").is_err());
-    assert!(NearAccount::new("alice..testnet").is_err());
-    assert!(NearAccount::new("a").is_err());
 }

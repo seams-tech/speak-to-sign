@@ -81,24 +81,20 @@ fn clauses(
     expected: &[SpokenToken],
 ) -> (usize, usize, Vec<Vec<SpokenToken>>) {
     match request {
-        SpokenRequestV1::VaultTransfer {
+        SpokenRequestV1::AccountTransfer {
             network,
-            vault,
             owner,
             receiver,
             amount,
-            nonce,
         } => {
             let mut clauses = vec![expected.to_vec()];
             for (receiver, amount) in transfer_variants(receiver, *amount, contacts) {
                 clauses.push(
-                    render(&SpokenRequestV1::VaultTransfer {
+                    render(&SpokenRequestV1::AccountTransfer {
                         network: *network,
-                        vault: vault.clone(),
                         owner: owner.clone(),
                         receiver,
                         amount,
-                        nonce: *nonce,
                     })
                     .spoken,
                 );
@@ -194,22 +190,18 @@ fn field_changes(
 ) -> BTreeSet<Vec<SpokenToken>> {
     let mut set = BTreeSet::new();
     match request {
-        SpokenRequestV1::VaultTransfer {
+        SpokenRequestV1::AccountTransfer {
             network,
-            vault,
             owner,
             receiver,
             amount,
-            nonce,
         } => {
             for (receiver, amount) in transfer_variants(receiver, *amount, contacts) {
-                let variant = SpokenRequestV1::VaultTransfer {
+                let variant = SpokenRequestV1::AccountTransfer {
                     network: *network,
-                    vault: vault.clone(),
                     owner: owner.clone(),
                     receiver,
                     amount,
-                    nonce: *nonce,
                 };
                 set.insert(render(&variant).spoken);
             }

@@ -3,11 +3,11 @@ use alloc::vec::Vec;
 use crate::render::SpokenToken;
 use crate::{NearAmount, SpokenAccount};
 
-/// The spoken fields of a vault transfer. The vault, owner, network and nonce
-/// are not spoken; the caller takes them from the vault.
+/// The spoken fields of a transfer. The owner and the network are not spoken;
+/// the caller takes them from the request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParsedTransfer {
-    /// The contact that receives the amount.
+    /// The account that receives the amount.
     pub receiver: SpokenAccount,
     /// The amount.
     pub amount: NearAmount,

@@ -134,27 +134,27 @@
   ],
   "invalid_borsh": [
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e65740000a0dec5adc93536000000000000000100000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e65740000a0dec5adc9353600000000000000",
       "name": "amount_one_thousandth"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000000000000000000000000000000100000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000000000000000000000000000000",
       "name": "amount_zero"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65744000000039383739336364393161336638373066623132366636363238353830386337653039346166636663346564613861393730663636343863646630646264366465000000b9340332b7f4ad1400000000000100000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65744000000039383739336364393161336638373066623132366636363238353830386337653039346166636663346564613861393730663636343863646630646264366465000000b9340332b7f4ad140000000000",
       "name": "receiver_implicit"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000416c6963652e746573746e6574000000b9340332b7f4ad1400000000000100000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000416c6963652e746573746e6574000000b9340332b7f4ad140000000000",
       "name": "receiver_uppercase"
     },
     {
-      "borsh_hex": "000213000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000b9340332b7f4ad1400000000000100000000000000",
+      "borsh_hex": "02020d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000b9340332b7f4ad140000000000",
       "name": "unknown_network"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000b9340332b7f4ad140000000000010000000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000b9340332b7f4ad14000000000000",
       "name": "trailing_byte"
     },
     {
@@ -166,7 +166,11 @@
       "name": "challenge_index_64"
     },
     {
-      "borsh_hex": "0200",
+      "borsh_hex": "0000",
+      "name": "retired_vault_transfer_kind"
+    },
+    {
+      "borsh_hex": "0300",
       "name": "unknown_request_kind"
     }
   ],
@@ -689,7 +693,7 @@
   "request_digest_domain": "seams:spoken-intent:request:v1",
   "requests": [
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000b9340332b7f4ad1400000000000100000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000b9340332b7f4ad140000000000",
       "confusion_set": [
         "add twenty five near to alice dot testnet",
         "approve twenty five near to alice dot testnet",
@@ -792,13 +796,13 @@
         "twenty five near to alice dot testnet"
       ],
       "display_text": "Send 25 NEAR to alice.testnet",
-      "name": "vault_transfer_25",
-      "request_digest_hex": "5c9a0c1ba4c50689ed75503acb2c822b5b7b7705cbd0e48d2f94fc8c1220285b",
+      "name": "account_transfer_25",
+      "request_digest_hex": "caa1792b4640e4abb954860bf53e9e81e2f29c56c319ab17e9c71f4b6ea1d547",
       "spoken_text": "send twenty five near to alice dot testnet",
       "spoken_text_digest_hex": "cdd27c83c62b7ca585f09731a9a98008248a9de742fb21cd283cbee07c38c864"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000626f622d312e746573746e6574000080125200854565110200000000000200000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000626f622d312e746573746e657400008012520085456511020000000000",
       "confusion_set": [
         "add two point five near to bob dash one dot testnet",
         "approve two point five near to bob dash one dot testnet",
@@ -881,13 +885,13 @@
         "two point five near to bob dash one dot testnet"
       ],
       "display_text": "Send 2.5 NEAR to bob-1.testnet",
-      "name": "vault_transfer_2_5",
-      "request_digest_hex": "f010c4299342d228fd61bcc39718da2c64350e509df860e883fb7dbc9bdccc6b",
+      "name": "account_transfer_2_5",
+      "request_digest_hex": "969ddacc3ee83ae4bd80cc62c3a1f35921b4854166e978c7214ce86869661de2",
       "spoken_text": "send two point five near to bob dash one dot testnet",
       "spoken_text_digest_hex": "af16bca665824c6b6a3c875157ef0f6c3c8eb47f368842059de9d759ff5d80ac"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000224ca0c4c7cbf90904000000000300000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000224ca0c4c7cbf9090400000000",
       "confusion_set": [
         "add one thousand two hundred fifty near to alice dot testnet",
         "approve one thousand two hundred fifty near to alice dot testnet",
@@ -1026,13 +1030,13 @@
         "set one thousand two hundred fifty near to alice dot testnet"
       ],
       "display_text": "Send 1,250 NEAR to alice.testnet",
-      "name": "vault_transfer_1250",
-      "request_digest_hex": "80959b9ca2471afd4ef7bb7891777443e109a5c1ef97d7ee496746f8a2d32b0c",
+      "name": "account_transfer_1250",
+      "request_digest_hex": "b07aa1ea79ec03675db1e54d6ef0e975eb44b001977190a5bb252c50a1525591",
       "spoken_text": "send one thousand two hundred fifty near to alice dot testnet",
       "spoken_text_digest_hex": "88ebe2db0a330f3037159ac0984ae47219ddae6ffd8e56cdb0c17b44af3d7f2f"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740b000000626f622e746573746e6574000040683bb3f386f0340000000000000400000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740b000000626f622e746573746e6574000040683bb3f386f034000000000000",
       "confusion_set": [
         "add zero point two five near to bob dot testnet",
         "approve zero point two five near to bob dot testnet",
@@ -1113,13 +1117,13 @@
         "zero point two five near to bob dot testnet"
       ],
       "display_text": "Send 0.25 NEAR to bob.testnet",
-      "name": "vault_transfer_0_25",
-      "request_digest_hex": "39dcaff9d9d955dd3f5a9e0d7054d2c2e7a00ef8db9dc7cc3af26b4f6de99dea",
+      "name": "account_transfer_0_25",
+      "request_digest_hex": "d5b4632063214f5f2e9c77f0e5e00b7bd1035146cd9d07c91e94aeddffbd8e9f",
       "spoken_text": "send zero point two five near to bob dot testnet",
       "spoken_text_digest_hex": "d93d83562a2fda1e944fce65ed2768e8810a2cdb959971a68ed25772dda72f41"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740b000000626f622e746573746e65740000407ba5f06381960a0000000000000500000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740b000000626f622e746573746e65740000407ba5f06381960a000000000000",
       "confusion_set": [
         "add zero point zero five near to bob dot testnet",
         "approve zero point zero five near to bob dot testnet",
@@ -1198,13 +1202,13 @@
         "zero point zero five near to bob dot testnet"
       ],
       "display_text": "Send 0.05 NEAR to bob.testnet",
-      "name": "vault_transfer_0_05",
-      "request_digest_hex": "b6ab2de5a4f221b14da520bd60950bd1cbe8636cc7c52e5e6a8ec85ca0b9594a",
+      "name": "account_transfer_0_05",
+      "request_digest_hex": "1e27af443a7dcf32ffdc655ed5190286b3066f25592410679bd97698756db581",
       "spoken_text": "send zero point zero five near to bob dot testnet",
       "spoken_text_digest_hex": "e429cb9d8ed97dcae447f6770f4ed35c77bf069c199ab57f9997bbdf37ab7cbc"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000040b2bac9e0191e020000000000000600000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000040b2bac9e0191e02000000000000",
       "confusion_set": [
         "add zero point zero one near to alice dot testnet",
         "approve zero point zero one near to alice dot testnet",
@@ -1283,13 +1287,13 @@
         "zero point zero one near to alice dot testnet"
       ],
       "display_text": "Send 0.01 NEAR to alice.testnet",
-      "name": "vault_transfer_0_01",
-      "request_digest_hex": "cdfe2908fec7aae4c748867729b076971356dd306a8d99f17b97590b75509c5e",
+      "name": "account_transfer_0_01",
+      "request_digest_hex": "a2176097d32516cab63e2b699e35bb1a0ad70222c0006bc7e7d44361f4e35588",
       "spoken_text": "send zero point zero one near to alice dot testnet",
       "spoken_text_digest_hex": "cf25fc2890ec6638d1a13458204031b8111fafcea8524af6558839c57873bc77"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400008010f20bd87162000b00000000000700000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400008010f20bd87162000b0000000000",
       "confusion_set": [
         "add thirteen point three near to alice dot testnet",
         "approve thirteen point three near to alice dot testnet",
@@ -1390,13 +1394,13 @@
         "thirteen point three near to alice dot testnet"
       ],
       "display_text": "Send 13.3 NEAR to alice.testnet",
-      "name": "vault_transfer_13_30",
-      "request_digest_hex": "85415a93963c4c917f5187d8a84d88e8370e0e2b853813e0381c171bfa5f629f",
+      "name": "account_transfer_13_30",
+      "request_digest_hex": "a9733fdc509423be9071489a28d304c30304b49e5604f3fc744a282062dfb1c9",
       "spoken_text": "send thirteen point three near to alice dot testnet",
       "spoken_text_digest_hex": "8f911d6f064dd56246c13ca28d97285dceebdb77d6ba7ab641f6ec0a8c055a69"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000009770dd2679dda5600000000000800000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000009770dd2679dda560000000000",
       "confusion_set": [
         "add one hundred five near to alice dot testnet",
         "approve one hundred five near to alice dot testnet",
@@ -1517,13 +1521,13 @@
         "set one hundred five near to alice dot testnet"
       ],
       "display_text": "Send 105 NEAR to alice.testnet",
-      "name": "vault_transfer_105",
-      "request_digest_hex": "7ccf39a72da516777be0ea1c2a87f47524fa222ea4beadea96aed99d26431749",
+      "name": "account_transfer_105",
+      "request_digest_hex": "f677311cf2a830cfae40a1b23d84c9156bc33bd85bbe38b64c3895fc78a28cf4",
       "spoken_text": "send one hundred five near to alice dot testnet",
       "spoken_text_digest_hex": "837e4156c8675e425d5532db790cd27f1d62777ca9478a7d66ec87dc682ed5c0"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000040eaed7446d09c2c9f0c0000000900000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000040eaed7446d09c2c9f0c000000",
       "confusion_set": [
         "add one million near to alice dot testnet",
         "approve one million near to alice dot testnet",
@@ -1550,13 +1554,13 @@
         "set one million near to alice dot testnet"
       ],
       "display_text": "Send 1,000,000 NEAR to alice.testnet",
-      "name": "vault_transfer_max",
-      "request_digest_hex": "3ee71cebe08d133e7731d4717f6f46e4f9d90d7638951125daaa05a44f360ee0",
+      "name": "account_transfer_max",
+      "request_digest_hex": "890f4a8f34ed4b0c322484e920f0e1c9ccd06c44a229ac33c1661f3c2ee38838",
       "spoken_text": "send one million near to alice dot testnet",
       "spoken_text_digest_hex": "cb1d12a1f1cd1c6204e1ee369378ec2f50e691fe25537347e1550f081761e3dc"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740d000000616c6963652e746573746e65740000c08d2f24942cb29a2c9f0c0000000a00000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e65740000c08d2f24942cb29a2c9f0c000000",
       "confusion_set": [
         "add nine hundred ninety nine thousand nine hundred ninety nine point nine nine near to alice dot testnet",
         "approve nine hundred ninety nine thousand nine hundred ninety nine point nine nine near to alice dot testnet",
@@ -1723,13 +1727,13 @@
         "set nine hundred ninety nine thousand nine hundred ninety nine point nine nine near to alice dot testnet"
       ],
       "display_text": "Send 999,999.99 NEAR to alice.testnet",
-      "name": "vault_transfer_999999_99",
-      "request_digest_hex": "0ecfe81b0170adf77862401636d91fc414a1a7c77b1f285f5e5b083fc38b21f3",
+      "name": "account_transfer_999999_99",
+      "request_digest_hex": "677d0b2a3a25c595fde6ddb775e82c9c584eba59f312707b137673cefeb24b12",
       "spoken_text": "send nine hundred ninety nine thousand nine hundred ninety nine point nine nine near to alice dot testnet",
       "spoken_text_digest_hex": "27e63578fbc0be0defbe4694968dd2abacda728cc11cccd031fb0ac69e92e609"
     },
     {
-      "borsh_hex": "000013000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e6574110000007061795f726f6c6c322e746573746e65740000004a4801141695450800000000000b00000000000000",
+      "borsh_hex": "02000d0000006f776e65722e746573746e6574110000007061795f726f6c6c322e746573746e65740000004a480114169545080000000000",
       "confusion_set": [
         "add ten near to pay underscore roll two dot testnet",
         "approve ten near to pay underscore roll two dot testnet",
@@ -1832,13 +1836,13 @@
         "ten near to pay underscore roll two dot testnet"
       ],
       "display_text": "Send 10 NEAR to pay_roll2.testnet",
-      "name": "vault_transfer_underscore_digits",
-      "request_digest_hex": "de1476690b292aed6bedff98f39475aca72775b69c6daf3761873d3432378815",
+      "name": "account_transfer_underscore_digits",
+      "request_digest_hex": "f43a79cab252e34f5a048f533ba31a787ec233d4f444e5b3a7fe18e8e3088aa0",
       "spoken_text": "send ten near to pay underscore roll two dot testnet",
       "spoken_text_digest_hex": "669189d327fa0f198740a4bd9786e0ea9e45f27511d281eef9af95f23faf215b"
     },
     {
-      "borsh_hex": "000113000000766f6963652d7661756c742e746573746e65740d0000006f776e65722e746573746e65740a000000616c6963652e6e656172000000b9340332b7f4ad1400000000000100000000000000",
+      "borsh_hex": "02010d0000006f776e65722e746573746e65740a000000616c6963652e6e656172000000b9340332b7f4ad140000000000",
       "confusion_set": [
         "add twenty five near to alice dot near",
         "approve twenty five near to alice dot near",
@@ -1943,8 +1947,8 @@
         "twenty five near to alice dot near"
       ],
       "display_text": "Send 25 NEAR to alice.near",
-      "name": "vault_transfer_mainnet",
-      "request_digest_hex": "f32464eed0a0d822529a2e8755af326fa169964b637aadae0f7885672da994e5",
+      "name": "account_transfer_mainnet",
+      "request_digest_hex": "327c2120d9de1ad228bf8e1501c9639e4b30763a24a9ce22bd0b3121076f9a2d",
       "spoken_text": "send twenty five near to alice dot near",
       "spoken_text_digest_hex": "7758832d8b36b21237df1cb385fee8f3ff42ca4171d761e953b65550719c6ad4"
     },

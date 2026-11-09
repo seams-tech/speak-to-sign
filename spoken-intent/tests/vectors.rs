@@ -63,14 +63,12 @@ fn contacts() -> Vec<SpokenAccount> {
         .collect()
 }
 
-fn transfer(network: Network, receiver: &str, hundredths: u64, nonce: u64) -> SpokenRequestV1 {
-    SpokenRequestV1::VaultTransfer {
+fn transfer(network: Network, receiver: &str, hundredths: u64) -> SpokenRequestV1 {
+    SpokenRequestV1::AccountTransfer {
         network,
-        vault: near_account("voice-vault.testnet"),
         owner: near_account("owner.testnet"),
         receiver: account(receiver),
         amount: near(hundredths),
-        nonce,
     }
 }
 
@@ -91,52 +89,52 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
     }
     vec![
         (
-            "vault_transfer_25",
-            transfer(Network::Testnet, "alice.testnet", 2_500, 1),
+            "account_transfer_25",
+            transfer(Network::Testnet, "alice.testnet", 2_500),
         ),
         (
-            "vault_transfer_2_5",
-            transfer(Network::Testnet, "bob-1.testnet", 250, 2),
+            "account_transfer_2_5",
+            transfer(Network::Testnet, "bob-1.testnet", 250),
         ),
         (
-            "vault_transfer_1250",
-            transfer(Network::Testnet, "alice.testnet", 125_000, 3),
+            "account_transfer_1250",
+            transfer(Network::Testnet, "alice.testnet", 125_000),
         ),
         (
-            "vault_transfer_0_25",
-            transfer(Network::Testnet, "bob.testnet", 25, 4),
+            "account_transfer_0_25",
+            transfer(Network::Testnet, "bob.testnet", 25),
         ),
         (
-            "vault_transfer_0_05",
-            transfer(Network::Testnet, "bob.testnet", 5, 5),
+            "account_transfer_0_05",
+            transfer(Network::Testnet, "bob.testnet", 5),
         ),
         (
-            "vault_transfer_0_01",
-            transfer(Network::Testnet, "alice.testnet", 1, 6),
+            "account_transfer_0_01",
+            transfer(Network::Testnet, "alice.testnet", 1),
         ),
         (
-            "vault_transfer_13_30",
-            transfer(Network::Testnet, "alice.testnet", 1_330, 7),
+            "account_transfer_13_30",
+            transfer(Network::Testnet, "alice.testnet", 1_330),
         ),
         (
-            "vault_transfer_105",
-            transfer(Network::Testnet, "alice.testnet", 10_500, 8),
+            "account_transfer_105",
+            transfer(Network::Testnet, "alice.testnet", 10_500),
         ),
         (
-            "vault_transfer_max",
-            transfer(Network::Testnet, "alice.testnet", 100_000_000, 9),
+            "account_transfer_max",
+            transfer(Network::Testnet, "alice.testnet", 100_000_000),
         ),
         (
-            "vault_transfer_999999_99",
-            transfer(Network::Testnet, "alice.testnet", 99_999_999, 10),
+            "account_transfer_999999_99",
+            transfer(Network::Testnet, "alice.testnet", 99_999_999),
         ),
         (
-            "vault_transfer_underscore_digits",
-            transfer(Network::Testnet, "pay_roll2.testnet", 1_000, 11),
+            "account_transfer_underscore_digits",
+            transfer(Network::Testnet, "pay_roll2.testnet", 1_000),
         ),
         (
-            "vault_transfer_mainnet",
-            transfer(Network::Mainnet, "alice.near", 2_500, 1),
+            "account_transfer_mainnet",
+            transfer(Network::Mainnet, "alice.near", 2_500),
         ),
         (
             "multisig_transfer_42",
@@ -291,13 +289,11 @@ fn borsh_string(out: &mut Vec<u8>, value: &str) {
     out.extend_from_slice(value.as_bytes());
 }
 
-fn vault_transfer_bytes(network: u8, receiver: &str, amount_yocto: u128) -> Vec<u8> {
-    let mut out = vec![0, network];
-    borsh_string(&mut out, "voice-vault.testnet");
+fn account_transfer_bytes(network: u8, receiver: &str, amount_yocto: u128) -> Vec<u8> {
+    let mut out = vec![2, network];
     borsh_string(&mut out, "owner.testnet");
     borsh_string(&mut out, receiver);
     out.extend_from_slice(&amount_yocto.to_le_bytes());
-    out.extend_from_slice(&1u64.to_le_bytes());
     out
 }
 
@@ -313,8 +309,8 @@ fn threshold_bytes(threshold: u8, challenge: [u8; 2]) -> Vec<u8> {
 fn invalid_borsh_vectors() -> Value {
     // The hand encoders must match the derived layout on valid input.
     assert_eq!(
-        vault_transfer_bytes(0, "alice.testnet", 25 * ONE_NEAR),
-        borsh::to_vec(&transfer(Network::Testnet, "alice.testnet", 2_500, 1)).expect("borsh"),
+        account_transfer_bytes(0, "alice.testnet", 25 * ONE_NEAR),
+        borsh::to_vec(&transfer(Network::Testnet, "alice.testnet", 2_500)).expect("borsh"),
     );
     assert_eq!(
         threshold_bytes(2, [0, 1]),
@@ -327,17 +323,17 @@ fn invalid_borsh_vectors() -> Value {
         ))
         .expect("borsh"),
     );
-    let mut trailing = vault_transfer_bytes(0, "alice.testnet", 25 * ONE_NEAR);
+    let mut trailing = account_transfer_bytes(0, "alice.testnet", 25 * ONE_NEAR);
     trailing.push(0);
     let cases = vec![
         (
             "amount_one_thousandth",
-            vault_transfer_bytes(0, "alice.testnet", ONE_NEAR / 1_000),
+            account_transfer_bytes(0, "alice.testnet", ONE_NEAR / 1_000),
         ),
-        ("amount_zero", vault_transfer_bytes(0, "alice.testnet", 0)),
+        ("amount_zero", account_transfer_bytes(0, "alice.testnet", 0)),
         (
             "receiver_implicit",
-            vault_transfer_bytes(
+            account_transfer_bytes(
                 0,
                 "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de",
                 25 * ONE_NEAR,
@@ -345,16 +341,17 @@ fn invalid_borsh_vectors() -> Value {
         ),
         (
             "receiver_uppercase",
-            vault_transfer_bytes(0, "Alice.testnet", 25 * ONE_NEAR),
+            account_transfer_bytes(0, "Alice.testnet", 25 * ONE_NEAR),
         ),
         (
             "unknown_network",
-            vault_transfer_bytes(2, "alice.testnet", 25 * ONE_NEAR),
+            account_transfer_bytes(2, "alice.testnet", 25 * ONE_NEAR),
         ),
         ("trailing_byte", trailing),
         ("threshold_zero", threshold_bytes(0, [0, 1])),
         ("challenge_index_64", threshold_bytes(2, [0, 64])),
-        ("unknown_request_kind", vec![2, 0]),
+        ("retired_vault_transfer_kind", vec![0, 0]),
+        ("unknown_request_kind", vec![3, 0]),
     ];
     Value::Array(
         cases
@@ -453,7 +450,7 @@ fn parse_vectors() -> Value {
     )
 }
 
-/// Whisper-style transcripts, with the contacts of a vault that holds no two
+/// Whisper-style transcripts, with contacts that hold no two
 /// confusable keys.
 const PUNCTUATED_CASES: [&str; 23] = [
     "Send 25 NEAR to alice.testnet.",

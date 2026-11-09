@@ -13,14 +13,12 @@ fn account(id: &str) -> SpokenAccount {
     SpokenAccount::new(id).expect("speakable account")
 }
 
-fn vault_transfer(receiver: &str, amount: NearAmount) -> SpokenRequestV1 {
-    SpokenRequestV1::VaultTransfer {
+fn account_transfer(receiver: &str, amount: NearAmount) -> SpokenRequestV1 {
+    SpokenRequestV1::AccountTransfer {
         network: Network::Testnet,
-        vault: near_account("voice-vault.testnet"),
         owner: near_account("owner.testnet"),
         receiver: account(receiver),
         amount,
-        nonce: 1,
     }
 }
 
@@ -63,7 +61,7 @@ fn plan_examples_render_exactly() {
     ];
     for (receiver, yocto, display, spoken) in cases {
         let amount = NearAmount::from_yocto(yocto).expect("speakable");
-        let rendered = render(&vault_transfer(receiver, amount));
+        let rendered = render(&account_transfer(receiver, amount));
         assert_eq!(rendered.display_text, display);
         assert_eq!(rendered.spoken_text, spoken);
     }
@@ -108,11 +106,11 @@ fn amounts_are_exact_and_bounded() {
     assert!(NearAmount::from_yocto(ONE_NEAR / 100).is_ok());
 
     // Teens and tens differ; a trailing zero is not canonical.
-    let thirteen = render(&vault_transfer(
+    let thirteen = render(&account_transfer(
         "alice.testnet",
         NearAmount::from_hundredths(1_300).expect("ok"),
     ));
-    let thirty = render(&vault_transfer(
+    let thirty = render(&account_transfer(
         "alice.testnet",
         NearAmount::from_hundredths(3_000).expect("ok"),
     ));
@@ -188,7 +186,7 @@ fn accepted_parses_render_back_to_the_same_tokens() {
         let ParseResult::Transfer(parsed) = parse_transfer(&tokens, &contacts()) else {
             panic!("refused: {transcript}");
         };
-        let request = vault_transfer(parsed.receiver.as_str(), parsed.amount);
+        let request = account_transfer(parsed.receiver.as_str(), parsed.amount);
         assert_eq!(render(&request).spoken, tokens, "{transcript}");
     }
 }
@@ -393,13 +391,11 @@ fn an_implicit_owner_is_valid_and_not_said() {
     let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
     let eth = format!("0x{}", "ab".repeat(20));
     for owner in [implicit, eth.as_str()] {
-        let request = SpokenRequestV1::VaultTransfer {
+        let request = SpokenRequestV1::AccountTransfer {
             network: Network::Testnet,
-            vault: near_account("voice-vault.testnet"),
             owner: near_account(owner),
             receiver: account("alice.testnet"),
             amount: NearAmount::from_hundredths(50).expect("speakable"),
-            nonce: 1,
         };
         assert_eq!(
             render(&request).spoken_text,

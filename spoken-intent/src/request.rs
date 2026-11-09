@@ -18,23 +18,13 @@ pub enum Network {
 
 /// A request that a person confirms by voice. It has only speakable kinds.
 /// Only the fields that the text says are [`SpokenAccount`]s.
+///
+/// Borsh writes the explicit tag of each kind. Tag 0 was the retired vault
+/// transfer, and decoding refuses it.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize)]
+#[borsh(use_discriminant = true)]
+#[repr(u8)]
 pub enum SpokenRequestV1 {
-    /// A native NEAR transfer from a voice vault to a saved contact.
-    VaultTransfer {
-        /// The network of the vault.
-        network: Network,
-        /// The vault contract.
-        vault: NearAccount,
-        /// The vault owner, named or implicit. The text does not say it.
-        owner: NearAccount,
-        /// The contact that receives the amount.
-        receiver: SpokenAccount,
-        /// The amount. Borsh writes it as the `u128` yoctoNEAR value.
-        amount: NearAmount,
-        /// The vault request nonce.
-        nonce: u64,
-    },
     /// A spoken approval of a typed multisig proposal.
     MultisigApproval {
         /// The network of the multisig.
@@ -47,7 +37,18 @@ pub enum SpokenRequestV1 {
         proposal: ProposalV1,
         /// The two fresh words that the contract issued.
         challenge: [ChallengeWord; 2],
-    },
+    } = 1,
+    /// A native NEAR transfer from the owner's own account to a named account.
+    AccountTransfer {
+        /// The network of the transfer.
+        network: Network,
+        /// The account that pays, named or implicit. The text does not say it.
+        owner: NearAccount,
+        /// The account that receives the amount.
+        receiver: SpokenAccount,
+        /// The amount. Borsh writes it as the `u128` yoctoNEAR value.
+        amount: NearAmount,
+    } = 2,
 }
 
 /// A typed multisig proposal.

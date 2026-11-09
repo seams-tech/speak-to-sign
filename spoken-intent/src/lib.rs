@@ -7,8 +7,8 @@
 //!
 //! Types carry the grammar rules. Each account that the text says is a
 //! [`SpokenAccount`], which holds only an account that the grammar can speak.
-//! The vault, the owner and the multisig are not said, so each is a
-//! [`NearAccount`], which can be implicit. A [`NearAmount`] holds only an
+//! The owner and the multisig are not said, so each is a [`NearAccount`],
+//! which can be implicit. A [`NearAmount`] holds only an
 //! exact multiple of 0.01 NEAR up to 1,000,000 NEAR. So [`render`] cannot
 //! fail, and Borsh decoding refuses bytes that hold an unspeakable value.
 //!

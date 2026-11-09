@@ -62,7 +62,7 @@ impl SpokenAccount {
 }
 
 /// Any valid NEAR account id, named or implicit, for a field of a request
-/// that nobody says: the vault, the owner and the multisig.
+/// that nobody says: the owner and the multisig.
 ///
 /// Borsh writes it as a string, as [`SpokenAccount`] does, so a named
 /// account gives the same request digest in either type.

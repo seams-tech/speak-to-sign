@@ -42,7 +42,7 @@ pub struct RenderedIntentV1 {
 pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
     let mut words = Words::default();
     let display_text = match request {
-        SpokenRequestV1::VaultTransfer {
+        SpokenRequestV1::AccountTransfer {
             receiver, amount, ..
         } => {
             words.push("send");

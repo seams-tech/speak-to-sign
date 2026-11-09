@@ -66,8 +66,8 @@ pub enum PunctuatedRefusal {
 /// the tokens after the first "to" must have the same [`phonetic_key`] as
 /// exactly one account in `contacts` (if they match none, the words of
 /// [`dot_before_testnet`] are tried once). They are then replaced by the spoken
-/// tokens of that account. `contacts` must be a vault's contacts, which hold
-/// no two confusable keys. Other sentences (a multisig approval) have no
+/// tokens of that account. `contacts` must hold no two confusable keys; the
+/// caller checks this. Other sentences (a multisig approval) have no
 /// slot rules and no recipient step. [`crate::parse_transfer`] with the same
 /// `contacts` then reads a transfer.
 pub fn normalize_punctuated(
@@ -85,8 +85,8 @@ pub fn normalize_punctuated(
     };
     let recipient: Vec<&str> = tokens[to + 1..].iter().map(SpokenToken::as_str).collect();
     // A spoken account word may be one letter: "v1" is spoken "v one". The
-    // vault refuses a new contact whose key equals, or is one edit from, a
-    // saved contact, so short words do not make two contacts confusable.
+    // contacts hold no two keys that are equal or one edit apart, so short
+    // words do not make two contacts confusable.
     if recipient
         .iter()
         .any(|word| word.is_empty() || word.len() > 64)

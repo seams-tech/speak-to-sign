@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { IconAlertCircle, IconBan, IconCheck, IconMicrophone, IconPlugConnectedX, IconX } from '@tabler/icons-react';
+import { IconAlertCircle, IconBan, IconCheck, IconMicrophone, IconPlugConnectedX, IconUser, IconX } from '@tabler/icons-react';
+import { shortAccount } from '../config';
 import type { SignResult } from '../signer/notesSigner';
 import { TxLink } from './bits';
 
@@ -13,6 +14,9 @@ interface SpeakStepProps {
   hint: string;
   disabled: boolean;
   disabledHint?: string;
+  /** The owner is not signed in, so the button opens the sign-in menu. */
+  needsSignIn: boolean;
+  onSignIn: () => void;
   accountId: string | undefined;
   /** For example "Words matched the summary". */
   wordsLine: string;
@@ -25,11 +29,26 @@ interface SpeakStepProps {
   onDone: () => void;
 }
 
-/** The voice part of a modal: the button, the wait, and the result card. */
+/** The voice part of a modal: the button, the wait for the Wallet card, and the result card. */
 export function SpeakStep(props: SpeakStepProps) {
   const { phase } = props;
 
   if (phase.state === 'idle') {
+    if (props.needsSignIn) {
+      return (
+        <div className="speak">
+          <button type="button" className="speak-btn" onClick={props.onSignIn}>
+            <span className="mic" aria-hidden="true">
+              <IconUser size={22} stroke={1.8} />
+            </span>
+            <span className="speak-text">
+              <b>Sign in to Seams Wallet first</b>
+              <span className="muted">Your note is signed from your own NEAR testnet account.</span>
+            </span>
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="speak">
         <button type="button" className="speak-btn" disabled={props.disabled} onClick={props.onStart}>
@@ -53,9 +72,9 @@ export function SpeakStep(props: SpeakStepProps) {
             <IconMicrophone size={22} stroke={1.8} />
           </span>
           <span className="speak-text">
-            <b>Listening in Seams Wallet</b>
+            <b>Speak in the Seams Wallet card</b>
             <span className="muted">
-              Say: <q className="say">{props.sentence}</q>
+              Click Record, then say: <q className="say">{props.sentence}</q>
             </span>
           </span>
         </div>
@@ -72,14 +91,17 @@ export function SpeakStep(props: SpeakStepProps) {
 
 function ResultCard({ result, sentence, accountId, wordsLine, signedLine, nothingLine, onRetry, onDone }: SpeakStepProps & { result: SignResult }) {
   if (result.kind === 'sent') {
+    const seconds = result.endOfSpeechToReceiptMs === undefined ? null : (result.endOfSpeechToReceiptMs / 1000).toFixed(1);
     return (
       <Card>
         <q className="card-quote">{sentence}</q>
-        <Check>Voice matched {accountId ?? 'the account owner'}</Check>
+        <Check>Biometric CAPTCHA: voice matched {accountId ? shortAccount(accountId) : 'the account owner'}</Check>
         <Check>{wordsLine}</Check>
+        {result.approval === 'voice_and_passkey' && <Check>A policy rule asked for your passkey too</Check>}
         <div className="card-foot">
           <Check>
-            {signedLine} · <TxLink hash={result.transactionHash} />
+            {signedLine}
+            {seconds && ` ${seconds} s after you spoke`} · <TxLink hash={result.transactionHash} />
           </Check>
           <button type="button" className="btn btn-dark btn-sm" onClick={onDone} autoFocus>
             Done
@@ -91,16 +113,11 @@ function ResultCard({ result, sentence, accountId, wordsLine, signedLine, nothin
 
   const view: Record<Exclude<SignResult['kind'], 'sent'>, { icon: ReactNode; title: string }> = {
     refused: { icon: <IconX size={16} stroke={2.4} />, title: 'Not signed' },
-    cancelled: { icon: <IconBan size={16} stroke={2} />, title: 'You cancelled' },
+    cancelled: { icon: <IconBan size={16} stroke={2} />, title: 'You closed the Wallet card' },
     unavailable: { icon: <IconPlugConnectedX size={16} stroke={2} />, title: 'Speak-to-Sign is not available' },
   };
   const { icon, title } = view[result.kind];
-  const reason =
-    result.kind === 'refused'
-      ? result.reason
-      : result.kind === 'unavailable'
-        ? `${result.reason} Check the Speak-to-Sign setup steps.`
-        : 'Nothing was signed.';
+  const reason = result.kind === 'cancelled' ? 'Nothing was signed.' : result.reason;
 
   return (
     <Card tone={result.kind === 'refused' ? 'bad' : 'neutral'}>
@@ -113,7 +130,11 @@ function ResultCard({ result, sentence, accountId, wordsLine, signedLine, nothin
       <p className="card-reason">{reason}</p>
       <div className="card-foot">
         <span className="muted small">
-          <IconAlertCircle size={14} stroke={1.8} aria-hidden="true" /> {nothingLine}
+          {result.kind !== 'unavailable' && (
+            <>
+              <IconAlertCircle size={14} stroke={1.8} aria-hidden="true" /> {nothingLine}
+            </>
+          )}
         </span>
         <button type="button" className="btn btn-outline btn-sm" onClick={onRetry} autoFocus>
           Try again

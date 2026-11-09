@@ -23,10 +23,12 @@ const SYSTEM_PROMPT = [
   'The sentence summarizes the note.',
   'Rules:',
   `- 1 to ${SUMMARY_MAX_WORDS} words.`,
-  '- Only letters, spaces and apostrophes.',
+  '- Only the letters A to Z and spaces. No accents.',
   '- No digits. Write numbers as words.',
+  '- No apostrophes: write "do not", not "don\'t".',
   '- No links, web addresses, handles, hashtags or hyphens.',
   '- No commas, quotes or other punctuation.',
+  '- Do not start with the word "send".',
   'Reply with the sentence only.',
 ].join('\n');
 
@@ -122,15 +124,28 @@ async function askNearAi(
   return { ok: true, content };
 }
 
-/** Removes thinking text, quotes, commas and hyphens between words. */
+const CONTRACTIONS: [RegExp, string][] = [
+  [/\bcan['’]t\b/gi, 'cannot'],
+  [/\bwon['’]t\b/gi, 'will not'],
+  [/n['’]t\b/gi, ' not'],
+  [/['’]re\b/gi, ' are'],
+  [/['’]ll\b/gi, ' will'],
+  [/['’]ve\b/gi, ' have'],
+  [/\bi['’]m\b/gi, 'I am'],
+  [/\bit['’]s\b/gi, 'it is'],
+  [/['’]s\b/gi, 's'],
+];
+
+/** Removes thinking text and quotes, opens contractions, and drops commas and hyphens between words. */
 function cleanReply(content: string): string {
   const withoutThinking = content.includes('</think>') ? content.slice(content.lastIndexOf('</think>') + 8) : content;
-  const firstLine = withoutThinking.trim().split('\n').find((line) => line.trim() !== '') ?? '';
-  return firstLine
-    .replace(/^\s*(summary|sentence)\s*:\s*/i, '')
-    .replace(/["“”«»]/g, '')
+  let line = withoutThinking.trim().split('\n').find((candidate) => candidate.trim() !== '') ?? '';
+  line = line.replace(/^\s*(summary|sentence)\s*:\s*/i, '').replace(/["“”«»]/g, '');
+  for (const [pattern, replacement] of CONTRACTIONS) line = line.replace(pattern, replacement);
+  return line
     .replace(/(\p{L})[-‐‑–—](\p{L})/gu, '$1 $2')
     .replace(/[,;:]/g, ' ')
+    .replace(/[.!?]+$/u, '')
     .replace(/\s+/g, ' ')
     .trim();
 }

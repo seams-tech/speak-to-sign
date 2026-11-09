@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 // Function that `pnpm dev:api` runs with wrangler on port 8788.
 export default defineConfig({
   plugins: [react()],
+  // The Seams Wallet SDK is most of the bundle (about 240 kB gzip).
+  build: { chunkSizeWarningLimit: 1000 },
   server: {
     port: 5173,
     proxy: {

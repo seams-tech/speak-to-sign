@@ -1,11 +1,43 @@
 // The rules for the spoken summary of a note.
 //
-// The page and the Pages Function (functions/api/summary.ts) both use this
-// file. Swap it for the Seams SDK check when the SDK exports one.
+// A port of `summaryRefusal` in the Seams Wallet SDK
+// (packages/wallet/src/core/transactionFeatures/spokenNote.ts, SDK 0.59.0), which ports
+// `spoken_intent::InvalidSummary`. The Wallet refuses a summary that breaks a rule with
+// `summary_not_speakable`. The page and the Pages Function (functions/api/summary.ts) both use
+// this file, because the Function cannot load the SDK. When the page moves to SDK 0.59.0, it
+// can call the SDK's own `summaryRefusal` and keep this file for the Function only.
 
 export const SUMMARY_MAX_WORDS = 12;
+export const SUMMARY_MAX_BYTES = 120;
 
-export type SummaryRuleId = 'length' | 'letters' | 'numbers' | 'links';
+/** Why a text is not a speakable summary, as in the SDK. */
+export type SummaryRefusal = 'empty' | 'too_long' | 'too_many_words' | 'character' | 'transfer_verb';
+
+const TRANSFER_VERBS = ['send', 'sent', 'sends'];
+
+/**
+ * Null for a speakable summary: 1 to 12 words of ASCII letters with one space between two
+ * words, a comma allowed at the end of a word and one `.`, `!` or `?` at the end.
+ */
+export function summaryRefusal(text: string): SummaryRefusal | null {
+  if (text === '') return 'empty';
+  if (new TextEncoder().encode(text).length > SUMMARY_MAX_BYTES) return 'too_long';
+  const body = /[.!?]$/.test(text) ? text.slice(0, -1) : text;
+  const words = body.split(' ');
+  for (const [index, word] of words.entries()) {
+    const letters = word.endsWith(',') ? word.slice(0, -1) : word;
+    if (!/^[A-Za-z]+$/.test(letters)) return 'character';
+    if (index === 0 && TRANSFER_VERBS.includes(letters.toLowerCase())) return 'transfer_verb';
+  }
+  return words.length > SUMMARY_MAX_WORDS ? 'too_many_words' : null;
+}
+
+/** Trims the text and puts one space between two words. The page sends this form. */
+export function normalizeSummary(text: string): string {
+  return text.trim().split(/\s+/u).filter(Boolean).join(' ');
+}
+
+export type SummaryRuleId = 'length' | 'letters' | 'start';
 
 export interface SummaryRule {
   id: SummaryRuleId;
@@ -15,47 +47,37 @@ export interface SummaryRule {
 
 export interface SummaryCheck {
   ok: boolean;
-  /** The summary without end punctuation and extra spaces. */
+  /** The normalized summary that the page sends to the Wallet. */
   spoken: string;
   words: number;
+  refusal: SummaryRefusal | null;
   rules: SummaryRule[];
 }
 
-const END_PUNCTUATION = /[\s.!?…]+$/u;
-const ALLOWED = /^[\p{L}\p{M}'’ ]*$/u;
-const DIGIT = /\p{Nd}/u;
-const URL_LIKE = /(https?:\/\/|www\.|[\p{L}\p{Nd}]\.[\p{L}]{2,})/iu;
-const LINK_MARKS = /[@＠#＃\-‐‑‒–—―−]/u;
-
-/** Removes end punctuation and joins the words with one space. */
-export function spokenForm(summary: string): string {
-  return summary.trim().replace(END_PUNCTUATION, '').split(/\s+/u).filter(Boolean).join(' ');
-}
-
+/** Checks the normalized summary and gives one line for each rule, for the live rule list. */
 export function checkSummary(summary: string): SummaryCheck {
-  const spoken = spokenForm(summary);
-  const words = spoken === '' ? 0 : spoken.split(' ').length;
+  const spoken = normalizeSummary(summary);
+  const refusal = summaryRefusal(spoken);
+  const body = /[.!?]$/.test(spoken) ? spoken.slice(0, -1) : spoken;
+  const words = spoken === '' ? 0 : body.split(' ').length;
+  const lettersOk =
+    spoken !== '' && body.split(' ').every((word) => /^[A-Za-z]+$/.test(word.endsWith(',') ? word.slice(0, -1) : word));
   const rules: SummaryRule[] = [
     {
       id: 'length',
       label: `1 to ${SUMMARY_MAX_WORDS} words`,
-      ok: words >= 1 && words <= SUMMARY_MAX_WORDS,
+      ok: words >= 1 && words <= SUMMARY_MAX_WORDS && refusal !== 'too_long',
     },
     {
       id: 'letters',
-      label: 'Only letters, spaces and apostrophes',
-      ok: /\p{L}/u.test(spoken) && ALLOWED.test(spoken),
+      label: 'Letters A to Z only: no digits, apostrophes, hyphens or links',
+      ok: lettersOk,
     },
     {
-      id: 'numbers',
-      label: 'No digits: write numbers as words',
-      ok: !DIGIT.test(spoken),
-    },
-    {
-      id: 'links',
-      label: 'No links, handles, # or hyphens',
-      ok: !URL_LIKE.test(spoken) && !LINK_MARKS.test(spoken),
+      id: 'start',
+      label: 'Does not start with “send”',
+      ok: refusal !== 'transfer_verb',
     },
   ];
-  return { ok: rules.every((rule) => rule.ok), spoken, words, rules };
+  return { ok: refusal === null, spoken, words, refusal, rules };
 }

@@ -1,21 +1,32 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { HowItWorks, SetupPanel } from './components/SetupPanel';
+import { useSeams } from '@seams/wallet/react';
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { Rail } from './components/Rail';
+import { HowItWorks, SetupPanel } from './components/SetupPanel';
+import { SignInModal } from './components/SignInModal';
 import { Timeline } from './components/Timeline';
 import { WriteNoteModal } from './components/WriteNoteModal';
+import { config } from './config';
 import { findPost, POSTS } from './data/posts';
 import { DemoContext, type DemoState } from './demoContext';
+import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { useRoute } from './router';
-import { createServices } from './services';
 import type { Rating, SignerStatus } from './signer/notesSigner';
+import { createSeamsSigner } from './signer/seamsSigner';
 
-const POLL_MS = 1200;
+const POLL_MS = 1500;
 
 export function App() {
-  const services = useMemo(createServices, []);
+  const { seams, loginState } = useSeams();
+  const walletId = loginState.isLoggedIn && loginState.access === 'wallet' ? loginState.walletId : null;
+  const nearAccountId = walletId ? loginState.nearAccountId : null;
+  const signer = useMemo(
+    () => createSeamsSigner({ seams, walletId, nearAccountId, contract: config.contract }),
+    [seams, walletId, nearAccountId],
+  );
+  const store = useMemo(() => new RpcNotesStore(config.rpcUrl, config.contract), []);
   const route = useRoute();
   const wide = useMediaQuery('(min-width: 1080px)');
 
@@ -28,30 +39,31 @@ export function App() {
   const [ratingTxByKey, setRatingTxByKey] = useState<Record<string, string>>({});
   const [writeFor, setWriteFor] = useState<number | null>(null);
   const [rateFor, setRateFor] = useState<number | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const account = status?.signedIn ? status.accountId : undefined;
 
   const refreshStatus = useCallback(async () => {
     try {
-      setStatus(await services.signer.status());
+      setStatus(await signer.status());
     } catch {
-      setStatus({ signedIn: false, voiceReady: false });
+      setStatus({ signedIn: walletId !== null, accountId: nearAccountId ?? undefined, voiceReady: false });
     }
-  }, [services]);
+  }, [signer, walletId, nearAccountId]);
 
   const loadPost = useCallback(
     async (postId: number) => {
-      const notes = await services.store.getNotes(postId);
+      const notes = await store.getNotes(postId);
       setNotesByPost((current) => ({ ...current, [postId]: notes }));
       return notes;
     },
-    [services],
+    [store],
   );
 
   const loadAll = useCallback(async () => {
     try {
-      const entries = await Promise.all(POSTS.map(async (post) => [post.id, await services.store.getNotes(post.id)] as const));
+      const entries = await Promise.all(POSTS.map(async (post) => [post.id, await store.getNotes(post.id)] as const));
       setNotesByPost(Object.fromEntries(entries));
       setLoadError(null);
     } catch (cause) {
@@ -59,7 +71,7 @@ export function App() {
     } finally {
       setLoading(false);
     }
-  }, [services]);
+  }, [store]);
 
   const reload = useCallback(() => {
     void refreshStatus();
@@ -67,15 +79,15 @@ export function App() {
   }, [refreshStatus, loadAll]);
 
   useEffect(() => {
-    reload();
-    const unsubscribe = services.mock?.subscribe(reload);
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  useEffect(() => {
+    void loadAll();
     const onFocus = () => void refreshStatus();
     window.addEventListener('focus', onFocus);
-    return () => {
-      unsubscribe?.();
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [services, reload, refreshStatus]);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [loadAll, refreshStatus]);
 
   // The ratings of the signed-in account, from the contract view `get_rating`.
   useEffect(() => {
@@ -87,7 +99,7 @@ export function App() {
     const notes = Object.values(notesByPost)
       .flat()
       .filter((note) => note.author !== account);
-    Promise.all(notes.map(async (note) => [note.id, await services.store.getRating(note.id, account)] as const))
+    Promise.all(notes.map(async (note) => [note.id, await store.getRating(note.id, account)] as const))
       .then((entries) => {
         if (cancelled) return;
         const ratings: Record<number, Rating> = {};
@@ -98,7 +110,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [account, notesByPost, services]);
+  }, [account, notesByPost, store]);
 
   useEffect(() => {
     if (!toast) return;
@@ -110,7 +122,7 @@ export function App() {
 
   // After `add_note`, read the post until the new note shows, and keep its transaction.
   const onNoteSent = async (postId: number, summary: string, hash: string) => {
-    for (let attempt = 0; attempt < 8; attempt += 1) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
       try {
         const notes = await loadPost(postId);
         const mine = notes.find((note) => note.author === account && note.summary === summary);
@@ -131,10 +143,15 @@ export function App() {
       setMyRatings((current) => ({ ...current, [note.id]: rating }));
       setRatingTxByKey((current) => ({ ...current, [`${account}:${note.id}`]: hash }));
     }
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
       try {
         const fresh = (await loadPost(note.post_id)).find((candidate) => candidate.id === note.id);
-        if (fresh && (fresh.helpful !== note.helpful || fresh.somewhat_helpful !== note.somewhat_helpful || fresh.not_helpful !== note.not_helpful)) return;
+        if (
+          fresh &&
+          (fresh.helpful !== note.helpful || fresh.somewhat_helpful !== note.somewhat_helpful || fresh.not_helpful !== note.not_helpful)
+        ) {
+          return;
+        }
       } catch {
         // Try again below.
       }
@@ -146,14 +163,15 @@ export function App() {
     const result: Record<number, string> = {};
     if (!account) return result;
     for (const [key, hash] of Object.entries(ratingTxByKey)) {
-      const [owner, noteId] = key.split(':');
-      if (owner === account && noteId) result[Number(noteId)] = hash;
+      const separator = key.lastIndexOf(':');
+      if (key.slice(0, separator) === account) result[Number(key.slice(separator + 1))] = hash;
     }
     return result;
   }, [account, ratingTxByKey]);
 
   const state: DemoState = {
-    services,
+    signer,
+    store,
     status,
     account,
     notesByPost,
@@ -164,6 +182,7 @@ export function App() {
     ratingTx,
     openWrite: setWriteFor,
     openRate: setRateFor,
+    openSignIn: () => setSigningIn(true),
     reload,
   };
 
@@ -182,7 +201,7 @@ export function App() {
           <aside className="side">
             <SetupPanel compact={false} />
             <HowItWorks />
-            <p className="side-foot muted">Demo for the NEAR Hackathon. The posts and accounts are fictional. NEAR testnet only.</p>
+            <p className="side-foot muted">Demo for the NEAR Hackathon. The posts are fictional. NEAR testnet only.</p>
           </aside>
         )}
       </div>
@@ -208,6 +227,16 @@ export function App() {
           onDone={() => {
             setRateFor(null);
             showToast('Your rating was signed by voice');
+          }}
+        />
+      )}
+      {signingIn && (
+        <SignInModal
+          onClose={() => setSigningIn(false)}
+          onSignedIn={() => {
+            setSigningIn(false);
+            reload();
+            showToast('You are signed in to Seams Wallet');
           }}
         />
       )}

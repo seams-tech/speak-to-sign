@@ -3,6 +3,7 @@ import { IconX } from '@tabler/icons-react';
 import type { Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
 import { RATING_SENTENCES, type Rating, type SignResult } from '../signer/notesSigner';
+import { shortAccount } from '../config';
 import { Linkified } from './bits';
 import { Modal } from './Modal';
 import { SpeakStep, type SignPhase } from './SpeakStep';
@@ -23,7 +24,7 @@ interface Props {
 }
 
 export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
-  const { services, account, myRatings } = useDemo();
+  const { signer, account, status, myRatings, openSignIn } = useDemo();
   const titleId = useId();
   const previous = myRatings[note.id];
   const [choice, setChoice] = useState<Rating | null>(null);
@@ -35,7 +36,7 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
     setPhase({ state: 'pending' });
     let result: SignResult;
     try {
-      result = await services.signer.requestRating({ noteId: note.id, rating: choice });
+      result = await signer.requestRating({ noteId: note.id, rating: choice });
     } catch (cause) {
       result = { kind: 'unavailable', reason: cause instanceof Error ? cause.message : 'The signer failed.' };
     }
@@ -55,7 +56,7 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
       </header>
       <div className="dialog-body">
         <div className="note-preview">
-          <div className="muted small">Note by {note.author}</div>
+          <div className="muted small">Note by {shortAccount(note.author)}</div>
           <div>
             <Linkified text={note.text} />
           </div>
@@ -88,6 +89,8 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
           hint="Your voice signs the rating. No confirm tap."
           disabled={!choice}
           disabledHint="Pick one answer first."
+          needsSignIn={!status?.signedIn}
+          onSignIn={openSignIn}
           accountId={account}
           wordsLine="Words matched your rating"
           signedLine="Rating signed"

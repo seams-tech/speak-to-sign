@@ -1,12 +1,12 @@
 import { createContext, useContext } from 'react';
-import type { Note } from './notes/types';
-import type { Services } from './services';
-import type { Rating, SignerStatus } from './signer/notesSigner';
+import type { Note, NotesStore } from './notes/types';
+import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 
 export interface DemoState {
-  services: Services;
+  signer: NotesSigner & SignerSetup;
+  store: NotesStore;
   status: SignerStatus | null;
-  /** The signed-in account, if any. */
+  /** The signed-in NEAR account, if any. */
   account: string | undefined;
   notesByPost: Record<number, Note[]>;
   loading: boolean;
@@ -19,6 +19,7 @@ export interface DemoState {
   ratingTx: Record<number, string>;
   openWrite(postId: number): void;
   openRate(noteId: number): void;
+  openSignIn(): void;
   reload(): void;
 }
 

@@ -1,14 +1,19 @@
 // The seam between this page and the wallet that signs.
 //
-// The UI codes only against the types in this file. The mock signer
-// (src/signer/mockBackend.ts) fills it today. The real Seams signer fills it
-// later, in src/services.ts, with `seams.speakToSign.requestNote` and
-// `seams.speakToSign.requestRating` from the Seams Wallet SDK 0.59.0.
+// The UI codes only against the types in this file. src/signer/seamsSigner.ts fills it with
+// the Seams Wallet: `seams.speakToSign.requestNote`, `requestRating` and `enroll`.
 
 export type Rating = 'helpful' | 'somewhat_helpful' | 'not_helpful';
 
 export type SignResult =
-  | { kind: 'sent'; transactionHash: string }
+  | {
+      kind: 'sent';
+      transactionHash: string;
+      /** `voice_and_passkey` when a policy rule asked for a passkey after the voice. */
+      approval?: 'voice' | 'voice_and_passkey';
+      /** Milliseconds from the end of speech to the transaction receipt. */
+      endOfSpeechToReceiptMs?: number;
+    }
   | { kind: 'refused'; reason: string }
   | { kind: 'cancelled' }
   | { kind: 'unavailable'; reason: string };
@@ -16,6 +21,7 @@ export type SignResult =
 export interface SignerStatus {
   signedIn: boolean;
   accountId?: string;
+  /** VoiceID is on for the wallet. The verifier template is a separate step (enroll). */
   voiceReady: boolean;
 }
 
@@ -27,16 +33,15 @@ export interface NotesSigner {
   requestRating(input: { noteId: number; rating: Rating }): Promise<SignResult>;
 }
 
-/**
- * Optional setup steps. The setup panel shows a button for each method that
- * the signer has. A signer without these methods shows the steps as status only.
- */
+/** The result of one setup step, in plain words. */
+export type SetupOutcome = { kind: 'done' | 'cancelled' | 'failed'; message: string };
+
+/** The Wallet setup steps after sign-in. Sign-in itself is the Wallet's own menu. */
 export interface SignerSetup {
-  signIn?(): Promise<void>;
-  /** Turn on VoiceID in the Wallet. */
-  enableVoice?(): Promise<void>;
-  /** Record the owner's voice template. */
-  enroll?(): Promise<void>;
+  /** Turns on VoiceID in the Wallet. */
+  enableVoice(): Promise<SetupOutcome>;
+  /** Records three phrases and stores the owner's voice template at the verifier. */
+  enroll(): Promise<SetupOutcome>;
 }
 
 /** The exact sentence that the owner says for each rating. */

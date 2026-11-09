@@ -1205,3 +1205,28 @@ fieldset:disabled .choice {
     flex-wrap: wrap;
   }
 }
+
+/* Seams Wallet. The hosted sign-in menu is an absolute <dialog> that mirrors its anchor.
+   The SDK's hook --seams-wallet-inline-dialog-z puts it above our modal overlay (z-index 50). */
+:root {
+  --seams-wallet-inline-dialog-z: 60;
+}
+.auth-menu {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 4px;
+}
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
+.step-detail {
+  white-space: nowrap;
+}

@@ -42,7 +42,7 @@ interface Props {
 }
 
 export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
-  const { services, account } = useDemo();
+  const { signer, account, status, openSignIn } = useDemo();
   const titleId = useId();
   const [step, setStep] = useState<'write' | 'summary'>('write');
   const [classification, setClassification] = useState<Classification | null>(null);
@@ -98,7 +98,7 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
     setPhase({ state: 'pending' });
     let result: SignResult;
     try {
-      result = await services.signer.requestNote({ postId: post.id, text: text.trim(), summary: check.spoken });
+      result = await signer.requestNote({ postId: post.id, text: text.trim(), summary: check.spoken });
     } catch (cause) {
       result = { kind: 'unavailable', reason: cause instanceof Error ? cause.message : 'The signer failed.' };
     }
@@ -182,7 +182,9 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
             <label className="q q-block" htmlFor={`${titleId}-summary`}>
               Spoken summary
             </label>
-            <p className="muted small field-help">You read this sentence aloud to post the note. Seams checks your voice and these words.</p>
+            <p className="muted small field-help">
+              You read this sentence aloud to post the note. Seams checks your voice and these words. Write numbers as words.
+            </p>
             <textarea
               id={`${titleId}-summary`}
               className="input summary-input"
@@ -240,6 +242,8 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
               hint="Your voice signs the note. No confirm tap."
               disabled={!check.ok}
               disabledHint={summary.trim() === '' ? 'Write or suggest a summary first.' : 'Fix the summary to continue.'}
+              needsSignIn={!status?.signedIn}
+              onSignIn={openSignIn}
               accountId={account}
               wordsLine="Words matched the summary"
               signedLine="Note signed and submitted"

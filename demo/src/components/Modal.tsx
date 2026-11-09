@@ -1,6 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+/** Open dialogs, newest last. Only the newest one answers Escape and Tab. */
+const openDialogs: object[] = [];
+
 /** An X-style dialog over a grey overlay. Escape and a click outside close it unless `locked`. */
 export function Modal({
   labelledBy,
@@ -22,18 +25,22 @@ export function Modal({
   });
 
   useEffect(() => {
+    const token = {};
+    openDialogs.push(token);
     const opener = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
     const { overflow } = document.body.style;
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
+      if (openDialogs[openDialogs.length - 1] !== token) return;
       if (event.key === 'Escape' && !lockedRef.current) onCloseRef.current();
       if (event.key === 'Tab') keepFocusInside(event, dialogRef.current);
     };
     document.addEventListener('keydown', onKey);
     return () => {
+      openDialogs.splice(openDialogs.indexOf(token), 1);
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = overflow;
+      if (openDialogs.length === 0) document.body.style.overflow = overflow;
       opener?.focus();
     };
   }, []);

@@ -13,7 +13,7 @@ import {
   IconTemperature,
   IconUpload,
 } from '@tabler/icons-react';
-import { config, shortHash, transactionUrl } from '../config';
+import { shortAccount, shortHash, transactionUrl } from '../config';
 import type { MediaKind, Post, PostAuthor } from '../data/posts';
 
 export function Avatar({ author, size = 40 }: { author: PostAuthor; size?: number }) {
@@ -120,7 +120,7 @@ export function VoiceSigned({ account, hash, extra }: { account: string; hash?: 
     <span className="voice-signed">
       <IconMicrophone size={14} stroke={1.8} aria-hidden="true" />
       <span>
-        Voice-signed by <b>{account}</b>
+        Voice-signed by <b title={account}>{shortAccount(account)}</b>
         {extra}
         {hash && (
           <>
@@ -140,7 +140,7 @@ export function TxLink({ hash }: { hash: string }) {
       href={transactionUrl(hash)}
       target="_blank"
       rel="noopener noreferrer"
-      title={config.mock ? 'Mock hash: there is no real transaction' : `Transaction ${hash}`}
+      title={`Transaction ${hash}`}
       onClick={(event) => event.stopPropagation()}
     >
       Tx {shortHash(hash)}

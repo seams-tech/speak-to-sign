@@ -15,7 +15,7 @@ export function LoadingButton(props: {
   return (
     <button
       type="button"
-      className="stp-button"
+      className="svi-button"
       data-variant={props.variant ?? 'primary'}
       onClick={() => void props.onClick()}
       disabled={disabled}
@@ -23,7 +23,7 @@ export function LoadingButton(props: {
       style={props.style}
     >
       {loading ? (
-        <svg className="stp-button__spinner" width="16" height="16" viewBox="0 0 24 24" aria-hidden>
+        <svg className="svi-button__spinner" width="16" height="16" viewBox="0 0 24 24" aria-hidden>
           <circle
             cx="12"
             cy="12"
@@ -60,7 +60,7 @@ export function CopyButton(props: { text: string; ariaLabel: string }): React.JS
   return (
     <button
       type="button"
-      className="stp-copy"
+      className="svi-copy"
       aria-label={copied ? 'Copied' : props.ariaLabel}
       onClick={() => void copy()}
     >

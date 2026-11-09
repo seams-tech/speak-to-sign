@@ -86,22 +86,22 @@ function StepCard(props: {
 }): React.JSX.Element {
   return (
     <section
-      className="stp-step"
+      className="svi-step"
       data-status={props.status}
-      aria-labelledby={`stp-step-${props.index}`}
+      aria-labelledby={`svi-step-${props.index}`}
     >
-      <header className="stp-step__head">
-        <span className="stp-step__index" aria-hidden>
+      <header className="svi-step__head">
+        <span className="svi-step__index" aria-hidden>
           {props.index}
         </span>
-        <h2 className="stp-step__title" id={`stp-step-${props.index}`}>
+        <h2 className="svi-step__title" id={`svi-step-${props.index}`}>
           {props.title}
         </h2>
-        <span className="stp-pill" data-status={props.status}>
+        <span className="svi-pill" data-status={props.status}>
           {STATUS_LABELS[props.status]}
         </span>
       </header>
-      <div className="stp-step__body">{props.children}</div>
+      <div className="svi-step__body">{props.children}</div>
     </section>
   );
 }
@@ -109,7 +109,7 @@ function StepCard(props: {
 function Notice(props: { tone: 'info' | 'error' | 'success'; children: React.ReactNode }) {
   return (
     <div
-      className="stp-notice"
+      className="svi-notice"
       data-tone={props.tone}
       role={props.tone === 'error' ? 'alert' : 'status'}
     >
@@ -128,7 +128,7 @@ function ReceiptLink({ hash }: { hash: string }): React.JSX.Element {
 
 function Fact(props: { label: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <div className="stp-fact">
+    <div className="svi-fact">
       <dt>{props.label}</dt>
       <dd>{props.children}</dd>
     </div>
@@ -183,10 +183,10 @@ function VoiceIdStep(props: {
       ) : (
         <>
           <p>
-            Speak to pay records your voice in the VoiceID window of the Wallet. Turn on VoiceID
+            A spoken payment records your voice in the VoiceID window of the Wallet. Turn on VoiceID
             first. The Wallet asks you to read a few short phrases.
           </p>
-          <p className="stp-hint">
+          <p className="svi-hint">
             You must be unlocked with your passkey. You can also turn on VoiceID in the account
             settings of the Wallet.
           </p>
@@ -269,7 +269,7 @@ function EnrollStep(props: { owner: Owner; ready: boolean }): React.JSX.Element 
         short phrases, one at a time. Read each one aloud. Then confirm one signed message that
         names exactly these recordings.
       </p>
-      <p className="stp-hint">
+      <p className="svi-hint">
         If you enrolled this wallet with this version before, you can skip this step. A new
         enrollment replaces the template.
       </p>
@@ -307,9 +307,9 @@ function BalanceStep(props: {
 
   return (
     <StepCard index={3} title="Check your balance" status={status}>
-      <dl className="stp-facts">
+      <dl className="svi-facts">
         <Fact label="NEAR account">
-          <span className="stp-account">
+          <span className="svi-account">
             <code>{owner.nearAccountId}</code>
             <CopyButton text={owner.nearAccountId} ariaLabel="Copy the NEAR account" />
           </span>
@@ -326,7 +326,7 @@ function BalanceStep(props: {
         <Fact label="You need">The amount of each payment, plus less than 0.0001 NEAR of gas</Fact>
       </dl>
       {balance.kind === 'failed' ? <Notice tone="error">{balance.message}</Notice> : null}
-      <p className="stp-hint">
+      <p className="svi-hint">
         A spoken payment is a plain transfer from your own account. There is no vault and no
         deposit.
       </p>
@@ -357,7 +357,7 @@ function TransferResult({ result }: { result: SpeakToSignTransferResult }): Reac
               : 'Paid from your account after your voice and your confirm.'}{' '}
             <ReceiptLink hash={result.transactionHash} />
           </p>
-          <dl className="stp-facts stp-facts--times">
+          <dl className="svi-facts svi-facts--times">
             {STAGE_LABELS.map(([key, label]) => (
               <Fact key={key} label={label}>
                 {formatSeconds(result.times[key])}
@@ -421,10 +421,10 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
             : 'waiting';
 
   return (
-    <StepCard index={4} title="Speak to pay" status={status}>
+    <StepCard index={4} title="Pay by voice" status={status}>
       {!ready ? <Notice tone="info">Turn on VoiceID first.</Notice> : null}
-      <div className="stp-row">
-        <label className="stp-field">
+      <div className="svi-row">
+        <label className="svi-field">
           <span>Amount in NEAR</span>
           <input
             type="text"
@@ -434,7 +434,7 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
             aria-invalid={!amount.ok}
           />
         </label>
-        <label className="stp-field">
+        <label className="svi-field">
           <span>Pay to</span>
           <input
             type="text"
@@ -446,13 +446,13 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
           />
         </label>
       </div>
-      {!amount.ok ? <p className="stp-field-error">{amount.message}</p> : null}
+      {!amount.ok ? <p className="svi-field-error">{amount.message}</p> : null}
       <p>
         Pay to any named NEAR account. The VoiceID window shows the exact sentence, for example
         "Send 0.01 NEAR to seams-v1.testnet." Click Record, then read it aloud. In the account
         name, say "dash" for "-" and "dot" for ".".
       </p>
-      <p className="stp-hint">
+      <p className="svi-hint">
         An accepted payment needs no confirm. A payment above 10 NEAR asks you to confirm again: a
         passkey when you unlocked with your passkey.
       </p>
@@ -508,7 +508,7 @@ function useWalletConnection(): Connection {
     seams.connection.connect().then(
       () => live && setConnection('ready'),
       (error: unknown) => {
-        console.error('[speak-to-pay] The Wallet iframe did not load', error);
+        console.error('[seams-voice-intents] The Wallet iframe did not load', error);
         if (live) setConnection('failed');
       },
     );
@@ -534,7 +534,7 @@ function SignIn(): React.JSX.Element {
         </p>
         {failure ? <Notice tone="error">{failure}</Notice> : null}
       </StepCard>
-      <div className="stp-signin-menu">
+      <div className="svi-signin-menu">
         <HostedSeamsAuthMenu onOutcome={onOutcome} />
       </div>
     </>
@@ -542,7 +542,7 @@ function SignIn(): React.JSX.Element {
 }
 
 /** The owner signs in, then walks through the four steps in order. */
-export function SpeakToPayFlow({ rpcUrl }: { rpcUrl: string }): React.JSX.Element {
+export function PaymentFlow({ rpcUrl }: { rpcUrl: string }): React.JSX.Element {
   const connection = useWalletConnection();
   const { seams, loginState } = useSeams();
   const walletId =

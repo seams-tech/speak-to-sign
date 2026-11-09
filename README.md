@@ -25,7 +25,7 @@ and `seams-monorepo/docs/refactor-210-voice-intents.md`.
 | `voice-verifier/`        | The OutLayer worker: `enroll` and `verify`. See its README.        |
 | `speaker-service/`       | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
 | `gate0/`, `voice-probe/` | Gate 0 probes, the FastFS uploader and the HTTPS latency probe.    |
-| `examples/speak-to-pay/` | A web page that pays a NEAR testnet account by voice. See its README. |
+| `examples/seams-voice-intents/` | Seams Voice Intents: a web page that pays a NEAR testnet account by voice. See its README. |
 
 ## Testnet facts
 

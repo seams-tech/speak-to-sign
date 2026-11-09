@@ -1,9 +1,10 @@
-# Speak to pay example
+# Seams Voice Intents
 
-Pay a named NEAR testnet account with your voice. You read one sentence, for
-example "Send 0.01 NEAR to seams-v1.testnet." An attested verifier checks your
-voice and your words. Then your Seams Wallet pays from your own account, with
-no confirm. Testnet only. Do not use real funds.
+An example web page for Seams Speak-to-Sign. Pay a named NEAR testnet account
+with your voice. You read one sentence, for example "Send 0.01 NEAR to
+seams-v1.testnet." An attested verifier checks your voice and your words. Then
+your Seams Wallet pays from your own account, with no confirm. Testnet only. Do
+not use real funds.
 
 The page has five steps:
 
@@ -21,7 +22,7 @@ The Seams Wallet accepts sign-in only from the origins of your project.
    NEAR testnet environment.
 2. Add the origins of this page to the environment:
    - `http://localhost:5280` for `pnpm dev`.
-   - Your Cloudflare Pages origin, for example `https://speak-to-pay.pages.dev`,
+   - Your Cloudflare Pages origin, for example `https://seams-voice-intents.pages.dev`,
      and your custom domain if you add one.
 3. Copy the publishable key of the environment. A publishable key is public,
    but it works only from the origins of step 2.
@@ -34,7 +35,7 @@ create a new wallet here and enroll your voice again.
 You need Node 22 or later and pnpm 10.
 
 ```bash
-cd examples/speak-to-pay
+cd examples/seams-voice-intents
 pnpm install
 cp .env.example .env.local   # then set VITE_SEAMS_PUBLISHABLE_KEY
 pnpm dev                     # http://localhost:5280
@@ -50,7 +51,7 @@ The `VITE_*` settings are read at build time.
    of the project that allows your Pages origin.
 2. Log in once with `pnpm exec wrangler login`.
 3. Run `pnpm run deploy`. It builds `dist/` and uploads it to the Pages project
-   `speak-to-pay` (`wrangler.toml`). Wrangler asks to create the project if it
+   `seams-voice-intents` (`wrangler.toml`). Wrangler asks to create the project if it
    does not exist.
 
 If you use another project name, change `name` in `wrangler.toml`, and add the
@@ -74,7 +75,7 @@ Only the Seams staging deployment serves the Speak-to-Sign verify route.
 | ------------------------ | ----------------------------------------------------------------------------------- |
 | `src/config.ts`          | `seamsTestnetConfig` with the VoiceID auth method and the `speakToSign` feature.    |
 | `src/main.tsx`           | The page and `SeamsWebProvider`.                                                    |
-| `src/SpeakToPayFlow.tsx` | Sign-in (`HostedSeamsAuthMenu`), VoiceID, enrollment, balance and the spoken payment. |
+| `src/PaymentFlow.tsx`    | Sign-in (`HostedSeamsAuthMenu`), VoiceID, enrollment, balance and the spoken payment. |
 | `src/chain.ts`           | The balance read from NEAR RPC and the amount check.                                |
 | `src/text.ts`            | The text for each refusal and unavailable reason.                                   |
 

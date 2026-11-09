@@ -1,4 +1,4 @@
-/* Speak to pay: one column of filled, rounded step cards in the SDK's paper
+/* Seams Voice Intents: one column of filled, rounded step cards in the SDK's paper
    theme. State shows as a filled pill; nothing animates when a step ends.
    The --site-* tokens map to the Seams theme variables of the SDK. */
 :root {
@@ -11,7 +11,7 @@
   --site-focus: #4fb894;
 }
 
-.stp-theme {
+.svi-theme {
   --site-text-primary: var(--seams-colors-textPrimary);
   --site-text-secondary: var(--seams-colors-textSecondary);
   --site-text-button: var(--seams-colors-textButton);
@@ -31,12 +31,12 @@ body {
   background: var(--seams-colors-colorBackground, #ffffff);
 }
 
-.stp-theme {
+.svi-theme {
   min-height: 100vh;
   color: var(--site-text-primary);
 }
 
-.stp-page {
+.svi-page {
   box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -48,38 +48,38 @@ body {
   line-height: 1.5;
 }
 
-.stp-flow {
+.svi-flow {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--site-space-4);
 }
 
-.stp-page p {
+.svi-page p {
   margin: 0;
 }
 
-.stp-page code {
+.svi-page code {
   font-family: var(--site-font-mono);
   font-size: 0.85em;
   overflow-wrap: anywhere;
 }
 
-.stp-intro {
+.svi-intro {
   display: grid;
   gap: var(--site-space-2);
   margin-bottom: var(--site-space-2);
 }
 
-.stp-intro h1 {
+.svi-intro h1 {
   margin: 0;
   font-size: 2rem;
 }
 
-.stp-intro p {
+.svi-intro p {
   color: var(--site-text-secondary);
 }
 
-.stp-eyebrow {
+.svi-eyebrow {
   justify-self: start;
   padding: 2px 10px;
   border-radius: 999px;
@@ -88,7 +88,7 @@ body {
   font-weight: var(--site-font-weight-medium);
 }
 
-.stp-step {
+.svi-step {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--site-space-3);
@@ -97,18 +97,18 @@ body {
   background: var(--site-surface-muted);
 }
 
-.stp-step[data-status='waiting'] {
+.svi-step[data-status='waiting'] {
   opacity: 0.7;
 }
 
-.stp-step__head {
+.svi-step__head {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--site-space-3);
 }
 
-.stp-step__index {
+.svi-step__index {
   display: grid;
   place-content: center;
   width: 28px;
@@ -120,19 +120,19 @@ body {
   font-weight: var(--site-font-weight-semibold);
 }
 
-.stp-step__title {
+.svi-step__title {
   margin: 0;
   font-size: 1.05rem;
   line-height: 1.3;
 }
 
-.stp-step__body {
+.svi-step__body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--site-space-3);
 }
 
-.stp-pill {
+.svi-pill {
   padding: 2px 10px;
   border-radius: 999px;
   background: var(--site-surface-strong);
@@ -142,28 +142,28 @@ body {
   white-space: nowrap;
 }
 
-.stp-pill[data-status='done'] {
+.svi-pill[data-status='done'] {
   background: color-mix(in srgb, var(--site-success) 18%, var(--site-surface));
   color: color-mix(in srgb, var(--site-success) 75%, var(--site-text-primary));
 }
 
-.stp-pill[data-status='failed'] {
+.svi-pill[data-status='failed'] {
   background: var(--site-danger-surface);
   color: var(--site-danger);
 }
 
-.stp-pill[data-status='todo'],
-.stp-pill[data-status='working'] {
+.svi-pill[data-status='todo'],
+.svi-pill[data-status='working'] {
   background: var(--site-action);
   color: var(--site-text-button);
 }
 
-.stp-hint {
+.svi-hint {
   color: var(--site-text-secondary);
   font-size: 0.85rem;
 }
 
-.stp-notice {
+.svi-notice {
   padding: var(--site-space-3);
   border-radius: 12px;
   background: var(--site-surface);
@@ -171,20 +171,20 @@ body {
   overflow-wrap: anywhere;
 }
 
-.stp-notice > * + * {
+.svi-notice > * + * {
   margin-top: var(--site-space-2);
 }
 
-.stp-notice[data-tone='error'] {
+.svi-notice[data-tone='error'] {
   background: var(--site-danger-surface);
   color: var(--site-danger);
 }
 
-.stp-notice[data-tone='success'] {
+.svi-notice[data-tone='success'] {
   background: color-mix(in srgb, var(--site-success) 12%, var(--site-surface));
 }
 
-.stp-facts {
+.svi-facts {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -193,50 +193,50 @@ body {
   background: var(--site-surface);
 }
 
-.stp-notice .stp-facts {
+.svi-notice .svi-facts {
   padding: 0;
   background: transparent;
 }
 
-.stp-fact {
+.svi-fact {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--site-space-2);
 }
 
-.stp-fact dt {
+.svi-fact dt {
   color: var(--site-text-secondary);
 }
 
-.stp-fact dd {
+.svi-fact dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
   text-align: end;
   min-width: 0;
 }
 
-.stp-account {
+.svi-account {
   display: inline-flex;
   align-items: center;
   gap: 2px;
   min-width: 0;
 }
 
-.stp-row {
+.svi-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   gap: var(--site-space-3);
 }
 
-.stp-field {
+.svi-field {
   display: grid;
   gap: 4px;
   font-size: 0.85rem;
   color: var(--site-text-secondary);
 }
 
-.stp-field input {
+.svi-field input {
   box-sizing: border-box;
   width: 100%;
   height: var(--seams-shape-fieldHeight, 44px);
@@ -248,35 +248,35 @@ body {
   font-size: 0.95rem;
 }
 
-.stp-field input:focus-visible {
+.svi-field input:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--site-focus);
 }
 
-.stp-field input[aria-invalid='true'] {
+.svi-field input[aria-invalid='true'] {
   background: var(--site-danger-surface);
 }
 
-.stp-field-error {
+.svi-field-error {
   color: var(--site-danger);
   font-size: 0.85rem;
 }
 
 @media (max-width: 480px) {
-  .stp-page {
+  .svi-page {
     padding-top: 32px;
   }
 
-  .stp-row {
+  .svi-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .stp-signin-menu {
+  .svi-signin-menu {
     margin-inline: -16px;
   }
 }
 
-.stp-button {
+.svi-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -292,40 +292,40 @@ body {
   cursor: pointer;
 }
 
-.stp-button[data-variant='secondary'] {
+.svi-button[data-variant='secondary'] {
   border-color: var(--site-surface-strong);
   background: var(--site-surface);
   color: var(--site-text-primary);
 }
 
-.stp-button:disabled {
+.svi-button:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.stp-button:focus-visible,
-.stp-copy:focus-visible {
+.svi-button:focus-visible,
+.svi-copy:focus-visible {
   outline: 2px solid var(--site-focus);
   outline-offset: 2px;
 }
 
-.stp-button__spinner {
-  animation: stp-spin 0.9s linear infinite;
+.svi-button__spinner {
+  animation: svi-spin 0.9s linear infinite;
 }
 
-@keyframes stp-spin {
+@keyframes svi-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stp-button__spinner {
+  .svi-button__spinner {
     animation-duration: 2.4s;
   }
 }
 
-.stp-copy {
+.svi-copy {
   display: inline-grid;
   place-items: center;
   width: 28px;

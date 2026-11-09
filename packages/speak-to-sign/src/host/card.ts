@@ -286,7 +286,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
             ? 'Your voice payments in the last 24 hours reached the limit.'
             : 'This amount is over the limit for one voice payment.',
         detail: 'Pay with the normal confirm instead.',
-        at: PAYMENT,
+        at: POLICY,
         retry: false,
       };
     case 'cosigner_refused':

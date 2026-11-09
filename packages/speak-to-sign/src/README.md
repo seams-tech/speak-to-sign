@@ -26,8 +26,8 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   `authorizeEnrollment` for exactly these clips (core signs one NEP-413 message), then
   `verify` with the verifier's `enroll` input. The card of the third phrase stays open: it
   waits while core prepares the message (the Wallet confirm, a modal dialog, opens over it),
-  shows the verifier's work, then shows the result. `tests/unit/speakToSignEnroll.unit.test.ts`
-  checks the digest and the message against the verifier's vectors.
+  shows the verifier's work, then shows the result. `tests/enroll.test.ts` checks the flow;
+  seams-wallet checks core's digest and message against the verifier's vectors.
 - `openPrompt` loads the VoiceID host plugin through `loadWalletAuthMethodHostPlugin` and calls
   its `openPhrase`, which shows the sentence and records clips of it. The surface stays open for
   the check and the result (`packages/voiceid/src/capture/phraseCard.ts`). Core returns each
@@ -37,8 +37,9 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
 - `core/transactionFeatures/spokenTransfer.ts` in `@seams/wallet` ports the account transfer
   rules of the `spoken-intent` crate. The Borsh bytes and digests of the requests, the verdict
   v2 format and the pinned verifier key are in `shared-ts/src/speakToSign/`, which the Wallet
-  and the co-signer share. `tests/unit/speakToSignHost.unit.test.ts` checks them against the
-  crate's vectors and the verifier's signed verdicts.
+  and the co-signer share. seams-wallet `tests/unit/speakToSignHost.unit.test.ts` checks them
+  against the crate's vectors and the verifier's signed verdicts. `tests/flow.test.ts` here
+  checks the payment and note flows.
 - [`react.ts`](react.ts) will hold the pay button and the live text component.
 
 Speak-to-Sign is a transaction feature, not an auth method. It never unlocks a wallet or

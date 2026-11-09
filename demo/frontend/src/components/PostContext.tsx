@@ -2,41 +2,22 @@
 // "Do you find this helpful?", it asks for a bet. The Bet button opens the note, as X's note
 // view does, with the note market at its foot.
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { IconCircleCheckFilled, IconExternalLink, IconUsers, IconX } from '@tabler/icons-react';
 import type { Post, PostContext as Context } from '../data/posts';
 import { useDemo } from '../demoContext';
+import { useMarketSource } from '../market/contractSource';
+import { amountText } from '../market/math';
 import { NoteMarketStrip } from '../market/NoteMarket';
-import { createMockMarketSource } from '../market/mockSource';
-import type { MarketSource } from '../market/types';
+import { NEAR_CURRENCY } from '../market/types';
 import { MediaThumb } from './Media';
 import { Modal } from './Modal';
 
-/** The context is not a note on the notes contract, so its market has a fixed note id. */
-export const CONTEXT_MARKET_NOTE_ID = 0;
-
-/** The market question. Yes is "true", no is "false". */
-const QUESTION = 'Is this note true?';
-
 /**
- * A practice market (in this browser only) until the JEV prediction market contract is on
- * testnet. Then this source becomes the contract source (see src/market/README.md).
+ * The context is not a note on the notes contract, so its market has a fixed note id. On
+ * pm-notes.seams-v1.testnet that is market 2, "Is this note true?", in USDC.
  */
-const contextMarketSource: MarketSource = withQuestion(
-  createMockMarketSource({ noteIds: [CONTEXT_MARKET_NOTE_ID], signsByVoice: false }),
-  QUESTION,
-);
-const PRACTICE = true;
-
-function withQuestion(source: MarketSource, question: string): MarketSource {
-  return {
-    ...source,
-    async getMarketForNote(noteId) {
-      const market = await source.getMarketForNote(noteId);
-      return market && { ...market, question };
-    },
-  };
-}
+export const CONTEXT_MARKET_NOTE_ID = 0;
 
 export function PostContextBox({ post }: { post: Post }) {
   const [open, setOpen] = useState(false);
@@ -84,7 +65,27 @@ function ContextText({ context, source }: { context: Context; source: Post['hist
 /** The note view, kept short: the quoted post, the note, then the bet with two colored buttons. */
 function NoteDialog({ post, context, onClose }: { post: Post; context: Context; onClose: () => void }) {
   const { account, openSignIn } = useDemo();
+  const source = useMarketSource();
   const titleId = useId();
+  const currency = source.currency ?? NEAR_CURRENCY;
+  // A tap bets the middle chip (the strip's `directBet`); the line under the buttons says how much.
+  const stake = currency.chips[1] ?? currency.chips[0] ?? 0n;
+  const [balance, setBalance] = useState<bigint | null>(null);
+  useEffect(() => {
+    if (!account || !source.getBalance) {
+      setBalance(null);
+      return;
+    }
+    let current = true;
+    source.getBalance(account).then(
+      (value) => current && setBalance(value),
+      () => current && setBalance(null),
+    );
+    return () => {
+      current = false;
+    };
+  }, [account, source]);
+
   return (
     <Modal labelledBy={titleId} onClose={onClose} locked={false}>
       <header className="dialog-head">
@@ -122,17 +123,10 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
           </div>
           <div className="pc-bet">
             <b className="pc-bet-title">Is this note true?</b>
-            <NoteMarketStrip
-              noteId={CONTEXT_MARKET_NOTE_ID}
-              source={contextMarketSource}
-              account={account}
-              onSignIn={openSignIn}
-              directBet
-            />
+            <NoteMarketStrip noteId={CONTEXT_MARKET_NOTE_ID} source={source} account={account} onSignIn={openSignIn} directBet />
             <p className="pc-practice">
-              {PRACTICE
-                ? 'One tap bets 0.5 NEAR. Practice market: bets stay in this browser until this note has a market on testnet.'
-                : 'One tap places one bet. Your Seams Wallet asks you to confirm.'}
+              One tap bets {amountText(stake, currency)}. Your Seams Wallet asks you to confirm.
+              {balance !== null && <> You have {amountText(balance, currency)}.</>}
             </p>
           </div>
         </div>

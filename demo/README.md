@@ -31,7 +31,7 @@ so one wallet works on both.
 | Seams Wallet host        | `https://staging.sign.seams.sh`                              | Speak-to-Sign host API 4: transfers and enroll only.   |
 | Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Notes need verifier 0.4.0 in its settings. |
 | Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.58.1. Notes need 0.59.0.              |
-| Seams project            | Staging Seams Console: allowed origins and publishable key   | Origins requested: the Pages origin and `http://localhost:5173`. |
+| Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Ready. Allows the Pages origin, `http://localhost:5173` and `http://localhost:5280`. |
 
 Spoken notes work when all four are ready:
 
@@ -56,7 +56,7 @@ You need Node 22 or later and pnpm 10.
 cd demo
 pnpm install
 cp .dev.vars.example .dev.vars   # then set NEAR_AI_API_KEY in .dev.vars
-cp .env.example .env.local       # then set VITE_SEAMS_PUBLISHABLE_KEY
+cp .env.example .env.local       # then set the VITE_SEAMS_* key and environment (ask the project owner)
 ```
 
 Start the summary function (terminal 1) and the page (terminal 2):
@@ -77,8 +77,12 @@ pnpm build:site   # demo/ into dist/, then ../examples/seams-voice-intents into 
 pnpm preview      # http://localhost:8788
 ```
 
-`build:site` needs `pnpm install` in `../examples/seams-voice-intents` too. Both
-builds read the `VITE_SEAMS_*` settings from the environment or their own `.env` files.
+`build:site` (`scripts/build-site.mjs`) needs `pnpm install` in
+`../examples/seams-voice-intents` too. It gives the Speak to pay build the same
+`VITE_SEAMS_*` settings as `demo/`, so it writes nothing into `examples/`.
+
+The key does not allow `http://localhost:8788`, so sign-in does not work on
+`pnpm preview`. Use `pnpm dev` (port 5173) to sign in locally.
 
 ## Set up a wallet (in the page's setup panel)
 

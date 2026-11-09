@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "wrangler pages dev dist --port 8788",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p functions/tsconfig.json --noEmit",
-    "build:site": "vite build && pnpm --dir ../examples/seams-voice-intents exec vite build --base /pay/ --outDir ../../demo/dist/pay --emptyOutDir"
+    "build:site": "node scripts/build-site.mjs"
   },
   "dependencies": {
     "@seams/speak-to-sign": "0.58.1",

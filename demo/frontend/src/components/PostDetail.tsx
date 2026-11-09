@@ -61,7 +61,7 @@ export function PostDetail({ postId }: { postId: number }) {
               <div className="muted small">Write a Community Note and post it with your voice.</div>
             </div>
             {cue && <IconHandFingerRight size={28} stroke={1.7} className="cue-hand" aria-hidden="true" />}
-            <button type="button" className={`btn btn-sm ${cue ? 'btn-cue' : 'btn-dark'}`} onClick={() => openWrite(post.id)}>
+            <button type="button" className={`btn ${cue ? 'btn-cue' : 'btn-blue'}`} onClick={() => openWrite(post.id)}>
               Write a note
             </button>
           </div>

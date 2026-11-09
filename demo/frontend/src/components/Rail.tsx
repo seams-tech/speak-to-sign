@@ -55,7 +55,7 @@ export function Rail({ route }: { route: Route }) {
           </span>
         ))}
         {route.name === 'post' ? (
-          <button type="button" className="rail-cta" onClick={() => openWrite(route.postId)}>
+          <button type="button" className="rail-cta rail-cta-blue" onClick={() => openWrite(route.postId)}>
             <IconFeather className="rail-cta-icon" size={22} stroke={1.8} aria-hidden="true" />
             <span className="rail-cta-label">Write a note</span>
           </button>

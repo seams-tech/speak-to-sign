@@ -219,6 +219,12 @@ a.lk:hover {
 .rail-cta:hover {
   background: #272c30;
 }
+.rail-cta.rail-cta-blue {
+  background: var(--accent);
+}
+.rail-cta.rail-cta-blue:hover {
+  background: var(--accent-ink);
+}
 .rail-cta-label {
   display: none;
   font-size: 17px;
@@ -759,14 +765,22 @@ a.lk:hover {
   color: var(--accent);
   animation: cue-point 1.1s ease-in-out infinite;
 }
+/* The main calls to action of the demo: "Write a note" and "Bet". Solid blue; the next step
+   also pulses. */
+.btn-blue,
 .btn-cue {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  font-weight: 700;
+}
+.btn-cue {
   animation: cue-ring 1.8s ease-out infinite;
 }
+.btn-blue:not(:disabled):hover,
 .btn-cue:not(:disabled):hover {
   background: var(--accent-ink);
+  border-color: var(--accent-ink);
 }
 @keyframes cue-point {
   0%,

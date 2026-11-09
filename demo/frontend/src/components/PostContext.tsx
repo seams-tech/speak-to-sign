@@ -55,7 +55,7 @@ export function PostContextBox({ post }: { post: Post }) {
         </div>
         <div className="note-foot note-rate">
           <span>Do you bet this is true or false?</span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setOpen(true)}>
+          <button type="button" className="btn btn-blue" onClick={() => setOpen(true)}>
             Bet
           </button>
         </div>

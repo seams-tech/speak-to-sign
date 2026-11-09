@@ -1,6 +1,6 @@
 [package]
 name = "seams-voice-verifier"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 publish = false
 description = "Speak-to-Sign OutLayer worker: enroll a voice and verify a spoken request, with a signed verdict"

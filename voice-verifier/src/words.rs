@@ -144,6 +144,10 @@ mod tests {
             // Staging: the unit heard as "year".
             ("Send 0.01 year to seams-v1.testnet.", "seams-v1.testnet", 1),
             ("Sent 25 NIA to alice.testnode.", "alice.testnet", 2_500),
+            // Separators said differently or left out, and "oh" for zero.
+            ("Send 0.01 NEAR to seams v one.", "seams-v1.testnet", 1),
+            ("Send point oh one NEAR to seams hyphen v1 period testnet.", "seams-v1.testnet", 1),
+            ("Send 25 NEAR to alice.", "alice.testnet", 2_500),
         ] {
             let request = transfer(receiver, hundredths);
             let rendered = render(&request);

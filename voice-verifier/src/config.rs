@@ -2,7 +2,7 @@
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.4.0";
+pub const VERIFIER_VERSION: &str = "0.4.1";
 
 /// The manifest, also linked into the `outlayer.manifest` custom section.
 pub const MANIFEST_JSON: &str = include_str!("../manifest/outlayer.json");

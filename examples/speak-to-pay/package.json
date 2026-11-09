@@ -12,9 +12,9 @@
     "deploy": "pnpm build && wrangler pages deploy"
   },
   "dependencies": {
-    "@seams/speak-to-sign": "0.61.0",
-    "@seams/voiceid": "0.61.0",
-    "@seams/wallet": "0.61.0",
+    "@seams/speak-to-sign": "0.63.0",
+    "@seams/voiceid": "0.63.0",
+    "@seams/wallet": "0.63.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

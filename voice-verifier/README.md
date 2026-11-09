@@ -10,6 +10,20 @@ The verdict authorizes a payment from the owner's own account: the Wallet
 checks it against the key that it pins and signs the transaction itself.
 There is no vault contract.
 
+## Versions
+
+The source on this branch is version 0.4.0 (`config::VERIFIER_VERSION`). The
+sections below say when a feature needs a later version than 0.3.1.
+
+| Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
+| ------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.3.0   | `09f4ce1b…` (330,322 bytes, commit `3dab63d`)                      | Replaced. Verdict v2, the policy step, the `AccountTransfer` request, NEP-413 enrollment and `template:v3:<owner>`. It removed the vault.             |
+| 0.3.1   | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | **Live.** 334,704 bytes, commit `446882b`. It adds the forgiving word check for a send sentence. `deployment/wallet-system/targets.json` pins this key. |
+| 0.4.0   | `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | Built and added to the OutLayer project on 2026-11-09. **Not active**: a call reaches it only if the caller sets `version_key`. It adds `community_note` and `note_rating`. Transfers are unchanged. |
+
+The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
+in the repository README.
+
 ## Build and test
 
 ```sh
@@ -66,18 +80,28 @@ Stage times (`ms`, not signed), in ms:
     - `transfer`: a native NEAR transfer from `owner` to `receiver`, as
       `spoken_intent::SpokenRequestV1::AccountTransfer`. The receiver must be
       a named account that the text can say, and not the owner.
-    - `community_note`: `{"contract","post_id","note_sha256_hex","summary"}`,
-      as `SpokenRequestV1::CommunityNote`. The owner says only the summary:
+    - `community_note` (0.4.0 and later):
+      `{"contract","post_id","note_sha256_hex","summary"}`, as
+      `SpokenRequestV1::CommunityNote`. The owner says only the summary:
       1 to 12 words of ASCII letters (`spoken_intent::SpokenSummary`). The
       note is bound by its SHA-256 (64 lowercase hex characters).
-    - `note_rating`: `{"contract","note_id","rating"}` with `rating`
-      `helpful`, `somewhat_helpful` or `not_helpful`, as
+    - `note_rating` (0.4.0 and later): `{"contract","note_id","rating"}` with
+      `rating` `helpful`, `somewhat_helpful` or `not_helpful`, as
       `SpokenRequestV1::NoteRating`. The owner says "this note is helpful",
       "this note is somewhat helpful" or "this note is not helpful".
-  - The words must match exactly, with one exception: a summary of 4 or more
-    words also passes with one word changed or dropped, when the heard words
-    are still closer to the summary than to every near miss (an added or
-    dropped "not" never passes).
+  - The words must match the rendered text of the request. Two kinds of
+    forgiveness exist; each applies to words that hold no value:
+    - Send sentence (0.3.1 and later; `spoken-intent` commit `976167297`): the
+      first word "sent" or "sends" counts as "send"; a closed list of
+      sound-alikes of "near" and of "testnet" counts as the word itself; a
+      number sound-alike counts as the number word in the amount slot; and a
+      receiver one sound from a known account (the receiver or a contact)
+      counts as that account. The amount and the receiver are still compared
+      with the request. Negations, other units and added clauses are refused.
+    - Community note summary (0.4.0 and later): a summary of 4 or more words
+      also passes with one word changed or dropped, when the heard words are
+      still closer to the summary than to every near miss (an added or dropped
+      "not" never passes).
   - `contacts`: at most 32 named accounts that the owner knows, for the
     account names and the confusion set. The receiver is added if missing.
 - Unknown fields are refused at every level.
@@ -117,7 +141,9 @@ Exactly 10 NEAR is allowed. A step-up still marks the audio used.
   by the manifest key `verdict` (`bind: "project"`). The keystore derives that
   key from the project and the caller; over HTTPS the caller is the
   payment-key owner, so the Wallet's pinned key holds only for runs that the
-  Seams payment key pays for.
+  Seams payment key pays for. The key stays the same across versions. The
+  testnet key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. Wallet
+  core pins it and refuses a verdict of any other key.
 - `policy_text` (not signed): the sentence of the rule on `step_up`, else
   `null`.
 - The output stays below 1,024 bytes; `heard` is cut to fit.

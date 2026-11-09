@@ -1,0 +1,21 @@
+# The workspace of the OutLayer worker (`voice-verifier`).
+#
+# Cargo hashes the path of each path dependency into the compiled code. A path
+# below the workspace root is hashed as a relative path, and any other path as
+# an absolute one. This root makes `../spoken-intent` a relative path, so the
+# WASM hash does not depend on the folder of the clone (see
+# voice-verifier/build.sh).
+#
+# `spoken-intent` stays outside the workspace, with its own Cargo.lock and
+# test dependencies. `speaker-service` has its own `[workspace]`.
+[workspace]
+resolver = "2"
+members = ["voice-verifier"]
+exclude = ["spoken-intent", "speaker-service"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

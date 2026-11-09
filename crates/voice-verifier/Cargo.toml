@@ -4,9 +4,7 @@ version = "0.5.1"
 edition = "2021"
 publish = false
 description = "Speak-to-Sign OutLayer worker: enroll a voice and verify a spoken request, with a signed verdict"
-
-# A standalone crate: it must not join a parent workspace.
-[workspace]
+# The workspace root and the release profile are in ../Cargo.toml.
 
 [lib]
 name = "seams_voice_verifier"
@@ -30,9 +28,3 @@ outlayer = { version = "=0.2.1", features = ["signing-keys"] }
 # The `wasi:http` bindings for the parallel POSTs (see main.rs).
 wasi = "=0.13.3"
 
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-panic = "abort"
-strip = true

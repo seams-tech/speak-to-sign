@@ -76,15 +76,21 @@ normalization, transcript parsing and sound-alike words.
 (cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (23 tests):
+Expected (27 tests):
 
 ```text
      Running unittests src/lib.rs (target/debug/deps/spoken_intent-a16e3c61734de2f2)
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/grammar.rs (target/debug/deps/grammar-4adb1047d5dc1887)
-test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/accounts.rs (target/debug/deps/accounts-01376625692ffcf7)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/normalize.rs (target/debug/deps/normalize-cfb59b3220c05961)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/punctuated.rs (target/debug/deps/punctuated-679c9bdf9b6ce233)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/render.rs (target/debug/deps/render-4db1d85cafcf77f4)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/vectors.rs (target/debug/deps/vectors-21056aa4746d8cc3)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
    Doc-tests spoken_intent
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
@@ -114,26 +120,26 @@ the 24 request vectors are the same
 (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (52 tests). The 16-digit hex suffix of each verifier test binary
+Expected (63 tests). The 16-digit hex suffix of each verifier test binary
 depends on the folder of your clone, so yours can differ; the test names and
 counts do not.
 
 ```text
-     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-61b138f53f973e2c)
-test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-79a2f81a10d9f285)
+     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-295e294e9723da61)
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-159a9fbb1adef904)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-078cd8692115c4a4)
+     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-f91d633521215fb8)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/ops.rs (target/debug/deps/ops-b4ae252bc60fd0b0)
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
-     Running tests/signed_vector.rs (target/debug/deps/signed_vector-8a4c243fa9593ecf)
+     Running tests/ops/main.rs (target/debug/deps/ops-1be840971268f48f)
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
+     Running tests/signed_vector.rs (target/debug/deps/signed_vector-356786a2eeb0f383)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
    Doc-tests seams_voice_verifier
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
-The note tests are in `tests/ops.rs`. They run the real `verify` operation
+The note tests are in `tests/ops/notes.rs`. They run the real `verify` operation
 with a fake host. The fake host has an enrolled owner and returns the given
 transcript. Each test checks the ed25519 signature of the verdict.
 
@@ -144,10 +150,10 @@ transcript. Each test checks the ed25519 signature of the verdict.
 Expected:
 
 ```text
-test note_inputs_that_are_not_speakable_are_unsupported ... ok
-test verify_accepts_a_spoken_rating_with_exact_words ... ok
-test verify_accepts_a_spoken_note_summary ... ok
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.86s
+test notes::note_inputs_that_are_not_speakable_are_unsupported ... ok
+test notes::verify_accepts_a_spoken_rating_with_exact_words ... ok
+test notes::verify_accepts_a_spoken_note_summary ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.82s
 ```
 
 `verify_accepts_a_spoken_note_summary` uses the summary "The bridge stays
@@ -166,7 +172,7 @@ For the summary "The bridge is not closed for six months", the transcript
 "The bridge is closed for six months." is refused (`words`): a dropped "not"
 does not pass. A summary of fewer than four words, and every rating, needs the
 exact words. "This note is not helpful." for a `helpful` rating is refused.
-The rule is `words_pass` in `crates/voice-verifier/src/ops.rs`.
+The rule is `words_pass` in `crates/voice-verifier/src/words.rs`.
 
 ### 3. The Wallet verdict check
 

@@ -6,7 +6,7 @@ the user's own account with 0 deposit and 30 Tgas, so the contract pays for
 its storage from its own balance. Testnet only.
 
 The method names and JSON shapes are fixed. Seams Wallet core and the demo
-page in `demo/` use them.
+page in `demo/frontend/` use them.
 
 ## Toolchain
 

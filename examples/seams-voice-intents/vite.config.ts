@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 // The Seams project of this example must allow the page origin,
 // http://localhost:5280, so the port is fixed. It is away from the usual
-// Vite ports, which the Spoken Notes demo in demo/ uses.
+// Vite ports, which the Spoken Notes demo in demo/frontend/ uses.
 export default defineConfig({
   plugins: [react()],
   // The Seams Wallet SDK is most of the bundle.

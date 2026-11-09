@@ -18,7 +18,7 @@ the words, and the verdict binds that voice and those words to one note.
 | ----------- | ------------------------------------------------------- |
 | Demo video  | TODO: the owner adds the link to the demo video.        |
 | X post      | TODO: the owner adds the link to the X post.            |
-| Demo page   | `demo/README.md` tells how to run it and what must be live. |
+| Demo page   | `demo/frontend/README.md` tells how to run it and what must be live. |
 
 The same verifier also approves spoken NEAR transfers
 (`examples/seams-voice-intents/`).
@@ -35,7 +35,7 @@ with rustc 1.97.1, Node 24.18.0 and pnpm 11.11.0. Times, and the hashes in
 You need:
 
 - `git`, `curl`, `jq` and `shasum` (on Linux, `sha256sum` gives the same hash).
-- Rust from rustup. `contracts/community-notes/` pins Rust 1.97.0 with the
+- Rust from rustup. `demo/contracts/community-notes/` pins Rust 1.97.0 with the
   `wasm32-unknown-unknown` target; rustup installs it on the first `cargo` call.
 - Node 24 and pnpm 11. `corepack enable` gives the pnpm version that
   `seams-wallet` pins.
@@ -228,7 +228,7 @@ and signs nothing. With the verdict of this note, core signs one transaction:
 Unit tests, one for each rule of the contract:
 
 ```bash
-(cd speak-to-sign/contracts/community-notes && cargo test -p community-notes 2>&1 | grep -E 'Running|Doc-tests|test result')
+(cd speak-to-sign/demo/contracts/community-notes && cargo test -p community-notes 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
 Expected:
@@ -244,7 +244,7 @@ The sandbox test deploys the release WASM to a local nearcore sandbox and
 calls it as the Wallet does (30 Tgas, no deposit). First build the WASM:
 
 ```bash
-(cd speak-to-sign/contracts/community-notes && ./build.sh 2>&1 | tail -3)
+(cd speak-to-sign/demo/contracts/community-notes && ./build.sh 2>&1 | tail -3)
 ```
 
 Expected on the computer that deployed the contract:
@@ -259,7 +259,7 @@ On another computer the hash can be different: the WASM holds the local
 source paths of panic locations.
 
 ```bash
-(cd speak-to-sign/contracts/community-notes && cargo test -p community-notes-sandbox 2>&1 | grep -E 'Running|Doc-tests|test result|^test')
+(cd speak-to-sign/demo/contracts/community-notes && cargo test -p community-notes-sandbox 2>&1 | grep -E 'Running|Doc-tests|test result|^test')
 ```
 
 Expected:
@@ -380,7 +380,7 @@ Expected:
 
 Enrollment (three recordings of the owner) and a spoken note or rating need a
 person, a passkey and a microphone. The demo video shows them. To try them,
-run the demo page (`demo/README.md`).
+run the demo page (`demo/frontend/README.md`).
 
 ## Baseline and hackathon work
 
@@ -405,9 +405,9 @@ first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'
 | The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `crates/voice-verifier/`, `crates/speaker-service/`, `gate0/` (was `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/`) | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
 | Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/speak-to-sign/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | `first seams-wallet packages/speak-to-sign` |
 | Spoken notes in the verifier (version 0.4.0). | `speak-to-sign`: `crates/voice-verifier/src` (was `voice-verifier/src`) | 2026-11-09 10:14, `ff1409b` | `TZ=UTC git -C speak-to-sign log -S community_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- voice-verifier/src \| head -1` |
-| The community notes contract. | `speak-to-sign`: `contracts/community-notes/` (was `community-notes/`) | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
+| The community notes contract. | `speak-to-sign`: `demo/contracts/community-notes/` (was `community-notes/`, then `contracts/community-notes/`) | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
 | Spoken notes in the Wallet. | `seams-wallet`: `packages/wallet/src` | 2026-11-09 10:25, `bec40080` | `TZ=UTC git -C seams-wallet log -S add_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- packages/wallet/src \| head -1` |
-| The Spoken Notes demo page. | `speak-to-sign`: `demo/` (an earlier Python demo client is from 2026-11-07) | 2026-11-09 10:33, `e25f1ec` | `TZ=UTC git -C speak-to-sign log -1 --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' e25f1ec` |
+| The Spoken Notes demo page. | `speak-to-sign`: `demo/frontend/` (was `demo/`; an earlier Python demo client is from 2026-11-07) | 2026-11-09 10:33, `e25f1ec` | `TZ=UTC git -C speak-to-sign log -1 --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' e25f1ec` |
 | The Speak to pay example. | `speak-to-sign`: `examples/` | 2026-11-09 11:05, `2999fd6` | `first speak-to-sign examples` |
 
 The diffs:
@@ -471,10 +471,10 @@ and `seams-monorepo/docs/refactor-210-voice-intents.md`.
 | `crates/spoken-intent/`      | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
 | `crates/voice-verifier/`     | The OutLayer worker: `enroll` and `verify`. See its README. |
 | `crates/speaker-service/`    | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
-| `contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet`: `add_note`, `rate_note` and the views. See its README. |
 | `packages/speak-to-sign/`    | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
 | `gate0/`                     | Gate 0 probes, the FastFS uploader, and the HTTPS latency probe (`gate0/voice-probe/`). |
-| `demo/`                  | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
+| `demo/frontend/`             | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
+| `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
 | `examples/seams-voice-intents/` | Seams Voice Intents: a web page that pays a NEAR testnet account by voice. See its README. |
 | `docs/`                  | The record of the screener commands and their outputs.             |
 

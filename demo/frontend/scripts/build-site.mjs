@@ -1,6 +1,6 @@
 // Builds the whole site into dist/: this Community Notes page at /, then the Speak to pay
-// example (../examples/seams-voice-intents) at /pay/. Both use one Seams project, so the
-// pay build gets the VITE_SEAMS_* settings of demo/ (.env.local, .env.production.local, or the
+// example (../../examples/seams-voice-intents) at /pay/. Both use one Seams project, so the
+// pay build gets the VITE_SEAMS_* settings of demo/frontend/ (.env.local, .env.production.local, or the
 // environment). Nothing is written into examples/.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 
 const demo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const pay = resolve(demo, '../examples/seams-voice-intents');
+const pay = resolve(demo, '../../examples/seams-voice-intents');
 
 function run(command, args, cwd, env = process.env) {
   const result = spawnSync(command, args, { cwd, env, stdio: 'inherit' });
@@ -18,7 +18,7 @@ function run(command, args, cwd, env = process.env) {
 
 const seamsEnv = loadEnv('production', demo, 'VITE_SEAMS_');
 if (!seamsEnv.VITE_SEAMS_PUBLISHABLE_KEY) {
-  console.error('VITE_SEAMS_PUBLISHABLE_KEY is not set. Put it in demo/.env.production.local or demo/.env.local.');
+  console.error('VITE_SEAMS_PUBLISHABLE_KEY is not set. Put it in demo/frontend/.env.production.local or demo/frontend/.env.local.');
   process.exit(1);
 }
 if (!existsSync(resolve(pay, 'node_modules'))) {

@@ -10,7 +10,7 @@ function env(value: string | undefined, fallback = ''): string {
 const e = import.meta.env;
 
 export const config = {
-  /** The notes contract on NEAR testnet (community-notes/). */
+  /** The notes contract on NEAR testnet (demo/contracts/community-notes/). */
   contract: env(e.VITE_NOTES_CONTRACT, 'notes.seams-v1.testnet'),
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),

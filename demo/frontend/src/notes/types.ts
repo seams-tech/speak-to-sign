@@ -1,4 +1,4 @@
-// Notes as the notes contract (community-notes/) returns them from
+// Notes as the notes contract (demo/contracts/community-notes/) returns them from
 // `get_notes({ post_id })`. Ids are JSON numbers.
 
 import type { Rating } from '../signer/notesSigner';

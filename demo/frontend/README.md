@@ -20,7 +20,7 @@ signed by the real Seams Wallet after the real verifier accepts your voice.
 
 The site has two pages on one origin, `https://seams-voice-intents.pages.dev`:
 this Community Notes page at `/`, and the Speak to pay example
-(`../examples/seams-voice-intents`) at `/pay/`. Both use the same Seams project,
+(`../../examples/seams-voice-intents`) at `/pay/`. Both use the same Seams project,
 so one wallet works on both.
 
 ## What must be live
@@ -42,7 +42,7 @@ the page moves to 0.60.0, delete `rpIdOverride` and `routerAb` in
 You need Node 22 or later and pnpm 10.
 
 ```bash
-cd demo
+cd demo/frontend
 pnpm install
 cp .dev.vars.example .dev.vars   # then set NEAR_AI_API_KEY in .dev.vars
 cp .env.example .env.local       # then set the VITE_SEAMS_* key and environment (ask the project owner)
@@ -76,13 +76,13 @@ panel says that the key is missing.
 To run the whole site as Cloudflare Pages runs it (both pages and the function):
 
 ```bash
-pnpm build:site   # demo/ into dist/, then ../examples/seams-voice-intents into dist/pay/
+pnpm build:site   # demo/frontend/ into dist/, then ../../examples/seams-voice-intents into dist/pay/
 pnpm preview      # http://localhost:8788
 ```
 
 `build:site` (`scripts/build-site.mjs`) needs `pnpm install` in
-`../examples/seams-voice-intents` too. It gives the Speak to pay build the same
-`VITE_SEAMS_*` settings as `demo/`, so it writes nothing into `examples/`.
+`../../examples/seams-voice-intents` too. It gives the Speak to pay build the same
+`VITE_SEAMS_*` settings as `demo/frontend/`, so it writes nothing into `examples/`.
 
 To sign in on the built site, open it through Caddy at https://localhost:8443
 (`pnpm dev:https`), not at `http://localhost:8788`.
@@ -119,8 +119,8 @@ and two raters.
 ## Settings
 
 Page settings are read at build time. The defaults are Seams staging, the only
-deployment whose Seams server runs the verifier. Put them in `demo/.env.local`
-for `pnpm dev`, or in `demo/.env.production.local` for a build (see `.env.example`).
+deployment whose Seams server runs the verifier. Put them in `demo/frontend/.env.local`
+for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.env.example`).
 
 | Variable                            | Default                               |
 | ----------------------------------- | ------------------------------------- |
@@ -138,7 +138,7 @@ The publishable key belongs to a Seams project environment in the staging Seams
 Console. The Wallet accepts sign-in only from the origins of that project. A
 wallet belongs to one project.
 
-Function settings are secrets. Put them in `demo/.dev.vars` for local runs, and
+Function settings are secrets. Put them in `demo/frontend/.dev.vars` for local runs, and
 in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 
 | Variable          | Meaning                                                                 |
@@ -194,7 +194,7 @@ checks the rules, and asks once more if a rule fails. It returns
 
 Ask the project owner before you deploy or add a domain.
 
-With wrangler (direct upload), from `demo/`:
+With wrangler (direct upload), from `demo/frontend/`:
 
 ```bash
 pnpm exec wrangler pages project create seams-voice-intents --production-branch main
@@ -208,7 +208,7 @@ pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name seams-voice-i
 pnpm build:site && pnpm exec wrangler pages deploy dist --project-name seams-voice-intents --branch main
 ```
 
-Run `wrangler pages deploy` from `demo/`, so that it finds `functions/`.
+Run `wrangler pages deploy` from `demo/frontend/`, so that it finds `functions/`.
 `--branch main` makes it the production deployment. Without it, wrangler uses
 the git branch, and the page gets a preview origin that staging does not allow.
 
@@ -217,9 +217,9 @@ allow it (CORS and the project's allowed origins), and also
 `http://localhost:5173` for local runs. If Cloudflare gives the project another
 `pages.dev` name, staging must allow that name instead.
 
-Build with `demo/.env.production.local` (or the environment) set to the key of
+Build with `demo/frontend/.env.production.local` (or the environment) set to the key of
 the project that allows the Pages origin. One deploy ships both pages. Do not
-deploy `../examples/seams-voice-intents` alone to the same project: that would
+deploy `../../examples/seams-voice-intents` alone to the same project: that would
 replace the whole site with the Speak to pay page.
 
 The summary route spends NEAR AI credit. For a public link, add a Cloudflare

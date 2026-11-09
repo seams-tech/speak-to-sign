@@ -1005,14 +1005,14 @@ a.lk:hover {
   font-weight: 700;
   transition: filter 120ms ease;
 }
-/* Muted green and red: clear yes and no without a loud color. White text keeps a 4.5:1 contrast. */
+/* Muted blue and red: clear yes and no without a loud color. White text keeps a 4.5:1 contrast. */
 .pc-bet {
-  --bet-yes: #3f8a6b;
+  --bet-yes: #3574b0;
   --bet-no: #b65757;
 }
 .pc-bet .nm-bet:first-child:not(:last-child) {
   background: var(--bet-yes);
-  box-shadow: 0 6px 14px -8px rgba(63, 138, 107, 0.6);
+  box-shadow: 0 6px 14px -8px rgba(53, 116, 176, 0.6);
 }
 .pc-bet .nm-bet:last-child:not(:first-child) {
   background: var(--bet-no);

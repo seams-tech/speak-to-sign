@@ -14,8 +14,11 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   `openPrompt`, `receiverExists`, `verify` and `payWithVerdict`
   (`core/transactionFeatures/hostOperations.ts`). The plugin gets no signing context, key or
   session. Wallet core checks the verdict (`core/transactionFeatures/voiceVerdict.ts`) and
-  builds the one transfer that it signs. `payWithVerdict` tells the open prompt when the
-  verdict passed, when a step-up needs the owner, and when the transfer leaves for the network.
+  builds the one transfer that it signs. The signing request carries the verdict, and the Seams
+  co-signer checks it again (`wallet-server/src/router/domains/speakToSign/voiceVerdictAdmission.ts`).
+  `payWithVerdict` tells the open prompt when the verdict passed, when a step-up needs the
+  owner, and when the transfer leaves for the network. A co-signer refusal comes back as
+  `voice_limit` or `cosigner_refused`.
 - [`host/card.ts`](host/card.ts) holds the copy and the line segments of each state of the card:
   the check, the payment, the step-up question, the paid result and each refusal.
 - [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three prompts of one recording each,
@@ -29,8 +32,10 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
 - The host bundle imports only `@seams/wallet/speak-to-sign-host`, served by the Wallet as
   `/sdk/speak-to-sign-host.js`.
 - `core/transactionFeatures/spokenTransfer.ts` in `@seams/wallet` ports the account transfer
-  rules of the `spoken-intent` crate. `tests/unit/speakToSignHost.unit.test.ts` checks it
-  against the crate's vectors and the verifier's signed verdicts.
+  rules of the `spoken-intent` crate. The Borsh bytes and digests of the requests, the verdict
+  v2 format and the pinned verifier key are in `shared-ts/src/speakToSign/`, which the Wallet
+  and the co-signer share. `tests/unit/speakToSignHost.unit.test.ts` checks them against the
+  crate's vectors and the verifier's signed verdicts.
 - [`react.ts`](react.ts) will hold the pay button and the live text component.
 
 Speak-to-Sign is a transaction feature, not an auth method. It never unlocks a wallet or

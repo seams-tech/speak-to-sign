@@ -91,12 +91,16 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
 
 1. **Sign in to Seams Wallet.** The Wallet's own menu opens: unlock with a
    passkey, or create a wallet. The account is a NEAR testnet account.
-2. **Turn on VoiceID.** The Wallet records a few short phrases.
-3. **Enroll your voice.** You read three phrases. Then you confirm one signed
-   message (NEP-413) that names exactly these recordings. The verifier stores
-   your voice template. The page remembers this step in your browser only,
+2. **Set up your voice.** One button does two Wallet steps:
+   - If VoiceID is off, the Wallet turns it on. It may ask for your passkey
+     first, then you read a few phrases. This template stays on your device.
+   - Then the Wallet enrolls your voice with the verifier. You read three
+     phrases and confirm one signed message (NEP-413) that names exactly these
+     recordings. The verifier stores this template in its TEE.
+   So the first setup records twice. One recording for both needs a change in
+   the Seams Wallet SDK. The page remembers the enrollment in your browser only,
    because the verifier has no status call.
-4. **Testnet NEAR for gas.** Each note or rating pays a little gas from your
+3. **Testnet NEAR for gas.** Each note or rating pays a little gas from your
    account. The panel shows the free balance and links to the faucet.
 
 A note shows on the post ("Readers added context …") when it has 2 or more

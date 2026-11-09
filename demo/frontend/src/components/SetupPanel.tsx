@@ -6,7 +6,7 @@ import { useDemo } from '../demoContext';
 import { formatNear, NOTE_GAS_NEED_YOCTO, readFreeBalance } from '../notes/nearAccount';
 import type { SetupOutcome } from '../signer/notesSigner';
 
-/** The Wallet steps: sign in, turn on VoiceID, enroll, testnet NEAR. Compact form for narrow screens. */
+/** The Wallet steps: sign in, set up your voice, testnet NEAR. Compact form for narrow screens. */
 export function SetupPanel({ compact }: { compact: boolean }) {
   const { status, account } = useDemo();
   const ready = !!status?.signedIn && status.voiceReady;
@@ -57,7 +57,7 @@ function readEnrolled(account: string | undefined): boolean {
 
 function SetupBody() {
   const { status, account, signer, reload, openSignIn, walletConfigured } = useDemo();
-  const [busy, setBusy] = useState<'voice' | 'enroll' | null>(null);
+  const [busy, setBusy] = useState<VoicePhase | null>(null);
   const [outcome, setOutcome] = useState<SetupOutcome | null>(null);
   const [enrolled, setEnrolled] = useState(() => readEnrolled(account));
   const [balance, setBalance] = useState<Balance>({ kind: 'loading' });
@@ -76,22 +76,38 @@ function SetupBody() {
   }, [account]);
   useEffect(loadBalance, [loadBalance]);
 
-  const run = async (step: 'voice' | 'enroll') => {
-    setBusy(step);
+  // One step for the user: turn on VoiceID when it is off, then enroll with the verifier.
+  // enableVoice answers "done" at once when VoiceID is already on.
+  const setUpVoice = async () => {
     setOutcome(null);
-    const result = step === 'voice' ? await signer.enableVoice() : await signer.enroll();
-    setOutcome(result);
-    if (step === 'enroll' && result.kind === 'done' && account) {
-      setEnrolled(true);
-      try {
-        localStorage.setItem(enrolledKey(account), '1');
-      } catch {
-        // The step shows as done for this visit only.
+    setBusy('voice');
+    const voice = await signer.enableVoice();
+    if (voice.kind !== 'done') {
+      setOutcome(voice);
+      setBusy(null);
+      reload();
+      return;
+    }
+    setBusy('enroll');
+    const enrollment = await signer.enroll();
+    if (enrollment.kind === 'done') {
+      setOutcome({ kind: 'done', message: `Your voice is set up. ${enrollment.message}` });
+      if (account) {
+        setEnrolled(true);
+        try {
+          localStorage.setItem(enrolledKey(account), '1');
+        } catch {
+          // The step shows as done for this visit only.
+        }
       }
+    } else {
+      setOutcome(enrollment);
     }
     setBusy(null);
     reload();
   };
+
+  const voiceSetUp = voiceReady && enrolled;
 
   const gasReady = balance.kind === 'ready' && balance.free !== null && balance.free >= NOTE_GAS_NEED_YOCTO;
 
@@ -111,24 +127,17 @@ function SetupBody() {
             </button>
           )}
         </Step>
-        <Step index={2} done={voiceReady} label="Turn on VoiceID">
-          {!voiceReady && (
-            <button type="button" className="btn btn-dark btn-xs" disabled={!signedIn || busy !== null} onClick={() => run('voice')}>
-              {busy === 'voice' ? 'Wait…' : 'Turn on'}
-            </button>
-          )}
-        </Step>
-        <Step index={3} done={enrolled} label="Enroll your voice">
+        <Step index={2} done={voiceSetUp} label="Set up your voice">
           <button
             type="button"
-            className={`btn btn-xs ${enrolled ? 'btn-outline' : 'btn-dark'}`}
-            disabled={!voiceReady || busy !== null}
-            onClick={() => run('enroll')}
+            className={`btn btn-xs ${voiceSetUp ? 'btn-outline' : 'btn-dark'}`}
+            disabled={!signedIn || busy !== null}
+            onClick={setUpVoice}
           >
-            {busy === 'enroll' ? 'Wait…' : enrolled ? 'Again' : 'Enroll'}
+            {busy ? 'Wait…' : voiceSetUp ? 'Again' : 'Set up'}
           </button>
         </Step>
-        <Step index={4} done={gasReady} label="Testnet NEAR for gas">
+        <Step index={3} done={gasReady} label="Testnet NEAR for gas">
           {signedIn && (
             <span className="small muted step-detail">
               {balance.kind === 'loading'
@@ -160,11 +169,12 @@ function SetupBody() {
           </button>
         </p>
       )}
-      {signedIn && !voiceReady && (
-        <p className="side-note">Turn on may ask for your passkey first. Then the Wallet asks you to read a few short phrases.</p>
-      )}
-      {!enrolled && voiceReady && (
-        <p className="side-note">Enroll once. You read three short phrases, then confirm one signed message.</p>
+      {signedIn && !voiceSetUp && (
+        <p className="side-note">
+          {voiceReady
+            ? 'Set up once. You read three short phrases, then confirm one signed message.'
+            : 'Set up once. The Wallet may ask for your passkey. Then you read short phrases twice (first for VoiceID on this device, then for the verifier) and confirm one signed message.'}
+        </p>
       )}
       {outcome && (
         <p className={`side-note ${outcome.kind === 'failed' ? 'side-error' : ''}`} role={outcome.kind === 'failed' ? 'alert' : 'status'}>
@@ -196,21 +206,24 @@ function Step({ index, done, label, children }: { index: number; done: boolean; 
   );
 }
 
+/** The two parts of "Set up your voice". */
+type VoicePhase = 'voice' | 'enroll';
+
 /**
- * A page-level card while a Wallet setup step runs. It sits under the Wallet's own windows,
- * so it shows only in the gaps between them: in SDK 0.58.1 the Wallet closes the VoiceID card
- * for a few seconds before the signed-message confirm of an enrollment opens.
+ * A page-level card while the voice setup runs. It sits under the Wallet's own windows, so it
+ * shows only in the gaps between them: the Wallet closes the VoiceID card for a few seconds
+ * before the signed-message confirm of an enrollment opens (fixed in the next plugin release).
  */
-function WalletWait({ step }: { step: 'voice' | 'enroll' }) {
+function WalletWait({ step }: { step: VoicePhase }) {
   return createPortal(
     <div className="wallet-wait" role="status" aria-live="polite">
       <div className="wallet-wait-card">
         <span className="spinner spinner-lg" aria-hidden="true" />
-        <b>{step === 'enroll' ? 'Enrolling your voice' : 'Turning on VoiceID'}</b>
+        <b>Setting up your voice</b>
         <span className="muted small">
           {step === 'enroll'
-            ? 'Follow the Seams Wallet window. After the three phrases, the Wallet prepares one signed message to confirm.'
-            : 'Follow the Seams Wallet window.'}
+            ? 'Enrolling your voice with the verifier. After the three phrases, the Wallet prepares one signed message to confirm.'
+            : 'Checking VoiceID. If it is off, the Wallet turns it on first. Follow the Seams Wallet window.'}
         </span>
       </div>
     </div>,

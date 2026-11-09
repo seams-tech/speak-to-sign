@@ -1,0 +1,4 @@
+# The plugin needs no dependency build script. @seams/wallet brings protobufjs, whose
+# postinstall is not needed here; seams-wallet declines it the same way.
+allowBuilds:
+  protobufjs: false

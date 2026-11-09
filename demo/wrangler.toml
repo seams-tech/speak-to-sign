@@ -1,0 +1,5 @@
+# Cloudflare Pages project for the Community Notes demo.
+# The Pages Function in functions/api/summary.ts needs the secret NEAR_AI_API_KEY.
+name = "speak-to-sign-notes"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-11-01"

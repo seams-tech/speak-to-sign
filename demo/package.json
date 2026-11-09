@@ -1,0 +1,35 @@
+{
+  "name": "speak-to-sign-notes-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Community notes demo: post and rate a note by voice through Seams Speak-to-Sign.",
+  "scripts": {
+    "dev": "vite",
+    "dev:api": "wrangler pages dev public --port 8788",
+    "build": "vite build",
+    "preview": "wrangler pages dev dist --port 8788",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p functions/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tabler/icons-react": "^3.51.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261109.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "wrangler": "^4.158.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  }
+}

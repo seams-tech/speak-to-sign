@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `wrangler pages dev`. Never commit .dev.vars.
+NEAR_AI_API_KEY=
+# Optional. The default is Qwen/Qwen3.8-27B.
+NEAR_AI_MODEL=

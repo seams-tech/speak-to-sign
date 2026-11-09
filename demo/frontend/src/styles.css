@@ -435,25 +435,48 @@ a.lk:hover {
 .avatar-square {
   border-radius: 6px;
 }
-.logo-metro {
-  position: relative;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-weight: 900;
-  line-height: 1;
-}
-.logo-metro-bar {
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: -4px;
-  height: 3px;
-  border-radius: 2px;
-  background: #e11d48;
+.badge {
+  vertical-align: -3px;
+  flex: none;
 }
 .badge-gold {
   color: var(--gold);
-  vertical-align: -3px;
+}
+.badge-gray {
+  color: #829aab;
+}
+.badge-blue {
+  color: var(--accent);
+}
+.history {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.history svg {
   flex: none;
+  margin-top: 1px;
+}
+.history-full {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--panel);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
+}
+.history-full svg {
+  color: var(--muted);
+}
+.history .lk {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 .media {
   position: relative;
@@ -469,7 +492,7 @@ a.lk:hover {
   width: 100%;
   height: 100%;
 }
-.media-domain {
+.media-caption {
   position: absolute;
   left: 12px;
   bottom: 12px;

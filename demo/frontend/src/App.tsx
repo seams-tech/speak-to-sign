@@ -202,7 +202,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
               <a className="lk" href={config.payPath}>
                 Speak to pay
               </a>
-              , a NEAR payment by voice. Demo for the NEAR Hackathon. The posts are fictional. NEAR testnet only.
+              , a NEAR payment by voice. Demo for the NEAR Hackathon. The two posts are real cases that got a Community Note on Twitter, now X. NEAR testnet only.
             </p>
           </StickySide>
         )}

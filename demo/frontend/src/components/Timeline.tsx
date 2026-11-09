@@ -2,7 +2,7 @@ import { IconDots } from '@tabler/icons-react';
 import { POSTS, type Post } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { navigate, paths, type HomeTab } from '../router';
-import { ActionRow, AuthorBadge, Avatar, domainOf, Media, PostText } from './bits';
+import { ActionRow, AuthorBadge, Avatar, Media, PostHistoryLine, PostText } from './bits';
 import { notesToRate, TimelineNotes } from './NotesBox';
 import { LoadState } from './LoadState';
 
@@ -60,7 +60,8 @@ function TimelinePost({ post, showToRate }: { post: Post; showToRate: boolean })
         <div className="tl-text">
           <PostText post={post} />
         </div>
-        {post.media && <Media kind={post.media} domain={post.link ? domainOf(post.link) : undefined} />}
+        <PostHistoryLine post={post} full={false} />
+        {post.media && <Media kind={post.media} caption={post.mediaCaption} />}
         <TimelineNotes notes={notesByPost[post.id] ?? []} showToRate={showToRate} />
         <ActionRow post={post} showViews />
       </div>

@@ -1,16 +1,17 @@
 import type { ReactNode } from 'react';
 import {
   IconBookmark,
+  IconBuildingBank,
   IconChartBar,
   IconExternalLink,
   IconHeart,
+  IconHistory,
   IconMessageCircle,
   IconMicrophone,
-  IconPawFilled,
   IconRepeat,
   IconRosetteDiscountCheckFilled,
-  IconSunFilled,
   IconUpload,
+  IconUserQuestion,
 } from '@tabler/icons-react';
 import { shortAccount, shortHash, transactionUrl } from '../config';
 import type { Post, PostAuthor } from '../data/posts';
@@ -31,18 +32,40 @@ export function Avatar({ author, size = 40 }: { author: PostAuthor; size?: numbe
 }
 
 function Logo({ logo, size }: { logo: NonNullable<PostAuthor['logo']>; size: number }) {
-  if (logo === 'weather') return <IconSunFilled size={Math.round(size * 0.6)} />;
-  if (logo === 'zoo') return <IconPawFilled size={Math.round(size * 0.58)} />;
-  return (
-    <span className="logo-metro" style={{ fontSize: Math.round(size * 0.62) }}>
-      M<span className="logo-metro-bar" />
-    </span>
-  );
+  if (logo === 'government') return <IconBuildingBank size={Math.round(size * 0.55)} stroke={1.8} />;
+  return <IconUserQuestion size={Math.round(size * 0.55)} stroke={1.8} />;
 }
 
+const BADGE_LABELS = {
+  gold: 'Verified organization',
+  gray: 'Government account',
+  blue: 'Paid verification',
+} as const;
+
 export function AuthorBadge({ author }: { author: PostAuthor }) {
-  if (author.kind !== 'organization') return null;
-  return <IconRosetteDiscountCheckFilled className="badge-gold" size={18} aria-label="Verified organization" />;
+  if (!author.badge) return null;
+  return <IconRosetteDiscountCheckFilled className={`badge badge-${author.badge}`} size={18} aria-label={BADGE_LABELS[author.badge]} />;
+}
+
+/** Where the post comes from and what happened to it. Short on the timeline, full on the post page. */
+export function PostHistoryLine({ post, full }: { post: Post; full: boolean }) {
+  return (
+    <p className={`history ${full ? 'history-full' : ''}`}>
+      <IconHistory size={full ? 18 : 15} stroke={1.8} aria-hidden="true" />
+      <span>
+        {full ? post.history.detail : post.history.short}
+        {full && (
+          <>
+            {' '}
+            <a className="lk" href={post.history.source.url} target="_blank" rel="noopener noreferrer" title={post.history.source.title}>
+              Source
+              <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
+            </a>
+          </>
+        )}
+      </span>
+    </p>
+  );
 }
 
 const LINK = /((?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s]*)?)/gi;
@@ -86,12 +109,12 @@ export function PostText({ post }: { post: Post }) {
 export function ActionRow({ post, showViews }: { post: Post; showViews: boolean }) {
   return (
     <div className={`actions ${showViews ? '' : 'actions-wide'}`} aria-hidden="true">
-      <Action tone="blue" icon={<IconMessageCircle size={19} stroke={1.6} />} count={post.stats.replies} />
-      <Action tone="green" icon={<IconRepeat size={19} stroke={1.6} />} count={post.stats.reposts} />
-      <Action tone="pink" icon={<IconHeart size={19} stroke={1.6} />} count={post.stats.likes} />
+      <Action tone="blue" icon={<IconMessageCircle size={19} stroke={1.6} />} count={post.stats?.replies} />
+      <Action tone="green" icon={<IconRepeat size={19} stroke={1.6} />} count={post.stats?.reposts} />
+      <Action tone="pink" icon={<IconHeart size={19} stroke={1.6} />} count={post.stats?.likes} />
       {showViews ? (
         <>
-          <Action tone="blue" icon={<IconChartBar size={19} stroke={1.6} />} count={post.stats.views} />
+          <Action tone="blue" icon={<IconChartBar size={19} stroke={1.6} />} count={post.stats?.views} />
           <span className="act-end">
             <Action tone="blue" icon={<IconBookmark size={19} stroke={1.6} />} />
             <Action tone="blue" icon={<IconUpload size={19} stroke={1.6} />} />
@@ -99,7 +122,7 @@ export function ActionRow({ post, showViews }: { post: Post; showViews: boolean 
         </>
       ) : (
         <>
-          <Action tone="blue" icon={<IconBookmark size={19} stroke={1.6} />} count={post.stats.bookmarks} />
+          <Action tone="blue" icon={<IconBookmark size={19} stroke={1.6} />} count={post.stats?.bookmarks} />
           <Action tone="blue" icon={<IconUpload size={19} stroke={1.6} />} />
         </>
       )}
@@ -114,11 +137,6 @@ function Action({ tone, icon, count }: { tone: 'blue' | 'green' | 'pink'; icon: 
       {count && <span className="act-count">{count}</span>}
     </span>
   );
-}
-
-/** The domain of a link such as "metro.news/hb-close". */
-export function domainOf(link: string): string {
-  return link.replace(/^https?:\/\//i, '').split('/')[0] ?? link;
 }
 
 /** "Voice-signed by alice.testnet" with the transaction link when this session knows it. */

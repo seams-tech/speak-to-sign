@@ -5,8 +5,10 @@
 //! string, so nobody serializes them again. The signed message is
 //! `SHA-256(VERDICT_DOMAIN || verdict JSON bytes)` (32 bytes), and the
 //! manifest signing key signs it with ed25519.
+use std::collections::BTreeMap;
+use std::time::Instant;
+
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 use crate::config::{MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
 use crate::digest::sha256;
@@ -144,6 +146,32 @@ pub fn verdict_message(verdict_json: &[u8]) -> [u8; 32] {
     sha256(&preimage)
 }
 
+/// Stage times inside the worker, in ms, by stage name (not signed). A
+/// `BTreeMap`, so the JSON names the stages in alphabetical order.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct Stages(BTreeMap<&'static str, u64>);
+
+impl Stages {
+    /// Records the time since `started` as the stage `name`.
+    pub fn since(&mut self, name: &'static str, started: Instant) {
+        self.record(name, started.elapsed().as_millis() as u64);
+    }
+
+    /// Runs `step` and records its time as the stage `name`.
+    pub fn time<T>(&mut self, name: &'static str, step: impl FnOnce() -> T) -> T {
+        let started = Instant::now();
+        let value = step();
+        self.since(name, started);
+        value
+    }
+
+    /// Records a time that another party measured.
+    pub fn record(&mut self, name: &'static str, ms: u64) {
+        self.0.insert(name, ms);
+    }
+}
+
 /// The `verify` output. `verdict_json` is a string, so its bytes reach the
 /// Wallet as they were signed.
 #[derive(Clone, Debug, Serialize)]
@@ -157,8 +185,7 @@ pub struct VerifyOutput {
     /// The sentence of the policy rule on `step_up`, for the Wallet to show
     /// (not signed; the verdict names the rule id).
     pub policy_text: Option<&'static str>,
-    /// Stage times inside the worker, in ms (not signed).
-    pub ms: Map<String, Value>,
+    pub ms: Stages,
     /// A short error text for a refusal or a failed signature (not signed).
     pub detail: Option<String>,
 }
@@ -185,7 +212,7 @@ pub struct Enrollment {
     pub template_epoch: Option<u32>,
     /// `ed25519:<base58>` of the verdict signing key, which the Wallet pins.
     pub verifier_public_key: Option<String>,
-    pub ms: Map<String, Value>,
+    pub ms: Stages,
     pub detail: Option<String>,
 }
 
@@ -202,7 +229,7 @@ impl Enrollment {
             enrollment_digest: None,
             template_epoch: None,
             verifier_public_key: None,
-            ms: Map::new(),
+            ms: Stages::default(),
             detail: None,
         }
     }
@@ -242,7 +269,7 @@ pub fn json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     #[test]
     fn verdict_has_thirteen_fields_in_order() {
@@ -262,8 +289,18 @@ mod tests {
         assert_eq!(
             Value::Array(names),
             json!([
-                "quality", "speaker", "words", "audio_reused", "audio_invalid", "template_missing", "unsupported",
-                "speaker_unavailable", "storage", "template_exists", "transcriber_unavailable", "not_authorized",
+                "quality",
+                "speaker",
+                "words",
+                "audio_reused",
+                "audio_invalid",
+                "template_missing",
+                "unsupported",
+                "speaker_unavailable",
+                "storage",
+                "template_exists",
+                "transcriber_unavailable",
+                "not_authorized",
                 "authorization_unavailable"
             ])
         );

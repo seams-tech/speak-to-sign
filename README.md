@@ -114,7 +114,9 @@ the 24 request vectors are the same
 (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (52 tests):
+Expected (52 tests). The 16-digit hex suffix of each verifier test binary
+depends on the folder of your clone, so yours can differ; the test names and
+counts do not.
 
 ```text
      Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-61b138f53f973e2c)

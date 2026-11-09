@@ -239,22 +239,25 @@ response body. `resolver/manifest/outlayer.json` allows the hosts
 
 ## Market strip in the notes example
 
-`demo/frontend/src/market/` puts one strip inside each note card on the post
-page (design: `pm-ui-mock.html` in the shared notes):
+The strip is `<NoteMarketStrip>` in `demo/frontend/src/market/` (its README
+has the details). It codes against `MarketSource`. `contractSource.ts` fills
+that interface from this contract: views over NEAR RPC, and changes signed by
+the Seams Wallet with its normal confirm step. `NoteCard` mounts the strip on
+the post page:
 
 - No market: "Will this note hold up?" and **Open a market** (a seed of 0.1,
-  0.5 or 1 NEAR, and a close time of 10 minutes to 3 days).
-- Open: the pool bar, the odds, the pool size, the bet count, and **Bet yes**
-  / **Bet no**. The bet sheet has the chips 0.1, 0.5 and 1 NEAR and "you get
-  about X NEAR if JEV says 100% and the pools stay as they are". The creator
-  can close the betting early.
-- Closed: **Ask JEV** (0.05 NEAR, 300 Tgas). A failed AI call shows its reason.
+  0.5 or 1 NEAR, and a close time of 10 minutes to 3 days). The context that
+  JEV reads is the post text and the note text, frozen at the open.
+- Open: the pool bar, the odds, the odds line from `get_odds_history`, the
+  pool size, the bet count, and **Bet yes** / **Bet no** (chips 0.1, 0.5 and
+  1 NEAR). The creator sees **Close betting now**.
+- Closed: **Ask JEV now** (0.05 NEAR, 300 Tgas). A `resolution_failed` event
+  shows its reason.
 - Resolved: "JEV: 72% this note holds up", the split of the pool, the
   account's payout with **Claim**, and "Why JEV decided this".
 
-The Seams Wallet signs each call with its normal confirm step. Spoken bets need
-a new spoken request kind in the Wallet. The context that JEV reads is the post
-text and the note text, frozen when the market opens.
+Spoken bets need a new spoken request kind in the Wallet, so the source has
+`signsByVoice: false`.
 
 Settings: `VITE_MARKET_CONTRACT` (default `pm-notes.seams-v1.testnet`) and
 `VITE_MARKET_RPC_URL` (default: the notes RPC). Until the contract is on

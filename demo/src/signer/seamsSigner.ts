@@ -1,37 +1,15 @@
-// The real signer: Seams Wallet Speak-to-Sign.
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.59.0).
 //
-// requestNote and requestRating come with Seams Wallet SDK 0.59.0. This page calls them through
-// a structural check, so it builds with SDK 0.58.1 too and then answers `unavailable` until the
-// SDK and the Wallet host at `walletOrigin` have spoken notes.
+// requestNote and requestRating run one spoken request in the Wallet iframe: the owner says the
+// summary or the rating sentence, the verifier checks the voice and the words, and the Wallet
+// signs `add_note` or `rate_note` on the notes contract from the owner's own account.
 
+import { summaryRefusal, type SpeakToSignEnrollmentResult, type SpeakToSignNoteResult } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
-import type { NotesSigner, Rating, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
+import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-
-/** The result shape of every spoken request in the SDK (`SpokenResult`). */
-type SdkSpokenResult =
-  | {
-      kind: 'sent';
-      transactionHash: string;
-      approval?: 'voice' | 'voice_and_passkey';
-      times?: { endOfSpeechToReceiptMs?: number };
-    }
-  | { kind: 'refused'; reason: string; detail?: string }
-  | { kind: 'cancelled' }
-  | { kind: 'unavailable'; reason: string; detail?: string };
-
-/** `seams.speakToSign` of SDK 0.59.0: the note methods. */
-type NoteCommands = {
-  requestNote(request: { walletId: string; contract: string; postId: number; text: string; summary: string }): Promise<SdkSpokenResult>;
-  requestRating(request: { walletId: string; contract: string; noteId: number; rating: Rating }): Promise<SdkSpokenResult>;
-};
-
-type SdkEnrollmentResult =
-  | { kind: 'enrolled'; templateEpoch: number; agreementMilli: number }
-  | { kind: 'refused'; reason: string; detail?: string }
-  | { kind: 'cancelled' }
-  | { kind: 'unavailable'; reason: string; detail?: string };
+type SpeakToSign = NonNullable<Seams['speakToSign']>;
 
 export interface SeamsOwner {
   seams: Seams;
@@ -53,25 +31,15 @@ export function createMissingKeySigner(): NotesSigner & SignerSetup {
   };
 }
 
-const NO_NOTES_IN_SDK =
-  'This page runs Seams Wallet SDK 0.58.1, which has no spoken notes. Spoken notes need SDK 0.59.0.';
-
 export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup {
   const { seams, walletId, nearAccountId, contract } = owner;
 
-  const noteCommands = (): NoteCommands | null => {
-    const candidate = seams.speakToSign as unknown as Partial<NoteCommands> | undefined;
-    return candidate && typeof candidate.requestNote === 'function' && typeof candidate.requestRating === 'function'
-      ? (candidate as NoteCommands)
-      : null;
-  };
-
-  const run = async (call: (commands: NoteCommands, walletId: string) => Promise<SdkSpokenResult>): Promise<SignResult> => {
+  const run = async (call: (speakToSign: SpeakToSign, walletId: string) => Promise<SpeakToSignNoteResult>): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
-    const commands = noteCommands();
-    if (!commands) return { kind: 'unavailable', reason: NO_NOTES_IN_SDK };
+    const speakToSign = seams.speakToSign;
+    if (!speakToSign) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     try {
-      return toSignResult(await call(commands, walletId));
+      return toSignResult(await call(speakToSign, walletId));
     } catch (cause) {
       return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
     }
@@ -84,11 +52,14 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
       return { signedIn: true, accountId: nearAccountId ?? undefined, voiceReady: availability.kind === 'enabled' };
     },
 
-    requestNote: ({ postId, text, summary }) =>
-      run((commands, id) => commands.requestNote({ walletId: id, contract, postId, text, summary })),
+    requestNote: async ({ postId, text, summary }) => {
+      // The Wallet refuses a summary that breaks the SDK's rule, so check it first.
+      if (summaryRefusal(summary) !== null) return { kind: 'refused', reason: REFUSALS.summary_not_speakable ?? 'The summary is not speakable.' };
+      return await run((speakToSign, id) => speakToSign.requestNote({ walletId: id, contract, postId, text, summary }));
+    },
 
     requestRating: ({ noteId, rating }) =>
-      run((commands, id) => commands.requestRating({ walletId: id, contract, noteId, rating })),
+      run((speakToSign, id) => speakToSign.requestRating({ walletId: id, contract, noteId, rating })),
 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
@@ -144,8 +115,8 @@ async function withFreshUnlock(seams: Seams, walletId: string, step: () => Promi
 const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active owner wallet session/i;
 
 /** One verifier enrollment. A thrown error goes to withFreshUnlock. */
-async function enrollOnce(speakToSign: NonNullable<Seams['speakToSign']>, walletId: string): Promise<SetupOutcome> {
-  const result = (await speakToSign.enroll({ walletId })) as SdkEnrollmentResult;
+async function enrollOnce(speakToSign: SpeakToSign, walletId: string): Promise<SetupOutcome> {
+  const result: SpeakToSignEnrollmentResult = await speakToSign.enroll({ walletId });
   switch (result.kind) {
     case 'enrolled':
       return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };
@@ -158,7 +129,7 @@ async function enrollOnce(speakToSign: NonNullable<Seams['speakToSign']>, wallet
   }
 }
 
-function toSignResult(result: SdkSpokenResult): SignResult {
+function toSignResult(result: SpeakToSignNoteResult): SignResult {
   switch (result.kind) {
     case 'sent':
       return {

@@ -14,9 +14,9 @@
     "dev:https": "caddy run --config Caddyfile --adapter caddyfile"
   },
   "dependencies": {
-    "@seams/speak-to-sign": "0.58.1",
-    "@seams/voiceid": "0.58.1",
-    "@seams/wallet": "0.58.1",
+    "@seams/speak-to-sign": "0.59.0",
+    "@seams/voiceid": "0.59.0",
+    "@seams/wallet": "0.59.0",
     "@tabler/icons-react": "^3.51.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

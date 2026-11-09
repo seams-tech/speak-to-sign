@@ -1,5 +1,6 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { IconArrowLeft, IconCheck, IconCircle, IconSparkles, IconX } from '@tabler/icons-react';
+import { summaryRefusal } from '@seams/wallet';
 import { suggestSummary } from '../api/summary';
 import type { Post } from '../data/posts';
 import { useDemo } from '../demoContext';
@@ -60,6 +61,8 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
   const noteOk = text.trim() !== '' && noteChars <= MAX_NOTE_CHARS;
   const canGoNext = classification !== null && reasons.length > 0 && noteOk && sources !== null;
   const check = useMemo(() => checkSummary(summary), [summary]);
+  // The page's rule list ports the SDK; the SDK's own check is the final gate.
+  const speakable = check.ok && summaryRefusal(check.spoken) === null;
   const locked = phase.state === 'pending';
   const signing = phase.state !== 'idle';
 
@@ -240,7 +243,7 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
               sentence={check.spoken}
               buttonLabel="Read it aloud to post"
               hint="Your voice signs the note. No confirm tap."
-              disabled={!check.ok}
+              disabled={!speakable}
               disabledHint={summary.trim() === '' ? 'Write or suggest a summary first.' : 'Fix the summary to continue.'}
               needsSignIn={!status?.signedIn}
               onSignIn={openSignIn}

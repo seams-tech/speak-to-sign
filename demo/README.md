@@ -27,26 +27,15 @@ so one wallet works on both.
 
 | Part                     | Where                                                        | Status on 9 Nov 2026                                   |
 | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
-| Notes contract           | `notes.seams-v1.testnet` (`../community-notes/`)             | Deployed. `get_notes` answers.                         |
-| Seams Wallet host        | `https://staging.sign.seams.sh`                              | Speak-to-Sign host API 4: transfers and enroll only.   |
-| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Notes need verifier 0.4.0 in its settings. |
-| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.58.1. Notes need 0.59.0.              |
-| Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin. Local passkeys need `https://localhost:5443` and `https://localhost:8443` added. |
+| Notes contract           | `notes.seams-v1.testnet` (`../community-notes/`)             | Deployed.                                              |
+| Seams Wallet host        | `https://staging.sign.seams.sh`                              | 0.59.0: Speak-to-Sign host API 6 with spoken notes.    |
+| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.4.0 (`8a0b7ba0…29ef`): community notes and ratings. |
+| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.59.0.                                 |
+| Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin, `https://localhost:5443` and `https://localhost:8443`. |
 
-Spoken notes work when all four are ready:
-
-1. Publish SDK 0.59.0. Then in `demo/`:
-   `pnpm add @seams/wallet@0.59.0 @seams/voiceid@0.59.0 @seams/speak-to-sign@0.59.0`.
-   The page code needs no change: `src/signer/seamsSigner.ts` finds
-   `requestNote` and `requestRating` at run time.
-2. Deploy the 0.59.0 Wallet host to `staging.sign.seams.sh`, with the
-   Speak-to-Sign host plugin of host API 6 (`seams-speak-to-sign-host`).
-3. Set the staging gateway's `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` to verifier
-   0.4.0: `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`
-   (see `../README.md`). Transfers stay the same in 0.4.0.
-
-Until then, sign-in, VoiceID and enroll use the current staging Wallet (0.58.1). "Read it aloud to post" and
-"Say it aloud to rate" answer "Speak-to-Sign is not available" with the reason.
+SDK 0.60.0 sets the passkey RP ID and the Router A/B signing worker itself. When
+the page moves to 0.60.0, delete `rpIdOverride` and `routerAb` in
+`src/seams/seamsConfig.ts`.
 
 ## Run it locally
 
@@ -166,7 +155,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
   `example.localhost`, and then "Create wallet with passkey" fails) and turns on
   Router A/B normal signing, which managed registration needs.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
-- `src/signer/seamsSigner.ts` fills it:
+- `src/signer/seamsSigner.ts` fills it with the typed SDK 0.59.0 calls:
   - `requestNote` → `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`
   - `requestRating` → `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.activateAuthMethod` (or `setAuthMethodEnabled`)

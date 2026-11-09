@@ -37,25 +37,26 @@ export function SignInModal({
     }
   };
 
+  // The Wallet's menu is its own card, so the dialog has no panel: the intro goes into the
+  // card's subtitle, the title is for screen readers only, and Close sits on the card's corner.
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={false}>
-      <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
-          <IconX size={20} />
-        </button>
-        <h2 id={titleId}>Sign in to Seams Wallet</h2>
-      </header>
-      <div className="dialog-body">
-        <p className="muted small field-help">{intro}</p>
-        <div className="auth-menu">
-          <HostedSeamsAuthMenu onOutcome={onOutcome} placeholder={<div className="loading">Loading Seams Wallet</div>} />
-        </div>
-        {error && (
-          <p className="field-error" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
+    <Modal labelledBy={titleId} onClose={onClose} locked={false} bare>
+      <h2 id={titleId} className="sr-only">
+        Sign in to Seams Wallet
+      </h2>
+      <button type="button" className="icon-btn card-close" onClick={onClose} aria-label="Close">
+        <IconX size={20} />
+      </button>
+      <HostedSeamsAuthMenu
+        onOutcome={onOutcome}
+        copy={{ login: { subtitle: intro }, register: { subtitle: intro } }}
+        placeholder={<div className="loading">Loading Seams Wallet</div>}
+      />
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
     </Modal>
   );
 }

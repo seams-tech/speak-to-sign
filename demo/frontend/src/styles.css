@@ -1390,6 +1390,42 @@ a.lk:hover {
   display: flex;
   justify-content: flex-end;
 }
+/* A dialog whose content is its own card, such as the Seams Wallet menu. It has no panel,
+   sits in the middle of the screen, and keeps the same look on a phone. The Wallet's iframe
+   (z-index 60, below) paints between the grey backdrop and the dialog, so the dialog lets
+   clicks through to the card except on its own controls. */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--overlay);
+}
+.overlay.overlay-bare {
+  z-index: 61;
+  background: transparent;
+  pointer-events: none;
+}
+.dialog.dialog-bare {
+  position: relative;
+  max-width: 420px;
+  min-height: 0;
+  max-height: none;
+  margin-block: auto;
+  background: transparent;
+  border-radius: 0;
+}
+.dialog-bare .card-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  margin-left: 0;
+  pointer-events: auto;
+}
+.dialog-bare .field-error {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff;
+}
 .post-quote,
 .note-preview {
   border: 1px solid var(--line-strong);
@@ -1888,7 +1924,7 @@ fieldset:disabled .choice {
 }
 /* The dialogs open on document.body, so they follow the screen. */
 @media (max-width: 500px) {
-  .overlay {
+  .overlay:not(.overlay-bare) {
     padding: 0;
   }
   .dialog {
@@ -1916,11 +1952,6 @@ fieldset:disabled .choice {
    The SDK's hook --seams-wallet-inline-dialog-z puts it above our modal overlay (z-index 50). */
 :root {
   --seams-wallet-inline-dialog-z: 60;
-}
-.auth-menu {
-  display: flex;
-  justify-content: center;
-  margin: 8px 0 4px;
 }
 .link-btn {
   border: 0;

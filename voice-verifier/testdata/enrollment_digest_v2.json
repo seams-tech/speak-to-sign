@@ -1,0 +1,11 @@
+{
+  "audio_digests": [
+    "EyBcQVwCp0gy7DA7CrTOsx2pHLeBMbX6uNwpHavHVic",
+    "cRcSikiVJcEIdZcUzwzOXRgR4-pCqetTQhTxzGSdpfI",
+    "g10UCgeY7Y2peUOjZT2UoZhYOdoq2LRz240MK8sjyZQ"
+  ],
+  "comment": "enrollment_digest = base64url-no-pad SHA-256(domain || owner || 0x00 || the three raw 32-byte audio digests, in order). Each audio digest here is SHA-256 of \"seams enrollment clip N\".",
+  "domain": "seams:voice-enrollment:v2",
+  "enrollment_digest": "IyW72Dqz05KV9arXO7CqCdmAzz4isRopE3BDZslJwFY",
+  "owner": "owner.testnet"
+}

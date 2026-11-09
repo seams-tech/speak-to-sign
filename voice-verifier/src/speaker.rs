@@ -182,7 +182,7 @@ const TEMPLATE_MAGIC: &[u8; 4] = b"SVT1";
 /// A stored template: `SVT1 || epoch (u32 LE) || model SHA-256 || 192 f32 LE`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateRecord {
-    /// The template epoch that the vault records.
+    /// The template epoch: 1, then 1 more on each re-enrollment.
     pub epoch: u32,
     /// SHA-256 of the speaker model that made the template.
     pub model_sha256: [u8; 32],

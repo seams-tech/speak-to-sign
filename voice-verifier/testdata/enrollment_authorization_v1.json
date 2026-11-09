@@ -1,0 +1,13 @@
+{
+  "comment": "A NEP-413 authorization of the enrollment in enrollment_digest_v2.json. hash = SHA-256(u32 LE tag || borsh(message, nonce, recipient, callback_url = None)); signature = ed25519(hash) by the test key. The test seed is for tests only.",
+  "enrollment_digest": "IyW72Dqz05KV9arXO7CqCdmAzz4isRopE3BDZslJwFY",
+  "message": "Speak-to-Sign voice enrollment IyW72Dqz05KV9arXO7CqCdmAzz4isRopE3BDZslJwFY",
+  "nep413_hash_hex": "a0eb90dd5db0eed59469b7777f772363c729780b3f184402f7c1277cc7763d2d",
+  "nep413_tag": 2147484061,
+  "nonce_b64": "KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKys=",
+  "owner": "owner.testnet",
+  "public_key": "ed25519:9C6hybhQ6Aycep9jaUnP6uL9ZYvDjUp1aSkFWPUFJtpj",
+  "recipient": "seams-v1.testnet/voice-verifier",
+  "signature_b64": "En0KfB6HYRZT/TDie6POI4AUECLQfqud3vfZQZg1xGLGFxLsis6SdJGynVlytmrunBgodrkpePoD6KuCXnfjBQ==",
+  "test_seed_hex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+}

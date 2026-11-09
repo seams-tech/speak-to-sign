@@ -1,0 +1,53 @@
+{
+  "comment": "Shared signed verdicts. voice-verifier/tests/signed_vector.rs writes and checks them; the Wallet's tests check them as live verdicts. message = SHA-256(domain || verdict_json bytes); signature = ed25519(message) by the test key. The test seed is for tests only.",
+  "domain": "seams:outlayer:voice-verdict:v2",
+  "public_key": "ed25519:2iXtA8oeZqUU5pofxK971TCEvFGfems2AcDRaZHKD2pQ",
+  "public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+  "test_seed_hex": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+  "verdicts": [
+    {
+      "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+      "expires_at_ms": 1762700120000,
+      "message_sha256_hex": "c9740273d68c799f765c9bf7fdb706cdac9b80ef3b8ca291bb6167060c459f71",
+      "name": "accept",
+      "outcome": "accept",
+      "policy_rule": null,
+      "policy_text": null,
+      "request": {
+        "amount_yocto": "2000000000000000000000000",
+        "kind": "transfer",
+        "network": "testnet",
+        "owner": "owner.testnet",
+        "receiver": "alice.testnet"
+      },
+      "request_borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000042db999d3784a7010000000000",
+      "request_digest": "uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws",
+      "signature_b64": "vfrIu+yJYH164Ll3UiREYZnd/ik0X9pj9kzYZcGlI6PyJ1HcKNeBafwnC/P0FfmrbxaNQHDxrrMzFDPKYND6DA==",
+      "spoken_text": "send two near to alice dot testnet",
+      "spoken_text_digest": "mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys",
+      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.3.0\",\"request_digest\":\"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws\",\"spoken_text_digest\":\"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"policy_rule\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send two near to alice dot testnet\"}"
+    },
+    {
+      "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+      "expires_at_ms": 1762700120000,
+      "message_sha256_hex": "034402745f5b5e96b28b6758ade065aba751f5d1a9336e1c5521becd4c6d16f1",
+      "name": "step_up",
+      "outcome": "step_up",
+      "policy_rule": "stub_voice_amount_above_10_near",
+      "policy_text": "A voice payment above 10 NEAR needs a passkey.",
+      "request": {
+        "amount_yocto": "11000000000000000000000000",
+        "kind": "transfer",
+        "network": "testnet",
+        "owner": "owner.testnet",
+        "receiver": "alice.testnet"
+      },
+      "request_borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000eb35cee2315719090000000000",
+      "request_digest": "xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs",
+      "signature_b64": "gCXP2wB240PkUcNyAs9ed2qFgkv7GbDXBanrfeQbwoYBRhbYBkApkh3CHMLx4goD9CCZ+rvBBA1nSBtlOSaxCA==",
+      "spoken_text": "send eleven near to alice dot testnet",
+      "spoken_text_digest": "KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk",
+      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.3.0\",\"request_digest\":\"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs\",\"spoken_text_digest\":\"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"step_up\",\"reason\":null,\"policy_rule\":\"stub_voice_amount_above_10_near\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send eleven near to alice dot testnet\"}"
+    }
+  ]
+}

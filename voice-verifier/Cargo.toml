@@ -1,9 +1,9 @@
 [package]
 name = "seams-voice-verifier"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 publish = false
-description = "Refactor 210 OutLayer worker (HTTPS path): enroll and verify for the Speak-to-Sign vault, with a signed verdict"
+description = "Speak-to-Sign OutLayer worker: enroll a voice and verify a spoken request, with a signed verdict"
 
 # A standalone crate: it must not join a parent workspace.
 [workspace]

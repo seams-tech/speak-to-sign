@@ -11,20 +11,25 @@ use sha2::{Digest, Sha256};
 
 use seams_voice_verifier::audio::wav_bytes;
 use seams_voice_verifier::config::{
-    audio_used_key, template_key, EMBEDDING_DIM, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV, NEAR_AI_TRANSCRIPTIONS_URL,
-    NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
+    audio_used_key, template_key, EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV,
+    NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL, VERDICT_TTL_MS,
 };
-use seams_voice_verifier::digest::{b64u, base58, from_hex, hex};
-use seams_voice_verifier::enrollment::enrollment_digest;
+use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
+use seams_voice_verifier::enrollment::{authorization_message, enrollment_digest, nep413_hash};
 use seams_voice_verifier::host::{Host, PostRequest, Timed};
 use seams_voice_verifier::output::{verdict_message, Verdict};
+use seams_voice_verifier::policy::STUB_AMOUNT_RULE;
 use seams_voice_verifier::speaker::service_message;
 use seams_voice_verifier::{run_with, Pins};
 
 const SPEAKER_SEED: [u8; 32] = [0x11; 32];
 const VERDICT_SEED: [u8; 32] = [0x22; 32];
-const VAULT: &str = "voicevault.testnet";
+/// The owner's full-access key.
+const OWNER_SEED: [u8; 32] = [0x33; 32];
 const OWNER: &str = "owner.testnet";
+/// The fake wall clock, in ms since the UNIX epoch.
+const NOW_MS: u64 = 1_762_700_000_000;
+const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 
 /// A clip: a 2 s tone at `step` radians per sample.
 fn clip(step: f32) -> Vec<u8> {
@@ -40,6 +45,18 @@ fn embedding(axis: usize, angle: f32) -> Vec<f32> {
     values
 }
 
+/// What the fake NEAR RPC says about a key of `OWNER`.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum Access {
+    /// `OWNER_SEED` is a full-access key; any other key is unknown.
+    #[default]
+    Full,
+    /// `OWNER_SEED` is a function-call key.
+    FunctionCall,
+    /// The RPC does not answer.
+    Down,
+}
+
 #[derive(Default)]
 struct Fake {
     secrets: HashMap<String, String>,
@@ -50,10 +67,7 @@ struct Fake {
     transcript: Option<String>,
     speaker_down: bool,
     speaker_tamper: bool,
-    /// The vault view `get_pending_enrollment` of (VAULT, OWNER): the
-    /// pending digest, or `None` (none, or expired).
-    pending: Option<String>,
-    rpc_down: bool,
+    access: Access,
     posts: Vec<String>,
     /// Host calls in order: "start", "wait", "cancel", "get", "marker_get",
     /// "marker_set", "set".
@@ -100,32 +114,28 @@ impl Fake {
         Ok((200, reply.to_string().into_bytes()))
     }
 
-    /// A NEAR RPC `query` reply for the vault view.
+    /// A NEAR RPC `view_access_key` reply for a key of `OWNER`.
     fn rpc_reply(&self, request: &PostRequest) -> Result<(u16, Vec<u8>), String> {
-        if self.rpc_down {
+        if self.access == Access::Down {
             return Err("connection refused".into());
         }
         let body: Value = serde_json::from_slice(&request.body).unwrap();
         let params = &body["params"];
+        assert_eq!(params["request_type"], "view_access_key");
         assert_eq!(params["finality"], "final");
-        assert_eq!(params["method_name"], "get_pending_enrollment");
-        let args: Value =
-            serde_json::from_slice(&STANDARD.decode(params["args_base64"].as_str().unwrap()).unwrap()).unwrap();
-        let view = match &self.pending {
-            Some(digest) if params["account_id"] == VAULT && args["owner_id"] == OWNER => {
-                json!({ "enrollment_digest": digest, "expires_at_ns": "1" })
-            }
-            _ => Value::Null,
+        let owner_key = near_ed25519_key(&SigningKey::from_bytes(&OWNER_SEED).verifying_key().to_bytes());
+        let reply = if params["account_id"] != OWNER || params["public_key"] != owner_key.as_str() {
+            json!({ "jsonrpc": "2.0", "id": body["id"], "error": {
+                "name": "HANDLER_ERROR", "cause": { "name": "UNKNOWN_ACCESS_KEY", "info": {} } } })
+        } else if self.access == Access::FunctionCall {
+            json!({ "jsonrpc": "2.0", "id": body["id"], "result": { "nonce": 3, "block_height": 1,
+                "block_hash": "h", "permission": { "FunctionCall": {
+                    "allowance": null, "receiver_id": "x.testnet", "method_names": [] } } } })
+        } else {
+            json!({ "jsonrpc": "2.0", "id": body["id"], "result": {
+                "nonce": 3, "block_height": 1, "block_hash": "h", "permission": "FullAccess" } })
         };
-        let reply = json!({ "jsonrpc": "2.0", "id": body["id"], "result": {
-            "block_hash": "h", "block_height": 1, "logs": [], "result": view.to_string().into_bytes() } });
         Ok((200, reply.to_string().into_bytes()))
-    }
-
-    /// Authorizes these clips as the vault would store it.
-    fn authorize(&mut self, clips: &[Vec<u8>]) {
-        let digests: Vec<[u8; 32]> = clips.iter().map(|wav| Sha256::digest(wav).into()).collect();
-        self.pending = Some(b64u(&enrollment_digest(VAULT, OWNER, &digests)));
     }
 }
 
@@ -199,6 +209,9 @@ impl Host for Fake {
     fn random32(&mut self) -> Result<[u8; 32], String> {
         Ok([0x5a; 32])
     }
+    fn now_ms(&mut self) -> u64 {
+        NOW_MS
+    }
     fn sign(&mut self, message: &[u8]) -> Result<Vec<u8>, String> {
         Ok(SigningKey::from_bytes(&VERDICT_SEED).sign(message).to_bytes().to_vec())
     }
@@ -217,26 +230,47 @@ fn call(fake: &mut Fake, input: Value) -> Value {
     serde_json::from_slice(&bytes).unwrap()
 }
 
-fn enroll_input(clips: &[Vec<u8>]) -> Value {
+/// The enrollment digest text of these clips for `OWNER`.
+fn digest_of(clips: &[Vec<u8>]) -> String {
+    let digests: Vec<[u8; 32]> = clips.iter().map(|wav| Sha256::digest(wav).into()).collect();
+    b64u(&enrollment_digest(OWNER, &digests))
+}
+
+/// An enroll input whose authorization the key `seed` signed over the
+/// digest of `signed_clips`.
+fn enroll_input_signed(clips: &[Vec<u8>], signed_clips: &[Vec<u8>], seed: [u8; 32]) -> Value {
+    let key = SigningKey::from_bytes(&seed);
+    let nonce = [0x44u8; 32];
+    let hash = nep413_hash(&authorization_message(&digest_of(signed_clips)), &nonce, ENROLLMENT_RECIPIENT);
     json!({
         "op": "enroll",
-        "vault": VAULT,
         "owner": OWNER,
         "audio_wav_b64": clips.iter().map(|wav| STANDARD.encode(wav)).collect::<Vec<_>>(),
+        "authorization": {
+            "public_key": near_ed25519_key(&key.verifying_key().to_bytes()),
+            "signature_b64": STANDARD.encode(key.sign(&hash).to_bytes()),
+            "nonce_b64": STANDARD.encode(nonce),
+        },
+    })
+}
+
+/// An enroll input that the owner's full-access key authorized.
+fn enroll_input(clips: &[Vec<u8>]) -> Value {
+    enroll_input_signed(clips, clips, OWNER_SEED)
+}
+
+fn verify_input_for(wav: &[u8], amount_yocto: u128) -> Value {
+    json!({
+        "op": "verify",
+        "owner": OWNER,
+        "request": { "kind": "transfer", "receiver": "alice.testnet", "amount_yocto": amount_yocto.to_string() },
+        "contacts": ["alice.testnet", "bob.testnet"],
+        "audio_wav_b64": STANDARD.encode(wav),
     })
 }
 
 fn verify_input(wav: &[u8]) -> Value {
-    json!({
-        "op": "verify",
-        "vault": VAULT,
-        "owner": OWNER,
-        "receiver": "alice.testnet",
-        "amount_yocto": "2000000000000000000000000",
-        "nonce": 0,
-        "contacts": ["alice.testnet", "bob.testnet"],
-        "audio_wav_b64": STANDARD.encode(wav),
-    })
+    verify_input_for(wav, 2 * ONE_NEAR)
 }
 
 /// A fake whose owner is enrolled with three clips near axis 0.
@@ -246,7 +280,6 @@ fn enrolled() -> Fake {
     for (index, wav) in clips.iter().enumerate() {
         fake.voice(wav, embedding(0, 0.1 * index as f32));
     }
-    fake.authorize(&clips);
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["outcome"], "accept", "{out}");
     fake.events.clear();
@@ -273,19 +306,20 @@ fn enroll_stores_the_template_and_returns_the_key() {
     for (index, wav) in clips.iter().enumerate() {
         fake.voice(wav, embedding(0, 0.2 * index as f32));
     }
-    fake.authorize(&clips);
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["outcome"], "accept", "{out}");
+    assert_eq!(out["kind"], "seams_voice_enrollment_v3");
     assert_eq!(out["reason"], Value::Null);
+    assert!(out.get("vault").is_none());
+    assert_eq!(out["owner"], OWNER);
     // cos(0.4) = 0.921
     assert_eq!(out["agreement_milli"], 921);
-    assert_eq!(out["vault"], VAULT);
     assert_eq!(out["template_epoch"], 1);
-    assert_eq!(out["enrollment_digest"], json!(fake.pending));
+    assert_eq!(out["enrollment_digest"], digest_of(&clips));
     let key = SigningKey::from_bytes(&VERDICT_SEED).verifying_key().to_bytes();
     assert_eq!(out["verifier_public_key"], format!("ed25519:{}", base58(&key)));
-    // The RPC read and the three embeddings in one batch; storage reads
-    // while it is in flight; the writes after the decision.
+    // The access-key read and the three embeddings in one batch; storage
+    // reads while it is in flight; the writes after the decision.
     assert_eq!(fake.posts, [NEAR_RPC_URL, SPEAKER_EMBED_URL, SPEAKER_EMBED_URL, SPEAKER_EMBED_URL]);
     assert_eq!(
         fake.events,
@@ -294,29 +328,31 @@ fn enroll_stores_the_template_and_returns_the_key() {
     for stage in ["send", "storage", "wait", "parallel", "rpc", "speaker", "write", "total"] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
-    let first = fake.storage.get(&template_key(VAULT, OWNER)).cloned().unwrap();
+    let first = fake.storage.get(&template_key(OWNER)).cloned().unwrap();
     assert_eq!(first.len(), 808);
     for wav in &clips {
         assert!(fake.markers.contains_key(&audio_used_key(&b64u(&Sha256::digest(wav)))));
     }
 
-    // New audio under the old authorization is refused and changes nothing.
+    // New audio under the signature of the old audio is refused before any
+    // network call and changes nothing.
     let again = [clip(0.08), clip(0.09), clip(0.1)];
     for (index, wav) in again.iter().enumerate() {
         fake.voice(wav, embedding(4, 0.1 * index as f32));
     }
-    let out = call(&mut fake, enroll_input(&again));
+    fake.posts.clear();
+    let out = call(&mut fake, enroll_input_signed(&again, &clips, OWNER_SEED));
     assert_eq!(out["reason"], "not_authorized");
-    assert_eq!(out["detail"], "authorization: other_audio");
-    assert_eq!(fake.storage.get(&template_key(VAULT, OWNER)), Some(&first));
+    assert_eq!(out["detail"], "authorization: bad_signature");
+    assert!(fake.posts.is_empty(), "a bad signature makes no network call");
+    assert_eq!(fake.storage.get(&template_key(OWNER)), Some(&first));
     assert_eq!(fake.markers.len(), 3);
 
     // A fresh authorization replaces the template and bumps the epoch.
-    fake.authorize(&again);
     let out = call(&mut fake, enroll_input(&again));
     assert_eq!(out["outcome"], "accept", "{out}");
     assert_eq!(out["template_epoch"], 2);
-    let second = fake.storage.get(&template_key(VAULT, OWNER)).cloned().unwrap();
+    let second = fake.storage.get(&template_key(OWNER)).cloned().unwrap();
     assert_ne!(second, first);
     assert_eq!(&second[4..8], &2u32.to_le_bytes());
     assert_eq!(fake.markers.len(), 6);
@@ -328,32 +364,48 @@ fn enroll_stores_the_template_and_returns_the_key() {
 }
 
 #[test]
-fn enroll_needs_the_owner_authorization() {
+fn enroll_needs_a_full_access_key_of_the_owner() {
     let clips = [clip(0.05), clip(0.06), clip(0.07)];
-    // None (never authorized, or expired: the vault view returns null).
+
+    // Signed over the same clips in another order.
     let mut fake = Fake::new();
-    let out = call(&mut fake, enroll_input(&clips));
+    let reordered = [clips[1].clone(), clips[0].clone(), clips[2].clone()];
+    let out = call(&mut fake, enroll_input_signed(&clips, &reordered, OWNER_SEED));
+    assert_eq!(out["reason"], "not_authorized");
+    assert_eq!(out["detail"], "authorization: bad_signature");
+    assert!(fake.posts.is_empty());
+
+    // Signed by a key that the owner account does not hold.
+    let mut fake = Fake::new();
+    let out = call(&mut fake, enroll_input_signed(&clips, &clips, [0x55; 32]));
     assert_eq!(out["outcome"], "refuse");
     assert_eq!(out["reason"], "not_authorized");
-    assert_eq!(out["detail"], "authorization: none");
+    assert_eq!(out["detail"], "authorization: unknown_key");
     assert!(fake.storage.is_empty());
     assert!(fake.markers.is_empty(), "a refused enrollment burns no audio");
 
-    // An authorization of the same clips in another order.
+    // Signed by a function-call key of the owner.
     let mut fake = Fake::new();
-    fake.authorize(&[clips[1].clone(), clips[0].clone(), clips[2].clone()]);
-    assert_eq!(call(&mut fake, enroll_input(&clips))["reason"], "not_authorized");
+    fake.access = Access::FunctionCall;
+    let out = call(&mut fake, enroll_input(&clips));
+    assert_eq!(out["reason"], "not_authorized");
+    assert_eq!(out["detail"], "authorization: function_call_key");
 
-    // An authorization for another owner of the vault.
+    // A nonce of the wrong length.
     let mut fake = Fake::new();
-    let digests: Vec<[u8; 32]> = clips.iter().map(|wav| Sha256::digest(wav).into()).collect();
-    fake.pending = Some(b64u(&enrollment_digest(VAULT, "other.testnet", &digests)));
-    assert_eq!(call(&mut fake, enroll_input(&clips))["reason"], "not_authorized");
+    let mut input = enroll_input(&clips);
+    input["authorization"]["nonce_b64"] = json!(STANDARD.encode([0u8; 31]));
+    let out = call(&mut fake, input);
+    assert_eq!(out["detail"], "authorization: bad_nonce");
+
+    // No authorization at all is not an enroll input.
+    let mut input = enroll_input(&clips);
+    input.as_object_mut().unwrap().remove("authorization");
+    assert_eq!(call(&mut Fake::new(), input)["reason"], "unsupported");
 
     // The RPC is down.
     let mut fake = Fake::new();
-    fake.authorize(&clips);
-    fake.rpc_down = true;
+    fake.access = Access::Down;
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["reason"], "authorization_unavailable");
     assert!(out["detail"].as_str().unwrap().starts_with("rpc: network"));
@@ -366,7 +418,6 @@ fn enroll_refusals() {
     let mut fake = Fake::new();
     let clips = [clip(0.05), clip(0.06), clip(0.07)];
     fake.voice(&clips[2], embedding(7, 0.0));
-    fake.authorize(&clips);
     let out = call(&mut fake, enroll_input(&clips));
     assert_eq!(out["reason"], "speaker");
     assert_eq!(out["agreement_milli"], 0);
@@ -382,7 +433,6 @@ fn enroll_refusals() {
     let out = call(&mut fake, enroll_input(&[clip(0.05), clip(0.06), silent]));
     assert_eq!(out["reason"], "quality");
     fake.speaker_down = true;
-    fake.authorize(&[clip(0.05), clip(0.06), clip(0.07)]);
     let out = call(&mut fake, enroll_input(&[clip(0.05), clip(0.06), clip(0.07)]));
     assert_eq!(out["reason"], "speaker_unavailable");
     assert!(out["detail"].as_str().unwrap().starts_with("speaker: network"));
@@ -395,19 +445,25 @@ fn verify_accepts_and_signs_the_verdict() {
     let wav = clip(0.03);
     fake.voice(&wav, embedding(0, 0.3));
     let out = call(&mut fake, verify_input(&wav));
-    assert_eq!(out["kind"], "seams_voice_verify_output_v1");
+    assert_eq!(out["kind"], "seams_voice_verify_output_v2");
+    assert_eq!(out["policy_text"], Value::Null);
     let verdict = checked_verdict(&out);
     assert_eq!(verdict.reason, None, "{out}");
     assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "accept");
+    assert_eq!(verdict.policy_rule, None);
+    assert_eq!(verdict.expires_at_ms, NOW_MS + VERDICT_TTL_MS);
     assert_eq!(verdict.heard.as_deref(), Some("send two near to alice dot testnet"));
     assert_eq!(verdict.audio_digest, Some(b64u(&Sha256::digest(&wav))));
-    // The same digests as the shared vector, which the vault checks.
-    let vector: Value = serde_json::from_str(include_str!("../testdata/signed_verdict_v1.json")).unwrap();
-    assert_eq!(verdict.request_digest.as_deref(), vector["request_digest"].as_str());
-    assert_eq!(verdict.spoken_text_digest.as_deref(), vector["spoken_text_digest"].as_str());
+    // The same digests as the shared vector, which the Wallet checks.
+    let vector: Value = serde_json::from_str(include_str!("../testdata/signed_verdict_v2.json")).unwrap();
+    let accept = &vector["verdicts"][0];
+    assert_eq!(accept["name"], "accept");
+    assert_eq!(verdict.request_digest.as_deref(), accept["request_digest"].as_str());
+    assert_eq!(verdict.spoken_text_digest.as_deref(), accept["spoken_text_digest"].as_str());
     assert!(verdict.speaker_score_milli.unwrap() >= 450);
     for stage in [
-        "decode", "send", "storage", "wait", "parallel", "speaker", "transcribe", "redimnet", "mark", "sign", "total",
+        "decode", "send", "storage", "wait", "parallel", "speaker", "transcribe", "redimnet", "mark", "policy", "sign",
+        "total",
     ] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
@@ -422,6 +478,37 @@ fn verify_accepts_and_signs_the_verdict() {
     let again = call(&mut fake, verify_input(&wav));
     assert_eq!(checked_verdict(&again).reason.map(|r| serde_json::to_value(r).unwrap()), Some(json!("audio_reused")));
     assert_eq!(fake.events, ["start", "get", "marker_get", "cancel"]);
+}
+
+#[test]
+fn verify_steps_up_above_ten_near() {
+    let wav = clip(0.03);
+
+    let mut fake = enrolled();
+    fake.transcript = Some("Send 11 NEAR to alice.testnet.".into());
+    let out = call(&mut fake, verify_input_for(&wav, 11 * ONE_NEAR));
+    let verdict = checked_verdict(&out);
+    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "step_up", "{out}");
+    assert_eq!(verdict.reason, None);
+    assert_eq!(verdict.policy_rule.as_deref(), Some(STUB_AMOUNT_RULE.id));
+    assert_eq!(out["policy_text"], STUB_AMOUNT_RULE.text);
+    assert_eq!(verdict.expires_at_ms, NOW_MS + VERDICT_TTL_MS);
+    assert!(fake.markers.contains_key(&audio_used_key(&b64u(&Sha256::digest(&wav)))), "a step-up uses the audio");
+
+    // Exactly 10 NEAR needs no step-up.
+    let mut fake = enrolled();
+    fake.transcript = Some("Send 10 NEAR to alice.testnet.".into());
+    let verdict = checked_verdict(&call(&mut fake, verify_input_for(&wav, 10 * ONE_NEAR)));
+    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "accept");
+    assert_eq!(verdict.policy_rule, None);
+
+    // A refusal before the policy step names no rule.
+    let mut fake = enrolled();
+    fake.transcript = Some("Send 12 NEAR to alice.testnet.".into());
+    let out = call(&mut fake, verify_input_for(&wav, 11 * ONE_NEAR));
+    assert_eq!(reason(&out), "words");
+    assert_eq!(checked_verdict(&out).policy_rule, None);
+    assert_eq!(out["policy_text"], Value::Null);
 }
 
 fn reason(out: &Value) -> String {
@@ -475,8 +562,10 @@ fn verify_refusals() {
     let out = call(&mut fake, input);
     assert_eq!(reason(&out), "audio_invalid");
     assert_eq!(out["detail"], "not_wav");
-    // The request digest is known before the audio fails.
+    // The request digest is known before the audio fails, and every
+    // verdict expires.
     assert!(checked_verdict(&out).request_digest.is_some());
+    assert_eq!(checked_verdict(&out).expires_at_ms, NOW_MS + VERDICT_TTL_MS);
 
     let mut input = verify_input(&wav);
     input["extra"] = json!(1);
@@ -488,9 +577,11 @@ fn verify_refusals() {
         ("amount_yocto", json!("1000")),
         ("receiver", json!(OWNER)),
         ("receiver", json!("0x1234")),
+        ("kind", json!("vault_transfer")),
+        ("nonce", json!(0)),
     ] {
         let mut input = verify_input(&wav);
-        input[field] = value;
+        input["request"][field] = value;
         assert_eq!(reason(&call(&mut fake, input)), "unsupported", "{field}");
     }
 }
@@ -506,6 +597,19 @@ fn a_long_transcript_still_fits_and_is_signed() {
 }
 
 #[test]
+fn a_step_up_with_the_longest_heard_text_still_fits() {
+    let mut fake = enrolled();
+    let receiver = format!("{}.testnet", "a".repeat(56));
+    fake.transcript = Some(format!("Send 999999.99 NEAR to {receiver}."));
+    let mut input = verify_input_for(&clip(0.03), 99_999_999 * (ONE_NEAR / 100));
+    input["request"]["receiver"] = json!(receiver);
+    let out = call(&mut fake, input);
+    let verdict = checked_verdict(&out);
+    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "step_up", "{out}");
+    assert_eq!(out["policy_text"], STUB_AMOUNT_RULE.text);
+}
+
+#[test]
 fn unknown_op() {
     let out = call(&mut Fake::new(), json!({ "op": "audio_key" }));
     assert_eq!(out["reason"], "unsupported");
@@ -515,9 +619,9 @@ fn unknown_op() {
 fn transfer_request_accepts_an_implicit_owner() {
     use seams_voice_verifier::ops::transfer_request;
     let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
-    let one_near = 1_000_000_000_000_000_000_000_000;
-    assert!(transfer_request("vault.testnet", implicit, "alice.testnet", one_near, 1).is_ok());
+    assert!(transfer_request(implicit, "alice.testnet", ONE_NEAR).is_ok());
     // The receiver is said, so it must still be speakable.
-    assert!(transfer_request("vault.testnet", "owner.testnet", implicit, one_near, 1).is_err());
-    assert!(transfer_request("vault.testnet", implicit, implicit, one_near, 1).is_err());
+    assert!(transfer_request("owner.testnet", implicit, ONE_NEAR).is_err());
+    assert!(transfer_request(implicit, implicit, ONE_NEAR).is_err());
+    assert!(transfer_request("alice.testnet", "alice.testnet", ONE_NEAR).is_err());
 }

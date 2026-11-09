@@ -74,6 +74,13 @@ mod wasm_host {
             wasi::random::random::get_random_bytes(32).try_into().map_err(|_| "random".to_string())
         }
 
+        fn now_ms(&mut self) -> u64 {
+            // A clock before 1970 gives 0, so the verdict is already expired.
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |since| since.as_millis() as u64)
+        }
+
         fn sign(&mut self, message: &[u8]) -> Result<Vec<u8>, String> {
             signing_keys::sign(SIGNING_KEY_PATH, None, message).map_err(|error| error.0)
         }

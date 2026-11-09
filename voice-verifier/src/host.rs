@@ -52,6 +52,8 @@ pub trait Host {
     fn post_cancel(&mut self);
     /// 32 random bytes.
     fn random32(&mut self) -> Result<[u8; 32], String>;
+    /// The wall clock, in ms since the UNIX epoch. It sets the verdict expiry.
+    fn now_ms(&mut self) -> u64;
     /// ed25519 over `message` with the manifest signing key: the 64-byte
     /// signature.
     fn sign(&mut self, message: &[u8]) -> Result<Vec<u8>, String>;

@@ -18,8 +18,8 @@ pub struct WordCheck {
     pub margin_milli: Option<i32>,
 }
 
-/// Rule A. `contacts` are the vault's contacts from the input; `confusions`
-/// is `confusion_set(request, contacts)`.
+/// Rule A. `contacts` are the known accounts from the input, with the
+/// receiver; `confusions` is `confusion_set(request, contacts)`.
 pub fn check_words(
     transcript: &str,
     contacts: &[SpokenAccount],
@@ -105,13 +105,11 @@ mod tests {
     }
 
     fn transfer(receiver: &str, hundredths: u64) -> SpokenRequestV1 {
-        SpokenRequestV1::VaultTransfer {
+        SpokenRequestV1::AccountTransfer {
             network: Network::Testnet,
-            vault: NearAccount::new("vault.testnet").unwrap(),
             owner: NearAccount::new("owner.testnet").unwrap(),
             receiver: account(receiver),
             amount: NearAmount::from_hundredths(hundredths).unwrap(),
-            nonce: 1,
         }
     }
 

@@ -65,6 +65,28 @@ pub fn base58(bytes: &[u8]) -> String {
     text
 }
 
+/// Decodes Bitcoin base58. `None` for a character outside the alphabet.
+pub fn from_base58(text: &str) -> Option<Vec<u8>> {
+    let zeros = text.bytes().take_while(|byte| *byte == b'1').count();
+    // Base-256 digits, least significant first.
+    let mut bytes: Vec<u8> = Vec::with_capacity(text.len() * 733 / 1000 + 1);
+    for character in text.bytes().skip(zeros) {
+        let mut carry = BASE58.iter().position(|digit| *digit == character)? as u32;
+        for byte in bytes.iter_mut() {
+            carry += u32::from(*byte) * 58;
+            *byte = (carry & 0xff) as u8;
+            carry >>= 8;
+        }
+        while carry > 0 {
+            bytes.push((carry & 0xff) as u8);
+            carry >>= 8;
+        }
+    }
+    let mut out = vec![0u8; zeros];
+    out.extend(bytes.iter().rev());
+    Some(out)
+}
+
 /// A NEAR public key text: `ed25519:<base58>`.
 pub fn near_ed25519_key(public_key: &[u8]) -> String {
     format!("ed25519:{}", base58(public_key))
@@ -82,6 +104,14 @@ mod tests {
         // The NEAR key of 32 zero bytes.
         assert_eq!(base58(&[0; 32]), "11111111111111111111111111111111");
         assert_eq!(base58(&[255; 32]), "JEKNVnkbo3jma5nREBBJCDoXFVeKkD56V3xKrvRmWxFG");
+    }
+
+    #[test]
+    fn base58_round_trip() {
+        for bytes in [vec![], vec![0, 0, 1], b"hello world".to_vec(), vec![0; 32], vec![255; 32], (0..32).collect()] {
+            assert_eq!(from_base58(&base58(&bytes)), Some(bytes));
+        }
+        assert_eq!(from_base58("0OIl"), None);
     }
 
     #[test]

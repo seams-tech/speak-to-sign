@@ -1,8 +1,8 @@
 //! Fixed values of this verifier version. A change to any of them is a new
-//! WASM hash. The vault pins the signing key, not the hash (plan Section 7.5).
+//! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.2.0";
+pub const VERIFIER_VERSION: &str = "0.3.0";
 
 /// The manifest, also linked into the `outlayer.manifest` custom section.
 pub const MANIFEST_JSON: &str = include_str!("../manifest/outlayer.json");
@@ -14,7 +14,10 @@ pub const SIGNING_KEY_PATH: &str = "verdict";
 
 /// The prefix of the signed preimage:
 /// `signed message = SHA-256(VERDICT_DOMAIN || verdict JSON bytes)`.
-pub const VERDICT_DOMAIN: &[u8] = b"seams:outlayer:voice-verdict:v1";
+pub const VERDICT_DOMAIN: &[u8] = b"seams:outlayer:voice-verdict:v2";
+
+/// A verdict expires this long after the worker clock read before signing.
+pub const VERDICT_TTL_MS: u64 = 120_000;
 
 /// The speaker service host: ReDimNet in a Phala Cloud dstack CVM. To move
 /// it, change this name and the same `host` in `manifest/outlayer.json` (a
@@ -51,9 +54,9 @@ pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
 
-/// The NEAR RPC endpoint that `enroll` reads the vault's pending
-/// enrollment from (a view call, finality `final`). The verifier trusts this
-/// endpoint for that read (see README.md).
+/// The NEAR RPC endpoint that `enroll` reads the owner's access key from
+/// (`view_access_key`, finality `final`). The verifier trusts this endpoint
+/// for that read (see README.md).
 macro_rules! near_rpc_host {
     () => {
         "test.rpc.fastnear.com"
@@ -63,12 +66,21 @@ pub const NEAR_RPC_HOST: &str = near_rpc_host!();
 pub const NEAR_RPC_URL: &str = concat!("https://", near_rpc_host!(), "/");
 pub const NEAR_RPC_TIMEOUT_SECS: u64 = 10;
 pub const NEAR_RPC_MAX_RESPONSE_BYTES: usize = 8_192;
-/// The vault view that returns the pending enrollment of an owner.
-pub const PENDING_ENROLLMENT_VIEW: &str = "get_pending_enrollment";
 
 /// The prefix of the enrollment digest preimage:
-/// `SHA-256(ENROLLMENT_DOMAIN || vault || 0x00 || owner || 0x00 || d1 || d2 || d3)`.
-pub const ENROLLMENT_DOMAIN: &[u8] = b"seams:voice-enrollment:v1";
+/// `SHA-256(ENROLLMENT_DOMAIN || owner || 0x00 || d1 || d2 || d3)`.
+pub const ENROLLMENT_DOMAIN: &[u8] = b"seams:voice-enrollment:v2";
+
+/// The NEP-413 message that authorizes an enrollment is this prefix and the
+/// base64url enrollment digest.
+pub const ENROLLMENT_MESSAGE_PREFIX: &str = "Speak-to-Sign voice enrollment ";
+
+/// The NEP-413 recipient of the enrollment message: this OutLayer project.
+pub const ENROLLMENT_RECIPIENT: &str = "seams-v1.testnet/voice-verifier";
+
+/// The NEP-413 prefix tag, `2^31 + 413`, written as `u32` little-endian
+/// before the Borsh payload, so the signed bytes are never a transaction.
+pub const NEP413_TAG: u32 = 2_147_484_061;
 
 /// The speaker cutoff in thousandths of cosine. The Wallet uses 0.45
 /// (`VOICE_MATCH_THRESHOLD`).
@@ -101,8 +113,7 @@ pub const MAX_CONTACTS: usize = 32;
 /// `enroll` takes exactly this many recordings (plan Section 4.4).
 pub const ENROLL_RECORDINGS: usize = 3;
 
-/// The epoch of a first template. Each re-enrollment adds 1. The vault does
-/// not check it.
+/// The epoch of a first template. Each re-enrollment adds 1.
 pub const TEMPLATE_EPOCH: u32 = 1;
 
 /// The `heard` field is cut to this many bytes, or fewer if the output
@@ -113,9 +124,9 @@ pub const MAX_HEARD_BYTES: usize = 200;
 pub const MAX_OUTPUT_BYTES: usize = 1024;
 
 /// Storage key of a template. Over HTTPS the storage cell is the payment-key
-/// owner, so the key names the vault and the owner. Account ids hold no `:`.
-pub fn template_key(vault: &str, owner: &str) -> String {
-    format!("template:v2:{vault}:{owner}")
+/// owner, so the key names the account whose voice it is.
+pub fn template_key(owner: &str) -> String {
+    format!("template:v3:{owner}")
 }
 
 /// Raw storage key of a used audio digest (base64url of the canonical WAV
@@ -153,9 +164,13 @@ mod tests {
     }
 
     #[test]
-    fn storage_keys_name_vault_and_owner() {
-        assert_eq!(template_key("v.testnet", "o.testnet"), "template:v2:v.testnet:o.testnet");
-        assert_ne!(template_key("a.testnet", "b.testnet"), template_key("b.testnet", "a.testnet"));
+    fn storage_keys_name_the_owner() {
+        assert_eq!(template_key("o.testnet"), "template:v3:o.testnet");
         assert_eq!(audio_used_key("abc"), "audio:v2:abc");
+    }
+
+    #[test]
+    fn nep413_tag_is_two_to_the_31_plus_413() {
+        assert_eq!(NEP413_TAG, (1 << 31) + 413);
     }
 }

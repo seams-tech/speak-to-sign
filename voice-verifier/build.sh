@@ -6,7 +6,7 @@ set -eu
 cd "$(dirname "$0")"
 cargo build --release --target wasm32-wasip2 --locked \
   --config 'target.wasm32-wasip2.rustflags=["-C","target-feature=+simd128"]'
-WASM=target/wasm32-wasip2/release/seams-voice-verifier.wasm
+WASM=${CARGO_TARGET_DIR:-target}/wasm32-wasip2/release/seams-voice-verifier.wasm
 BYTES=$(wc -c < "$WASM" | tr -d ' ')
 echo "$WASM"
 echo "bytes  $BYTES"

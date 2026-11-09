@@ -1,15 +1,16 @@
-//! The operations `enroll` and `verify` (HTTPS path, plan Section 7.5).
+//! The operations `enroll` and `verify`.
 //!
 //! `verify` sends the canonical WAV to the speaker service and to NEAR AI at
 //! the same time, reads the template and the used-audio marker while those
 //! requests are in flight, checks the speaker against the template and the
 //! words against `render(request)`, marks the audio used (only after a
-//! decision) and signs the verdict with the manifest signing key.
+//! decision), runs the policy step and signs the verdict with the manifest
+//! signing key.
 //!
-//! `enroll` needs the owner's authorization: the vault's pending enrollment
-//! digest (read over NEAR RPC) must equal the digest of the received audio
-//! (see [`crate::enrollment`]). A new authorization lets the owner enroll
-//! again; the template is replaced and its epoch grows by 1.
+//! `enroll` needs the owner's authorization: a NEP-413 signature of the
+//! enrollment digest by a full-access key of the owner (see
+//! [`crate::enrollment`]). A new authorization lets the owner enroll again;
+//! the template is replaced and its epoch grows by 1.
 use std::time::Instant;
 
 use serde_json::{json, Map, Value};
@@ -21,12 +22,13 @@ use spoken_intent::{
 use crate::audio::{decode_wav, energy_gate, wav_bytes};
 use crate::config::{
     audio_used_key, template_key, ENROLL_RECORDINGS, MAX_CONTACTS, MAX_HEARD_BYTES, MAX_OUTPUT_BYTES,
-    NEAR_AI_API_KEY_ENV, SPEAKER_PINNED_KEY_HEX, TEMPLATE_EPOCH, VERIFIER_VERSION,
+    NEAR_AI_API_KEY_ENV, SPEAKER_PINNED_KEY_HEX, TEMPLATE_EPOCH, VERDICT_TTL_MS, VERIFIER_VERSION,
 };
 use crate::digest::{b64, b64u, from_b64, from_hex, near_ed25519_key, sha256};
-use crate::enrollment::{enrollment_digest, parse_pending, pending_request};
+use crate::enrollment::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
 use crate::host::{Host, Timed};
-use crate::input::{parse_yocto, EnrollInput, VerifyInput};
+use crate::input::{parse_yocto, EnrollInput, RequestInput, VerifyInput};
+use crate::policy::{self, Decision};
 use crate::output::{
     json_bytes, short, verdict_json, verdict_message, Enrollment, Outcome, Reason, UnknownOp, Verdict, VerifyOutput,
     VERIFY_OUTPUT_KIND,
@@ -74,24 +76,27 @@ pub fn run_with(input: &[u8], host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
     }
 }
 
-/// The request that the vault rebuilds from its state and the call
-/// arguments. The accounts must be distinct, and the receiver and the amount
-/// must be speakable. The vault and the owner can be any NEAR account.
-pub fn transfer_request(
-    vault: &str,
-    owner: &str,
-    receiver: &str,
-    amount_yocto: u128,
-    nonce: u64,
-) -> Result<SpokenRequestV1, Reason> {
-    let account = |id: &str| NearAccount::new(id).map_err(|_| Reason::Unsupported);
-    let (vault, owner) = (account(vault)?, account(owner)?);
+/// A transfer from the owner's account, as the Wallet builds it. The owner
+/// can be any NEAR account; the receiver and the amount must be speakable,
+/// and the receiver is not the owner.
+pub fn transfer_request(owner: &str, receiver: &str, amount_yocto: u128) -> Result<SpokenRequestV1, Reason> {
+    let owner = NearAccount::new(owner).map_err(|_| Reason::Unsupported)?;
     let receiver = SpokenAccount::new(receiver).map_err(|_| Reason::Unsupported)?;
-    if vault == owner || receiver.as_str() == owner.as_str() || receiver.as_str() == vault.as_str() {
+    if receiver.as_str() == owner.as_str() {
         return Err(Reason::Unsupported);
     }
     let amount = NearAmount::from_yocto(amount_yocto).map_err(|_| Reason::Unsupported)?;
-    Ok(SpokenRequestV1::VaultTransfer { network: SERVED_NETWORK, vault, owner, receiver, amount, nonce })
+    Ok(SpokenRequestV1::AccountTransfer { network: SERVED_NETWORK, owner, receiver, amount })
+}
+
+/// The typed request of a `verify` input.
+fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1, Reason> {
+    match request {
+        RequestInput::Transfer { receiver, amount_yocto } => {
+            let amount = parse_yocto(amount_yocto).ok_or(Reason::Unsupported)?;
+            transfer_request(owner, receiver, amount)
+        }
+    }
 }
 
 fn elapsed(started: Instant) -> Value {
@@ -157,7 +162,7 @@ fn speaker_reply(
 
 // ------------------------------------------------------------------ enroll
 
-/// Three recordings of the owner become the template of (vault, owner).
+/// Three recordings of the owner become the template of the owner.
 pub fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> Enrollment {
     let started = Instant::now();
     let mut output = Enrollment::new();
@@ -182,12 +187,10 @@ pub fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> Enrollment {
 
 fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enrollment) -> Result<(), Reason> {
     let input: EnrollInput = serde_json::from_value(value).map_err(|_| Reason::Unsupported)?;
-    let vault = NearAccount::new(&input.vault).map_err(|_| Reason::Unsupported)?;
     let owner = NearAccount::new(&input.owner).map_err(|_| Reason::Unsupported)?;
-    if input.op != "enroll" || vault == owner {
+    if input.op != "enroll" {
         return Err(Reason::Unsupported);
     }
-    output.vault = Some(vault.as_str().to_string());
     output.owner = Some(owner.as_str().to_string());
     if input.audio_wav_b64.len() != ENROLL_RECORDINGS {
         return Err(Reason::Unsupported);
@@ -207,16 +210,22 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
     }
 
     let digests: Vec<[u8; 32]> = clips.iter().map(|clip| clip.digest).collect();
-    let authorization = b64u(&enrollment_digest(vault.as_str(), owner.as_str(), &digests));
-    output.enrollment_digest = Some(authorization.clone());
+    let digest_text = b64u(&enrollment_digest(owner.as_str(), &digests));
+    output.enrollment_digest = Some(digest_text.clone());
 
-    // The vault's pending authorization (NEAR RPC) and the three embeddings
-    // (speaker service), in one batch.
+    // The owner's signature of this digest, before any network call.
+    let public_key = check_authorization(&input.authorization, &digest_text).map_err(|error| {
+        output.detail = Some(format!("authorization: {error}"));
+        Reason::NotAuthorized
+    })?;
+
+    // The owner's access key (NEAR RPC) and the three embeddings (speaker
+    // service), in one batch.
     let mut nonces = Vec::with_capacity(ENROLL_RECORDINGS);
     for _ in 0..ENROLL_RECORDINGS {
         nonces.push(host.random32().map_err(|_| Reason::SpeakerUnavailable)?);
     }
-    let mut requests = vec![pending_request(vault.as_str(), owner.as_str())];
+    let mut requests = vec![access_key_request(owner.as_str(), &public_key)];
     requests.extend(clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)));
     let flight = Instant::now();
     host.post_start(requests);
@@ -224,7 +233,7 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
 
     // Storage while the requests are in flight: the current template (for
     // its epoch and the compare-and-swap) and the used-audio markers.
-    let key = template_key(vault.as_str(), owner.as_str());
+    let key = template_key(owner.as_str());
     let stored = Instant::now();
     let previous = match enroll_storage(host, &key, &output.audio_digests) {
         Ok(previous) => previous,
@@ -245,9 +254,10 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
         output.ms.insert("speaker".into(), json!(slowest));
     }
 
-    // The owner's authorization, before the embeddings are used.
-    let pending = match results.first().map(|timed| &timed.result) {
-        Some(Ok((status, body))) => parse_pending(*status, body),
+    // The key must be a full-access key of the owner, before the embeddings
+    // are used.
+    let access = match results.first().map(|timed| &timed.result) {
+        Some(Ok((status, body))) => parse_access_key(*status, body),
         Some(Err(error)) => Err(format!("network: {error}")),
         None => Err("no_result".into()),
     }
@@ -255,8 +265,13 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
         output.detail = Some(short(&format!("rpc: {error}")));
         Reason::AuthorizationUnavailable
     })?;
-    if pending.as_deref() != Some(authorization.as_str()) {
-        output.detail = Some(if pending.is_some() { "authorization: other_audio" } else { "authorization: none" }.into());
+    let refused = match access {
+        AccessKey::FullAccess => None,
+        AccessKey::FunctionCall => Some("authorization: function_call_key"),
+        AccessKey::Missing => Some("authorization: unknown_key"),
+    };
+    if let Some(detail) = refused {
+        output.detail = Some(detail.into());
         return Err(Reason::NotAuthorized);
     }
 
@@ -314,16 +329,23 @@ struct VerifyRun {
     verdict: Verdict,
     ms: Map<String, Value>,
     detail: Option<String>,
+    policy_text: Option<&'static str>,
 }
 
 /// One verify run: the output JSON bytes, always below 1024.
 pub fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
     let started = Instant::now();
-    let mut run = VerifyRun { verdict: Verdict::new(), ms: Map::new(), detail: None };
+    let mut run = VerifyRun { verdict: Verdict::new(), ms: Map::new(), detail: None, policy_text: None };
     match verify_steps(value, host, pins, &mut run) {
-        Ok(()) => {
+        Ok(Decision::Allow) => {
             run.verdict.outcome = Outcome::Accept;
             run.verdict.reason = None;
+        }
+        Ok(Decision::StepUp(rule)) => {
+            run.verdict.outcome = Outcome::StepUp;
+            run.verdict.reason = None;
+            run.verdict.policy_rule = Some(rule.id.to_string());
+            run.policy_text = Some(rule.text);
         }
         Err(reason) => {
             run.verdict.outcome = Outcome::Refuse;
@@ -333,15 +355,14 @@ pub fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
     finish(run, host, started)
 }
 
-fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut VerifyRun) -> Result<(), Reason> {
+fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut VerifyRun) -> Result<Decision, Reason> {
     let started = Instant::now();
     let input: VerifyInput = serde_json::from_value(value).map_err(|_| Reason::Unsupported)?;
     if input.op != "verify" || input.contacts.len() > MAX_CONTACTS {
         return Err(Reason::Unsupported);
     }
-    // 1. The request, as the vault will rebuild it.
-    let amount = parse_yocto(&input.amount_yocto).ok_or(Reason::Unsupported)?;
-    let request = transfer_request(&input.vault, &input.owner, &input.receiver, amount, input.nonce)?;
+    // 1. The request, as the Wallet builds it.
+    let request = typed_request(&input.owner, &input.request)?;
     let rendered = render(&request);
     run.verdict.request_digest = Some(b64u(&request_digest(&request)));
     run.verdict.spoken_text_digest = Some(b64u(&spoken_text_digest(&rendered)));
@@ -351,7 +372,7 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
         .map(|contact| SpokenAccount::new(contact))
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| Reason::Unsupported)?;
-    if let SpokenRequestV1::VaultTransfer { receiver, .. } = &request {
+    if let SpokenRequestV1::AccountTransfer { receiver, .. } = &request {
         if !contacts.contains(receiver) {
             contacts.push(receiver.clone());
         }
@@ -381,7 +402,7 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
     // 4. The template and the used-audio check, while the requests are in
     //    flight. A refusal here drops them.
     let stored = Instant::now();
-    let record = match verify_storage(host, &input.vault, &input.owner, &digest_b64u) {
+    let record = match verify_storage(host, &input.owner, &digest_b64u) {
         Ok(record) => record,
         Err(reason) => {
             host.post_cancel();
@@ -435,13 +456,19 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
     if !check.matched {
         return Err(Reason::Words);
     }
-    Ok(())
+
+    // 8. The policy step, after the deterministic checks. It can only
+    //    tighten an accept into a step-up.
+    let decided = Instant::now();
+    let decision = policy::decide(&request);
+    run.ms.insert("policy".into(), elapsed(decided));
+    Ok(decision)
 }
 
-/// The template of (vault, owner) for the pinned model, after a check that
-/// the audio was not used.
-fn verify_storage(host: &mut dyn Host, vault: &str, owner: &str, digest_b64u: &str) -> Result<TemplateRecord, Reason> {
-    let record = match host.storage_get(&template_key(vault, owner)) {
+/// The owner's template for the pinned model, after a check that the audio
+/// was not used.
+fn verify_storage(host: &mut dyn Host, owner: &str, digest_b64u: &str) -> Result<TemplateRecord, Reason> {
+    let record = match host.storage_get(&template_key(owner)) {
         Ok(Some(bytes)) => TemplateRecord::decode(&bytes).ok_or(Reason::TemplateMissing)?,
         Ok(None) => return Err(Reason::TemplateMissing),
         Err(_) => return Err(Reason::Storage),
@@ -453,9 +480,11 @@ fn verify_storage(host: &mut dyn Host, vault: &str, owner: &str, digest_b64u: &s
     Ok(record)
 }
 
-/// Fits the output below [`MAX_OUTPUT_BYTES`] (by a shorter `heard`, which
-/// is part of the signed bytes), then signs the verdict.
+/// Sets the expiry, fits the output below [`MAX_OUTPUT_BYTES`] (by a
+/// shorter `heard`, which is part of the signed bytes), then signs the
+/// verdict.
 fn finish(mut run: VerifyRun, host: &mut dyn Host, started: Instant) -> Vec<u8> {
+    run.verdict.expires_at_ms = host.now_ms().saturating_add(VERDICT_TTL_MS);
     let heard = run.verdict.heard.take();
     let mut verdict_text = String::new();
     for cap in [MAX_HEARD_BYTES, 120, 60, 0] {
@@ -466,6 +495,7 @@ fn finish(mut run: VerifyRun, host: &mut dyn Host, started: Instant) -> Vec<u8> 
             verdict_json: verdict_text.clone(),
             signature_b64: Some("A".repeat(88)),
             public_key: Some(format!("ed25519:{}", "1".repeat(44))),
+            policy_text: run.policy_text,
             ms: run.ms.clone(),
             detail: run.detail.clone(),
         };
@@ -498,6 +528,7 @@ fn finish(mut run: VerifyRun, host: &mut dyn Host, started: Instant) -> Vec<u8> 
         verdict_json: verdict_text,
         signature_b64,
         public_key,
+        policy_text: run.policy_text,
         ms: run.ms,
         detail: run.detail,
     };

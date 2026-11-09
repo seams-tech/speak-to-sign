@@ -92,43 +92,70 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
-      try {
-        const availability = await seams.registration.getAuthMethodAvailability({ walletId, method: 'voiceid' });
+      const id = walletId;
+      return await withFreshUnlock(seams, id, async () => {
+        const availability = await seams.registration.getAuthMethodAvailability({ walletId: id, method: 'voiceid' });
         if (availability.kind === 'enabled') return { kind: 'done', message: 'VoiceID is on.' };
         if (availability.kind === 'disabled') {
-          await seams.registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled: true });
+          await seams.registration.setAuthMethodEnabled({ walletId: id, method: 'voiceid', enabled: true });
           return { kind: 'done', message: 'VoiceID is on again.' };
         }
-        const result = await seams.registration.activateAuthMethod({ walletId, method: 'voiceid' });
+        const result = await seams.registration.activateAuthMethod({ walletId: id, method: 'voiceid' });
         return result.kind === 'activated'
           ? { kind: 'done', message: 'VoiceID is on.' }
           : { kind: 'cancelled', message: 'You closed the VoiceID window. Nothing changed.' };
-      } catch (cause) {
-        return { kind: 'failed', message: errorText(cause) };
-      }
+      });
     },
 
     async enroll(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
+      const id = walletId;
       const speakToSign = seams.speakToSign;
       if (!speakToSign) return { kind: 'failed', message: 'Speak-to-Sign is not in the Wallet configuration.' };
-      try {
-        const result = (await speakToSign.enroll({ walletId })) as SdkEnrollmentResult;
-        switch (result.kind) {
-          case 'enrolled':
-            return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };
-          case 'refused':
-            return { kind: 'failed', message: withDetail(ENROLL_REFUSALS[result.reason] ?? `The verifier refused (${result.reason}).`, result.detail) };
-          case 'cancelled':
-            return { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
-          case 'unavailable':
-            return { kind: 'failed', message: withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail) };
-        }
-      } catch (cause) {
-        return { kind: 'failed', message: errorText(cause) };
-      }
+      return await withFreshUnlock(seams, id, () => enrollOnce(speakToSign, id));
     },
   };
+}
+
+/**
+ * Runs a setup step. Some steps need the wallet's custody seed, which the Wallet keeps in
+ * memory only after a passkey unlock in the same Wallet session (a session restored after a
+ * page reload does not have it). If the Wallet asks for that, unlock with the passkey once and
+ * run the step again.
+ */
+async function withFreshUnlock(seams: Seams, walletId: string, step: () => Promise<SetupOutcome>): Promise<SetupOutcome> {
+  try {
+    return await step();
+  } catch (cause) {
+    if (!NEEDS_UNLOCK.test(errorText(cause))) return { kind: 'failed', message: errorText(cause) };
+  }
+  try {
+    const unlock = await seams.auth.unlock(walletId);
+    if (!unlock.success) {
+      return { kind: 'failed', message: `The Wallet needs a passkey unlock first, and the unlock did not finish. ${unlock.error}` };
+    }
+    return await step();
+  } catch (cause) {
+    return { kind: 'failed', message: errorText(cause) };
+  }
+}
+
+/** The Wallet's messages that ask for a fresh owner unlock. */
+const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active owner wallet session/i;
+
+/** One verifier enrollment. A thrown error goes to withFreshUnlock. */
+async function enrollOnce(speakToSign: NonNullable<Seams['speakToSign']>, walletId: string): Promise<SetupOutcome> {
+  const result = (await speakToSign.enroll({ walletId })) as SdkEnrollmentResult;
+  switch (result.kind) {
+    case 'enrolled':
+      return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };
+    case 'refused':
+      return { kind: 'failed', message: withDetail(ENROLL_REFUSALS[result.reason] ?? `The verifier refused (${result.reason}).`, result.detail) };
+    case 'cancelled':
+      return { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
+    case 'unavailable':
+      return { kind: 'failed', message: withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail) };
+  }
 }
 
 function toSignResult(result: SdkSpokenResult): SignResult {

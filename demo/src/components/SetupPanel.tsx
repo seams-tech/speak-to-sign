@@ -158,6 +158,9 @@ function SetupBody() {
           </button>
         </p>
       )}
+      {signedIn && !voiceReady && (
+        <p className="side-note">Turn on may ask for your passkey first. Then the Wallet asks you to read a few short phrases.</p>
+      )}
       {!enrolled && voiceReady && (
         <p className="side-note">Enroll once. You read three short phrases, then confirm one signed message.</p>
       )}

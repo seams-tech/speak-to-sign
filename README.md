@@ -117,15 +117,15 @@ the 24 request vectors are the same
 Expected (52 tests):
 
 ```text
-     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-cae52d5f128150f1)
+     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-61b138f53f973e2c)
 test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-4597ef443c637af5)
+     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-79a2f81a10d9f285)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-c5cfeae3f2b10ba9)
+     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-078cd8692115c4a4)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/ops.rs (target/debug/deps/ops-9ea614df234bf025)
+     Running tests/ops.rs (target/debug/deps/ops-b4ae252bc60fd0b0)
 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
-     Running tests/signed_vector.rs (target/debug/deps/signed_vector-554465cb2e9c7719)
+     Running tests/signed_vector.rs (target/debug/deps/signed_vector-8a4c243fa9593ecf)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
    Doc-tests seams_voice_verifier
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

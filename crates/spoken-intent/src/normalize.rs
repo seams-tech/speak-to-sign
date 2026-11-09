@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use crate::numbers::{
     digit_word, is_multiplier_word, is_number_word, push_integer_words, split_hyphenated_tens,
 };
+use crate::spelling::spelled_parts;
 use crate::token::SpokenToken;
 
 /// The punctuation that speech-to-text output may put around a word.
@@ -75,27 +76,15 @@ fn push_raw_word(raw: &str, words: &mut Vec<String>) -> Option<()> {
         words.push(String::from(ones));
         return Some(());
     }
-    let mut letters = String::new();
-    for c in word.chars() {
-        if c.is_ascii_lowercase() {
-            letters.push(c);
-            continue;
-        }
-        if !letters.is_empty() {
-            words.push(core::mem::take(&mut letters));
-        }
-        let spoken = match c {
-            '.' => "dot",
-            '-' => "dash",
-            '_' => "underscore",
-            '0'..='9' => digit_word(c as u8 - b'0'),
-            _ => return None,
-        };
-        words.push(String::from(spoken));
+    let parts = spelled_parts(&word);
+    // Punctuation inside a word ("a,b") has no spoken form.
+    if !parts
+        .iter()
+        .all(|part| part.bytes().all(|byte| byte.is_ascii_lowercase()))
+    {
+        return None;
     }
-    if !letters.is_empty() {
-        words.push(letters);
-    }
+    words.extend(parts.into_iter().map(String::from));
     Some(())
 }
 

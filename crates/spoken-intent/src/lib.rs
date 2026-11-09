@@ -34,6 +34,7 @@ mod phonetic;
 mod punctuated;
 mod render;
 mod request;
+mod spelling;
 mod summary;
 mod token;
 

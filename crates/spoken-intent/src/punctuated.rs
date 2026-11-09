@@ -9,6 +9,7 @@ use alloc::vec::Vec;
 use crate::account::MAX_ACCOUNT_ID_LEN;
 use crate::numbers::{digit_word, is_number_word};
 use crate::phonetic::words_key;
+use crate::spelling::{is_separator_word, separator_word, spelled_parts};
 use crate::token::{token_words, SpokenToken};
 use crate::{normalize, phonetic_key, SpokenAccount};
 
@@ -71,9 +72,6 @@ const SEPARATOR_SAYINGS: [(&str, &str); 4] = [
 /// Two-word sayings of a separator, in the recipient only.
 const SEPARATOR_PAIR_SAYINGS: [(&str, &str, &str); 2] =
     [("full", "stop", "dot"), ("under", "score", "underscore")];
-
-/// The spoken separators of an account name.
-const SEPARATOR_WORDS: [&str; 3] = ["dot", "dash", "underscore"];
 
 /// The network suffixes that a recipient can end with.
 const NETWORK_WORDS: [&str; 2] = ["testnet", "near"];
@@ -260,7 +258,7 @@ fn loose_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
     let mut loose: Vec<&str> = words
         .iter()
         .copied()
-        .filter(|word| !SEPARATOR_WORDS.contains(word))
+        .filter(|word| !is_separator_word(word))
         .collect();
     let suffix = |word: &&str| NETWORK_WORDS.contains(word) || TESTNET_SOUND_ALIKES.contains(word);
     if loose.len() > 1 && loose.last().is_some_and(suffix) {
@@ -504,7 +502,7 @@ fn clean_punctuated(transcript: &str) -> String {
             } else if after_version && is_check_digits(core) {
                 spell_check_digits(core)
             } else if is_account_token(core) {
-                spell_account(core)
+                spelled_parts(core).join(" ")
             } else {
                 clean_word(word)
             };
@@ -536,7 +534,7 @@ fn is_check_digits(core: &str) -> bool {
 
 fn is_account_token(core: &str) -> bool {
     let letter = core.bytes().any(|byte| byte.is_ascii_alphabetic());
-    let separator = core.bytes().any(|byte| matches!(byte, b'-' | b'_' | b'.'));
+    let separator = core.chars().any(|c| separator_word(c).is_some());
     let digit = core.bytes().any(|byte| byte.is_ascii_digit());
     letter && (separator || digit)
 }
@@ -551,33 +549,6 @@ fn spell_check_digits(core: &str) -> String {
     words.join(" ")
 }
 
-/// One word for each digit and each separator; other characters stay
-/// together as words.
-fn spell_account(core: &str) -> String {
-    let mut words: Vec<&str> = Vec::new();
-    let mut run_start: Option<usize> = None;
-    for (index, c) in core.char_indices() {
-        let word = match c {
-            '0'..='9' => digit_word(c as u8 - b'0'),
-            '.' => "dot",
-            '-' => "dash",
-            '_' => "underscore",
-            _ => {
-                run_start.get_or_insert(index);
-                continue;
-            }
-        };
-        if let Some(start) = run_start.take() {
-            words.push(&core[start..index]);
-        }
-        words.push(word);
-    }
-    if let Some(start) = run_start {
-        words.push(&core[start..]);
-    }
-    words.join(" ")
-}
-
 /// Step 4 of the text step for one word.
 fn clean_word(word: &str) -> String {
     let word = strip_final_punctuation(word);
@@ -588,17 +559,21 @@ fn clean_word(word: &str) -> String {
         let next = chars.get(index + 1).copied();
         let alphanumeric = |c: Option<char>| c.is_some_and(|c| c.is_ascii_alphanumeric());
         let digit = |c: Option<char>| c.is_some_and(|c| c.is_ascii_digit());
+        let between_digits = digit(previous) && digit(next);
         match c {
-            ',' if digit(previous) && digit(next) => {}
-            '.' if alphanumeric(previous)
-                && alphanumeric(next)
-                && !(digit(previous) && digit(next)) =>
-            {
-                out.push_str(" dot ")
-            }
-            '-' => out.push_str(" dash "),
-            '_' => out.push_str(" underscore "),
-            _ => out.push(c),
+            // A thousands separator: "1,300".
+            ',' if between_digits => {}
+            // A decimal point ("2.5") stays, and so does a point that is not
+            // between two letters or digits.
+            '.' if between_digits || !(alphanumeric(previous) && alphanumeric(next)) => out.push(c),
+            _ => match separator_word(c) {
+                Some(word) => {
+                    out.push(' ');
+                    out.push_str(word);
+                    out.push(' ');
+                }
+                None => out.push(c),
+            },
         }
     }
     out

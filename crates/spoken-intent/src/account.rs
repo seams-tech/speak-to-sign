@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::numbers::digit_word;
+use crate::spelling::spelled_parts;
 use crate::token::SpokenToken;
 use crate::UnsupportedReason;
 
@@ -45,28 +45,10 @@ impl SpokenAccount {
     /// "bob-1.testnet" gives "bob dash one dot testnet": each run of letters
     /// is one word, each digit is one word, and each separator is a word.
     pub(crate) fn spoken_tokens(&self) -> Vec<SpokenToken> {
-        let mut tokens = Vec::new();
-        let mut letters = String::new();
-        for byte in self.0.bytes() {
-            if byte.is_ascii_lowercase() {
-                letters.push(char::from(byte));
-                continue;
-            }
-            if !letters.is_empty() {
-                tokens.push(SpokenToken::from_letters(core::mem::take(&mut letters)));
-            }
-            let word = match byte {
-                b'.' => "dot",
-                b'-' => "dash",
-                b'_' => "underscore",
-                digit => digit_word(digit - b'0'),
-            };
-            tokens.push(SpokenToken::from_static(word));
-        }
-        if !letters.is_empty() {
-            tokens.push(SpokenToken::from_letters(letters));
-        }
-        tokens
+        spelled_parts(&self.0)
+            .into_iter()
+            .map(|word| SpokenToken::from_letters(String::from(word)))
+            .collect()
     }
 }
 

@@ -31,7 +31,7 @@ so one wallet works on both.
 | Seams Wallet host        | `https://staging.sign.seams.sh`                              | Speak-to-Sign host API 4: transfers and enroll only.   |
 | Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Notes need verifier 0.4.0 in its settings. |
 | Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.58.1. Notes need 0.59.0.              |
-| Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Ready. Allows the Pages origin, `http://localhost:5173` and `http://localhost:5280`. |
+| Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin. Local passkeys need `https://localhost:5443` and `https://localhost:8443` added. |
 
 Spoken notes work when all four are ready:
 
@@ -59,16 +59,30 @@ cp .dev.vars.example .dev.vars   # then set NEAR_AI_API_KEY in .dev.vars
 cp .env.example .env.local       # then set the VITE_SEAMS_* key and environment (ask the project owner)
 ```
 
-Start the summary function (terminal 1) and the page (terminal 2):
+Start the summary function, the page and the HTTPS proxy, each in its own terminal:
 
 ```bash
-pnpm dev:api   # wrangler pages dev on http://localhost:8788 (the /api/summary function)
-pnpm dev       # Vite on http://localhost:5173, sends /api/* to port 8788
+pnpm dev:api     # wrangler pages dev on http://localhost:8788 (the /api/summary function)
 ```
 
-Open http://localhost:5173. The port matters: the Seams project allows only its
-listed origins. Without a publishable key, the page shows the notes, and the
-setup panel says that the key is missing.
+```bash
+pnpm dev         # Vite on http://localhost:5173, sends /api/* to port 8788
+```
+
+```bash
+pnpm dev:https   # Caddy: https://localhost:5443 → 5173, https://localhost:8443 → 8788
+```
+
+Open https://localhost:5443. Passkeys in the Wallet iframe need the app on
+trusted HTTPS: on plain `http://localhost` the Wallet says "Passkeys require
+trusted HTTPS for the app and wallet". Caddy signs the certificates with its
+local CA (`tls internal`). If the browser does not trust it yet, run
+`caddy trust` once (it asks for your password).
+
+The Seams key allows only its listed origins. Add `https://localhost:5443`
+(dev) and `https://localhost:8443` (built site) to the key in the staging Seams
+Console. Without a publishable key, the page shows the notes, and the setup
+panel says that the key is missing.
 
 To run the whole site as Cloudflare Pages runs it (both pages and the function):
 
@@ -81,8 +95,8 @@ pnpm preview      # http://localhost:8788
 `../examples/seams-voice-intents` too. It gives the Speak to pay build the same
 `VITE_SEAMS_*` settings as `demo/`, so it writes nothing into `examples/`.
 
-The key does not allow `http://localhost:8788`, so sign-in does not work on
-`pnpm preview`. Use `pnpm dev` (port 5173) to sign in locally.
+To sign in on the built site, open it through Caddy at https://localhost:8443
+(`pnpm dev:https`), not at `http://localhost:8788`.
 
 ## Set up a wallet (in the page's setup panel)
 
@@ -110,6 +124,7 @@ and two raters.
 | `pnpm build`     | Builds this page into `dist/`.                                       |
 | `pnpm build:site`| Builds this page, then the Speak to pay page into `dist/pay/`.       |
 | `pnpm preview`   | Serves `dist/` and `functions/` with wrangler on port 8788.          |
+| `pnpm dev:https` | Caddy with local HTTPS: https://localhost:5443 and :8443.            |
 | `pnpm typecheck` | Type-checks the page, `vite.config.ts` and the Pages Function.       |
 
 ## Settings

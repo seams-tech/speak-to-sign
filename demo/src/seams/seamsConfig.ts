@@ -19,7 +19,14 @@ export function buildSeamsConfig(): SeamsConfigsInput | null {
       publishableKey: seams.publishableKey,
       ...(seams.projectEnvironmentId ? { projectEnvironmentId: seams.projectEnvironmentId } : {}),
       chains: [{ network: 'near-testnet' }],
+      // seamsTestnetConfig keeps the SDK default RP ID, "example.localhost". A passkey made in
+      // the Wallet iframe must use the Wallet host's RP ID, as the staging console does.
+      iframeWallet: { rpIdOverride: seams.rpId },
     }),
+    // Managed registration (a publishable key) needs Router A/B normal signing, as in the
+    // staging console. The SDK default turns it off.
+    routerAb: { normalSigning: { mode: 'enabled', signingWorkerId: seams.signingWorkerId } },
+    signingSessionPersistenceMode: 'sealed_refresh_v1',
     appearance: { locale: 'en' },
     authMethods: [voiceIdAuthMethod()],
     transactionFeatures: [speakToSign({ network: 'testnet' })],

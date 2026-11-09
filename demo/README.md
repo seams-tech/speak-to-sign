@@ -124,6 +124,8 @@ for `pnpm dev`, or in `demo/.env.production.local` for a build (see `.env.exampl
 | `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | none: optional cross-check            |
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
+| `VITE_SEAMS_RP_ID`                  | `staging.sign.seams.sh`               |
+| `VITE_SEAMS_SIGNING_WORKER_ID`      | `router-ab-signing-worker-staging`    |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
@@ -144,8 +146,10 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 
 - `src/main.tsx` wraps the app in `SeamsWebProvider` with the configuration
   from `src/seams/seamsConfig.ts`: `seamsTestnetConfig` with the publishable
-  key, VoiceID, and Speak-to-Sign on testnet. This is the same setup as the
-  Speak to pay page.
+  key, VoiceID, and Speak-to-Sign on testnet. It also sets the passkey RP ID to
+  the Wallet host (`seamsTestnetConfig` keeps the SDK default
+  `example.localhost`, and then "Create wallet with passkey" fails) and turns on
+  Router A/B normal signing, which managed registration needs.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
 - `src/signer/seamsSigner.ts` fills it:
   - `requestNote` → `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`

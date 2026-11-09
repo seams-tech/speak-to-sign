@@ -44,6 +44,7 @@ export function NoteMarketStrip({
   onSignIn,
   context,
   directBet = false,
+  placeholder = false,
 }: {
   noteId: number;
   source: MarketSource;
@@ -61,6 +62,12 @@ export function NoteMarketStrip({
    * at once: the Wallet's own confirm is the only step, with no bet sheet on top.
    */
   directBet?: boolean;
+  /**
+   * While the market is read the first time, show the strip's shapes (the odds bar, the odds line
+   * and the two bet buttons) grey and pulsing, in place of nothing. For a place where the market
+   * is known to exist, so that nothing appears and then goes away.
+   */
+  placeholder?: boolean;
 }) {
   const currency = source.currency ?? NEAR_CURRENCY;
   const [market, setMarket] = useState<NoteMarket | null>(null);
@@ -72,6 +79,8 @@ export function NoteMarketStrip({
   const [busy, setBusy] = useState<'claim' | 'ask' | 'close' | null>(null);
   /** A direct bet on this side waits for the Wallet. */
   const [placing, setPlacing] = useState<Side | null>(null);
+  /** The first read of the market has answered (or failed). */
+  const [loaded, setLoaded] = useState(false);
   /** The note has no market, and a new one can open: show "Open a market". */
   const [canOpen, setCanOpen] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -88,9 +97,11 @@ export function NoteMarketStrip({
   }, [source, noteId, account, context]);
 
   useEffect(() => {
-    load().catch((cause: unknown) =>
-      setNotice({ text: `Cannot read the market: ${cause instanceof Error ? cause.message : String(cause)}`, isError: true }),
-    );
+    load()
+      .catch((cause: unknown) =>
+        setNotice({ text: `Cannot read the market: ${cause instanceof Error ? cause.message : String(cause)}`, isError: true }),
+      )
+      .finally(() => setLoaded(true));
   }, [load]);
 
   // While a JEV request waits for its answer, read the market again every 5 s.
@@ -100,6 +111,29 @@ export function NoteMarketStrip({
     const timer = setInterval(() => void load().catch(() => undefined), 5_000);
     return () => clearInterval(timer);
   }, [resolving, load]);
+
+  if (!market && !loaded && placeholder) {
+    return (
+      <div className="nm-strip nm-loading" aria-busy="true" onClick={(event) => event.stopPropagation()}>
+        <span className="nm-bar" aria-hidden="true" />
+        <div className="nm-row" aria-hidden="true">
+          <span className="nm-sk" style={{ width: 120 }} />
+          <span className="nm-sk" style={{ width: 100 }} />
+        </div>
+        <div className="nm-buttons">
+          <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
+            Bet yes
+          </button>
+          <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
+            Bet no
+          </button>
+        </div>
+        <span className="sr-only" role="status">
+          Reading the market
+        </span>
+      </div>
+    );
+  }
 
   if (!market) {
     if (!canOpen || context === undefined || !source.createMarket) {

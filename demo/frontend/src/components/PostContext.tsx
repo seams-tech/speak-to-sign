@@ -123,7 +123,14 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
           </div>
           <div className="pc-bet">
             <b className="pc-bet-title">Is this note true?</b>
-            <NoteMarketStrip noteId={CONTEXT_MARKET_NOTE_ID} source={source} account={account} onSignIn={openSignIn} directBet />
+            <NoteMarketStrip
+              noteId={CONTEXT_MARKET_NOTE_ID}
+              source={source}
+              account={account}
+              onSignIn={openSignIn}
+              directBet
+              placeholder
+            />
             <p className="pc-practice">
               One tap bets {amountText(stake, currency)}. Your Seams Wallet asks you to confirm.
               {balance !== null && <> You have {amountText(balance, currency)}.</>}

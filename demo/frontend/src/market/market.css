@@ -149,3 +149,35 @@
   color: var(--red);
   font-size: 13px;
 }
+
+/* While the market is read the first time (the `placeholder` prop): the same shapes, grey and
+   gently pulsing, so the bet buttons do not pop in a second later. */
+.nm-loading .nm-bar {
+  background: var(--line-strong);
+}
+.nm-loading .nm-row {
+  min-height: 20px;
+}
+.nm-sk {
+  display: inline-block;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--line-strong);
+}
+.nm-loading .nm-bar,
+.nm-loading .nm-sk,
+.nm-loading .nm-bet {
+  animation: nm-pulse 1.2s ease-in-out infinite;
+}
+@keyframes nm-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nm-loading .nm-bar,
+  .nm-loading .nm-sk,
+  .nm-loading .nm-bet {
+    animation: none;
+  }
+}

@@ -1021,6 +1021,10 @@ a.lk:hover {
   background: var(--bet-no);
   box-shadow: 0 6px 14px -8px rgba(195, 70, 89, 0.55);
 }
+.pc-bet .nm-loading .nm-bet {
+  opacity: 0.55;
+  box-shadow: none;
+}
 .pc-bet .nm-bet:not(:disabled):hover {
   filter: brightness(0.93);
 }

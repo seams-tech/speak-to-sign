@@ -35,7 +35,7 @@ create a new wallet here and enroll your voice again.
 You need Node 22 or later and pnpm 10.
 
 ```bash
-cd examples/seams-voice-intents
+cd examples/speak-to-pay
 pnpm install
 cp .env.example .env.local   # then set VITE_SEAMS_PUBLISHABLE_KEY
 pnpm dev                     # http://localhost:5280

@@ -20,7 +20,7 @@ signed by the real Seams Wallet after the real verifier accepts your voice.
 
 The site has two pages on one origin, `https://seams-voice-intents.pages.dev`:
 this Community Notes page at `/`, and the Speak to pay example
-(`../../examples/seams-voice-intents`) at `/pay/`. Both use the same Seams project,
+(`../../examples/speak-to-pay`) at `/pay/`. Both use the same Seams project,
 so one wallet works on both.
 
 ## What must be live
@@ -76,12 +76,12 @@ panel says that the key is missing.
 To run the whole site as Cloudflare Pages runs it (both pages and the function):
 
 ```bash
-pnpm build:site   # demo/frontend/ into dist/, then ../../examples/seams-voice-intents into dist/pay/
+pnpm build:site   # demo/frontend/ into dist/, then ../../examples/speak-to-pay into dist/pay/
 pnpm preview      # http://localhost:8788
 ```
 
 `build:site` (`scripts/build-site.mjs`) needs `pnpm install` in
-`../../examples/seams-voice-intents` too. It gives the Speak to pay build the same
+`../../examples/speak-to-pay` too. It gives the Speak to pay build the same
 `VITE_SEAMS_*` settings as `demo/frontend/`, so it writes nothing into `examples/`.
 
 To sign in on the built site, open it through Caddy at https://localhost:8443
@@ -219,7 +219,7 @@ allow it (CORS and the project's allowed origins), and also
 
 Build with `demo/frontend/.env.production.local` (or the environment) set to the key of
 the project that allows the Pages origin. One deploy ships both pages. Do not
-deploy `../../examples/seams-voice-intents` alone to the same project: that would
+deploy `../../examples/speak-to-pay` alone to the same project: that would
 replace the whole site with the Speak to pay page.
 
 The summary route spends NEAR AI credit. For a public link, add a Cloudflare

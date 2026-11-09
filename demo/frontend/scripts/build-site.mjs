@@ -1,5 +1,5 @@
 // Builds the whole site into dist/: this Community Notes page at /, then the Speak to pay
-// example (../../examples/seams-voice-intents) at /pay/. Both use one Seams project, so the
+// example (../../examples/speak-to-pay) at /pay/. Both use one Seams project, so the
 // pay build gets the VITE_SEAMS_* settings of demo/frontend/ (.env.local, .env.production.local, or the
 // environment). Nothing is written into examples/.
 import { spawnSync } from 'node:child_process';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 
 const demo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const pay = resolve(demo, '../../examples/seams-voice-intents');
+const pay = resolve(demo, '../../examples/speak-to-pay');
 
 function run(command, args, cwd, env = process.env) {
   const result = spawnSync(command, args, { cwd, env, stdio: 'inherit' });

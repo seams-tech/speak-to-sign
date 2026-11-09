@@ -1,6 +1,6 @@
 // Build-time settings. The Seams defaults are the staging deployment, the only one whose
 // Seams server runs the Speak-to-Sign verifier. The same Seams project and key serve the
-// Speak to pay page at /pay/ (examples/seams-voice-intents), so one wallet works on both.
+// Speak to pay page at /pay/ (examples/speak-to-pay), so one wallet works on both.
 
 function env(value: string | undefined, fallback = ''): string {
   const trimmed = (value ?? '').trim();

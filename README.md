@@ -21,7 +21,7 @@ the words, and the verdict binds that voice and those words to one note.
 | Demo page   | `demo/frontend/README.md` tells how to run it and what must be live. |
 
 The same verifier also approves spoken NEAR transfers
-(`examples/seams-voice-intents/`).
+(`examples/speak-to-pay/`).
 
 ## Reproduce without a microphone
 
@@ -402,7 +402,7 @@ first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'
 | Window starts. The last earlier commit on `seams-wallet` `main` is `620794d9`. | | 2026-10-18 23:54 | `TZ=UTC git -C seams-wallet log -1 --before=2026-10-19T00:00:00Z --date=format-local:'%Y-%m-%d %H:%M' --format='%cd UTC %h %s'` |
 | VoiceID speech verification. | `seams-wallet`: commits that name VoiceID; `packages/voiceid` from 2026-10-26 | 2026-10-22 16:36, `9ace901f` | `TZ=UTC git -C seams-wallet log -i --grep=voiceid --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' \| sed -n 2p` |
 | The `spoken-intent` crate. It moved here from `seams-wallet` `crates/spoken-intent` with its history. | `speak-to-sign`: `crates/spoken-intent/` (was `spoken-intent/`) | 2026-11-07 06:50, `923e576` | `first speak-to-sign spoken-intent` |
-| The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `crates/voice-verifier/`, `crates/speaker-service/`, `gate0/` (was `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/`) | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
+| The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `crates/voice-verifier/`, `crates/speaker-service/`, `research/gate0/` (was `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/`) | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
 | Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/speak-to-sign/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | `first seams-wallet packages/speak-to-sign` |
 | Spoken notes in the verifier (version 0.4.0). | `speak-to-sign`: `crates/voice-verifier/src` (was `voice-verifier/src`) | 2026-11-09 10:14, `ff1409b` | `TZ=UTC git -C speak-to-sign log -S community_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- voice-verifier/src \| head -1` |
 | The community notes contract. | `speak-to-sign`: `demo/contracts/community-notes/` (was `community-notes/`, then `contracts/community-notes/`) | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
@@ -466,17 +466,21 @@ and `seams-monorepo/docs/refactor-210-voice-intents.md`.
 
 ## Repository
 
-| Folder                       | What it is |
-| ---------------------------- | ---------- |
-| `crates/spoken-intent/`      | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
-| `crates/voice-verifier/`     | The OutLayer worker: `enroll` and `verify`. See its README. |
-| `crates/speaker-service/`    | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
-| `packages/speak-to-sign/`    | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
-| `gate0/`                     | Gate 0 probes, the FastFS uploader, and the HTTPS latency probe (`gate0/voice-probe/`). |
-| `demo/frontend/`             | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
+Each top-level folder says what its contents are for.
+
+| Folder | What it is |
+| ------ | ---------- |
+| `crates/spoken-intent/` | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
+| `crates/voice-verifier/` | The OutLayer worker: `enroll` and `verify`. `scripts/fastfs_chunks.py` splits its WASM for the FastFS upload. See its README. |
+| `crates/speaker-service/` | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
+| `packages/speak-to-sign/` | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
+| `demo/frontend/` | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
 | `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
-| `examples/seams-voice-intents/` | Seams Voice Intents: a web page that pays a NEAR testnet account by voice. See its README. |
-| `docs/`                  | The record of the screener commands and their outputs.             |
+| `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
+| `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |
+| `docs/` | The record of the screener commands and their outputs. |
+
+The code is under the Apache License 2.0 (`LICENSE`).
 
 ## Testnet facts
 

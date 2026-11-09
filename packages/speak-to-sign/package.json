@@ -6,7 +6,8 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/seams-tech/seams-wallet.git"
+    "url": "git+https://github.com/seams-tech/speak-to-sign.git",
+    "directory": "packages/speak-to-sign"
   },
   "exports": {
     ".": {
@@ -37,8 +38,7 @@
   "scripts": {
     "build": "node scripts/build.mjs && tsrs -p tsconfig.build.json",
     "type-check": "tsrs --noEmit",
-    "prepack": "node ../../scripts/package-license.mjs stage",
-    "postpack": "node ../../scripts/package-license.mjs clean"
+    "test": "playwright test"
   },
   "peerDependencies": {
     "@seams/voiceid": "0.60.0",
@@ -51,9 +51,15 @@
     }
   },
   "devDependencies": {
-    "@seams/voiceid": "workspace:*",
-    "@seams/wallet": "workspace:*",
-    "rolldown": "1.0.0-rc.9"
+    "@playwright/test": "1.56.1",
+    "@seams/voiceid": "0.60.0",
+    "@seams/wallet": "0.60.0",
+    "@types/node": "24.2.0",
+    "rolldown": "1.0.0-rc.9",
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "bin": {
     "seams-speak-to-sign-host": "dist/compose-host.mjs"

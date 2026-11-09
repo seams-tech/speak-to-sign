@@ -242,3 +242,33 @@ recording used.
 - The verifier cannot tell apart two accounts that sound the same, such as
   `bob.testnet` and `bobb.testnet`. The owner must read the account on the
   screen before speaking.
+
+## Develop and release
+
+This package lives in `packages/speak-to-sign` of
+[seams-tech/speak-to-sign](https://github.com/seams-tech/speak-to-sign), beside
+the verifier. It builds against the published `@seams/wallet` and
+`@seams/voiceid` of the same version.
+
+```sh
+pnpm install
+pnpm type-check
+pnpm test
+pnpm build
+```
+
+The tests run the host plugin in Node against a fake Wallet core. The Wallet
+side of Speak-to-Sign (the request bytes, the verdict check and the co-signer
+check) is tested in seams-tech/seams-wallet.
+
+A release has these steps:
+
+1. Release `@seams/wallet` and `@seams/voiceid` from seams-tech/seams-wallet.
+2. Set the same version here: `version`, and the `@seams/wallet` and
+   `@seams/voiceid` entries of `peerDependencies` and `devDependencies`. Run
+   `pnpm install` and commit `pnpm-lock.yaml`.
+3. Run the "Release @seams/speak-to-sign" workflow with that version.
+
+Before the Wallet packages of a new version are on npm, build against a local
+seams-wallet checkout with `pnpm link <path to packages/wallet>` and
+`pnpm link <path to packages/voiceid>`.

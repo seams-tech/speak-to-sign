@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
-import { SetupPanel } from './components/SetupPanel';
+import { SETUP_CHANGED, SetupPanel } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
 import { Timeline } from './components/Timeline';
 import { WriteNoteModal } from './components/WriteNoteModal';
@@ -83,7 +83,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     void loadAll();
     const onFocus = () => void refreshStatus();
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener(SETUP_CHANGED, onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener(SETUP_CHANGED, onFocus);
+    };
   }, [loadAll, refreshStatus]);
 
   // The ratings of the signed-in account, from the contract view `get_rating`.

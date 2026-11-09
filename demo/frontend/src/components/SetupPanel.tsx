@@ -4,7 +4,13 @@ import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react
 import { accountUrl, config, shortAccount } from '../config';
 import { useDemo } from '../demoContext';
 import { formatNear, NOTE_GAS_NEED_YOCTO, readFreeBalance } from '../notes/nearAccount';
-import type { SetupOutcome } from '../signer/notesSigner';
+import type { SetupOutcome, SignerSetup, SignerStatus } from '../signer/notesSigner';
+
+/**
+ * A window event after a setup step changes the Wallet (the voice set up). The Speak-to-Sign page
+ * and the notes app both show the steps, so each one reads the state again.
+ */
+export const SETUP_CHANGED = 'speak-to-sign:setup-changed';
 
 /** The Wallet steps: sign in, set up your voice, testnet NEAR. Compact form for narrow screens. */
 export function SetupPanel({ compact }: { compact: boolean }) {
@@ -57,6 +63,38 @@ function readEnrolled(account: string | undefined): boolean {
 
 function SetupBody() {
   const { status, account, signer, reload, openSignIn, walletConfigured } = useDemo();
+  return (
+    <SetupSteps
+      status={status}
+      account={account}
+      signer={signer}
+      walletConfigured={walletConfigured}
+      onSignIn={openSignIn}
+      onChanged={reload}
+      variant="notes"
+    />
+  );
+}
+
+export interface SetupStepsProps {
+  status: SignerStatus | null;
+  account: string | undefined;
+  signer: SignerSetup;
+  walletConfigured: boolean;
+  onSignIn: () => void;
+  /** Called after a step changes the Wallet, to read the status again. */
+  onChanged: () => void;
+  /** `notes`: with the notes line and the notes contract. `page`: the steps only. */
+  variant: 'notes' | 'page';
+}
+
+/** The setup steps: sign in or create a wallet, set up your voice, testnet NEAR for gas. */
+export function SetupSteps({ status, account, signer, walletConfigured, onSignIn, onChanged, variant }: SetupStepsProps) {
+  const openSignIn = onSignIn;
+  const reload = () => {
+    onChanged();
+    window.dispatchEvent(new Event(SETUP_CHANGED));
+  };
   const [busy, setBusy] = useState<VoicePhase | null>(null);
   const [outcome, setOutcome] = useState<SetupOutcome | null>(null);
   const [enrolled, setEnrolled] = useState(() => readEnrolled(account));
@@ -64,7 +102,12 @@ function SetupBody() {
   const signedIn = !!status?.signedIn;
   const voiceReady = !!status?.voiceReady;
 
-  useEffect(() => setEnrolled(readEnrolled(account)), [account]);
+  useEffect(() => {
+    setEnrolled(readEnrolled(account));
+    const onChange = () => setEnrolled(readEnrolled(account));
+    window.addEventListener(SETUP_CHANGED, onChange);
+    return () => window.removeEventListener(SETUP_CHANGED, onChange);
+  }, [account]);
 
   const loadBalance = useCallback(() => {
     if (!account) return;
@@ -114,9 +157,11 @@ function SetupBody() {
   return (
     <>
       {busy && <WalletWait step={busy} />}
-      <p className="side-text">Post and rate notes with your voice. The Wallet signs from your own account, with no confirm tap.</p>
+      {variant === 'notes' && (
+        <p className="side-text">Post and rate notes with your voice. The Wallet signs from your own account, with no confirm tap.</p>
+      )}
       <ol className="steps">
-        <Step index={1} done={signedIn} label="Sign in to Seams Wallet">
+        <Step index={1} done={signedIn} label={variant === 'page' ? 'Create a wallet, or sign in' : 'Sign in to Seams Wallet'}>
           {signedIn && account ? (
             <a className="lk small step-detail" href={accountUrl(account)} target="_blank" rel="noopener noreferrer">
               {shortAccount(account)}
@@ -181,12 +226,14 @@ function SetupBody() {
           {outcome.message}
         </p>
       )}
-      <p className="side-note">
-        Notes contract:{' '}
-        <a className="lk" href={accountUrl(config.contract)} target="_blank" rel="noopener noreferrer">
-          <code>{config.contract}</code>
-        </a>
-      </p>
+      {variant === 'notes' && (
+        <p className="side-note">
+          Notes contract:{' '}
+          <a className="lk" href={accountUrl(config.contract)} target="_blank" rel="noopener noreferrer">
+            <code>{config.contract}</code>
+          </a>
+        </p>
+      )}
     </>
   );
 }

@@ -7,7 +7,8 @@ import type {
   SpeakToSignHostOperations,
   SpeakToSignPrompt,
 } from '@seams/wallet/speak-to-sign-host';
-import { ENROLLMENT_PHRASES, readEnrollmentOutput, runEnrollment } from '../src/host/enroll';
+import { ENROLLMENT_PHRASES, runEnrollment } from '../src/host/enroll';
+import { readEnrollmentOutput } from '../src/host/verifier';
 
 type Clip = Awaited<ReturnType<SpeakToSignPrompt['record']>>;
 type Authorization = Awaited<ReturnType<SpeakToSignHostOperations['authorizeEnrollment']>>;

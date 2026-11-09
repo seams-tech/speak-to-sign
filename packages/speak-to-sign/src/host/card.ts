@@ -2,8 +2,9 @@ import type {
   PhraseCheckView,
   PhraseResultView,
   PhraseSegmentState,
-  VerifierRefusal,
 } from '@seams/wallet/speak-to-sign-host';
+import { heardCaption } from './heardWords';
+import type { FailedResult } from './result';
 
 // The line under the sentence has one segment for each step of a spoken request.
 const SPEAKER = 1;
@@ -204,24 +205,6 @@ export function notEnrolledView(
 /** A failed result and whether "Try again" records the sentence again. */
 export type FailureView = Readonly<{ view: PhraseResultView; retry: boolean }>;
 
-/** A failure after the card opened. The flow refuses an unspeakable request before that. */
-export type FailedResult =
-  | Readonly<{
-      kind: 'refused';
-      reason:
-        | VerifierRefusal
-        | 'verdict_mismatch'
-        | 'voice_limit'
-        | 'cosigner_refused'
-        | 'transaction_failed';
-      detail?: string;
-    }>
-  | Readonly<{
-      kind: 'unavailable';
-      reason: 'voiceid_unavailable' | 'verifier_unavailable' | 'not_submitted' | 'submission_unknown';
-      detail?: string;
-    }>;
-
 /** `canRetry` is false for the last recording of a request. */
 export function failureView(
   input: CardInput,
@@ -371,58 +354,4 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
     default:
       return result satisfies never;
   }
-}
-
-/** A refused verdict is not signature-checked, so its text is cut short and shown as plain text. */
-const MAX_HEARD_CHARS = 160;
-
-/**
- * The words that the verifier heard, with each word that the alignment with the spoken sentence
- * does not match marked. The Wallet passes them as `heard: <words>` in the refusal detail.
- */
-function heardCaption(spokenText: string, detail: string | undefined): PhraseResultView['caption'] {
-  const heard = detail?.startsWith('heard: ')
-    ? detail.slice('heard: '.length).slice(0, MAX_HEARD_CHARS).trim()
-    : '';
-  if (!heard) return 'The verifier heard different words.';
-  const words = heard.split(/\s+/);
-  const matched = alignedWords(words.map(normalWord), spokenText.split(' ').map(normalWord));
-  const parts: (string | { mark: string })[] = ['We heard “'];
-  for (const [index, word] of words.entries()) {
-    if (index > 0) parts.push(' ');
-    parts.push(matched.has(index) ? word : { mark: word });
-  }
-  parts.push('”');
-  return parts;
-}
-
-/** The indices of heard words in a longest common subsequence with the expected words. */
-function alignedWords(heard: readonly string[], expected: readonly string[]): Set<number> {
-  const lengths = Array.from({ length: heard.length + 1 }, () =>
-    new Array<number>(expected.length + 1).fill(0),
-  );
-  for (let i = heard.length - 1; i >= 0; i -= 1) {
-    for (let j = expected.length - 1; j >= 0; j -= 1) {
-      lengths[i][j] =
-        heard[i] === expected[j]
-          ? lengths[i + 1][j + 1] + 1
-          : Math.max(lengths[i + 1][j], lengths[i][j + 1]);
-    }
-  }
-  const matched = new Set<number>();
-  let i = 0;
-  let j = 0;
-  while (i < heard.length && j < expected.length) {
-    if (heard[i] === expected[j]) {
-      matched.add(i);
-      i += 1;
-      j += 1;
-    } else if (lengths[i + 1][j] >= lengths[i][j + 1]) i += 1;
-    else j += 1;
-  }
-  return matched;
-}
-
-function normalWord(word: string): string {
-  return word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 }

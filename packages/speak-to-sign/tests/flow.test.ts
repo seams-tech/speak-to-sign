@@ -11,6 +11,7 @@ import type {
   SpokenNoteAction,
 } from '@seams/wallet/speak-to-sign-host';
 import { runSpokenNote, runSpokenTransfer, type HostTransfer } from '../src/host/flow';
+import { heardCaption } from '../src/host/heardWords';
 
 type ClipRequest = Parameters<SpeakToSignHostOperations['openPrompt']>[0];
 type Clip = Awaited<ReturnType<SpeakToSignPrompt['record']>>;
@@ -234,37 +235,11 @@ test('a payment records at most five times, then the refusal offers only Close',
   ]);
 });
 
-test('the words that the verifier heard are aligned with the sentence and marked', async () => {
-  const core = fakeCore({
-    payment: {
-      kind: 'refused',
-      reason: 'words',
-      detail: 'heard: send twenty year to alice dot testnet <b>',
-    },
-  });
-  const transfer = hostTransfer(core);
-  let caption: unknown = null;
-  const opened = await core.operations.openPrompt({
-    sentence: '',
-    signal: new AbortController().signal,
-    surfaceMeasurementBinding: { kind: 'disabled' },
-  });
-  if (opened.kind !== 'opened') throw new Error('not opened');
-  const operations = {
-    ...core.operations,
-    openPrompt: async () => ({
-      kind: 'opened' as const,
-      prompt: {
-        ...opened.prompt,
-        show: async (view: PhraseView) => {
-          if (view.kind === 'result') caption = view.caption;
-          return 'closed' as const;
-        },
-      },
-    }),
-  };
-  await runSpokenTransfer(transferInput({ ...transfer, operations }));
-  // The sentence says "send twenty five near to alice dot testnet".
+test('the words that the verifier heard are aligned with the sentence and marked', () => {
+  const caption = heardCaption(
+    'send twenty five near to alice dot testnet',
+    'heard: send twenty year to alice dot testnet <b>',
+  );
   expect(caption).toEqual([
     'We heard “',
     'send',

@@ -1,5 +1,4 @@
 import {
-  base64Encode,
   isSpeakableAccount,
   noteActionRefusal,
   noteVerifyRequest,
@@ -21,18 +20,20 @@ import {
   stepUpView,
   verifyingView,
   type CardInput,
-  type FailedResult,
 } from './card';
+import { recordClip, withPrompt } from './prompt';
+import {
+  mapPayment,
+  shortDetail,
+  verifierUnavailable,
+  type FailedResult,
+  type SpokenResult,
+} from './result';
+import { verifyInput } from './verifier';
 
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
 export type HostTransfer = NonNullable<TransferInput['transfer']>;
 type NoteInput = Parameters<SpeakToSignHostPlugin['requestNoteAction']>[0];
-
-/** What a spoken request returns once its card opened. Both result types accept it. */
-type SpokenResult =
-  | Extract<SpeakToSignTransferResult, { kind: 'sent' }>
-  | Readonly<{ kind: 'cancelled' }>
-  | FailedResult;
 
 /**
  * One spoken request on the VoiceID card: the sentence to say, the request that the verifier
@@ -133,23 +134,18 @@ export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteRe
 const MAX_RECORDINGS = 5;
 
 async function runSpoken(request: SpokenRequest, signal: AbortSignal): Promise<SpokenResult> {
-  const opened = await request.operations.openPrompt({
-    sentence: request.sentence,
-    signal,
-    surfaceMeasurementBinding: request.surfaceMeasurementBinding,
-  });
-  if (opened.kind === 'unavailable') {
-    return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: opened.detail };
-  }
-  const run: Run = { request, signal, prompt: opened.prompt };
-  try {
-    for (let recording = 1; ; recording += 1) {
-      const attempt = await signOnce(run, recording < MAX_RECORDINGS);
-      if (attempt.kind === 'final') return attempt.result;
-    }
-  } finally {
-    opened.prompt.close();
-  }
+  const { sentence, surfaceMeasurementBinding } = request;
+  return await withPrompt(
+    request.operations,
+    { sentence, signal, surfaceMeasurementBinding },
+    async (prompt) => {
+      const run: Run = { request, signal, prompt };
+      for (let recording = 1; ; recording += 1) {
+        const attempt = await signOnce(run, recording < MAX_RECORDINGS);
+        if (attempt.kind === 'final') return attempt.result;
+      }
+    },
+  );
 }
 
 type Run = Readonly<{
@@ -168,34 +164,18 @@ type Attempt =
  */
 async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
   const { request, prompt, signal } = run;
-  const clip = await prompt.record();
-  if (clip.kind === 'cancelled') return { kind: 'final', result: clip };
-  if (clip.kind === 'unavailable') {
-    return {
-      kind: 'final',
-      result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: clip.detail },
-    };
-  }
+  const clip = await recordClip(prompt);
+  if (clip.kind !== 'captured') return { kind: 'final', result: clip };
   void prompt.show(verifyingView());
 
   const verifyStartedAt = performance.now();
   const reply = await request.operations.verify(
-    {
-      op: 'verify',
-      owner: request.ownerAccountId,
-      request: request.verifyRequest,
-      contacts: [],
-      audio_wav_b64: base64Encode(clip.wav),
-    },
+    verifyInput(request.ownerAccountId, request.verifyRequest, clip.wav),
     signal,
   );
   const verifiedAt = performance.now();
   if (reply.kind === 'failed') {
-    return await showFailure(
-      run,
-      { kind: 'unavailable', reason: 'verifier_unavailable', detail: reply.code },
-      canRetry,
-    );
+    return await showFailure(run, verifierUnavailable(reply.code), canRetry);
   }
 
   // A step-up waits for the owner, so the signed time then starts at the approval.
@@ -249,46 +229,6 @@ async function showFailure(run: Run, result: FailedResult, canRetry: boolean): P
   return choice === 'action' && failure.retry ? { kind: 'again' } : { kind: 'final', result };
 }
 
-type StageTimes = Readonly<{
-  speechMs: number;
-  verifyMs: number;
-  verifiedAt: number;
-  endOfSpeechAt: number;
-}>;
-
-function mapPayment(payment: SpeakToSignPayment, times: StageTimes): SpokenResult {
-  const receiptAt = performance.now();
-  switch (payment.kind) {
-    case 'executed':
-      return {
-        kind: 'sent',
-        transactionHash: payment.transactionHash,
-        approval: payment.approval,
-        times: {
-          speechMs: times.speechMs,
-          verifyMs: times.verifyMs,
-          transactionMs: Math.round(receiptAt - times.verifiedAt),
-          endOfSpeechToReceiptMs: Math.round(receiptAt - times.endOfSpeechAt),
-        },
-      };
-    case 'reverted':
-      return { kind: 'refused', reason: 'transaction_failed', detail: payment.error };
-    case 'refused':
-      return payment.detail === undefined
-        ? { kind: 'refused', reason: payment.reason }
-        : { kind: 'refused', reason: payment.reason, detail: payment.detail };
-    case 'cancelled':
-      return payment;
-    case 'unavailable':
-      return { kind: 'unavailable', reason: 'verifier_unavailable', detail: payment.detail };
-    case 'not_submitted':
-    case 'submission_unknown':
-      return { kind: 'unavailable', reason: payment.kind, detail: payment.error };
-    default:
-      return payment satisfies never;
-  }
-}
-
 type ReceiverCheck =
   Readonly<{ kind: 'exists' }> | Readonly<{ kind: 'failed'; result: SpeakToSignTransferResult }>;
 
@@ -300,11 +240,8 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
     }
   } catch (error) {
     signal.throwIfAborted();
-    const detail = error instanceof Error ? error.message.slice(0, 200) : 'account view failed';
-    return {
-      kind: 'failed',
-      result: { kind: 'unavailable', reason: 'verifier_unavailable', detail },
-    };
+    const detail = error instanceof Error ? shortDetail(error.message) : 'account view failed';
+    return { kind: 'failed', result: verifierUnavailable(detail) };
   }
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
 }

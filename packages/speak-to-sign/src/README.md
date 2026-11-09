@@ -19,15 +19,25 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   `payWithVerdict` tells the open prompt when the verdict passed, when a step-up needs the
   owner, and when the transfer leaves for the network. A co-signer refusal comes back as
   `voice_limit` or `cosigner_refused`.
-- [`host/card.ts`](host/card.ts) holds the copy and the line segments of each state of the card:
-  the check, the payment, the step-up question, the paid result, each refusal, and the
-  enrollment states.
 - [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three prompts of one recording each,
   `authorizeEnrollment` for exactly these clips (core signs one NEP-413 message), then
   `verify` with the verifier's `enroll` input. The card of the third phrase stays open: it
   waits while core prepares the message (the Wallet confirm, a modal dialog, opens over it),
   shows the verifier's work, then shows the result. `tests/enroll.test.ts` checks the flow;
   seams-wallet checks core's digest and message against the verifier's vectors.
+- [`host/prompt.ts`](host/prompt.ts) is the prompt lifecycle that both flows share: open the
+  VoiceID prompt of one sentence, record a clip, and close the prompt when the flow is done with
+  it. A prompt that cannot open or record gives `voiceid_unavailable`.
+- [`host/verifier.ts`](host/verifier.ts) is the verifier wire format: the `verify` and `enroll`
+  inputs, and the reader of the `enroll` output.
+- [`host/result.ts`](host/result.ts) holds the results of a spoken request after its card
+  opened, the map from core's payment outcome to them, `verifier_unavailable`, and the length
+  limit of a result detail.
+- [`host/card.ts`](host/card.ts) holds the copy and the line segments of each state of the card:
+  the check, the payment, the step-up question, the paid result, each refusal, and the
+  enrollment states.
+- [`host/heardWords.ts`](host/heardWords.ts) aligns the words that the verifier heard with the
+  spoken sentence, and marks each word that does not match, for the card of a `words` refusal.
 - `openPrompt` loads the VoiceID host plugin through `loadWalletAuthMethodHostPlugin` and calls
   its `openPhrase`, which shows the sentence and records clips of it. The surface stays open for
   the check and the result (`packages/voiceid/src/capture/phraseCard.ts`). Core returns each

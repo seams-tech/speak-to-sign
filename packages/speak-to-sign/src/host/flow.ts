@@ -25,7 +25,7 @@ export type HostTransfer = NonNullable<TransferInput['transfer']>;
  * then hand the verifier output to Wallet core. Core checks the signed verdict against this
  * transfer and sends it from the owner's account: with no confirm on `accept`, and with a fresh
  * approval on `step_up`. The surface stays open: it shows the check and the result, and "Try
- * again" records the sentence again.
+ * again" records the sentence again, up to five recordings in all.
  */
 export async function runSpokenTransfer(
   input: Omit<TransferInput, 'transfer'> & { readonly transfer: HostTransfer },
@@ -39,7 +39,8 @@ export async function runSpokenTransfer(
   const receiver = await receiverExists(transfer, signal);
   if (receiver.kind !== 'exists') return receiver.result;
 
-  const sentence = renderTransfer({ receiver: transfer.receiver, amountYocto }).displayText;
+  const rendered = renderTransfer({ receiver: transfer.receiver, amountYocto });
+  const sentence = rendered.displayText;
   const opened = await transfer.operations.openPrompt({
     sentence,
     signal,
@@ -57,18 +58,21 @@ export async function runSpokenTransfer(
       network: input.network,
       receiver: transfer.receiver,
       amount: transfer.amount,
-      sentence,
+      spokenText: rendered.spokenText,
     },
   };
   try {
-    for (;;) {
-      const attempt = await payOnce(payment);
+    for (let recording = 1; ; recording += 1) {
+      const attempt = await payOnce(payment, recording < MAX_RECORDINGS);
       if (attempt.kind === 'final') return attempt.result;
     }
   } finally {
     opened.prompt.close();
   }
 }
+
+/** Each "Try again" is a new verify call, so one payment has at most this many recordings. */
+const MAX_RECORDINGS = 5;
 
 type Payment = Readonly<{
   transfer: HostTransfer;
@@ -82,8 +86,11 @@ type Attempt =
   | Readonly<{ kind: 'final'; result: SpeakToSignTransferResult }>
   | Readonly<{ kind: 'again' }>;
 
-/** One recording, one verdict and at most one payment, then the result on the card. */
-async function payOnce(payment: Payment): Promise<Attempt> {
+/**
+ * One recording, one verdict and at most one payment, then the result on the card. `canRetry`
+ * is false for the last recording, whose refusal offers only "Close".
+ */
+async function payOnce(payment: Payment, canRetry: boolean): Promise<Attempt> {
   const { transfer, prompt, signal } = payment;
   const clip = await prompt.record();
   if (clip.kind === 'cancelled') return { kind: 'final', result: clip };
@@ -112,11 +119,11 @@ async function payOnce(payment: Payment): Promise<Attempt> {
   );
   const verifiedAt = performance.now();
   if (reply.kind === 'failed') {
-    return await showFailure(payment, {
-      kind: 'unavailable',
-      reason: 'verifier_unavailable',
-      detail: reply.code,
-    });
+    return await showFailure(
+      payment,
+      { kind: 'unavailable', reason: 'verifier_unavailable', detail: reply.code },
+      canRetry,
+    );
   }
 
   // A step-up waits for the owner, so the paid time then starts at the approval.
@@ -155,14 +162,15 @@ async function payOnce(payment: Payment): Promise<Attempt> {
     await prompt.show(paidView(payment.card, result.transactionHash, seconds));
     return { kind: 'final', result };
   }
-  return await showFailure(payment, result);
+  return await showFailure(payment, result, canRetry);
 }
 
 async function showFailure(
   payment: Payment,
   result: Exclude<SpeakToSignTransferResult, { kind: 'sent' } | { kind: 'cancelled' }>,
+  canRetry: boolean,
 ): Promise<Attempt> {
-  const failure = failureView(payment.card, result);
+  const failure = failureView(payment.card, result, canRetry);
   const choice = await payment.prompt.show(failure.view);
   return choice === 'action' && failure.retry ? { kind: 'again' } : { kind: 'final', result };
 }

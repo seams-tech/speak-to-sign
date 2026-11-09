@@ -24,8 +24,9 @@ One spoken payment has these steps:
    card asks the owner to confirm, and the Wallet asks for a fresh approval with
    the session's own method (a passkey on a passkey session).
 5. The card shows the result. "Done" closes it after a payment. After a
-   refusal, "Try again" records the sentence again, and the result is the last
-   attempt's. `requestTransfer` returns when the card closes.
+   refusal, "Try again" records the sentence again, up to five recordings in
+   all, and the result is the last attempt's. `requestTransfer` returns when
+   the card closes.
 
 ## Install
 
@@ -166,7 +167,7 @@ chooses the Seams server URL.
 
 A verdict (`seams_voice_signed_verdict_v2`) binds the network, the owner, the
 receiver, the amount, the spoken text and the audio digest. It expires 120 s
-after the verifier signs it. Wallet core pays each verdict at most once, and
+after the verifier signs it. Wallet core pays at most once in each flow, and
 only for a clip that it recorded in the same flow. The verifier marks each
 recording used.
 

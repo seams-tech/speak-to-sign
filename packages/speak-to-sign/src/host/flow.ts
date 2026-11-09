@@ -121,22 +121,7 @@ export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteRe
       surfaceMeasurementBinding: note.surfaceMeasurementBinding,
       sentence: rendered.displayText,
       verifyRequest,
-      card:
-        action.kind === 'community_note'
-          ? {
-              network: input.network,
-              noun: 'note',
-              doneHeadline: 'Note posted',
-              doneCaption: `“${action.summary}”`,
-              spokenText: rendered.spokenText,
-            }
-          : {
-              network: input.network,
-              noun: 'rating',
-              doneHeadline: 'Rating saved',
-              doneCaption: rendered.displayText,
-              spokenText: rendered.spokenText,
-            },
+      card: noteCard(input.network, action, rendered),
       sign: (output, signal, hooks) =>
         note.operations.signNoteWithVerdict(action, output, signal, hooks),
     },
@@ -216,6 +201,8 @@ async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
   // A step-up waits for the owner, so the signed time then starts at the approval.
   let signedFrom = clip.endOfSpeechAt;
   let approved = false;
+  // A plain transfer shows as sent when a block holds it; the result still waits for the outcome.
+  const sent: { choice: Promise<unknown> | null } = { choice: null };
   const { noun } = request.card;
   const result = mapPayment(
     await request.sign(reply.output, signal, {
@@ -231,6 +218,9 @@ async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
       broadcasting: () => {
         if (approved) void prompt.show(sendingView(request.card, 'passkey'));
       },
+      included: (transactionHash) => {
+        sent.choice = prompt.show(paidView(request.card, transactionHash, seconds(signedFrom)));
+      },
     }),
     {
       speechMs: clip.speechMs,
@@ -241,11 +231,16 @@ async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
   );
   if (result.kind === 'cancelled') return { kind: 'final', result };
   if (result.kind === 'sent') {
-    const seconds = (performance.now() - signedFrom) / 1_000;
-    await prompt.show(paidView(request.card, result.transactionHash, seconds));
+    // The card already shows "Sent" from the block; keep it and wait for "Done" there.
+    if (sent.choice) await sent.choice;
+    else await prompt.show(paidView(request.card, result.transactionHash, seconds(signedFrom)));
     return { kind: 'final', result };
   }
   return await showFailure(run, result, canRetry);
+}
+
+function seconds(from: number): number {
+  return (performance.now() - from) / 1_000;
 }
 
 async function showFailure(run: Run, result: FailedResult, canRetry: boolean): Promise<Attempt> {
@@ -312,4 +307,33 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
     };
   }
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
+}
+
+/** The card copy of a spoken note, rating or merge approval. */
+function noteCard(
+  network: NoteInput['network'],
+  action: NoteInput['note']['action'],
+  rendered: Readonly<{ displayText: string; spokenText: string }>,
+): CardInput {
+  const { spokenText } = rendered;
+  switch (action.kind) {
+    case 'community_note':
+      return {
+        network,
+        noun: 'note',
+        doneHeadline: 'Note posted',
+        doneCaption: `“${action.summary}”`,
+        spokenText,
+      };
+    case 'note_rating':
+      return { network, noun: 'rating', doneHeadline: 'Rating saved', doneCaption: rendered.displayText, spokenText };
+    case 'merge_approval':
+      return {
+        network,
+        noun: 'approval',
+        doneHeadline: 'Merge approved',
+        doneCaption: rendered.displayText,
+        spokenText,
+      };
+  }
 }

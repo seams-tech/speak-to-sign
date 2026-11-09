@@ -1,11 +1,11 @@
-// The market calls, signed by the Seams Wallet with its normal confirm step (passkey). Bets
-// attach NEAR, so they are not spoken requests yet: a spoken bet needs a new spoken request
-// kind in the Wallet.
+// The changes of the pm-notes contract, signed by the Seams Wallet with its normal confirm step
+// (passkey). Bets attach NEAR, so they are not spoken requests yet: a spoken bet needs a new
+// spoken request kind in the Wallet.
 
-import { createContext, useContext } from 'react';
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
-import type { MarketTxResult, Outcome } from './types';
+import type { SignResult } from '../signer/notesSigner';
+import { YOCTO_PER_NEAR, type Side } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 
@@ -14,17 +14,16 @@ const TGAS = 1_000_000_000_000n;
 const CALL_GAS = (30n * TGAS).toString();
 /** `request_resolution` calls OutLayer and waits for the AI answer. */
 const REQUEST_GAS = (300n * TGAS).toString();
-export const YOCTO_PER_NEAR = 10n ** 24n;
 /** The OutLayer fee that `request_resolution` attaches: 0.05 NEAR. */
 export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 20n;
 
 export interface MarketSigner {
-  /** Opens a market. `seed` (yoctoNEAR, at least 0.1 NEAR) goes half on yes and half on no. */
-  createMarket(input: { question: string; context: string; noteId: number; closesAtMs: number; seed: bigint }): Promise<MarketTxResult>;
-  bet(input: { marketId: number; outcome: Outcome; amount: bigint }): Promise<MarketTxResult>;
-  closeMarket(marketId: number): Promise<MarketTxResult>;
-  requestResolution(marketId: number): Promise<MarketTxResult>;
-  claim(marketId: number): Promise<MarketTxResult>;
+  createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }): Promise<SignResult>;
+  bet(input: { marketId: number; side: Side; amount: bigint }): Promise<SignResult>;
+  closeMarket(marketId: number): Promise<SignResult>;
+  /** A sent request whose AI answer did not count is `refused`, with the contract's reason. */
+  requestResolution(marketId: number): Promise<SignResult>;
+  claim(marketId: number): Promise<SignResult>;
 }
 
 const NO_KEY = 'This build has no Seams publishable key (VITE_SEAMS_PUBLISHABLE_KEY), so it cannot reach the Wallet.';
@@ -41,7 +40,14 @@ export const missingKeyMarketSigner: MarketSigner = {
 export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string | null; contract: string }): MarketSigner {
   const { seams, walletId, contract } = owner;
 
-  const send = async (method: string, args: Record<string, unknown>, deposit: bigint, gas: string): Promise<MarketTxResult> => {
+  /** Sends one call. `check` can turn a sent transaction into a refusal (from its events). */
+  const send = async (
+    method: string,
+    args: Record<string, unknown>,
+    deposit: bigint,
+    gas: string,
+    check?: (events: ContractEvent[]) => string | null,
+  ): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     try {
       const result = await seams.near.signAndSendTransaction({
@@ -49,37 +55,49 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
         receiverId: contract,
         actions: [functionCall({ method, args, gas, deposit: deposit.toString() })],
       });
-      if (result.success) return { kind: 'sent', transactionHash: result.transactionId, events: eventsOf(result.result) };
+      if (result.success) {
+        const refusal = check?.(eventsOf(result.result)) ?? null;
+        return refusal ? { kind: 'refused', reason: refusal } : { kind: 'sent', transactionHash: result.transactionId };
+      }
       switch (result.kind) {
         case 'reverted':
-          return { kind: 'failed', reason: contractReason(result.error), transactionHash: result.transactionId };
+          return { kind: 'refused', reason: contractReason(result.error) };
         case 'not_submitted':
-          return { kind: 'failed', reason: `Nothing was sent. ${result.error}` };
+          return { kind: 'unavailable', reason: `Nothing was sent. ${result.error}` };
         case 'submission_unknown':
-          return { kind: 'failed', reason: `The transaction may have gone out. Check the explorer before you try again. ${result.error}` };
+          return { kind: 'unavailable', reason: `The transaction may have gone out. Check the explorer before you try again. ${result.error}` };
         case 'unresolved':
-          return { kind: 'failed', reason: `The transaction has no final result yet. ${result.error}`, transactionHash: result.transactionId };
+          return { kind: 'unavailable', reason: `The transaction has no final result yet. ${result.error}` };
       }
     } catch (cause) {
-      return { kind: 'failed', reason: `The Wallet stopped with an error: ${cause instanceof Error ? cause.message : String(cause)}` };
+      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${cause instanceof Error ? cause.message : String(cause)}` };
     }
-    return { kind: 'failed', reason: 'The Wallet gave no result.' };
+    return { kind: 'unavailable', reason: 'The Wallet gave no result.' };
   };
 
   return {
-    createMarket: ({ question, context, noteId, closesAtMs, seed }) =>
+    createMarket: ({ noteId, question, context, closesAtMs, seed }) =>
       send('create_market', { question, context, note_id: noteId, closes_at_ms: closesAtMs }, seed, CALL_GAS),
-    bet: ({ marketId, outcome, amount }) => send('bet', { market_id: marketId, outcome }, amount, CALL_GAS),
+    bet: ({ marketId, side, amount }) => send('bet', { market_id: marketId, outcome: side }, amount, CALL_GAS),
     closeMarket: (marketId) => send('close_market', { market_id: marketId }, 0n, CALL_GAS),
-    requestResolution: (marketId) => send('request_resolution', { market_id: marketId }, RESOLUTION_FEE_YOCTO, REQUEST_GAS),
+    requestResolution: (marketId) =>
+      send('request_resolution', { market_id: marketId }, RESOLUTION_FEE_YOCTO, REQUEST_GAS, (events) => {
+        const failed = events.find((event) => event.event === 'resolution_failed');
+        return failed ? `JEV gave no answer that counts: ${String(failed.data.reason)}. You can ask again.` : null;
+      }),
     claim: (marketId) => send('claim', { market_id: marketId }, 0n, CALL_GAS),
   };
 }
 
+interface ContractEvent {
+  event: string;
+  data: Record<string, unknown>;
+}
+
 /** The NEP-297 `pm_notes` events in the logs of a final execution outcome. */
-function eventsOf(outcome: unknown): { event: string; data: Record<string, unknown> }[] {
+function eventsOf(outcome: unknown): ContractEvent[] {
   const receipts = (outcome as { receipts_outcome?: { outcome?: { logs?: string[] } }[] } | undefined)?.receipts_outcome ?? [];
-  const events: { event: string; data: Record<string, unknown> }[] = [];
+  const events: ContractEvent[] = [];
   for (const receipt of receipts) {
     for (const log of receipt.outcome?.logs ?? []) {
       if (!log.startsWith('EVENT_JSON:')) continue;
@@ -98,10 +116,4 @@ function eventsOf(outcome: unknown): { event: string; data: Record<string, unkno
 function contractReason(error: string): string {
   const match = /Smart contract panicked: ([^"\\]+)/.exec(error);
   return match ? `The contract refused: ${match[1]}.` : `The transaction failed: ${error}`;
-}
-
-export const MarketSignerContext = createContext<MarketSigner>(missingKeyMarketSigner);
-
-export function useMarketSigner(): MarketSigner {
-  return useContext(MarketSignerContext);
 }

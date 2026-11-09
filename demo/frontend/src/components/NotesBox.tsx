@@ -1,7 +1,9 @@
 import { IconUsers } from '@tabler/icons-react';
 import { MIN_RATINGS_FOR_STATUS, type Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
-import { NoteMarket } from '../market/NoteMarket';
+import { useMarketSource } from '../market/contractSource';
+import { NoteMarketStrip } from '../market/NoteMarket';
+import { marketContext } from '../market/noteContext';
 import { Linkified, VoiceSigned } from './bits';
 
 const ABOUT_URL = 'https://github.com/seams-tech/speak-to-sign';
@@ -74,7 +76,8 @@ export function TimelineNotes({ notes, showToRate }: { notes: Note[]; showToRate
 type CardKind = 'shown' | 'mine' | 'to_rate';
 
 function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind; compact?: boolean }) {
-  const { account, noteTx } = useDemo();
+  const { account, noteTx, openSignIn } = useDemo();
+  const marketSource = useMarketSource();
   const mineNotShown = kind === 'mine' && note.status === 'not_helpful';
   const title =
     kind === 'shown'
@@ -111,7 +114,7 @@ function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind;
         </div>
       )}
       {!compact && kind !== 'mine' && (note.author === account ? <OwnNoteRow /> : <RateRow note={note} />)}
-      {!compact && <NoteMarket note={note} />}
+      {!compact && <NoteMarketStrip noteId={note.id} source={marketSource} account={account} onSignIn={openSignIn} context={marketContext(note)} />}
     </section>
   );
 }

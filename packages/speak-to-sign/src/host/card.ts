@@ -22,7 +22,7 @@ const VERIFIER_STEPS = [
 ] as const;
 
 /** What the card calls the request it signs. */
-export type CardNoun = 'payment' | 'note' | 'rating';
+export type CardNoun = 'payment' | 'note' | 'rating' | 'approval';
 
 export type CardInput = Readonly<{
   network: 'testnet' | 'mainnet';
@@ -57,6 +57,12 @@ const NOUN_COPY: Readonly<
     failedLabel: 'Not saved',
     failedDetail: 'Check the note and your balance, then try again.',
     unknownLabel: 'Check before you rate again',
+  },
+  approval: {
+    done: 'approved',
+    failedLabel: 'Not approved',
+    failedDetail: 'Check the pull request and your balance, then try again.',
+    unknownLabel: 'Check before you approve again',
   },
 };
 

@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
-import { HowItWorks, SetupPanel } from './components/SetupPanel';
-import { NotesActivity, SideSearch, StickySide } from './components/SideColumn';
+import { SETUP_CHANGED, SetupPanel } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
 import { Timeline } from './components/Timeline';
 import { WriteNoteModal } from './components/WriteNoteModal';
@@ -20,10 +19,9 @@ const POLL_MS = 1500;
 export function App({ signer, walletConfigured }: { signer: NotesSigner & SignerSetup; walletConfigured: boolean }) {
   const store = useMemo(() => new RpcNotesStore(config.rpcUrl, config.contract), []);
   const route = useRoute();
-  // The app fills a window on the Speak-to-Sign page, so its layout follows its own width,
-  // and a new page scrolls the app, not the window.
+  // The app fills a window on the Speak-to-Sign page. It has two columns, the navigation and
+  // the posts, with the Wallet steps at the top of the posts. A new page scrolls the app.
   const rootRef = useRef<HTMLDivElement>(null);
-  const wide = useElementWidth(rootRef) >= 1080;
   const page = routeKey(route);
   useLayoutEffect(() => {
     rootRef.current?.scrollTo(0, 0);
@@ -85,7 +83,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     void loadAll();
     const onFocus = () => void refreshStatus();
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener(SETUP_CHANGED, onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener(SETUP_CHANGED, onFocus);
+    };
   }, [loadAll, refreshStatus]);
 
   // The ratings of the signed-in account, from the contract view `get_rating`.
@@ -196,24 +198,9 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         <div className="layout">
           <Rail route={route} />
           <main className="column">
-            {!wide && <SetupPanel compact />}
+            <SetupPanel compact />
             {route.name === 'home' ? <Timeline tab={route.tab} /> : <PostDetail postId={route.postId} />}
           </main>
-          {wide && (
-            <StickySide>
-              <SideSearch />
-              <SetupPanel compact={false} />
-              <NotesActivity />
-              <HowItWorks />
-              <p className="side-foot muted">
-                Also on this site:{' '}
-                <a className="lk" href={config.payPath}>
-                  Speak to pay
-                </a>
-                , a NEAR payment by voice. Demo for the NEAR Hackathon. The post is a real case that got a Community Note on X in 2026. NEAR testnet only.
-              </p>
-            </StickySide>
-          )}
         </div>
 
         {writePost && (
@@ -261,21 +248,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
       </div>
     </DemoContext.Provider>
   );
-}
-
-/** The width of an element, kept current as it resizes. */
-function useElementWidth(ref: RefObject<HTMLElement | null>): number {
-  const [width, setWidth] = useState(0);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const update = () => setWidth(element.clientWidth);
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    update();
-    return () => observer.disconnect();
-  }, [ref]);
-  return width;
 }
 
 function sleep(ms: number): Promise<void> {

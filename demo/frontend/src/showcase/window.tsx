@@ -103,7 +103,7 @@ export function ExampleWindow({
   return createPortal(
     <div className={`ss-window-root ${closing ? 'ss-window-closing' : ''}`}>
       <div className="ss-window-backdrop" ref={backdropRef} onClick={onClose} aria-hidden="true" />
-      <div className="ss-window" ref={windowRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+      <div className="ss-window" data-example={id} ref={windowRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <DrawnFrame tag={tag} tone={tone}>
           <BrowserChrome url={url} onClose={onClose}>
             <div className="ss-window-app">{children}</div>

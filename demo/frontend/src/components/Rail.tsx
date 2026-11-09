@@ -12,7 +12,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import { shortAccount } from '../config';
-import { useDemo } from '../demoContext';
+import { useDemo, useWriteCue } from '../demoContext';
 import { paths, type Route } from '../router';
 import { BrandMark } from './BrandMark';
 
@@ -42,14 +42,14 @@ export function Rail({ route }: { route: Route }) {
         </a>
         <a className="rail-item rail-link" href={paths.home} aria-current={onHome ? 'page' : undefined}>
           <span className="rail-item-pill">
-            <Home size={26} stroke={1.8} aria-hidden="true" />
+            <Home size={24} stroke={1.8} aria-hidden="true" />
             <span className={`rail-label ${onHome ? 'rail-label-on' : ''}`}>Home</span>
           </span>
         </a>
         {DECOR.map(({ label, Icon }) => (
           <span key={label} className="rail-item" aria-hidden="true">
             <span className="rail-item-pill">
-              <Icon size={26} stroke={1.6} />
+              <Icon size={24} stroke={1.6} />
               <span className="rail-label">{label}</span>
             </span>
           </span>
@@ -103,11 +103,12 @@ export function BottomBar({ route }: { route: Route }) {
   const onTimeline = route.name === 'home' && route.tab === 'for_you';
   const onRate = route.name === 'home' && route.tab === 'needs_help';
   const Home = onTimeline ? IconHomeFilled : IconHome;
+  const cue = useWriteCue(route.name === 'post' ? route.postId : null);
 
   return (
     <>
       {route.name === 'post' && (
-        <button type="button" className="fab" aria-label="Write a note" onClick={() => openWrite(route.postId)}>
+        <button type="button" className={`fab ${cue ? 'fab-cue' : ''}`} aria-label="Write a note" onClick={() => openWrite(route.postId)}>
           <IconFeather size={24} stroke={1.8} aria-hidden="true" />
         </button>
       )}

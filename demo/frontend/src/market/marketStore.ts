@@ -1,7 +1,6 @@
 // Reads the note markets with the views of the pm-notes contract over NEAR JSON-RPC.
 
-import { config } from '../config';
-import type { MarketView, PositionView } from './types';
+import type { MarketView, OddsPointView, PositionView } from './contractTypes';
 
 interface RpcResponse {
   result?: { result?: number[]; error?: string };
@@ -12,7 +11,7 @@ interface RpcResponse {
 export class MarketStore {
   constructor(
     private readonly rpcUrl: string,
-    private readonly contractId: string,
+    readonly contractId: string,
   ) {}
 
   /** The newest market of a note, or null. */
@@ -22,6 +21,21 @@ export class MarketStore {
 
   async position(marketId: number, accountId: string): Promise<PositionView> {
     return await this.view<PositionView>('get_position', { market_id: marketId, account_id: accountId });
+  }
+
+  async oddsHistory(marketId: number): Promise<OddsPointView[]> {
+    return (await this.view<OddsPointView[]>('get_odds_history', { market_id: marketId })) ?? [];
+  }
+
+  /** True when the contract answers its views (it is on the network). */
+  async deployed(): Promise<boolean> {
+    try {
+      await this.view<unknown>('get_config', {});
+      return true;
+    } catch (cause) {
+      if (cause instanceof MarketNotDeployed) return false;
+      throw cause;
+    }
   }
 
   private async view<T>(methodName: string, args: unknown): Promise<T> {
@@ -53,11 +67,9 @@ export class MarketStore {
   }
 }
 
-/** The market contract is not on testnet (yet). */
+/** The market contract is not on the network (yet). */
 export class MarketNotDeployed extends Error {
   constructor(readonly contractId: string) {
     super(`The market contract ${contractId} is not on testnet yet.`);
   }
 }
-
-export const marketStore = new MarketStore(config.marketRpcUrl, config.marketContract);

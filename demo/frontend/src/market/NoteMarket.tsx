@@ -1,510 +1,562 @@
-// The note market strip inside a note card (design: pm-ui-mock.html). Parimutuel bets: the
-// YES pool and the NO pool. At the close, JEV (or NEAR AI) gives the probability that the note
-// holds up, and that probability splits the whole pool between the two sides.
+// The note market UI: one strip inside a community note card, and the bet sheet.
+// Place <NoteMarketStrip> as the last row of a note card (see README.md). It renders nothing
+// when the note has no market.
 
 import { useCallback, useEffect, useId, useState } from 'react';
-import { IconChevronDown, IconX } from '@tabler/icons-react';
+import { IconChartBar, IconChevronDown, IconMicrophone, IconScale, IconX } from '@tabler/icons-react';
 import { Modal } from '../components/Modal';
-import { config, transactionUrl } from '../config';
-import { findPost } from '../data/posts';
-import { useDemo } from '../demoContext';
-import type { Note } from '../notes/types';
-import { MarketNotDeployed, marketStore } from './marketStore';
-import { RESOLUTION_FEE_YOCTO, YOCTO_PER_NEAR, useMarketSigner } from './marketSigner';
-import type { MarketTxResult, MarketView, Outcome, PositionView } from './types';
+import type { SignResult } from '../signer/notesSigner';
+import {
+  betSentence,
+  chipText,
+  estimatePayout,
+  nearText,
+  payoutWeightBps,
+  percentText,
+  positionPayout,
+  timeLeftText,
+  yesShareBps,
+} from './math';
+import { BET_CHIPS, MARKET_QUESTION, type MarketPosition, type MarketSource, type NoteMarket, type OddsPoint, type Side } from './types';
 import './market.css';
 
-export const MARKET_QUESTION = 'Will this note hold up?';
-/** Bet and seed sizes, in NEAR tenths: 0.1, 0.5 and 1 NEAR. */
-const CHIPS: { label: string; yocto: bigint }[] = [
-  { label: '0.1', yocto: YOCTO_PER_NEAR / 10n },
-  { label: '0.5', yocto: YOCTO_PER_NEAR / 2n },
-  { label: '1', yocto: YOCTO_PER_NEAR },
-];
-const MINUTE = 60_000;
-const DURATIONS: { label: string; ms: number }[] = [
-  { label: '10 min', ms: 10 * MINUTE },
-  { label: '1 hour', ms: 60 * MINUTE },
-  { label: '1 day', ms: 24 * 60 * MINUTE },
-  { label: '3 days', ms: 3 * 24 * 60 * MINUTE },
-];
-const MAX_CONTEXT_CHARS = 1_000;
+const EMPTY_POSITION: MarketPosition = { yes: 0n, no: 0n, claimed: false };
 
-type Load =
-  | { kind: 'loading' }
-  | { kind: 'missing'; contract: string }
-  | { kind: 'error'; message: string }
-  | { kind: 'ready'; market: MarketView | null; position: PositionView | null };
+/** A line under the strip: the result of a bet, or an error. */
+interface Notice {
+  text: string;
+  isError: boolean;
+}
 
-type Notice = { tone: 'ok' | 'bad'; text: string; hash?: string };
-
-/** The market strip of one note. */
-export function NoteMarket({ note }: { note: Note }) {
-  const { account, status, openSignIn } = useDemo();
-  const signer = useMarketSigner();
-  const [load, setLoad] = useState<Load>({ kind: 'loading' });
-  const [sheet, setSheet] = useState<{ kind: 'bet'; outcome: Outcome } | { kind: 'open' } | null>(null);
-  const [busy, setBusy] = useState(false);
+export function NoteMarketStrip({
+  noteId,
+  source,
+  account,
+  onSignIn,
+  context,
+}: {
+  noteId: number;
+  source: MarketSource;
+  /** The signed-in NEAR account, if any. */
+  account?: string;
+  /** Opens the page's sign-in dialog. */
+  onSignIn: () => void;
+  /**
+   * The post and the note as JEV reads them, for a new market. With it and
+   * `source.createMarket`, a note without a market shows "Open a market".
+   */
+  context?: string;
+}) {
+  const [market, setMarket] = useState<NoteMarket | null>(null);
+  const [position, setPosition] = useState<MarketPosition>(EMPTY_POSITION);
+  const [history, setHistory] = useState<OddsPoint[]>([]);
+  const [betSide, setBetSide] = useState<Side | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const now = useNow(15_000);
+  /** A claim or a JEV request waits for the Wallet. */
+  const [busy, setBusy] = useState<'claim' | 'ask' | 'close' | null>(null);
+  /** The note has no market, and a new one can open: show "Open a market". */
+  const [canOpen, setCanOpen] = useState(false);
+  const [opening, setOpening] = useState(false);
 
-  const refresh = useCallback(async () => {
-    try {
-      const market = await marketStore.marketForNote(note.id);
-      const position = market && account ? await marketStore.position(market.id, account) : null;
-      setLoad({ kind: 'ready', market, position });
-    } catch (cause) {
-      if (cause instanceof MarketNotDeployed) setLoad({ kind: 'missing', contract: cause.contractId });
-      else setLoad({ kind: 'error', message: cause instanceof Error ? cause.message : 'unknown error' });
+  const load = useCallback(async () => {
+    const next = await source.getMarketForNote(noteId);
+    setMarket(next);
+    if (!next) {
+      setCanOpen(context !== undefined && source.createMarket !== undefined && (source.canOpenMarkets ? await source.canOpenMarkets() : true));
+      return;
     }
-  }, [note.id, account]);
+    setHistory(await source.getOddsHistory(next.id));
+    setPosition(account ? await source.getPosition(next.id, account) : EMPTY_POSITION);
+  }, [source, noteId, account, context]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    load().catch((cause: unknown) =>
+      setNotice({ text: `Cannot read the market: ${cause instanceof Error ? cause.message : String(cause)}`, isError: true }),
+    );
+  }, [load]);
 
-  const market = load.kind === 'ready' ? load.market : null;
-  const shownStatus = market ? effectiveStatus(market, now) : null;
-
-  // While JEV reads the note, look again every few seconds.
+  // While a JEV request waits for its answer, read the market again every 5 s.
+  const resolving = market?.status === 'resolving';
   useEffect(() => {
-    if (shownStatus !== 'resolving') return;
-    const timer = window.setInterval(() => void refresh(), 4_000);
-    return () => window.clearInterval(timer);
-  }, [shownStatus, refresh]);
-
-  /** Runs one transaction, shows its outcome and reads the market again. */
-  const run = async (action: () => Promise<MarketTxResult>, sentText: (result: Extract<MarketTxResult, { kind: 'sent' }>) => Notice) => {
-    if (!status?.signedIn) {
-      openSignIn();
-      return false;
-    }
-    setBusy(true);
-    setNotice(null);
-    try {
-      const result = await action();
-      if (result.kind === 'sent') setNotice(sentText(result));
-      else setNotice({ tone: 'bad', text: result.reason, hash: result.kind === 'failed' ? result.transactionHash : undefined });
-      await refresh();
-      return result.kind === 'sent';
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (load.kind === 'loading') {
-    return <div className="pm-strip pm-quiet">Loading the market…</div>;
-  }
-  if (load.kind === 'missing') {
-    return <div className="pm-strip pm-quiet">Bets on notes start when the market contract {load.contract} is on testnet.</div>;
-  }
-  if (load.kind === 'error') {
-    return <div className="pm-strip pm-quiet">The market did not load: {load.message}</div>;
-  }
-
-  const position = load.position;
-  const sheets = (
-    <>
-      {sheet?.kind === 'bet' && market && (
-        <BetSheet
-          market={market}
-          initial={sheet.outcome}
-          onClose={() => setSheet(null)}
-          onBet={async (outcome, amount) => {
-            const ok = await run(
-              () => signer.bet({ marketId: market.id, outcome, amount }),
-              (result) => ({ tone: 'ok', text: `Your bet of ${near(amount)} on ${outcome} is in.`, hash: result.transactionHash }),
-            );
-            if (ok) setSheet(null);
-          }}
-          busy={busy}
-        />
-      )}
-      {sheet?.kind === 'open' && (
-        <OpenSheet
-          note={note}
-          busy={busy}
-          onClose={() => setSheet(null)}
-          onOpen={async (seed, durationMs) => {
-            const ok = await run(
-              () =>
-                signer.createMarket({
-                  question: MARKET_QUESTION,
-                  context: marketContext(note),
-                  noteId: note.id,
-                  closesAtMs: Date.now() + durationMs,
-                  seed,
-                }),
-              (result) => ({ tone: 'ok', text: 'The market is open.', hash: result.transactionHash }),
-            );
-            if (ok) setSheet(null);
-          }}
-        />
-      )}
-    </>
-  );
-  const noticeLine = notice && (
-    <p className={`pm-notice ${notice.tone === 'bad' ? 'pm-notice-bad' : ''}`} role="status">
-      {notice.text}
-      {notice.hash && (
-        <>
-          {' '}
-          <a className="lk" href={transactionUrl(notice.hash)} target="_blank" rel="noopener noreferrer">
-            Transaction
-          </a>
-        </>
-      )}
-    </p>
-  );
+    if (!resolving) return;
+    const timer = setInterval(() => void load().catch(() => undefined), 5_000);
+    return () => clearInterval(timer);
+  }, [resolving, load]);
 
   if (!market) {
+    if (!canOpen || context === undefined || !source.createMarket) {
+      return notice ? <p className="nm-strip nm-error">{notice.text}</p> : null;
+    }
+    const createMarket = source.createMarket.bind(source);
     return (
-      <div className="pm-strip">
-        <div className="pm-row pm-between">
-          <span>
-            <b>{MARKET_QUESTION}</b> <span className="pm-muted">Bet on it. JEV decides.</span>
+      <div className="nm-strip" onClick={(event) => event.stopPropagation()}>
+        <div className="nm-row">
+          <span className="nm-title">
+            <IconChartBar size={16} stroke={1.8} aria-hidden="true" />
+            <b>{MARKET_QUESTION}</b>
           </span>
-          <button type="button" className="btn btn-outline btn-xs" onClick={() => setSheet({ kind: 'open' })}>
+          <button
+            type="button"
+            className="btn btn-outline btn-xs"
+            onClick={() => {
+              setNotice(null);
+              if (!account) onSignIn();
+              else setOpening(true);
+            }}
+          >
             Open a market
           </button>
         </div>
-        {noticeLine}
-        {sheets}
+        {notice && (
+          <p className={notice.isError ? 'nm-error' : 'nm-done'} role={notice.isError ? 'alert' : 'status'}>
+            {notice.text}
+          </p>
+        )}
+        {opening && (
+          <OpenSheet
+            onClose={() => setOpening(false)}
+            onOpen={async (seed, durationMs) => {
+              const result = await createMarket({ noteId, question: MARKET_QUESTION, context, closesAtMs: Date.now() + durationMs, seed });
+              if (result.kind !== 'sent') return result.kind === 'cancelled' ? 'You closed the Wallet. Nothing was signed.' : result.reason;
+              setOpening(false);
+              setNotice({ text: 'The market is open.', isError: false });
+              await load();
+              return null;
+            }}
+          />
+        )}
       </div>
     );
   }
 
-  const isCreator = account === market.creator;
+  const openBet = (side: Side) => {
+    setNotice(null);
+    if (!account) onSignIn();
+    else setBetSide(side);
+  };
+
+  const failed = (result: Exclude<SignResult, { kind: 'sent' }>) =>
+    setNotice({ text: result.kind === 'cancelled' ? 'You closed the Wallet. Nothing was signed.' : result.reason, isError: true });
+
+  const claim = async () => {
+    const amount = position.payout ?? positionPayout(market, position);
+    setNotice(null);
+    setBusy('claim');
+    const result = await source.claim(market.id);
+    setBusy(null);
+    if (result.kind !== 'sent') return failed(result);
+    setNotice({ text: `You got ${nearText(amount)}.`, isError: false });
+    await load();
+  };
+
+  const closeBetting = async (close: (marketId: number) => Promise<SignResult>) => {
+    setNotice(null);
+    setBusy('close');
+    const result = await close(market.id);
+    setBusy(null);
+    if (result.kind !== 'sent') return failed(result);
+    setNotice({ text: 'Betting is closed. Ask JEV to decide.', isError: false });
+    await load();
+  };
+
+  const askJev = async (request: (marketId: number) => Promise<SignResult>) => {
+    setNotice(null);
+    if (!account) return onSignIn();
+    setBusy('ask');
+    const result = await request(market.id);
+    setBusy(null);
+    if (result.kind !== 'sent') return failed(result);
+    await load();
+  };
+
+  const share = yesShareBps(market.yesPool, market.noPool);
+  const pool = market.yesPool + market.noPool;
+  const staked = position.yes + position.no;
+
   return (
-    <div className="pm-strip">
-      {market.resolution ? (
-        <Resolved market={market} position={position} busy={busy} onClaim={() => void run(() => signer.claim(market.id), claimedNotice)} />
+    <div className="nm-strip" onClick={(event) => event.stopPropagation()}>
+      {market.status === 'resolved' ? (
+        <Resolved market={market} position={position} account={account} claiming={busy === 'claim'} onClaim={() => void claim()} />
       ) : (
         <>
-          <div className="pm-row pm-between">
-            <b>{market.question}</b>
-            <span className="pm-muted">{statusLine(market, shownStatus ?? market.status, now)}</span>
+          <div className="nm-row">
+            <span className="nm-title">
+              <IconChartBar size={16} stroke={1.8} aria-hidden="true" />
+              <b>{market.question}</b>
+            </span>
+            <span className="nm-muted">
+              {market.status === 'open'
+                ? `JEV decides · ${timeLeftText(market.closesAtMs)}`
+                : market.status === 'resolving'
+                  ? 'JEV is reading the note…'
+                  : 'Betting closed · waiting for JEV'}
+            </span>
           </div>
-          <PoolBar yesBps={market.yes_share_bps} />
-          <div className="pm-row pm-between pm-gap">
+          <SplitBar yesBps={share} />
+          <div className="nm-row">
             <span>
-              <b className="pm-yes">{pct(market.yes_share_bps)} Yes</b> · <span className="pm-no">{pct(10_000 - market.yes_share_bps)} No</span>
+              <b className="nm-yes">{percentText(share)} yes</b> · <span className="nm-no">{percentText(10_000 - share)} no</span>
             </span>
-            <span className="pm-muted">
-              {near(BigInt(market.total_pool))} in the pool · {market.bets} {market.bets === 1 ? 'bet' : 'bets'}
+            <span className="nm-muted">
+              {nearText(pool, 1)} · {market.bets} {market.bets === 1 ? 'bet' : 'bets'}
             </span>
           </div>
-          {position && hasStake(position) && <p className="pm-muted pm-mine">Your bets: {stakeText(position, isCreator)}</p>}
-          {shownStatus === 'open' && (
-            <div className="pm-row">
-              <button type="button" className="btn btn-outline btn-sm pm-btn" disabled={busy} onClick={() => setSheet({ kind: 'bet', outcome: 'yes' })}>
-                Bet yes
-              </button>
-              <button type="button" className="btn btn-outline btn-sm pm-btn" disabled={busy} onClick={() => setSheet({ kind: 'bet', outcome: 'no' })}>
-                Bet no
-              </button>
-            </div>
+          {history.length > 1 && <Sparkline points={history} />}
+          {market.status === 'open' && (
+            <>
+              <p className="nm-muted nm-small">
+                Odds change until the close.
+                {account !== undefined && account === market.creator && source.closeMarket && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="link-btn nm-small"
+                      disabled={busy === 'close'}
+                      onClick={() => source.closeMarket && void closeBetting(source.closeMarket.bind(source))}
+                    >
+                      {busy === 'close' ? 'Closing…' : 'Close betting now'}
+                    </button>
+                  </>
+                )}
+              </p>
+              <div className="nm-buttons">
+                <button type="button" className="btn btn-outline btn-sm nm-bet" onClick={() => openBet('yes')}>
+                  Bet yes
+                </button>
+                <button type="button" className="btn btn-outline btn-sm nm-bet" onClick={() => openBet('no')}>
+                  Bet no
+                </button>
+              </div>
+            </>
           )}
-          {shownStatus === 'open' && isCreator && (
-            <p className="pm-muted pm-mine">
-              You opened this market.{' '}
-              <button type="button" className="link-btn" disabled={busy} onClick={() => void run(() => signer.closeMarket(market.id), (r) => ({ tone: 'ok', text: 'Betting is closed.', hash: r.transactionHash }))}>
-                Close betting now
-              </button>
-            </p>
-          )}
-          {shownStatus === 'closed' && (
-            <div className="pm-row pm-between">
-              <span className="pm-muted">Betting is closed. JEV reads the post and the note next.</span>
+          {market.status === 'closed' && source.requestResolution && (
+            <div className="nm-buttons">
               <button
                 type="button"
-                className="btn btn-dark btn-sm"
-                disabled={busy}
-                onClick={() => void run(() => signer.requestResolution(market.id), resolutionNotice)}
+                className="btn btn-outline btn-sm nm-bet"
+                disabled={busy === 'ask'}
+                onClick={() => source.requestResolution && void askJev(source.requestResolution.bind(source))}
               >
-                {busy ? 'Asking JEV…' : 'Ask JEV'}
+                <IconScale size={16} stroke={1.8} aria-hidden="true" />
+                {busy === 'ask' ? 'Asking JEV…' : 'Ask JEV now'}
               </button>
             </div>
           )}
-          {shownStatus === 'closed' && <p className="pm-muted pm-mine">Anyone can ask. The OutLayer fee is {near(RESOLUTION_FEE_YOCTO)}.</p>}
-          {shownStatus === 'resolving' && (
-            <div className="pm-row pm-muted">
-              <span className="spinner" aria-hidden="true" /> JEV is reading the post and the note…
-            </div>
+          {staked > 0n && (
+            <p className="nm-muted nm-small">
+              Your bets:{' '}
+              {[position.yes > 0n && `${nearText(position.yes)} on yes`, position.no > 0n && `${nearText(position.no)} on no`]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
           )}
         </>
       )}
-      {noticeLine}
-      {sheets}
+      {notice && (
+        <p className={notice.isError ? 'nm-error' : 'nm-done'} role={notice.isError ? 'alert' : 'status'}>
+          {notice.text}
+        </p>
+      )}
+      {betSide && (
+        <BetSheet
+          market={market}
+          initialSide={betSide}
+          source={source}
+          onClose={() => setBetSide(null)}
+          onDone={(text) => {
+            setBetSide(null);
+            setNotice({ text, isError: false });
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function Resolved({ market, position, busy, onClaim }: { market: MarketView; position: PositionView | null; busy: boolean; onClaim: () => void }) {
-  const resolution = market.resolution!;
-  const [open, setOpen] = useState(false);
-  const who = resolverName(resolution.source, resolution.provider);
-  const weight = resolution.payout_yes_bps;
-  const total = near(BigInt(market.total_pool));
-  const split = market.refund_all
-    ? 'One side had no bets, so every bet is paid back.'
-    : weight === 10_000
-      ? `At 90% or more, yes bets share all of ${total}.`
-      : weight === 0
-        ? `At 10% or less, no bets share all of ${total}.`
-        : `Yes bets share ${pct(weight)} of ${total}. No bets share ${pct(10_000 - weight)}.`;
+function Resolved({
+  market,
+  position,
+  account,
+  claiming,
+  onClaim,
+}: {
+  market: NoteMarket;
+  position: MarketPosition;
+  account?: string;
+  claiming: boolean;
+  onClaim: () => void;
+}) {
+  const verdict = market.verdictBps ?? 5_000;
+  const weight = payoutWeightBps(market);
+  const pool = market.yesPool + market.noPool;
+  const staked = position.yes + position.no;
+  const refund = market.yesPool === 0n || market.noPool === 0n;
+  const payout = position.payout ?? positionPayout(market, position);
   return (
     <>
-      <div className="pm-row pm-between">
-        <b>
-          {who}: {pct(resolution.raw_yes_bps)} this note holds up
-        </b>
-        <span className="pm-pill">Resolved</span>
+      <div className="nm-row">
+        <span className="nm-title">
+          <IconScale size={16} stroke={1.8} aria-hidden="true" />
+          <b>JEV: {percentText(verdict)} this note holds up</b>
+        </span>
+        <span className="nm-pill">Resolved</span>
       </div>
-      <PoolBar yesBps={weight} />
-      <p className="pm-muted pm-gap">{split}</p>
-      {position && hasStake(position) && (
-        <div className="pm-row pm-between">
+      <SplitBar yesBps={weight} />
+      <p className="nm-muted nm-small">
+        {refund
+          ? 'One side had no bets, so every bet is refunded.'
+          : `Yes bets share ${percentText(weight)} of ${nearText(pool, 1)}. No bets share ${percentText(10_000 - weight)}.`}
+        {!refund && weight !== verdict && ` JEV was sure enough, so its ${percentText(verdict)} counts as ${percentText(weight)}.`}
+      </p>
+      {account && staked > 0n && (
+        <div className="nm-row nm-payout">
           <span>
-            Your bet: {stakeText(position, false)} → <b>{near(BigInt(position.payout ?? '0'))}</b>
+            Your bets: {nearText(staked)} → <b>{nearText(payout)}</b>
           </span>
           {position.claimed ? (
-            <span className="pm-muted">Claimed</span>
+            <span className="nm-muted">Claimed</span>
+          ) : payout === 0n ? (
+            <span className="nm-muted">Nothing to claim</span>
           ) : (
-            <button type="button" className="btn btn-dark btn-sm" disabled={busy} onClick={onClaim}>
-              Claim
+            <button type="button" className="btn btn-dark btn-sm" onClick={onClaim} disabled={claiming}>
+              {claiming ? 'Claiming…' : 'Claim'}
             </button>
           )}
         </div>
       )}
-      <button type="button" className="link-btn pm-why" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <IconChevronDown size={14} className={open ? 'pm-turn' : undefined} aria-hidden="true" /> Why {who} decided this
-      </button>
-      {open && (
-        <div className="pm-why-text">
-          <p>{resolution.rationale}</p>
-          <p className="pm-muted">
-            {resolution.model ? `Model ${resolution.model}. ` : ''}
-            {resolution.source === 'ai' ? `Asked by ${resolution.resolved_by} through OutLayer.` : `Resolved by ${resolution.resolved_by}.`}
-          </p>
-        </div>
+      {market.rationale && (
+        <details className="nm-why">
+          <summary>
+            <IconChevronDown size={14} stroke={2} aria-hidden="true" /> Why JEV decided this
+          </summary>
+          <p>{market.rationale}</p>
+        </details>
       )}
     </>
+  );
+}
+
+function SplitBar({ yesBps }: { yesBps: number }) {
+  const yes = Math.max(0, Math.min(100, yesBps / 100));
+  return (
+    <div className="nm-bar" role="img" aria-label={`${Math.round(yes)}% yes, ${Math.round(100 - yes)}% no`}>
+      <span className="nm-bar-yes" style={{ width: `${yes}%` }} />
+      <span className="nm-bar-no" style={{ width: `${100 - yes}%` }} />
+    </div>
+  );
+}
+
+/**
+ * A small odds chart: the YES share after each bet, with the 50% line. The vertical scale fits
+ * the data (at least 30 points wide, and it always holds 50%), so small moves stay visible.
+ */
+function Sparkline({ points }: { points: OddsPoint[] }) {
+  const width = 200;
+  const height = 28;
+  const values = points.map((point) => point.yesBps);
+  let low = Math.min(5_000, ...values);
+  let high = Math.max(5_000, ...values);
+  const spread = Math.max(3_000, high - low);
+  const middle = (low + high) / 2;
+  low = Math.max(0, middle - spread / 2 - 300);
+  high = Math.min(10_000, middle + spread / 2 + 300);
+  const y = (bps: number) => (height - ((bps - low) / (high - low)) * height).toFixed(1);
+  const step = width / Math.max(1, points.length - 1);
+  const path = points.map((point, index) => `${(index * step).toFixed(1)},${y(point.yesBps)}`).join(' ');
+  const first = points[0];
+  const last = points[points.length - 1];
+  const label =
+    first && last ? `Yes share went from ${percentText(first.yesBps)} to ${percentText(last.yesBps)} over ${points.length} bets` : '';
+  return (
+    <svg className="nm-spark" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={label}>
+      <line x1="0" y1={y(5_000)} x2={width} y2={y(5_000)} className="nm-spark-mid" />
+      <polyline points={path} className="nm-spark-line" />
+    </svg>
   );
 }
 
 function BetSheet({
   market,
-  initial,
-  busy,
+  initialSide,
+  source,
   onClose,
-  onBet,
+  onDone,
 }: {
-  market: MarketView;
-  initial: Outcome;
-  busy: boolean;
+  market: NoteMarket;
+  initialSide: Side;
+  source: MarketSource;
   onClose: () => void;
-  onBet: (outcome: Outcome, amount: bigint) => Promise<void>;
+  onDone: (message: string) => void;
 }) {
   const titleId = useId();
-  const [outcome, setOutcome] = useState<Outcome>(initial);
-  const [amount, setAmount] = useState<bigint>(CHIPS[1]!.yocto);
-  const yes = BigInt(market.yes_pool);
-  const no = BigInt(market.no_pool);
-  const side = outcome === 'yes' ? yes : no;
-  // This bet alone, if the verdict is 100% its side and the pools stay as they are.
-  const win = (amount * (yes + no + amount)) / (side + amount);
-  const yesBps = market.yes_share_bps;
+  const [side, setSide] = useState<Side>(initialSide);
+  const [amount, setAmount] = useState<bigint>(BET_CHIPS[1] ?? 0n);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const share = yesShareBps(market.yesPool, market.noPool);
+  const win = estimatePayout(market, side, amount, side === 'yes' ? 10_000 : 0);
+
+  const place = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await source.bet({ marketId: market.id, side, amount });
+    setBusy(false);
+    if (result.kind === 'sent') onDone(`Your bet of ${nearText(amount)} on ${side} is in.`);
+    else if (result.kind === 'cancelled') setError('You closed the Wallet. Nothing was signed.');
+    else setError(result.reason);
+  };
+
   return (
     <Modal labelledBy={titleId} onClose={onClose} locked={busy}>
       <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} disabled={busy} aria-label="Close">
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" disabled={busy}>
           <IconX size={20} />
         </button>
         <h2 id={titleId}>Bet on this note</h2>
       </header>
-      <div className="dialog-body pm-sheet">
-        <p className="pm-muted">At the close, JEV reads the post and the note, and gives the chance that the note holds up.</p>
-        <div className="pm-row">
-          <button type="button" className={`btn btn-outline btn-sm pm-btn ${outcome === 'yes' ? 'pm-on-yes' : ''}`} onClick={() => setOutcome('yes')} aria-pressed={outcome === 'yes'}>
-            Yes · {pct(yesBps)}
-          </button>
-          <button type="button" className={`btn btn-outline btn-sm pm-btn ${outcome === 'no' ? 'pm-on-no' : ''}`} onClick={() => setOutcome('no')} aria-pressed={outcome === 'no'}>
-            No · {pct(10_000 - yesBps)}
-          </button>
+      <div className="dialog-body nm-sheet">
+        <p className="nm-muted">At the close, JEV reads the post, the note and its sources. A grey answer pays by its probability.</p>
+        <div className="nm-buttons" role="group" aria-label="Side">
+          {(['yes', 'no'] as const).map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              aria-pressed={side === choice}
+              className={`btn btn-outline nm-side ${side === choice ? `nm-side-on nm-side-${choice}` : ''}`}
+              onClick={() => setSide(choice)}
+            >
+              {choice === 'yes' ? 'Yes' : 'No'} · {percentText(choice === 'yes' ? share : 10_000 - share)}
+            </button>
+          ))}
         </div>
-        <Chips value={amount} onChange={setAmount} />
-        <p className="pm-muted">
-          If JEV says 100% {outcome}, you get about <b className="pm-ink">{near(win)}</b>, if the pools stay as they are. Odds change until the close. A grey answer pays by its probability: at 70% yes, yes bets share 70% of the pool and no bets 30%.
+        <div className="nm-buttons" role="group" aria-label="Amount">
+          {BET_CHIPS.map((chip) => (
+            <button
+              key={chip.toString()}
+              type="button"
+              aria-pressed={amount === chip}
+              className={`btn btn-outline btn-sm nm-chip ${amount === chip ? 'btn-choice-on' : ''}`}
+              onClick={() => setAmount(chip)}
+            >
+              {chipText(chip)} NEAR
+            </button>
+          ))}
+        </div>
+        <p>
+          Win about <b>{nearText(win)}</b> if JEV says {side} fully, and the pool stays as it is.
         </p>
+        {source.signsByVoice && (
+          <div className="nm-say">
+            <span className="nm-muted">
+              <IconMicrophone size={14} stroke={2} aria-hidden="true" /> Say this to sign
+            </span>
+            <b>“{betSentence(side, amount)}”</b>
+          </div>
+        )}
+        {error && (
+          <p className="nm-error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
-      <footer className="dialog-foot pm-foot">
-        <p className="pm-muted">Your Seams Wallet asks you to confirm. Spoken bets come later.</p>
-        <button type="button" className="btn btn-dark" disabled={busy} onClick={() => void onBet(outcome, amount)}>
-          {busy ? 'Waiting for the Wallet…' : `Bet ${near(amount)} on ${outcome}`}
+      <div className="dialog-foot dialog-foot-end">
+        <button type="button" className="btn btn-dark" onClick={() => void place()} disabled={busy}>
+          {busy ? 'Waiting for the Wallet…' : source.signsByVoice ? 'Say it to bet' : `Bet ${nearText(amount)} on ${side}`}
         </button>
-      </footer>
+      </div>
     </Modal>
   );
 }
 
-function OpenSheet({ note, busy, onClose, onOpen }: { note: Note; busy: boolean; onClose: () => void; onOpen: (seed: bigint, durationMs: number) => Promise<void> }) {
+const MINUTE = 60_000;
+/** How long a new market takes bets. The creator can close it earlier. */
+const DURATIONS: readonly { label: string; ms: number }[] = [
+  { label: '10 min', ms: 10 * MINUTE },
+  { label: '1 hour', ms: 60 * MINUTE },
+  { label: '1 day', ms: 24 * 60 * MINUTE },
+  { label: '3 days', ms: 3 * 24 * 60 * MINUTE },
+];
+
+/** Opens a market on a note: the seed and the close time. `onOpen` gives an error text, or null. */
+function OpenSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (seed: bigint, durationMs: number) => Promise<string | null> }) {
   const titleId = useId();
-  const [seed, setSeed] = useState<bigint>(CHIPS[0]!.yocto);
-  const [duration, setDuration] = useState(DURATIONS[1]!.ms);
+  const [seed, setSeed] = useState<bigint>(BET_CHIPS[0] ?? 0n);
+  const [duration, setDuration] = useState(DURATIONS[1]?.ms ?? 60 * MINUTE);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const open = async () => {
+    setBusy(true);
+    setError(null);
+    const problem = await onOpen(seed, duration);
+    setBusy(false);
+    if (problem) setError(problem);
+  };
+
   return (
     <Modal labelledBy={titleId} onClose={onClose} locked={busy}>
       <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} disabled={busy} aria-label="Close">
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" disabled={busy}>
           <IconX size={20} />
         </button>
         <h2 id={titleId}>Open a market on this note</h2>
       </header>
-      <div className="dialog-body pm-sheet">
+      <div className="dialog-body nm-sheet">
         <p>
           <b>{MARKET_QUESTION}</b>
         </p>
-        <p className="pm-muted">
-          People bet yes or no. At the close, JEV reads the post and this note, and its answer splits the pool. JEV reads them as they are now, so later edits do not count.
+        <p className="nm-muted">
+          People bet yes or no. At the close, JEV reads the post and this note as they are now, and its answer splits the pool.
         </p>
         <div>
-          <p className="pm-label">Your seed</p>
-          <Chips value={seed} onChange={setSeed} />
-          <p className="pm-muted">Half goes on yes and half on no, so the odds start at 50%. The seed is paid like any other bet.</p>
+          <p className="nm-small">
+            <b>Your seed</b>: half goes on yes and half on no, so the odds start at 50%. It is paid like any other bet.
+          </p>
+          <div className="nm-buttons" role="group" aria-label="Seed">
+            {BET_CHIPS.map((chip) => (
+              <button
+                key={chip.toString()}
+                type="button"
+                aria-pressed={seed === chip}
+                className={`btn btn-outline btn-sm nm-chip ${seed === chip ? 'btn-choice-on' : ''}`}
+                onClick={() => setSeed(chip)}
+              >
+                {chipText(chip)} NEAR
+              </button>
+            ))}
+          </div>
         </div>
         <div>
-          <p className="pm-label">Betting closes in</p>
-          <div className="pm-row pm-wrap">
+          <p className="nm-small">
+            <b>Betting closes in</b> (you can close it earlier)
+          </p>
+          <div className="nm-buttons" role="group" aria-label="Betting closes in">
             {DURATIONS.map((option) => (
               <button
                 key={option.ms}
                 type="button"
-                className={`btn btn-outline btn-xs ${duration === option.ms ? 'btn-choice-on' : ''}`}
                 aria-pressed={duration === option.ms}
+                className={`btn btn-outline btn-sm nm-chip ${duration === option.ms ? 'btn-choice-on' : ''}`}
                 onClick={() => setDuration(option.ms)}
               >
                 {option.label}
               </button>
             ))}
           </div>
-          <p className="pm-muted">You can close it earlier.</p>
         </div>
-        <p className="pm-muted pm-small">Note {note.id} · contract {config.marketContract}</p>
+        {error && (
+          <p className="nm-error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
-      <footer className="dialog-foot pm-foot">
-        <p className="pm-muted">Your Seams Wallet asks you to confirm.</p>
-        <button type="button" className="btn btn-dark" disabled={busy} onClick={() => void onOpen(seed, duration)}>
-          {busy ? 'Waiting for the Wallet…' : `Open market · ${near(seed)}`}
+      <div className="dialog-foot dialog-foot-end">
+        <button type="button" className="btn btn-dark" onClick={() => void open()} disabled={busy}>
+          {busy ? 'Waiting for the Wallet…' : `Open market · ${nearText(seed)}`}
         </button>
-      </footer>
+      </div>
     </Modal>
   );
-}
-
-function Chips({ value, onChange }: { value: bigint; onChange: (yocto: bigint) => void }) {
-  return (
-    <div className="pm-row">
-      {CHIPS.map((chip) => (
-        <button
-          key={chip.label}
-          type="button"
-          className={`btn btn-outline btn-xs ${value === chip.yocto ? 'btn-choice-on' : ''}`}
-          aria-pressed={value === chip.yocto}
-          onClick={() => onChange(chip.yocto)}
-        >
-          {chip.label}
-        </button>
-      ))}
-      <span className="pm-amount">{near(value)}</span>
-    </div>
-  );
-}
-
-function PoolBar({ yesBps }: { yesBps: number }) {
-  const yes = Math.max(0, Math.min(100, yesBps / 100));
-  return (
-    <div className="pm-bar" role="img" aria-label={`${pct(yesBps)} yes, ${pct(10_000 - yesBps)} no`}>
-      <div className="pm-bar-yes" style={{ width: `${yes}%` }} />
-      <div className="pm-bar-no" style={{ width: `${100 - yes}%` }} />
-    </div>
-  );
-}
-
-function claimedNotice(result: Extract<MarketTxResult, { kind: 'sent' }>): Notice {
-  const claimed = result.events.find((event) => event.event === 'claimed');
-  const amount = typeof claimed?.data.amount === 'string' ? BigInt(claimed.data.amount) : null;
-  return { tone: 'ok', text: amount === null ? 'Claimed.' : `${near(amount)} went to your wallet.`, hash: result.transactionHash };
-}
-
-function resolutionNotice(result: Extract<MarketTxResult, { kind: 'sent' }>): Notice {
-  const failed = result.events.find((event) => event.event === 'resolution_failed');
-  if (failed) return { tone: 'bad', text: `No answer this time: ${String(failed.data.reason)}. You can ask again.`, hash: result.transactionHash };
-  const resolved = result.events.find((event) => event.event === 'market_resolved');
-  return { tone: 'ok', text: resolved ? 'JEV answered.' : 'The request is out.', hash: result.transactionHash };
-}
-
-/** The status at the page's clock: an open market past its close shows as closed. */
-function effectiveStatus(market: MarketView, now: number): MarketView['status'] {
-  return market.status === 'open' && now >= market.closes_at_ms ? 'closed' : market.status;
-}
-
-function statusLine(market: MarketView, status: MarketView['status'], now: number): string {
-  if (status === 'open') return `JEV decides · closes in ${timeLeft(market.closes_at_ms - now)}`;
-  if (status === 'resolving') return 'JEV is deciding';
-  return 'Betting closed';
-}
-
-function timeLeft(ms: number): string {
-  if (ms < MINUTE) return 'less than a minute';
-  if (ms < 60 * MINUTE) return `${Math.floor(ms / MINUTE)} min`;
-  if (ms < 24 * 60 * MINUTE) return `${Math.round(ms / (60 * MINUTE))} h`;
-  return `${Math.round(ms / (24 * 60 * MINUTE))} d`;
-}
-
-function resolverName(source: 'ai' | 'admin', provider: string | null): string {
-  if (source === 'admin') return 'The admin';
-  return provider === 'near-ai' ? 'NEAR AI' : 'JEV';
-}
-
-function hasStake(position: PositionView): boolean {
-  return BigInt(position.yes) > 0n || BigInt(position.no) > 0n;
-}
-
-function stakeText(position: PositionView, isCreator: boolean): string {
-  const yes = BigInt(position.yes);
-  const no = BigInt(position.no);
-  const parts = [yes > 0n ? `${near(yes)} on yes` : '', no > 0n ? `${near(no)} on no` : ''].filter(Boolean);
-  return parts.join(' + ') + (isCreator ? ' (with your seed)' : '');
-}
-
-/** The text that JEV reads: the post and the note, frozen when the market opens. */
-export function marketContext(note: Note): string {
-  const post = findPost(note.post_id);
-  const text = [post ? `Post by ${post.author.name}: ${post.text}` : `Post ${note.post_id}.`, `Community note: ${note.text}`].join('\n\n');
-  return [...text].slice(0, MAX_CONTEXT_CHARS).join('');
-}
-
-/** 7250 → "73%". */
-function pct(bps: number): string {
-  return `${Math.round(bps / 100)}%`;
-}
-
-/** yoctoNEAR → "4.2 NEAR", with at most two decimals. */
-export function near(yocto: bigint): string {
-  const hundredths = (yocto * 100n) / YOCTO_PER_NEAR;
-  if (yocto > 0n && hundredths === 0n) return '< 0.01 NEAR';
-  const whole = hundredths / 100n;
-  const cents = hundredths % 100n;
-  const decimals = cents === 0n ? '' : `.${cents.toString().padStart(2, '0').replace(/0$/, '')}`;
-  return `${whole}${decimals} NEAR`;
-}
-
-/** The current time, updated every `everyMs`. */
-function useNow(everyMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), everyMs);
-    return () => window.clearInterval(timer);
-  }, [everyMs]);
-  return now;
 }

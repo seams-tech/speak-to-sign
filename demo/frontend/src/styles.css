@@ -142,7 +142,7 @@ a.lk:hover {
   align-self: flex-start;
 }
 
-/* Left navigation: icons only, with labels from 1265px */
+/* Left navigation: icons only, with labels from 840px (two columns: 240 + 600) */
 .rail {
   width: 88px;
   flex: none;
@@ -178,14 +178,14 @@ a.lk:hover {
 }
 .rail-item {
   display: flex;
-  padding: 4px 0;
+  padding: 1px 0;
   color: var(--ink);
 }
 .rail-item-pill {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 12px;
+  gap: 16px;
+  padding: 8px 12px;
   border-radius: 9999px;
   transition: background-color 0.2s;
 }
@@ -194,17 +194,17 @@ a.lk:hover {
 }
 .rail-label {
   display: none;
-  font-size: 20px;
-  line-height: 24px;
+  font-size: 17px;
+  line-height: 22px;
   padding-right: 16px;
 }
 .rail-label-on {
   font-weight: 700;
 }
 .rail-cta {
-  margin-top: 16px;
-  width: 52px;
-  height: 52px;
+  margin-top: 12px;
+  width: 48px;
+  height: 48px;
   border: 0;
   border-radius: 9999px;
   background: var(--ink);
@@ -276,9 +276,9 @@ a.lk:hover {
   display: none;
   flex: none;
 }
-@container notes (min-width: 1265px) {
+@container notes (min-width: 840px) {
   .rail {
-    width: 275px;
+    width: 240px;
     align-items: stretch;
   }
   .rail-inner {
@@ -509,6 +509,83 @@ a.lk:hover {
   width: 100%;
   height: 100%;
 }
+.media-compact {
+  aspect-ratio: auto;
+  height: 180px;
+  background: #1f2937;
+}
+/* The drawn video: a play button over the poster frame. While it plays, the terminal lines come
+   one after the other, and a bar fills at the bottom. */
+.media-play {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 60px;
+  height: 60px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 0 3px;
+  border: 4px solid #fff;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 120ms ease,
+    background 120ms ease;
+}
+.media-play:hover {
+  background: var(--accent-ink);
+  transform: scale(1.05);
+}
+.media-compact .media-play {
+  width: 52px;
+  height: 52px;
+  border-width: 3px;
+}
+.media-playing .media-line {
+  animation: media-line-in 0.3s ease-out both;
+}
+.media-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 100%;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: 0 50%;
+  animation: media-progress linear both;
+}
+@keyframes media-line-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes media-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .media-playing .media-line {
+    animation: none;
+  }
+  .media-progress {
+    animation-duration: 0.01s !important;
+  }
+}
 .media-caption {
   position: absolute;
   left: 12px;
@@ -663,7 +740,65 @@ a.lk:hover {
   align-items: center;
   gap: 12px;
   padding: 14px 0;
+  margin-top: 4px;
   border-bottom: 1px solid var(--line);
+}
+/* The next step of the demo: a highlighted row, a pulsing blue button and a hand that points at it. */
+.write-row-cue {
+  margin: 12px 0 0;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid #a9d6f8;
+  border-radius: 16px;
+  background: var(--accent-bg);
+}
+.cue-icon {
+  color: var(--accent);
+}
+.cue-hand {
+  flex: none;
+  color: var(--accent);
+  animation: cue-point 1.1s ease-in-out infinite;
+}
+.btn-cue {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  animation: cue-ring 1.8s ease-out infinite;
+}
+.btn-cue:not(:disabled):hover {
+  background: var(--accent-ink);
+}
+@keyframes cue-point {
+  0%,
+  100% {
+    transform: translateX(-5px);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+}
+@keyframes cue-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.55);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 10px rgba(29, 155, 240, 0);
+  }
+}
+.fab.fab-cue {
+  background: var(--accent);
+  animation: cue-ring 1.8s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cue-hand,
+  .btn-cue,
+  .fab.fab-cue {
+    animation: none;
+  }
+}
+.draft-help {
+  margin: 10px 0 -4px;
 }
 .write-row-text {
   flex: 1;
@@ -744,6 +879,130 @@ a.lk:hover {
 }
 .notes-caption {
   margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* The post's Community Note from X ("Readers added context") and its note view with the bet. */
+.pc-card .note-head {
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.pc-card .note-body {
+  padding: 12px 16px;
+}
+.pc-examples {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+.pc-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+}
+.pc-note {
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.pc-post {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.pc-post-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.pc-post-head .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-post-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.pc-post-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 20px;
+}
+.media-thumb {
+  position: relative;
+  flex: none;
+  width: 128px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1f2937;
+}
+.media-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.media-thumb-play {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  padding: 3px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+.pc-status {
+  padding: 12px 16px 14px;
+}
+.pc-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.pc-ok {
+  color: var(--green);
+  flex: none;
+}
+.pc-status-row svg {
+  flex: none;
+}
+.pc-note-text {
+  margin-top: 10px;
+  line-height: 20px;
+}
+.pc-bet {
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.pc-bet-title {
+  display: block;
+  padding: 0 16px 4px;
+  font-size: 16px;
+}
+.pc-bet .nm-strip {
+  border-top: 0;
+}
+.pc-practice {
+  padding: 0 16px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pc-foot {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--line);
   font-size: 13px;
   color: var(--muted);
 }

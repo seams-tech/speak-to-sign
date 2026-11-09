@@ -1,132 +1,151 @@
-/* The note market strip (design: pm-ui-mock.html). It sits inside .note-card. */
-.pm-strip {
-  border-top: 1px solid var(--line);
+/* The note market strip and bet sheet. They use the X-style variables of src/styles.css
+   (--ink, --muted, --line, --green, --red, --accent), so they sit inside a note card. */
+.nm-strip {
   padding: 10px 16px 12px;
-  font-size: 13px;
-  display: grid;
-  gap: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  cursor: auto;
 }
-.pm-quiet {
-  color: var(--muted);
-}
-.pm-row {
+.nm-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.pm-between {
   justify-content: space-between;
-}
-.pm-wrap {
+  gap: 8px;
   flex-wrap: wrap;
 }
-.pm-gap {
-  margin-bottom: 2px;
+.nm-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.pm-muted {
+.nm-muted {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
-.pm-small {
-  font-size: 11px;
+.nm-small {
+  margin: 4px 0 0;
 }
-.pm-ink {
-  color: var(--ink);
+.nm-yes {
+  color: var(--green);
 }
-.pm-mine {
-  margin-top: -2px;
+.nm-no {
+  color: var(--red);
 }
-.pm-yes {
-  color: #008a5c;
-}
-.pm-no {
-  color: #c4111b;
-}
-.pm-bar {
+.nm-bar {
   display: flex;
   height: 8px;
+  margin: 8px 0 6px;
   border-radius: 4px;
   overflow: hidden;
-  background: var(--panel);
+  background: var(--line);
 }
-.pm-bar-yes {
+.nm-bar-yes {
   background: var(--green);
-  transition: width 0.3s;
 }
-.pm-bar-no {
+.nm-bar-no {
   background: var(--red);
-  transition: width 0.3s;
 }
-.pm-btn {
+.nm-spark {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin-top: 6px;
+}
+.nm-spark-mid {
+  stroke: var(--line-strong);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.nm-spark-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.nm-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.nm-bet,
+.nm-side,
+.nm-chip {
   flex: 1;
 }
-.btn.pm-on-yes,
-.btn.pm-on-yes:not(:disabled):hover {
+.nm-side.nm-side-on.nm-side-yes,
+.nm-side.nm-side-on.nm-side-yes:not(:disabled):hover {
   border-color: var(--green);
-  background: #e6f8f1;
-  color: #008a5c;
+  background: rgba(0, 186, 124, 0.1);
+  color: #00704a;
 }
-.btn.pm-on-no,
-.btn.pm-on-no:not(:disabled):hover {
+.nm-side.nm-side-on.nm-side-no,
+.nm-side.nm-side-on.nm-side-no:not(:disabled):hover {
   border-color: var(--red);
-  background: #fdecee;
-  color: #c4111b;
+  background: rgba(244, 33, 46, 0.08);
+  color: #b4121b;
 }
-.pm-pill {
-  font-size: 11px;
-  font-weight: 700;
+.nm-pill {
   padding: 2px 8px;
-  border-radius: 9999px;
-  background: #e6f8f1;
-  color: #008a5c;
+  border-radius: 999px;
+  background: rgba(0, 186, 124, 0.12);
+  color: #00704a;
+  font-size: 12px;
+  font-weight: 700;
 }
-.pm-why {
-  justify-self: start;
+.nm-payout {
+  margin-top: 8px;
+}
+.nm-why {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.nm-why summary {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
   color: var(--muted);
+  cursor: pointer;
+  list-style: none;
 }
-.pm-turn {
+.nm-why summary::-webkit-details-marker {
+  display: none;
+}
+.nm-why[open] summary svg {
   transform: rotate(180deg);
 }
-.pm-why-text {
-  display: grid;
+.nm-why p {
+  margin: 6px 0 0;
+}
+.nm-sheet > p {
+  margin: 0 0 12px;
+}
+.nm-sheet .nm-buttons {
+  margin: 0 0 12px;
+}
+.nm-say {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
+.nm-say .nm-muted {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--panel);
-  overflow-wrap: anywhere;
 }
-.pm-notice {
-  font-size: 12px;
-  color: #008a5c;
+.nm-say b {
+  font-size: 16px;
 }
-.pm-notice-bad {
-  color: #c4111b;
-}
-.pm-sheet {
-  display: grid;
-  gap: 12px;
-  font-size: 15px;
-}
-.pm-sheet .pm-muted {
+.nm-done {
+  margin: 8px 0 0;
+  color: #00704a;
   font-size: 13px;
 }
-.pm-label {
+.nm-error {
+  margin: 8px 0 0;
+  color: var(--red);
   font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-.pm-amount {
-  margin-left: auto;
-  font-weight: 700;
-}
-.pm-foot {
-  display: grid;
-  gap: 8px;
-}
-.pm-foot .btn {
-  width: 100%;
 }

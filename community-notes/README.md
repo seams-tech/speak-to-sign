@@ -1,0 +1,189 @@
+# Community notes contract
+
+A NEAR contract for the Speak-to-Sign hackathon demo. An author adds a note to
+a post. Other accounts rate the note. The Seams Wallet signs both calls from
+the user's own account with 0 deposit and 30 Tgas, so the contract pays for
+its storage from its own balance. Testnet only.
+
+The method names and JSON shapes are fixed. Seams Wallet core and the demo
+page in `demo/` use them.
+
+## Toolchain
+
+| Item           | Version                                                    |
+| -------------- | ---------------------------------------------------------- |
+| Rust           | 1.97.0 (`rust-toolchain.toml`), target `wasm32-unknown-unknown` |
+| near-sdk       | 5.30.1 (needs Rust 1.95 or later)                          |
+| near-workspaces | 0.24.0, with the nearcore 2.14.0 sandbox (sandbox test only) |
+| near CLI       | near-cli-rs 0.23.2 (deploy only)                           |
+| Testnet        | protocol 88, nearcore 2.14.0 (checked on 9 Nov 2026)       |
+
+`.cargo/config.toml` adds `--cfg near` to each WASM build. near-sdk 5.30 calls
+the NEAR host functions (for example `panic_utf8`) only when this flag is set.
+Without it, a failed call loses its message and traps with `unreachable`.
+cargo-near 0.21 and later adds the flag itself; a plain `cargo build` does not.
+
+## Interface
+
+Ids are JSON numbers (u64). The author or rater is `predecessor_account_id`.
+The change methods do not accept a deposit: a call with a deposit fails.
+
+| Method       | Kind   | Arguments                                                   | Returns            |
+| ------------ | ------ | ----------------------------------------------------------- | ------------------ |
+| `add_note`   | change | `{"post_id": u64, "text": String, "summary": String}`        | `u64`, the note id |
+| `rate_note`  | change | `{"note_id": u64, "rating": "helpful" \| "somewhat_helpful" \| "not_helpful"}` | nothing |
+| `get_notes`  | view   | `{"post_id": u64}`                                           | `NoteView[]`, newest first, at most 50 |
+| `get_note`   | view   | `{"note_id": u64}`                                           | `NoteView` or `null` |
+| `get_rating` | view   | `{"note_id": u64, "account_id": AccountId}`                  | a rating or `null` |
+
+Rules:
+
+- `add_note`: note ids start at 1 and increase by 1 for each note, on all posts.
+- `text` has 1 to 280 characters and `summary` has 1 to 120 characters. A character is one Unicode scalar value, not one byte.
+- An empty value, or a value of only white space, fails.
+- `rate_note`: each account has one rating for each note. A later call replaces the earlier rating.
+- The author cannot rate their own note. An unknown note id fails.
+- The views do not fail for an unknown id. They return `[]` or `null`.
+
+`NoteView`:
+
+```json
+{
+  "id": 1,
+  "post_id": 42,
+  "author": "alice.testnet",
+  "text": "The photo is from 2019, not from this week.",
+  "summary": "Photo is from 2019",
+  "created_at_ms": 1762700000000,
+  "helpful": 2,
+  "somewhat_helpful": 1,
+  "not_helpful": 0,
+  "status": "helpful"
+}
+```
+
+`status` comes from the counts. `somewhat_helpful` has no effect on it.
+
+| `status`             | Condition                                      |
+| -------------------- | ---------------------------------------------- |
+| `helpful`            | helpful >= 2 and helpful > not_helpful         |
+| `not_helpful`        | not_helpful >= 2 and not_helpful > helpful     |
+| `needs_more_ratings` | all other counts                               |
+
+### Events
+
+Each change call logs one NEP-297 event. `data` is an array with one object.
+
+```text
+EVENT_JSON:{"standard":"community_notes","version":"1.0.0","event":"note_added","data":[{"note_id":1,"post_id":42,"author":"alice.testnet"}]}
+EVENT_JSON:{"standard":"community_notes","version":"1.0.0","event":"note_rated","data":[{"note_id":1,"account_id":"bob.testnet","rating":"helpful","previous_rating":null,"status":"needs_more_ratings"}]}
+```
+
+`previous_rating` is the rating that the call replaced, or `null`. `status`
+is the status of the note after the call.
+
+### Failure messages
+
+| Call        | Message                                              |
+| ----------- | ---------------------------------------------------- |
+| `add_note`  | `text must not be empty`, `summary must not be empty` |
+| `add_note`  | `text has 281 characters; the maximum is 280`        |
+| `add_note`  | `summary has 121 characters; the maximum is 120`     |
+| `rate_note` | `the author cannot rate their own note`              |
+| `rate_note` | `note 99 does not exist`                             |
+| `rate_note` | an unknown rating fails in argument parsing (`unknown variant`) |
+| both        | a deposit fails (`Method add_note doesn't accept deposit`, and the same for `rate_note`) |
+
+## Gas and storage
+
+Measured in the nearcore 2.14.0 sandbox (`sandbox/tests/sandbox.rs`):
+
+| Call                                          | Gas burnt  |
+| --------------------------------------------- | ---------- |
+| `add_note`, largest note (400 characters of 4 bytes) | 2.26 Tgas |
+| `add_note`, short note                        | 2.15 Tgas  |
+| `rate_note`, first rating or a replacement    | 2.04 to 2.22 Tgas |
+
+The Wallet attaches 30 Tgas. Each call uses less than 10 Tgas.
+
+| Item            | Storage        | Cost at 10^19 yoctoNEAR a byte |
+| --------------- | -------------- | ------------------------------ |
+| Contract code   | 169,267 bytes  | 1.69 NEAR                      |
+| Largest note    | 1,919 bytes    | 0.019 NEAR                     |
+| One rating      | 97 bytes       | 0.001 NEAR                     |
+
+The contract balance pays for all storage. If the balance is too low, a
+change call fails with `LackBalanceForState` and the state does not change.
+To continue, send more NEAR to the contract account.
+
+`get_notes` with 50 of the largest notes returns 90,443 bytes of JSON. The
+sandbox test checks that this view runs within the view gas limit.
+
+## Build
+
+```bash
+./build.sh
+```
+
+The script builds `res/community_notes.wasm` and prints its size and SHA-256.
+The build of 9 Nov 2026 gave:
+
+| Item    | Value                                                              |
+| ------- | ------------------------------------------------------------------ |
+| Size    | 169,267 bytes                                                      |
+| SHA-256 | `472d1eaa420b22d71439bf2db341a45d59ba9aa63b094e758e9a3af3a561a253` |
+
+This build is not reproducible on a different computer. The WASM holds the
+local source paths of panic locations, so another home folder gives a
+different hash.
+
+## Test
+
+Unit tests, for every rule above:
+
+```bash
+cargo test -p community-notes
+```
+
+Sandbox tests. They deploy `res/community_notes.wasm` to a local nearcore
+sandbox and call it as the Wallet does (30 Tgas, 0 deposit). The first run
+downloads the sandbox binary.
+
+```bash
+./build.sh && cargo test -p community-notes-sandbox -- --nocapture
+```
+
+## Deploy to testnet
+
+The commands use `notes.seams-v1.testnet`. Replace it with the account that
+you choose. They sign with the key in `~/.near-credentials/testnet/`.
+
+1. Create the contract account with 5 NEAR from `seams-v1.testnet`. The key of the new account goes to `~/.near-credentials/testnet/`.
+
+   ```bash
+   near account create-account fund-myself notes.seams-v1.testnet '5 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+2. Deploy the WASM. No init call is necessary.
+
+   ```bash
+   near contract deploy notes.seams-v1.testnet use-file res/community_notes.wasm without-init-call network-config testnet sign-with-legacy-keychain send
+   ```
+
+3. Read the notes of a post.
+
+   ```bash
+   near contract call-function as-read-only notes.seams-v1.testnet get_notes json-args '{"post_id":1}' network-config testnet now
+   ```
+
+4. Add a note from the CLI, for a test without the Wallet.
+
+   ```bash
+   near contract call-function as-transaction notes.seams-v1.testnet add_note json-args '{"post_id":1,"text":"The photo is from 2019.","summary":"Photo is from 2019"}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as YOUR_ACCOUNT.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+## Limits
+
+- Any account can add notes and rate notes. Each call uses the contract balance for storage, so many calls can use up the balance. This is acceptable for a demo on testnet.
+- The contract has no owner, no delete, and no upgrade method. The full access key of the contract account can deploy new code.
+- `get_notes` reads at most the newest 50 notes of a post. It has no pages.

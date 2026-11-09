@@ -1,0 +1,31 @@
+[package]
+name = "community-notes"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+description = "Community notes for the Speak-to-Sign demo: add a note to a post and rate notes, with 0 deposit"
+repository = "https://github.com/seams-tech/speak-to-sign"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "=5.30.1"
+
+[dev-dependencies]
+near-sdk = { version = "=5.30.1", features = ["unit-testing"] }
+
+# A standalone workspace: it must not join a parent workspace. The sandbox
+# test crate is a member so that it shares this lock file and target folder.
+[workspace]
+members = ["sandbox"]
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+strip = true
+panic = "abort"
+overflow-checks = true

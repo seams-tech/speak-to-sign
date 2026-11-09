@@ -364,50 +364,61 @@ cd resolver && cargo test && ./build.sh
 ```
 
 The worker build of 10 Nov 2026 gave `resolver/res/pm-notes-resolver.wasm`,
-428,294 bytes, SHA-256
-`75aab4d6eede0ca4600eaba4c763807a291d9bd5f3e376317a3c3b1799db3473`. The
-SHA-256 is the OutLayer version key.
+428,789 bytes, SHA-256
+`74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2`. The
+SHA-256 is the OutLayer version key. `resolver/manifest/outlayer.json` is
+linked into the WASM as the `outlayer.manifest` custom section; without it,
+OutLayer gives the worker no network access.
 
-## Deploy to testnet
+## Testnet deployment
 
-Not deployed. Each step needs the user's yes. The account name
-`pm-notes.seams-v1.testnet` is the proposal.
+Deployed on 10 Nov 2026 from this branch (commit `33a2dfa` and its parents).
 
-1. Create the contract account with 3.3 NEAR (the code needs 2.74 NEAR).
-   `seams-v1.testnet` had 3.62 NEAR on 10 Nov 2026, so top it up first, for
-   example from `cyan-loong.testnet`:
+| Item | Value |
+| ---- | ----- |
+| Contract account | `pm-notes.seams-v1.testnet`, created by `seams-v1.testnet` with 3 NEAR, transaction `9DSNvSAoJtgZ7iFxwg6kYtJkQvgYfZrcceznF2FWDoX8` |
+| Deploy and `new` | transaction `BsCqyBD52fZykqEU622qmqrh9aaQ5g2AmrmGQouP7WFU`; admin `seams-v1.testnet`; token: testnet USDC; resolver `outlayer.testnet`, project `seams-v1.testnet/pm-notes-resolver`, no `secrets_ref` yet |
+| Code hash (base58) | `BuGX3Kt1b4u5TpcHRuPtczUV6Q6KbKLTPATttMaLANR6`, the SHA-256 `a1f89e15…544621` of the release WASM above |
+| USDC registration | `pm-notes.seams-v1.testnet`: transaction `B5EAbZHXDb2qXmCBnXFcxCeCQxWdTaF6tKPGSmPMEjpj`; `seams-v1.testnet`: transaction `6vdntmaFRLHc1h61gPAF2a133dswbAUxcWHtif3Ks1p` |
+| Worker upload | FastFS transaction `BHYUcVBUby77RkacXUkGzCEwjFmaxcd1MN6bV8m4aCPY` (it fails with `MethodNotFound` by design: FastFS reads the arguments), URL `https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2.wasm` |
+| OutLayer project | `seams-v1.testnet/pm-notes-resolver`, `create_project` transaction `DZM1ogMNDQ5ErcjmC1shRaYHFRyL4jpRFbxqHfgqkHZy` (0.03 NEAR), active version `74dfc1f9…37b2` |
 
-   ```bash
-   near account create-account fund-myself pm-notes.seams-v1.testnet '3.3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
-   ```
+Not done yet:
 
-2. Deploy and initialize. Set `secrets_ref` to the OutLayer secrets of step 5:
-
-   ```bash
-   near contract deploy pm-notes.seams-v1.testnet use-file res/jev_prediction_market.wasm with-init-call new json-args '{"admin":"seams-v1.testnet","resolver":{"outlayer_account":"outlayer.testnet","project_id":"seams-v1.testnet/pm-notes-resolver","secrets_ref":{"profile":"pm-notes","account_id":"seams-v1.testnet"}}}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
-   ```
-
-3. Register the contract with USDC:
-
-   ```bash
-   near contract call-function as-transaction 3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af storage_deposit json-args '{"account_id":"pm-notes.seams-v1.testnet","registration_only":true}' prepaid-gas '30 Tgas' attached-deposit '0.00125 NEAR' sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
-   ```
-
-4. Upload `resolver/res/pm-notes-resolver.wasm` to FastFS
-   (`crates/voice-verifier/scripts/fastfs_chunks.py`), create the OutLayer
-   project `seams-v1.testnet/pm-notes-resolver` and add the version, the same
-   way as `seams-v1.testnet/voice-verifier`. Use the manifest in
-   `resolver/manifest/outlayer.json`.
-5. Store the secrets `NEAR_AI_API_KEY` and `TYPESAFE_API_KEY` for that project.
-   If the resolver config names other secrets, change it with
-   `set_resolver_config`.
-6. Smoke test and demo seeds: `cyan-loong.testnet` opens a market with a
-   10 USDC seed on a demo note (`ft_transfer_call` with a `create_market`
-   message), closes it, and asks JEV:
+1. **OutLayer secrets.** Store `NEAR_AI_API_KEY` and, if you have it,
+   `TYPESAFE_API_KEY` for the project `seams-v1.testnet/pm-notes-resolver`
+   (for example profile `main`, owner `cyan-loong.testnet`, as for the voice
+   verifier). Allow the caller `pm-notes.seams-v1.testnet`: the contract
+   requests the run. Then the admin names the secrets:
 
    ```bash
-   near contract call-function as-read-only pm-notes.seams-v1.testnet get_markets json-args '{}' network-config testnet now
+   near contract call-function as-transaction pm-notes.seams-v1.testnet set_resolver_config json-args '{"resolver":{"outlayer_account":"outlayer.testnet","project_id":"seams-v1.testnet/pm-notes-resolver","secrets_ref":{"profile":"main","account_id":"cyan-loong.testnet"}}}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
+
+   Until then, "Ask JEV now" ends with `resolution_failed` and the reason
+   `the resolver failed: JEV: no TYPESAFE_API_KEY; NEAR AI: no
+   NEAR_AI_API_KEY`, and the admin can `resolve`.
+2. **USDC for demo markets.** Send USDC from `cyan-loong.testnet` (for
+   example to `seams-v1.testnet`, which is registered), then open a market
+   with `ft_transfer_call`:
+
+   ```bash
+   near contract call-function as-transaction 3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af ft_transfer_call json-args '{"receiver_id":"pm-notes.seams-v1.testnet","amount":"10000000","msg":"{\"action\":\"create_market\",\"question\":\"Will this note hold up?\",\"context\":\"...\",\"note_id\":2,\"closes_at_ms\":1794500000000}"}' prepaid-gas '100 Tgas' attached-deposit '1 yoctoNEAR' sign-as cyan-loong.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+3. **NEAR.** `seams-v1.testnet` has about 0.15 NEAR free, and
+   `pm-notes.seams-v1.testnet` about 0.25 NEAR above its code (about 10
+   markets). Add NEAR from `cyan-loong.testnet` before a busy demo.
+
+Checks:
+
+```bash
+near contract call-function as-read-only pm-notes.seams-v1.testnet get_config json-args '{}' network-config testnet now
+```
+
+```bash
+near contract call-function as-read-only outlayer.testnet get_project json-args '{"project_id":"seams-v1.testnet/pm-notes-resolver"}' network-config testnet now
+```
 
 ## Credits
 

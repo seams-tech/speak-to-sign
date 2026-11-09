@@ -587,6 +587,33 @@ fn note_summaries_keep_separator_words_and_oh() {
 }
 
 #[test]
+fn merge_approval_transcripts_match() {
+    // Whisper writes the pull request number as a numeral; the send-sentence
+    // rules do not apply to a merge approval.
+    for (heard, pull_request, base) in [
+        ("Merge pull request 42 into main.", 42, "main"),
+        (" Merge pull request forty two into Main!", 42, "main"),
+        ("Merge pull request 1,001 into develop.", 1_001, "develop"),
+        ("merge pull request one into dev", 1, "dev"),
+    ] {
+        let request = SpokenRequestV1::MergeApproval {
+            network: Network::Testnet,
+            owner: near_account("owner.testnet"),
+            contract: near_account("merges.seams-v1.testnet"),
+            repo_sha256: [1; 32],
+            pull_request,
+            base: spoken_intent::SpokenBranch::new(base).expect("speakable base"),
+            head_commit: [2; 20],
+        };
+        assert_eq!(
+            normalize_punctuated(heard, &contacts()).expect(heard),
+            render(&request).spoken,
+            "{heard}"
+        );
+    }
+}
+
+#[test]
 fn joined_words_match_by_the_sound_of_the_sentence_end() {
     // Whisper large-v3: "to" joined with the receiver.
     let contacts = [account("ken.testnet"), account("dana.testnet")];

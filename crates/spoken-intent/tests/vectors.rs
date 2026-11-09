@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
     request_digest, spoken_text_digest, ChallengeWord, NearAccount, NearAmount, Network,
-    NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenRequestV1, SpokenSummary,
-    SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
+    NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+    SpokenSummary, SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -103,6 +103,37 @@ fn rating(note_id: u64, rating: NoteRatingV1) -> SpokenRequestV1 {
         contract: near_account(NOTES_CONTRACT),
         note_id,
         rating,
+    }
+}
+
+const MERGES_CONTRACT: &str = "merges.seams-v1.testnet";
+
+/// The repository of every merge approval vector. The Wallet's port hashes the same text.
+const REPO: &str = "seams-tech/seams-wallet";
+
+fn repo_sha256() -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(REPO.as_bytes()).into()
+}
+
+/// The head commit of every merge approval vector: bytes 0x00 to 0x13.
+fn head_commit() -> [u8; 20] {
+    let mut commit = [0u8; 20];
+    for (index, byte) in commit.iter_mut().enumerate() {
+        *byte = index as u8;
+    }
+    commit
+}
+
+fn merge(owner: &str, pull_request: u64, base: &str) -> SpokenRequestV1 {
+    SpokenRequestV1::MergeApproval {
+        network: Network::Testnet,
+        owner: near_account(owner),
+        contract: near_account(MERGES_CONTRACT),
+        repo_sha256: repo_sha256(),
+        pull_request,
+        base: SpokenBranch::new(base).expect("speakable base"),
+        head_commit: head_commit(),
     }
 }
 
@@ -262,6 +293,15 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
             "note_rating_not_helpful",
             rating(u64::MAX, NoteRatingV1::NotHelpful),
         ),
+        ("merge_approval_42_main", merge("owner.testnet", 42, "main")),
+        (
+            "merge_approval_1_develop",
+            merge("owner.testnet", 1, "develop"),
+        ),
+        (
+            "merge_approval_1001_main_implicit_owner",
+            merge(IMPLICIT_OWNER, 1_001, "main"),
+        ),
     ]
 }
 
@@ -381,6 +421,17 @@ fn rating_bytes(rating: u8) -> Vec<u8> {
     out
 }
 
+fn merge_bytes(base: &str) -> Vec<u8> {
+    let mut out = vec![6, 0];
+    borsh_string(&mut out, "owner.testnet");
+    borsh_string(&mut out, MERGES_CONTRACT);
+    out.extend_from_slice(&repo_sha256());
+    out.extend_from_slice(&42u64.to_le_bytes());
+    borsh_string(&mut out, base);
+    out.extend_from_slice(&head_commit());
+    out
+}
+
 fn threshold_bytes(threshold: u8, challenge: [u8; 2]) -> Vec<u8> {
     let mut out = vec![1, 0];
     borsh_string(&mut out, "payroll-multisig.testnet");
@@ -421,6 +472,10 @@ fn invalid_borsh_vectors() -> Value {
         rating_bytes(2),
         borsh::to_vec(&rating(1, NoteRatingV1::NotHelpful)).expect("borsh"),
     );
+    assert_eq!(
+        merge_bytes("main"),
+        borsh::to_vec(&merge("owner.testnet", 42, "main")).expect("borsh"),
+    );
     let mut trailing = account_transfer_bytes(0, "alice.testnet", 25 * ONE_NEAR);
     trailing.push(0);
     let cases = vec![
@@ -450,6 +505,7 @@ fn invalid_borsh_vectors() -> Value {
         ("challenge_index_64", threshold_bytes(2, [0, 64])),
         ("retired_vault_transfer_kind", vec![0, 0]),
         ("unknown_request_kind", vec![3, 0]),
+        // Tag 6 is now a merge approval; these bytes end after its network.
         ("unknown_request_kind_6", vec![6, 0]),
         ("note_summary_digit", note_bytes("Closed for 6 months")),
         ("note_summary_apostrophe", note_bytes("It isn't closed")),
@@ -460,6 +516,11 @@ fn invalid_borsh_vectors() -> Value {
         ),
         ("note_summary_transfer_verb", note_bytes("Send help now")),
         ("note_rating_unknown", rating_bytes(3)),
+        ("unknown_request_kind_7", vec![7, 0]),
+        ("merge_base_uppercase", merge_bytes("Main")),
+        ("merge_base_empty", merge_bytes("")),
+        ("merge_base_33_letters", merge_bytes(&"a".repeat(33))),
+        ("merge_base_digit", merge_bytes("release2")),
     ];
     Value::Array(
         cases

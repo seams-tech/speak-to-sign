@@ -83,6 +83,17 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
             }
             display
         }
+        SpokenRequestV1::MergeApproval {
+            pull_request, base, ..
+        } => {
+            words.push("merge");
+            words.push("pull");
+            words.push("request");
+            words.push_integer(*pull_request);
+            words.push("into");
+            words.0.push(base.spoken_token());
+            format!("Merge pull request #{pull_request} into {}", base.as_str())
+        }
     };
     let spoken = words.0;
     let spoken_text = join_tokens(&spoken);

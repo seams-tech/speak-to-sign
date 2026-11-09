@@ -2,7 +2,7 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{ChallengeWord, NearAccount, NearAmount, SpokenAccount, SpokenSummary};
+use crate::{ChallengeWord, NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary};
 
 /// The NEAR network of a request. It is part of the request digest, not of
 /// the spoken text.
@@ -84,6 +84,31 @@ pub enum SpokenRequestV1 {
         /// The rating that the text says.
         rating: NoteRatingV1,
     } = 5,
+    /// An approval to merge one commit of a pull request into its base
+    /// branch, from the owner's own account. The text says the pull request
+    /// number and the base. The repository and the commit are bound by
+    /// their hashes.
+    ///
+    /// This kind moves no value: the Wallet calls only `approve_merge` on
+    /// `contract`, with no deposit.
+    MergeApproval {
+        /// The network of the merge approvals contract.
+        network: Network,
+        /// The approver, named or implicit. The text does not say it.
+        owner: NearAccount,
+        /// The merge approvals contract. The text does not say it.
+        contract: NearAccount,
+        /// SHA-256 of the UTF-8 repository name, such as
+        /// `seams-tech/seams-wallet`. The text does not say it.
+        repo_sha256: [u8; 32],
+        /// The pull request number that the text says.
+        pull_request: u64,
+        /// The base branch that the text says.
+        base: SpokenBranch,
+        /// The 20-byte Git commit id of the head of the pull request. The
+        /// text does not say it.
+        head_commit: [u8; 20],
+    } = 6,
 }
 
 /// The rating of a community note.

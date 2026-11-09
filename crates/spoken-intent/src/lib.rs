@@ -11,8 +11,9 @@
 //! which can be implicit. A [`NearAmount`] holds only an
 //! exact multiple of 0.01 NEAR up to 1,000,000 NEAR. A [`SpokenSummary`]
 //! holds only short plain words that a speech-to-text model writes back the
-//! same way. So [`render`] cannot fail, and Borsh decoding refuses bytes
-//! that hold an unspeakable value.
+//! same way, and a [`SpokenBranch`] holds only one word of lowercase letters.
+//! So [`render`] cannot fail, and Borsh decoding refuses bytes that hold an
+//! unspeakable value.
 //!
 //! A change to any rendered text is a new renderer version.
 
@@ -23,6 +24,7 @@ extern crate alloc;
 
 mod account;
 mod amount;
+mod branch;
 mod challenge;
 mod confusion;
 mod normalize;
@@ -38,6 +40,7 @@ use sha2::{Digest, Sha256};
 
 pub use account::{InvalidAccountId, NearAccount, SpokenAccount};
 pub use amount::NearAmount;
+pub use branch::{InvalidBranch, SpokenBranch, MAX_BRANCH_LETTERS};
 pub use challenge::{ChallengeWord, CHALLENGE_WORDS};
 pub use confusion::confusion_set;
 pub use normalize::normalize;

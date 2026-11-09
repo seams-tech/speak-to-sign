@@ -1,10 +1,13 @@
 use alloc::collections::BTreeSet;
+use alloc::format;
 use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::numbers::{digit_value, digit_word, push_integer_words};
 use crate::render::{SpokenToken, VERSION_CHECK_DIGITS};
-use crate::{render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
+use crate::{
+    render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+};
 
 /// The verbs of the grammar: the two request verbs, "reject" (the opposite
 /// of "approve") and the proposal verbs.
@@ -41,6 +44,12 @@ const NEGATIONS: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]
 /// A community note or a note rating moves no value, so its near misses
 /// guard only the meaning of the sentence: "not" added at each position,
 /// each negation word removed, and for a rating each other rating.
+///
+/// A merge approval also moves no value. Its near misses are the pull
+/// request number one lower and one higher, and with each decimal digit
+/// changed to each other digit (only numbers of 1 or more); the base
+/// replaced by each other base of `MERGE_BASES`; "not" added at each
+/// position; and the verb "close" in place of "merge".
 pub fn confusion_set(
     request: &SpokenRequestV1,
     contacts: &[SpokenAccount],
@@ -50,6 +59,7 @@ pub fn confusion_set(
         SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {
             note_changes(request, &expected)
         }
+        SpokenRequestV1::MergeApproval { .. } => merge_changes(request, &expected),
         SpokenRequestV1::AccountTransfer { .. } | SpokenRequestV1::MultisigApproval { .. } => {
             let mut set = field_changes(request, contacts, &expected);
             let (clause_start, clause_end, clauses) = clauses(request, contacts, &expected);
@@ -97,6 +107,65 @@ fn note_changes(request: &SpokenRequestV1, expected: &[SpokenToken]) -> BTreeSet
             set.insert(spliced(expected, position, position + 1, &[]));
         }
     }
+    set
+}
+
+/// The bases that a near miss of a merge approval says in place of its own.
+const MERGE_BASES: [&str; 6] = ["main", "master", "develop", "dev", "staging", "release"];
+
+/// The near misses of a merge approval.
+fn merge_changes(
+    request: &SpokenRequestV1,
+    expected: &[SpokenToken],
+) -> BTreeSet<Vec<SpokenToken>> {
+    let mut set = BTreeSet::new();
+    let SpokenRequestV1::MergeApproval {
+        network,
+        owner,
+        contract,
+        repo_sha256,
+        pull_request,
+        base,
+        head_commit,
+    } = request
+    else {
+        return set;
+    };
+    let merge = |pull_request: u64, base: SpokenBranch| {
+        render(&SpokenRequestV1::MergeApproval {
+            network: *network,
+            owner: owner.clone(),
+            contract: contract.clone(),
+            repo_sha256: *repo_sha256,
+            pull_request,
+            base,
+            head_commit: *head_commit,
+        })
+        .spoken
+    };
+    let mut numbers = vec![pull_request.checked_sub(1), pull_request.checked_add(1)];
+    let digits = format!("{pull_request}").into_bytes();
+    for (position, current) in digits.iter().enumerate() {
+        for digit in (b'0'..=b'9').filter(|digit| digit != current) {
+            let mut changed = digits.clone();
+            changed[position] = digit;
+            // A leading zero reads as the shorter number; above u64::MAX
+            // there is no number.
+            let text = core::str::from_utf8(&changed).expect("ascii digits");
+            numbers.push(text.parse().ok());
+        }
+    }
+    for number in numbers.into_iter().flatten().filter(|number| *number >= 1) {
+        set.insert(merge(number, base.clone()));
+    }
+    for other in MERGE_BASES.iter().filter(|other| **other != base.as_str()) {
+        let other = SpokenBranch::new(other).expect("each listed base is speakable");
+        set.insert(merge(*pull_request, other));
+    }
+    for position in 0..=expected.len() {
+        set.insert(spliced(expected, position, position, &[word("not")]));
+    }
+    set.insert(spliced(expected, 0, 1, &[word("close")]));
     set
 }
 
@@ -178,10 +247,11 @@ fn clauses(
                 .collect();
             (start, expected.len() - 2, clauses)
         }
-        // `note_changes` gives the near misses of these kinds.
-        SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {
-            (0, expected.len(), Vec::new())
-        }
+        // `note_changes` and `merge_changes` give the near misses of these
+        // kinds.
+        SpokenRequestV1::CommunityNote { .. }
+        | SpokenRequestV1::NoteRating { .. }
+        | SpokenRequestV1::MergeApproval { .. } => (0, expected.len(), Vec::new()),
     }
 }
 
@@ -311,8 +381,11 @@ fn field_changes(
                 }
             }
         }
-        // `note_changes` gives the near misses of these kinds.
-        SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {}
+        // `note_changes` and `merge_changes` give the near misses of these
+        // kinds.
+        SpokenRequestV1::CommunityNote { .. }
+        | SpokenRequestV1::NoteRating { .. }
+        | SpokenRequestV1::MergeApproval { .. } => {}
     }
     set
 }

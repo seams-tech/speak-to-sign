@@ -14,7 +14,7 @@ other examples, but **Merge with voice** works: the owner says "merge pull
 request four hundred twelve into main", the verifier checks the voice and the
 words, and the Seams Wallet signs `approve_merge` on the merge approvals
 contract (`../contracts/merge-approvals/`, proposed account
-`merges.seams-v1.testnet`). Nothing in a repository changes; the on-chain
+`github.seams-v1.testnet`). Nothing in a repository changes; the on-chain
 approval is the signed merge message. The screen lists the newest approvals
 that the contract holds.
 

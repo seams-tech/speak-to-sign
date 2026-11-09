@@ -97,17 +97,17 @@ cargo test -p merge-approvals
 
 ## Deploy to testnet
 
-Not deployed yet. The proposed account is `merges.seams-v1.testnet`, with
+Not deployed yet. The proposed account is `github.seams-v1.testnet`, with
 3 NEAR from `seams-v1.testnet`.
 
 ```bash
-near account create-account fund-myself merges.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+near account create-account fund-myself github.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
 ```
 
 ```bash
-near contract deploy merges.seams-v1.testnet use-file res/merge_approvals.wasm without-init-call network-config testnet sign-with-legacy-keychain send
+near contract deploy github.seams-v1.testnet use-file res/merge_approvals.wasm without-init-call network-config testnet sign-with-legacy-keychain send
 ```
 
 ```bash
-near contract call-function as-read-only merges.seams-v1.testnet get_approvals json-args '{"repo":"seams-tech/speak-to-sign","pull_request":412}' network-config testnet now
+near contract call-function as-read-only github.seams-v1.testnet get_approvals json-args '{"repo":"seams-tech/speak-to-sign","pull_request":412}' network-config testnet now
 ```

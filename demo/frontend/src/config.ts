@@ -13,7 +13,7 @@ export const config = {
   /** The notes contract on NEAR testnet (demo/contracts/community-notes/). */
   contract: env(e.VITE_NOTES_CONTRACT, 'notes.seams-v1.testnet'),
   /** The merge approvals contract on NEAR testnet (demo/contracts/merge-approvals/). */
-  mergeContract: env(e.VITE_MERGE_CONTRACT, 'merges.seams-v1.testnet'),
+  mergeContract: env(e.VITE_MERGE_CONTRACT, 'github.seams-v1.testnet'),
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),
   faucetUrl: 'https://docs.near.org/getting-started/faucet',

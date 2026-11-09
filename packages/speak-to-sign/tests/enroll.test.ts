@@ -41,6 +41,7 @@ function enrollmentHost(options: FakeHostOptions = {}): FakeHost {
   return fakeHost({
     authorization: { kind: 'signed', authorization: AUTHORIZATION },
     reply: verifierOutput(ACCEPTED_OUTPUT),
+    enrollment: true,
     ...options,
   });
 }

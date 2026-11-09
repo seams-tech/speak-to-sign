@@ -48,6 +48,8 @@ export type FakeHostOptions = {
   missing?: readonly string[];
   /** Core's enrollment authorization. A flow that asks for one without it fails. */
   authorization?: Authorization;
+  /** An enrollment flow: core throws for a receiver check, a payment or a note. */
+  enrollment?: boolean;
 };
 
 export type FakeHost = {
@@ -62,6 +64,8 @@ export type FakeHost = {
   events: string[];
   /** Each view, as `check:<caption>` or `result:<label>:<headline>:<action label>`. */
   views: string[];
+  /** The caption of each result view, in order. */
+  captions: unknown[];
   closed: number;
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
   payments: Array<{ receiver: string; amountYocto: bigint; output: unknown }>;
@@ -78,6 +82,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     sentences: [],
     events: [],
     views: [],
+    captions: [],
     closed: 0,
     verifyInputs: [],
     payments: [],
@@ -101,6 +106,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
                 `show ${index}: ${view.kind === 'check' ? view.caption : view.headline}`,
               );
               host.views.push(viewName(view));
+              if (view.kind === 'result') host.captions.push(view.caption);
               return view.kind === 'check' ? 'replaced' : (choices.shift() ?? 'closed');
             },
             close: () => {
@@ -111,6 +117,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
         };
       },
       async receiverExists(accountId) {
+        if (options.enrollment) throw new Error('An enrollment checks no receiver.');
         host.events.push(`receiver ${accountId}`);
         return !options.missing?.includes(accountId);
       },
@@ -120,6 +127,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
         return options.reply ?? verifierOutput();
       },
       async payWithVerdict(transfer, output, _signal, hooks) {
+        if (options.enrollment) throw new Error('An enrollment pays nothing.');
         host.events.push('pay');
         host.payments.push({ ...transfer, output });
         const payment =
@@ -137,6 +145,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
         return payment;
       },
       async signNoteWithVerdict(action, output, _signal, hooks) {
+        if (options.enrollment) throw new Error('An enrollment signs no note.');
         host.events.push('sign note');
         host.notes.push({ action, output });
         const payment =

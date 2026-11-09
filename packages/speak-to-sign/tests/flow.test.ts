@@ -170,6 +170,15 @@ test('the words that the verifier heard are aligned with the sentence and marked
   ]);
 });
 
+test('a words refusal shows the words that the verifier heard on the result card', async () => {
+  const detail = 'heard: send twenty year to alice dot testnet <b>';
+  const host = fakeHost({ outcomes: [{ kind: 'refused', reason: 'words', detail }] });
+  await runSpokenTransfer(transferInput(host));
+  expect(host.captions).toEqual([
+    heardCaption('send twenty five near to alice dot testnet', detail),
+  ]);
+});
+
 const NOT_PAID: Array<[string, FakeHostOptions, Partial<HostTransfer>, Record<string, unknown>]> =
   [
     [

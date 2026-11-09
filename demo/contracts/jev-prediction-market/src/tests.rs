@@ -716,6 +716,14 @@ fn a_bad_answer_fails_without_a_panic() {
     bad_answer(PromiseResult::Failed, "the OutLayer call failed");
     bad_answer(answer(Value::Null), "the resolver returned no answer");
     bad_answer(
+        answer(json!({ "error": "  JEV: HTTP 401; NEAR AI: no NEAR_AI_API_KEY  " })),
+        "the resolver failed: JEV: HTTP 401; NEAR AI: no NEAR_AI_API_KEY",
+    );
+    bad_answer(
+        answer(json!({ "yes_bps": 5_000, "provider": "jev", "error": "e".repeat(300) })),
+        &format!("the resolver failed: {}", "e".repeat(200)),
+    );
+    bad_answer(
         answer(json!(json!({ "yes_bps": 5_000, "provider": "jev" }).to_string())),
         "the resolver answer is not an answer object",
     );

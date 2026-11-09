@@ -60,6 +60,8 @@ pub const CALLBACK_GAS: Gas = Gas::from_tgas(20);
 pub const MIN_REQUEST_GAS: Gas = Gas::from_tgas(250);
 /// After this time, a request without an answer no longer blocks a new request.
 pub const PENDING_TIMEOUT_MS: u64 = 15 * 60 * 1_000;
+/// The longest worker error that `resolution_failed` shows.
+pub const MAX_ERROR_CHARS: usize = 200;
 /// The largest resolver answer that the callback reads.
 pub const MAX_RESULT_BYTES: usize = 4_096;
 /// The default OutLayer project of the resolver worker.
@@ -635,7 +637,7 @@ impl PredictionMarkets {
             }
             Err(reason) => {
                 self.markets.insert(market_id, market);
-                failed(reason)
+                failed(&reason)
             }
         }
     }
@@ -906,23 +908,51 @@ struct RawAnswer {
     model: Option<String>,
     #[serde(default)]
     rationale: Option<String>,
+    /// The worker's reason when it has no answer, for example "JEV: HTTP 401".
+    #[serde(default)]
+    error: Option<String>,
 }
 
 /// Reads the resolver answer `{"yes_bps", "provider", "model", "rationale"}`. OutLayer gives
-/// `null` for a failed run.
-pub fn parse_answer(result: Result<Vec<u8>, PromiseError>) -> Result<AiAnswer, &'static str> {
+/// `null` for a failed run. A worker without an answer sends `{"error": "..."}`.
+pub fn parse_answer(result: Result<Vec<u8>, PromiseError>) -> Result<AiAnswer, String> {
+    check_answer(result).map_err(|reason| match reason {
+        Reason::Fixed(text) => text.to_owned(),
+        Reason::Worker(error) => {
+            let error: String = error.trim().chars().take(MAX_ERROR_CHARS).collect();
+            format!("the resolver failed: {error}")
+        }
+    })
+}
+
+/// Why an answer does not count.
+enum Reason {
+    Fixed(&'static str),
+    Worker(String),
+}
+
+impl From<&'static str> for Reason {
+    fn from(text: &'static str) -> Self {
+        Reason::Fixed(text)
+    }
+}
+
+fn check_answer(result: Result<Vec<u8>, PromiseError>) -> Result<AiAnswer, Reason> {
     let bytes = match result {
         Ok(bytes) => bytes,
-        Err(PromiseError::TooLong(_)) => return Err("the resolver answer is too long"),
-        Err(_) => return Err("the OutLayer call failed"),
+        Err(PromiseError::TooLong(_)) => return Err("the resolver answer is too long".into()),
+        Err(_) => return Err("the OutLayer call failed".into()),
     };
     // serde also reads a struct from a JSON array: accept only an object or null.
     if !matches!(bytes.iter().find(|b| !b.is_ascii_whitespace()), Some(b'{' | b'n')) {
-        return Err("the resolver answer is not an answer object");
+        return Err("the resolver answer is not an answer object".into());
     }
     let answer = serde_json::from_slice::<Option<RawAnswer>>(&bytes)
         .map_err(|_| "the resolver answer is not an answer object")?
         .ok_or("the resolver returned no answer")?;
+    if let Some(error) = answer.error.filter(|e| !e.trim().is_empty()) {
+        return Err(Reason::Worker(error));
+    }
     let yes_bps = answer
         .yes_bps
         .filter(|bps| bps.fract() == 0.0 && (0.0..=f64::from(BPS)).contains(bps))
@@ -936,7 +966,7 @@ pub fn parse_answer(result: Result<Vec<u8>, PromiseError>) -> Result<AiAnswer, &
         .as_ref()
         .is_some_and(|m| m.is_empty() || m.len() > 64 || !m.bytes().all(|b| b.is_ascii_graphic()))
     {
-        return Err("model must be 1 to 64 printable ASCII characters");
+        return Err("model must be 1 to 64 printable ASCII characters".into());
     }
     let rationale = answer
         .rationale

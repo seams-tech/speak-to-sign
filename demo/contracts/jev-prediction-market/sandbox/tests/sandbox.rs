@@ -203,6 +203,17 @@ async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
     check_success("request_resolution (null answer)", &result, REQUEST_GAS);
     assert_eq!(events(&result)[1].1["reason"], "the resolver returned no answer");
 
+    // The worker's own error (no provider answered).
+    outlayer
+        .call("set_answer")
+        .args_json(json!({ "answer": { "error": "JEV: HTTP 401; NEAR AI: HTTP 429" } }))
+        .transact()
+        .await?
+        .into_result()?;
+    let result = call(&ana, &contract, "request_resolution", json!({ "market_id": 1 }), NEAR / 20, REQUEST_GAS).await?;
+    check_success("request_resolution (worker error)", &result, REQUEST_GAS);
+    assert_eq!(events(&result)[1].1["reason"], "the resolver failed: JEV: HTTP 401; NEAR AI: HTTP 429");
+
     // A grey answer from JEV: 73% YES pays 0.73 NEAR a YES share.
     outlayer
         .call("set_answer")
@@ -244,7 +255,7 @@ async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
         request["input"],
         json!({ "market_id": 1, "question": QUESTION, "context": "c".repeat(1_000), "note_id": 2, "contract": contract.id() })
     );
-    assert_eq!(view(&outlayer, "get_calls", json!({})).await?, json!(2), "the failed call kept no state");
+    assert_eq!(view(&outlayer, "get_calls", json!({})).await?, json!(3), "the failed call kept no state");
     let market = view(&contract, "get_market", json!({ "market_id": 1 })).await?;
     assert_eq!(market["status"], "resolved");
     assert_eq!(market["resolution"]["rationale"], "JEV jev-1.14.0 gave a YES probability of 0.73.");
@@ -252,7 +263,7 @@ async fn a_market_from_create_to_redeem_in_the_sandbox() -> anyhow::Result<()> {
     check_failure("request_resolution when resolved", &result, "this market is resolved");
 
     // The callback is private.
-    let result = call(&kenji, &contract, "on_resolution", json!({ "market_id": 1, "request_id": 3 }), 0, CALL_GAS).await?;
+    let result = call(&kenji, &contract, "on_resolution", json!({ "market_id": 1, "request_id": 4 }), 0, CALL_GAS).await?;
     check_failure("on_resolution from outside", &result, "Method on_resolution is private");
 
     // Redeem at the weight. First let the gas refunds of the 300 Tgas requests arrive, so that

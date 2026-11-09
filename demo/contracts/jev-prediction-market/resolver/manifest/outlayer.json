@@ -1,0 +1,9 @@
+{
+  "display": { "name": "Seams pm-notes resolver" },
+  "capabilities": {
+    "network": [
+      { "host": "api.typesafe.ai", "timeout_secs": 45 },
+      { "host": "cloud-api.near.ai", "timeout_secs": 30 }
+    ]
+  }
+}

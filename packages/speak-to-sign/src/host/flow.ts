@@ -188,11 +188,11 @@ async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
     await request.sign(reply.output, signal, {
       accepted: () => void prompt.show(sendingView(request.card, 'voice')),
       approveStepUp: async (policyText) => {
-        const choice = await prompt.show(stepUpView(noun, policyText, false));
+        const choice = await prompt.show(stepUpView(noun, policyText, 'asking'));
         if (choice !== 'action') return false;
         approved = true;
         signedFrom = performance.now();
-        void prompt.show(stepUpView(noun, policyText, true));
+        void prompt.show(stepUpView(noun, policyText, 'waiting'));
         return true;
       },
       broadcasting: () => {

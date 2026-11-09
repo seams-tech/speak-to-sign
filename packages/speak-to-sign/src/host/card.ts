@@ -1,3 +1,4 @@
+import type { SpeakToSignNetwork } from '@seams/wallet';
 import type {
   PhraseCheckView,
   PhraseResultView,
@@ -6,27 +7,47 @@ import type {
 import { heardCaption } from './heardWords';
 import type { FailedResult } from './result';
 
-// The line under the sentence has one segment for each step of a spoken request.
-const SPEAKER = 1;
-const WORDS = 2;
-const POLICY = 3;
-const VERDICT = 4;
-const PAYMENT = 5;
-const SEGMENTS = 6;
+/**
+ * The line under the sentence has six segments. A spoken request has one segment for the
+ * recording, one for each of the four checks of the verifier, and one for the payment.
+ */
+const PAYMENT_LINE = ['recording', 'speaker', 'words', 'policy', 'verdict', 'payment'] as const;
+type PaymentSegment = (typeof PAYMENT_LINE)[number];
 
-/** The verifier sends one answer at the end, so its wait names where each check runs. */
-const VERIFIER_STEPS = [
-  'ReDimNet · Intel TDX CVM on Phala',
-  'Whisper large-v3 · NEAR AI Cloud',
-  'JEV policy',
-  'Signed by the OutLayer TEE verifier',
+/**
+ * An enrollment uses the same six segments: the recordings, the owner's signed message, and the
+ * verifier, which stores the template, on the last four.
+ */
+const ENROLL_LINE = [
+  'recordings',
+  'signature',
+  'verifier',
+  'verifier',
+  'verifier',
+  'verifier',
 ] as const;
+
+/** Where each check of the verifier runs. It sends one answer at the end, so its wait names them. */
+const VERIFIER_STEPS = {
+  speaker: 'ReDimNet · Intel TDX CVM on Phala',
+  words: 'Whisper large-v3 · NEAR AI Cloud',
+  policy: 'JEV policy',
+  verdict: 'Signed by the OutLayer TEE verifier',
+} as const;
+
+/** The name and the block explorer of each network. */
+const NETWORKS: Readonly<
+  Record<SpeakToSignNetwork, Readonly<{ name: string; explorer: string }>>
+> = {
+  testnet: { name: 'NEAR testnet', explorer: 'https://testnet.nearblocks.io/txns/' },
+  mainnet: { name: 'NEAR mainnet', explorer: 'https://nearblocks.io/txns/' },
+};
 
 /** What the card calls the request it signs. */
 export type CardNoun = 'payment' | 'note' | 'rating' | 'approval';
 
 export type CardInput = Readonly<{
-  network: 'testnet' | 'mainnet';
+  network: SpeakToSignNetwork;
   noun: CardNoun;
   /** The result, such as "Sent 0.01 NEAR" and "To bob.testnet". */
   doneHeadline: string;
@@ -67,31 +88,35 @@ const NOUN_COPY: Readonly<
   },
 };
 
-/** Segment 1 is the recording; every segment after `from` waits or works. */
-function segments(done: number, after: PhraseSegmentState): PhraseSegmentState[] {
-  return Array.from({ length: SEGMENTS }, (_, index) => (index < done ? 'done' : after));
-}
-
-/** Segments before `at` passed, the one at `at` failed or waits, and the rest did not run. */
-function blocked(at: number, state: 'fail' | 'wait'): PhraseSegmentState[] {
-  return Array.from({ length: SEGMENTS }, (_, index) =>
-    index < at ? 'done' : index === at ? state : 'skip',
-  );
-}
-
-function networkName(network: CardInput['network']): string {
-  return network === 'mainnet' ? 'NEAR mainnet' : 'NEAR testnet';
+/**
+ * The state of each segment of a line: the segments before the first one named `upTo` passed,
+ * that segment is `state`, and each segment after it is `after`.
+ */
+function line<Segment extends string>(
+  segments: readonly Segment[],
+  upTo: Segment,
+  state: PhraseSegmentState,
+  after: PhraseSegmentState,
+): PhraseSegmentState[] {
+  const at = segments.indexOf(upTo);
+  return segments.map((_, index) => (index < at ? 'done' : index === at ? state : after));
 }
 
 export function verifyingView(): PhraseCheckView {
-  const states = segments(1, 'run');
-  states[PAYMENT] = 'idle';
   return {
     kind: 'check',
     label: 'Checking',
     caption: 'Checking your voice and words',
-    details: VERIFIER_STEPS,
-    segments: states,
+    details: [
+      VERIFIER_STEPS.speaker,
+      VERIFIER_STEPS.words,
+      VERIFIER_STEPS.policy,
+      VERIFIER_STEPS.verdict,
+    ],
+    // The recording passed, the four checks of the verifier run together, and the payment waits.
+    segments: PAYMENT_LINE.map((segment) =>
+      segment === 'recording' ? 'done' : segment === 'payment' ? 'idle' : 'run',
+    ),
   };
 }
 
@@ -99,23 +124,24 @@ export function sendingView(
   input: CardInput,
   approval: 'voice' | 'passkey',
 ): PhraseCheckView {
-  const states = segments(PAYMENT, 'run');
   return {
     kind: 'check',
     label: 'Checking',
     caption: 'Sending from your account',
     details: [
-      `${approval === 'voice' ? 'Signed by your Seams Wallet' : 'Approved with your passkey'} · ${networkName(input.network)}`,
+      `${approval === 'voice' ? 'Signed by your Seams Wallet' : 'Approved with your passkey'} · ${NETWORKS[input.network].name}`,
     ],
-    segments: states,
+    segments: line(PAYMENT_LINE, 'payment', 'run', 'run'),
   };
 }
 
+/** The step-up question asks for the passkey, then waits while the owner uses it. */
 export function stepUpView(
   noun: CardNoun,
   policyText: string | null,
-  waiting: boolean,
+  step: 'asking' | 'waiting',
 ): PhraseResultView {
+  const waiting = step === 'waiting';
   return {
     kind: 'result',
     label: 'Not sent yet',
@@ -125,15 +151,12 @@ export function stepUpView(
       : (policyText ?? `Your policy asks for a passkey for this ${noun}.`),
     detail: waiting ? 'Use the passkey prompt on your device.' : 'Your voice and words passed.',
     action: { label: 'Confirm with passkey', icon: 'passkey', busy: waiting },
-    line: blocked(POLICY, 'wait'),
+    line: line(PAYMENT_LINE, 'policy', 'wait', 'skip'),
   };
 }
 
 export function paidView(input: CardInput, hash: string, seconds: number): PhraseResultView {
-  const explorer =
-    input.network === 'mainnet'
-      ? 'https://nearblocks.io/txns/'
-      : 'https://testnet.nearblocks.io/txns/';
+  const { explorer } = NETWORKS[input.network];
   return {
     kind: 'result',
     label: '',
@@ -146,21 +169,14 @@ export function paidView(input: CardInput, hash: string, seconds: number): Phras
   };
 }
 
-// An enrollment uses the same line: segment 1 is the recordings, segment 2 the owner's signed
-// message, and the rest the verifier, which stores the template.
-const ENROLL_SIGNATURE = 1;
-const ENROLL_TEMPLATE = 2;
-
 /** After the third phrase, until the Wallet confirm of the enrollment message opens over it. */
 export function enrollSigningView(): PhraseCheckView {
-  const states = segments(ENROLL_SIGNATURE, 'idle');
-  states[ENROLL_SIGNATURE] = 'wait';
   return {
     kind: 'check',
     label: 'Enrolling',
     caption: 'Preparing your signed enrollment',
     details: ['Next, confirm one message that names these three recordings.'],
-    segments: states,
+    segments: line(ENROLL_LINE, 'signature', 'wait', 'idle'),
   };
 }
 
@@ -169,8 +185,8 @@ export function enrollSavingView(): PhraseCheckView {
     kind: 'check',
     label: 'Enrolling',
     caption: 'Storing your voice template',
-    details: ['ReDimNet · Intel TDX CVM on Phala', 'Signed by the OutLayer TEE verifier'],
-    segments: segments(ENROLL_TEMPLATE, 'run'),
+    details: [VERIFIER_STEPS.speaker, VERIFIER_STEPS.verdict],
+    segments: line(ENROLL_LINE, 'verifier', 'run', 'run'),
   };
 }
 
@@ -198,7 +214,7 @@ export function notEnrolledView(
     caption: refused ? `Reason: ${result.reason}` : 'A verifier service did not answer.',
     detail: refused ? 'Record the three phrases again.' : 'Try again in a minute.',
     action: { label: 'Close' },
-    line: blocked(ENROLL_TEMPLATE, 'fail'),
+    line: line(ENROLL_LINE, 'verifier', 'fail', 'skip'),
   };
 }
 
@@ -222,7 +238,7 @@ export function failureView(
       caption: copy.caption,
       detail: copy.detail,
       action: { label: copy.retry ? 'Try again' : 'Close' },
-      line: blocked(copy.at, 'fail'),
+      line: line(PAYMENT_LINE, copy.at, 'fail', 'skip'),
     },
   };
 }
@@ -232,7 +248,8 @@ type FailureCopy = Readonly<{
   headline: string;
   caption: PhraseResultView['caption'];
   detail: string;
-  at: number;
+  /** The segment of the line that failed. */
+  at: PaymentSegment;
   retry: boolean;
 }>;
 
@@ -251,7 +268,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
           headline: `The ${input.noun} was not sent`,
           caption: 'Your Wallet did not send the transaction.',
           detail: 'Try again in a minute.',
-          at: PAYMENT,
+          at: 'payment',
           retry: true,
         };
       case 'submission_unknown':
@@ -260,11 +277,11 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
           headline: `The ${input.noun} may have been sent`,
           caption: 'The network did not confirm the transaction.',
           detail: 'Check your account before you try again.',
-          at: PAYMENT,
+          at: 'payment',
           retry: false,
         };
       default:
-        return { ...unavailable, at: SPEAKER };
+        return { ...unavailable, at: 'speaker' };
     }
   }
   switch (result.reason) {
@@ -273,7 +290,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: 'The words did not match',
         caption: heardCaption(input.spokenText, result.detail),
         detail: 'Read the sentence again, word for word.',
-        at: WORDS,
+        at: 'words',
         retry: true,
       };
     case 'speaker':
@@ -281,7 +298,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: 'Your voice did not match',
         caption: 'The verifier did not match your enrolled voice.',
         detail: 'Speak in your usual voice, close to the microphone.',
-        at: SPEAKER,
+        at: 'speaker',
         retry: true,
       };
     case 'quality':
@@ -289,7 +306,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: 'The recording was not clear',
         caption: 'The verifier could not hear your voice well.',
         detail: 'Move somewhere quieter and speak close to the microphone.',
-        at: SPEAKER,
+        at: 'speaker',
         retry: true,
       };
     case 'audio_reused':
@@ -298,7 +315,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: 'The recording could not be used',
         caption: 'The verifier did not accept this recording.',
         detail: 'Record the sentence again.',
-        at: SPEAKER,
+        at: 'speaker',
         retry: true,
       };
     case 'template_missing':
@@ -306,21 +323,21 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: 'Your voice is not enrolled',
         caption: 'The verifier has no voice for this account.',
         detail: 'Enroll your voice for Speak-to-Sign first.',
-        at: SPEAKER,
+        at: 'speaker',
         retry: false,
       };
     case 'transcriber_unavailable':
-      return { ...unavailable, at: WORDS };
+      return { ...unavailable, at: 'words' };
     case 'speaker_unavailable':
     case 'storage':
     case 'unsupported':
-      return { ...unavailable, at: SPEAKER };
+      return { ...unavailable, at: 'speaker' };
     case 'verdict_mismatch':
       return {
         headline: 'The verdict did not match',
         caption: `Your Wallet refused the signed verdict for this ${input.noun}.`,
         detail: 'Record the sentence again.',
-        at: VERDICT,
+        at: 'verdict',
         retry: true,
       };
     case 'voice_limit':
@@ -331,7 +348,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
             ? 'Your voice payments in the last 24 hours reached the limit.'
             : 'This amount is over the limit for one voice payment.',
         detail: 'Pay with the normal confirm instead.',
-        at: POLICY,
+        at: 'policy',
         retry: false,
       };
     case 'cosigner_refused':
@@ -339,7 +356,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: 'Seams refused the verdict',
         caption: `The Seams co-signer did not accept the verdict for this ${input.noun}.`,
         detail: 'Record the sentence again.',
-        at: PAYMENT,
+        at: 'payment',
         retry: true,
       };
     case 'transaction_failed':
@@ -348,7 +365,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         headline: `The ${input.noun} failed`,
         caption: 'NEAR refused the transaction.',
         detail: noun.failedDetail,
-        at: PAYMENT,
+        at: 'payment',
         retry: true,
       };
     default:

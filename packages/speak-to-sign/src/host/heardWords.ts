@@ -1,18 +1,24 @@
 import type { PhraseResultView } from '@seams/wallet/speak-to-sign-host';
 
+/**
+ * Wallet core (`core/transactionFeatures/voiceVerdict.ts`) writes the words that the verifier
+ * heard after this prefix, in the detail of a `words` refusal.
+ */
+const HEARD_PREFIX = 'heard: ';
+
 /** A refused verdict is not signature-checked, so its text is cut short and shown as plain text. */
 const MAX_HEARD_CHARS = 160;
 
 /**
  * The words that the verifier heard, with each word that the alignment with the spoken sentence
- * does not match marked. The Wallet passes them as `heard: <words>` in the refusal detail.
+ * does not match marked.
  */
 export function heardCaption(
   spokenText: string,
   detail: string | undefined,
 ): PhraseResultView['caption'] {
-  const heard = detail?.startsWith('heard: ')
-    ? detail.slice('heard: '.length).slice(0, MAX_HEARD_CHARS).trim()
+  const heard = detail?.startsWith(HEARD_PREFIX)
+    ? detail.slice(HEARD_PREFIX.length).slice(0, MAX_HEARD_CHARS).trim()
     : '';
   if (!heard) return 'The verifier heard different words.';
   const words = heard.split(/\s+/);

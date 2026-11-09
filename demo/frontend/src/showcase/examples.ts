@@ -32,8 +32,7 @@ export const EXAMPLES: VoiceExample[] = [
     signs: 'rate_note({ note_id: 2, rating: "helpful" })',
     target: 'notes.seams-v1.testnet · 0 NEAR · 30 Tgas',
     status: 'live',
-    blurb:
-      'Rate a note, or post one: you type the note, NEAR AI suggests a short summary, and you read the summary aloud. The two posts are real cases that got a Community Note on X.',
+    blurb: 'Rate or post a note by voice, on an X-style page.',
     href: '/notes/',
     url: 'notes',
   },
@@ -45,8 +44,7 @@ export const EXAMPLES: VoiceExample[] = [
     signs: 'approve({ pr: 412, head: "9c1e2fa", base: "main" })',
     target: 'a required check verifies it, then the merge runs',
     status: 'concept',
-    blurb:
-      "A required check waits for the maintainer's voice. A leaked token or a stolen laptop cannot merge to main alone, and the approval names one commit.",
+    blurb: 'A required check waits for the maintainer\'s voice before main can move.',
     url: 'github.com/seams-tech/speak-to-sign/pull/412',
   },
   {
@@ -57,8 +55,7 @@ export const EXAMPLES: VoiceExample[] = [
     signs: 'confirm(safeTx #7, hash 0x4f2a…91bd)',
     target: 'one owner confirmation · 2 of 3 needed',
     status: 'concept',
-    blurb:
-      'Each owner confirms by voice. The words must match the amount and the receiver, so a swapped address fails before anyone signs blind.',
+    blurb: 'Each owner confirms by voice. The words must match the amount and the receiver.',
     url: 'app.safe.global/transactions/queue',
   },
 ];

@@ -1,20 +1,37 @@
 use alloc::collections::BTreeSet;
-use alloc::format;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::ops::Range;
 
+use crate::challenge::CHALLENGE_LEN;
 use crate::numbers::{digit_value, digit_word, push_integer_words};
-use crate::render::{SpokenToken, VERSION_CHECK_DIGITS};
+use crate::render::VERSION_CHECK_DIGITS;
+use crate::token::SpokenToken;
 use crate::{
-    render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+    render, ChallengeWord, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch,
+    SpokenRequestV1,
 };
 
 /// The verbs of the grammar: the two request verbs, "reject" (the opposite
 /// of "approve") and the proposal verbs.
 const VERBS: [&str; 6] = ["send", "approve", "reject", "add", "remove", "set"];
 
-/// Negations, as `normalize` gives them ("don't" becomes "dont").
-const NEGATIONS: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]];
+/// Negations that a near miss puts before a verb, as `normalize` gives them
+/// ("don't" becomes "dont").
+const NEGATION_PREFIXES: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]];
+
+/// Negation words that a near miss of a note or a rating drops.
+const NEGATION_WORDS: [&str; 4] = ["not", "never", "no", "dont"];
+
+/// The bases that a near miss of a merge approval says in place of its own.
+const MERGE_BASES: [&str; 6] = ["main", "master", "develop", "dev", "staging", "release"];
+
+/// The fewest digits of an amount in hundredths that the digit changes
+/// cover, so that "0.05 NEAR" (005) also changes its whole NEAR digit.
+const MIN_AMOUNT_DIGITS: u32 = 3;
+
+/// The spoken forms of near misses.
+type NearMisses = BTreeSet<Vec<SpokenToken>>;
 
 /// The spoken forms of the near misses of a request, sorted and without the
 /// request's own form. A decision rule must refuse each of them.
@@ -33,7 +50,8 @@ const NEGATIONS: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]
 /// the first word of the proposal):
 ///
 /// - A changed verb: each other word of `VERBS`.
-/// - A negation: each of `NEGATIONS` before the verb, and "not" after it.
+/// - A negation: each of `NEGATION_PREFIXES` before the verb, and "not"
+///   after it.
 /// - A dropped clause: a transfer without its amount, without its amount and
 ///   "near", without its receiver, or without its verb; an approval without
 ///   "proposal" and its id, without its proposal, without one or both
@@ -43,7 +61,8 @@ const NEGATIONS: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]
 ///
 /// A community note or a note rating moves no value, so its near misses
 /// guard only the meaning of the sentence: "not" added at each position,
-/// each negation word removed, and for a rating each other rating.
+/// each word of `NEGATION_WORDS` removed, and for a rating each other
+/// rating.
 ///
 /// A merge approval also moves no value. Its near misses are the pull
 /// request number one lower and one higher, and with each decimal digit
@@ -55,289 +74,24 @@ pub fn confusion_set(
     contacts: &[SpokenAccount],
 ) -> Vec<Vec<SpokenToken>> {
     let expected = render(request).spoken;
+    // Each arm gives the spoken form of the request with other field values.
     let mut set = match request {
-        SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {
-            note_changes(request, &expected)
-        }
-        SpokenRequestV1::MergeApproval { .. } => merge_changes(request, &expected),
-        SpokenRequestV1::AccountTransfer { .. } | SpokenRequestV1::MultisigApproval { .. } => {
-            let mut set = field_changes(request, contacts, &expected);
-            let (clause_start, clause_end, clauses) = clauses(request, contacts, &expected);
-            sentence_changes(&expected, clause_start, clause_end, &clauses, &mut set);
-            set
-        }
-    };
-    set.remove(&expected);
-    set.into_iter().collect()
-}
-
-/// Negation words that a near miss of a note or a rating drops.
-const NOTE_NEGATIONS: [&str; 4] = ["not", "never", "no", "dont"];
-
-/// The near misses of a community note or a note rating.
-fn note_changes(request: &SpokenRequestV1, expected: &[SpokenToken]) -> BTreeSet<Vec<SpokenToken>> {
-    let mut set = BTreeSet::new();
-    if let SpokenRequestV1::NoteRating {
-        network,
-        owner,
-        contract,
-        note_id,
-        rating,
-    } = request
-    {
-        for other in NoteRatingV1::ALL
-            .into_iter()
-            .filter(|other| other != rating)
-        {
-            let variant = SpokenRequestV1::NoteRating {
-                network: *network,
-                owner: owner.clone(),
-                contract: contract.clone(),
-                note_id: *note_id,
-                rating: other,
-            };
-            set.insert(render(&variant).spoken);
-        }
-    }
-    for position in 0..=expected.len() {
-        set.insert(spliced(expected, position, position, &[word("not")]));
-    }
-    for (position, token) in expected.iter().enumerate() {
-        if NOTE_NEGATIONS.contains(&token.as_str()) {
-            set.insert(spliced(expected, position, position + 1, &[]));
-        }
-    }
-    set
-}
-
-/// The bases that a near miss of a merge approval says in place of its own.
-const MERGE_BASES: [&str; 6] = ["main", "master", "develop", "dev", "staging", "release"];
-
-/// The near misses of a merge approval.
-fn merge_changes(
-    request: &SpokenRequestV1,
-    expected: &[SpokenToken],
-) -> BTreeSet<Vec<SpokenToken>> {
-    let mut set = BTreeSet::new();
-    let SpokenRequestV1::MergeApproval {
-        network,
-        owner,
-        contract,
-        repo_sha256,
-        pull_request,
-        base,
-        head_commit,
-    } = request
-    else {
-        return set;
-    };
-    let merge = |pull_request: u64, base: SpokenBranch| {
-        render(&SpokenRequestV1::MergeApproval {
-            network: *network,
-            owner: owner.clone(),
-            contract: contract.clone(),
-            repo_sha256: *repo_sha256,
-            pull_request,
-            base,
-            head_commit: *head_commit,
-        })
-        .spoken
-    };
-    let mut numbers = vec![pull_request.checked_sub(1), pull_request.checked_add(1)];
-    let digits = format!("{pull_request}").into_bytes();
-    for (position, current) in digits.iter().enumerate() {
-        for digit in (b'0'..=b'9').filter(|digit| digit != current) {
-            let mut changed = digits.clone();
-            changed[position] = digit;
-            // A leading zero reads as the shorter number; above u64::MAX
-            // there is no number.
-            let text = core::str::from_utf8(&changed).expect("ascii digits");
-            numbers.push(text.parse().ok());
-        }
-    }
-    for number in numbers.into_iter().flatten().filter(|number| *number >= 1) {
-        set.insert(merge(number, base.clone()));
-    }
-    for other in MERGE_BASES.iter().filter(|other| **other != base.as_str()) {
-        let other = SpokenBranch::new(other).expect("each listed base is speakable");
-        set.insert(merge(*pull_request, other));
-    }
-    for position in 0..=expected.len() {
-        set.insert(spliced(expected, position, position, &[word("not")]));
-    }
-    set.insert(spliced(expected, 0, 1, &[word("close")]));
-    set
-}
-
-fn word(text: &'static str) -> SpokenToken {
-    SpokenToken::from_static(text)
-}
-
-fn spliced(
-    tokens: &[SpokenToken],
-    start: usize,
-    end: usize,
-    insert: &[SpokenToken],
-) -> Vec<SpokenToken> {
-    let mut out = tokens[..start].to_vec();
-    out.extend_from_slice(insert);
-    out.extend_from_slice(&tokens[end..]);
-    out
-}
-
-/// Number of words of `proposal <id>` after "approve".
-fn proposal_prefix_len(proposal_id: u64) -> usize {
-    let mut id_words = Vec::new();
-    push_integer_words(proposal_id, &mut id_words);
-    2 + id_words.len()
-}
-
-/// The range of the clause after the request verb (a transfer: the whole
-/// sentence; an approval: the proposal), and that clause for the request and
-/// for each field change that keeps the sentence shape.
-fn clauses(
-    request: &SpokenRequestV1,
-    contacts: &[SpokenAccount],
-    expected: &[SpokenToken],
-) -> (usize, usize, Vec<Vec<SpokenToken>>) {
-    match request {
         SpokenRequestV1::AccountTransfer {
             network,
             owner,
             receiver,
             amount,
         } => {
-            let mut clauses = vec![expected.to_vec()];
-            for (receiver, amount) in transfer_variants(receiver, *amount, contacts) {
-                clauses.push(
-                    render(&SpokenRequestV1::AccountTransfer {
-                        network: *network,
-                        owner: owner.clone(),
-                        receiver,
-                        amount,
-                    })
-                    .spoken,
-                );
-            }
-            (0, expected.len(), clauses)
-        }
-        SpokenRequestV1::MultisigApproval {
-            network,
-            multisig,
-            proposal_id,
-            proposal,
-            challenge,
-        } => {
-            let start = proposal_prefix_len(*proposal_id);
-            let mut proposals = vec![proposal.clone()];
-            proposals.extend(proposal_variants(proposal, contacts));
-            let clauses = proposals
-                .into_iter()
-                .map(|proposal| {
-                    let spoken = render(&SpokenRequestV1::MultisigApproval {
-                        network: *network,
-                        multisig: multisig.clone(),
-                        proposal_id: *proposal_id,
-                        proposal,
-                        challenge: *challenge,
-                    })
-                    .spoken;
-                    spoken[start..spoken.len() - 2].to_vec()
-                })
-                .collect();
-            (start, expected.len() - 2, clauses)
-        }
-        // `note_changes` and `merge_changes` give the near misses of these
-        // kinds.
-        SpokenRequestV1::CommunityNote { .. }
-        | SpokenRequestV1::NoteRating { .. }
-        | SpokenRequestV1::MergeApproval { .. } => (0, expected.len(), Vec::new()),
-    }
-}
-
-/// Changed verbs, negations, dropped and added clauses.
-fn sentence_changes(
-    expected: &[SpokenToken],
-    clause_start: usize,
-    clause_end: usize,
-    clauses: &[Vec<SpokenToken>],
-    set: &mut BTreeSet<Vec<SpokenToken>>,
-) {
-    let mut verb_positions = vec![0];
-    if clause_start != 0 {
-        verb_positions.push(clause_start);
-    }
-    for &position in &verb_positions {
-        for verb in VERBS
-            .iter()
-            .filter(|verb| **verb != expected[position].as_str())
-        {
-            set.insert(spliced(expected, position, position + 1, &[word(verb)]));
-        }
-        for negation in NEGATIONS {
-            let words: Vec<SpokenToken> = negation.iter().map(|w| word(w)).collect();
-            set.insert(spliced(expected, position, position, &words));
-        }
-        set.insert(spliced(
-            expected,
-            position + 1,
-            position + 1,
-            &[word("not")],
-        ));
-    }
-
-    // A dropped part of the clause, when the clause is a transfer.
-    let clause = &expected[clause_start..clause_end];
-    if clause.first().is_some_and(|w| w.as_str() == "send") {
-        if let Some(near) = clause.iter().position(|w| w.as_str() == "near") {
-            let near = clause_start + near;
-            set.insert(spliced(expected, clause_start + 1, near, &[]));
-            set.insert(spliced(expected, clause_start + 1, near + 1, &[]));
-            set.insert(spliced(expected, near + 1, clause_end, &[]));
-        }
-        set.insert(spliced(expected, clause_start, clause_start + 1, &[]));
-    }
-    if clause_start != 0 {
-        let len = expected.len();
-        set.insert(spliced(expected, 1, clause_start, &[]));
-        set.insert(spliced(expected, clause_start, clause_end, &[]));
-        set.insert(expected[..len - 2].to_vec());
-        set.insert(spliced(expected, len - 2, len - 1, &[]));
-        set.insert(expected[..len - 1].to_vec());
-    }
-
-    // An added clause after the sentence.
-    for clause in clauses {
-        let mut added = expected.to_vec();
-        added.push(word("and"));
-        added.extend_from_slice(clause);
-        set.insert(added);
-    }
-}
-
-/// The field changes.
-fn field_changes(
-    request: &SpokenRequestV1,
-    contacts: &[SpokenAccount],
-    expected: &[SpokenToken],
-) -> BTreeSet<Vec<SpokenToken>> {
-    let mut set = BTreeSet::new();
-    match request {
-        SpokenRequestV1::AccountTransfer {
-            network,
-            owner,
-            receiver,
-            amount,
-        } => {
-            for (receiver, amount) in transfer_variants(receiver, *amount, contacts) {
-                let variant = SpokenRequestV1::AccountTransfer {
+            let transfer = |receiver, amount| {
+                render(&SpokenRequestV1::AccountTransfer {
                     network: *network,
                     owner: owner.clone(),
                     receiver,
                     amount,
-                };
-                set.insert(render(&variant).spoken);
-            }
+                })
+                .spoken
+            };
+            transfer_near_misses(&expected, receiver, *amount, contacts, transfer)
         }
         SpokenRequestV1::MultisigApproval {
             network,
@@ -346,7 +100,7 @@ fn field_changes(
             proposal,
             challenge,
         } => {
-            let approval = |proposal_id: u64, proposal: ProposalV1, challenge| {
+            let approval = |proposal_id, proposal, challenge| {
                 render(&SpokenRequestV1::MultisigApproval {
                     network: *network,
                     multisig: multisig.clone(),
@@ -356,37 +110,185 @@ fn field_changes(
                 })
                 .spoken
             };
-            let neighbour_ids = [proposal_id.checked_sub(1), proposal_id.checked_add(1)];
-            for id in neighbour_ids.into_iter().flatten() {
-                set.insert(approval(id, proposal.clone(), *challenge));
-            }
-            set.insert(approval(
+            approval_near_misses(
+                &expected,
                 *proposal_id,
-                proposal.clone(),
-                [challenge[1], challenge[0]],
-            ));
-            for variant in proposal_variants(proposal, contacts) {
-                set.insert(approval(*proposal_id, variant, *challenge));
-            }
-            if let ProposalV1::SetVerifierVersion { .. } = proposal {
-                // The digits sit just before the two challenge words.
-                let first_digit = expected.len() - 2 - VERSION_CHECK_DIGITS;
-                for position in first_digit..first_digit + VERSION_CHECK_DIGITS {
-                    let current = digit_value(expected[position].as_str());
-                    for digit in (0..10u8).filter(|digit| Some(*digit) != current) {
-                        let mut variant = expected.to_vec();
-                        variant[position] = SpokenToken::from_static(digit_word(digit));
-                        set.insert(variant);
-                    }
-                }
+                proposal,
+                challenge,
+                contacts,
+                approval,
+            )
+        }
+        SpokenRequestV1::CommunityNote { .. } => note_near_misses(&expected, Vec::new()),
+        SpokenRequestV1::NoteRating {
+            network,
+            owner,
+            contract,
+            note_id,
+            rating,
+        } => {
+            let rated = |rating| {
+                render(&SpokenRequestV1::NoteRating {
+                    network: *network,
+                    owner: owner.clone(),
+                    contract: contract.clone(),
+                    note_id: *note_id,
+                    rating,
+                })
+                .spoken
+            };
+            let other_ratings = NoteRatingV1::ALL
+                .into_iter()
+                .filter(|other| other != rating)
+                .map(rated);
+            note_near_misses(&expected, other_ratings)
+        }
+        SpokenRequestV1::MergeApproval {
+            network,
+            owner,
+            contract,
+            repo_sha256,
+            pull_request,
+            base,
+            head_commit,
+        } => {
+            let merge = |pull_request, base| {
+                render(&SpokenRequestV1::MergeApproval {
+                    network: *network,
+                    owner: owner.clone(),
+                    contract: contract.clone(),
+                    repo_sha256: *repo_sha256,
+                    pull_request,
+                    base,
+                    head_commit: *head_commit,
+                })
+                .spoken
+            };
+            merge_near_misses(&expected, *pull_request, base, merge)
+        }
+    };
+    set.remove(&expected);
+    set.into_iter().collect()
+}
+
+/// The near misses of an account transfer. `transfer` gives the spoken form
+/// of the transfer to another receiver or of another amount.
+fn transfer_near_misses(
+    expected: &[SpokenToken],
+    receiver: &SpokenAccount,
+    amount: NearAmount,
+    contacts: &[SpokenAccount],
+    transfer: impl Fn(SpokenAccount, NearAmount) -> Vec<SpokenToken>,
+) -> NearMisses {
+    let mut set = NearMisses::new();
+    verb_changes(expected, 0, &mut set);
+    transfer_drops(expected, 0..expected.len(), &mut set);
+    set.insert(added_clause(expected, expected));
+    for (receiver, amount) in transfer_variants(receiver, amount, contacts) {
+        let variant = transfer(receiver, amount);
+        set.insert(added_clause(expected, &variant));
+        set.insert(variant);
+    }
+    set
+}
+
+/// The near misses of a multisig approval. `approval` gives the spoken form
+/// of the approval with another id, proposal or challenge.
+fn approval_near_misses(
+    expected: &[SpokenToken],
+    proposal_id: u64,
+    proposal: &ProposalV1,
+    challenge: &[ChallengeWord; CHALLENGE_LEN],
+    contacts: &[SpokenAccount],
+    approval: impl Fn(u64, ProposalV1, [ChallengeWord; CHALLENGE_LEN]) -> Vec<SpokenToken>,
+) -> NearMisses {
+    let mut set = NearMisses::new();
+    let clause = proposal_clause(proposal_id, expected);
+
+    for id in [proposal_id.checked_sub(1), proposal_id.checked_add(1)]
+        .into_iter()
+        .flatten()
+    {
+        set.insert(approval(id, proposal.clone(), *challenge));
+    }
+    let mut swapped = *challenge;
+    swapped.reverse();
+    set.insert(approval(proposal_id, proposal.clone(), swapped));
+    set.insert(added_clause(expected, &expected[clause.clone()]));
+    for variant in proposal_variants(proposal, contacts) {
+        let variant = approval(proposal_id, variant, *challenge);
+        set.insert(added_clause(
+            expected,
+            &variant[proposal_clause(proposal_id, &variant)],
+        ));
+        set.insert(variant);
+    }
+    if let ProposalV1::SetVerifierVersion { .. } = proposal {
+        // The check digits are the last words of the proposal.
+        for position in clause.end - VERSION_CHECK_DIGITS..clause.end {
+            let current = digit_value(expected[position].as_str());
+            for digit in (0..10u8).filter(|digit| Some(*digit) != current) {
+                let changed = [word(digit_word(digit))];
+                set.insert(spliced(expected, position, position + 1, &changed));
             }
         }
-        // `note_changes` and `merge_changes` give the near misses of these
-        // kinds.
-        SpokenRequestV1::CommunityNote { .. }
-        | SpokenRequestV1::NoteRating { .. }
-        | SpokenRequestV1::MergeApproval { .. } => {}
     }
+
+    verb_changes(expected, 0, &mut set);
+    verb_changes(expected, clause.start, &mut set);
+    if let ProposalV1::Transfer { .. } = proposal {
+        transfer_drops(expected, clause.clone(), &mut set);
+    }
+    // Without "proposal" and its id, without the proposal, without all the
+    // challenge words, and without each one.
+    set.insert(spliced(expected, 1, clause.start, &[]));
+    set.insert(spliced(expected, clause.start, clause.end, &[]));
+    set.insert(expected[..clause.end].to_vec());
+    for position in clause.end..expected.len() {
+        set.insert(spliced(expected, position, position + 1, &[]));
+    }
+    set
+}
+
+/// The near misses of a community note or a note rating. `other_ratings`
+/// are the spoken forms of the other ratings of a rating.
+fn note_near_misses(
+    expected: &[SpokenToken],
+    other_ratings: impl IntoIterator<Item = Vec<SpokenToken>>,
+) -> NearMisses {
+    let mut set: NearMisses = other_ratings.into_iter().collect();
+    insert_not_everywhere(expected, &mut set);
+    for (position, token) in expected.iter().enumerate() {
+        if NEGATION_WORDS.contains(&token.as_str()) {
+            set.insert(spliced(expected, position, position + 1, &[]));
+        }
+    }
+    set
+}
+
+/// The near misses of a merge approval. `merge` gives the spoken form of the
+/// approval with another pull request number or base.
+fn merge_near_misses(
+    expected: &[SpokenToken],
+    pull_request: u64,
+    base: &SpokenBranch,
+    merge: impl Fn(u64, SpokenBranch) -> Vec<SpokenToken>,
+) -> NearMisses {
+    let mut set = NearMisses::new();
+    let neighbours = [pull_request.checked_sub(1), pull_request.checked_add(1)];
+    let numbers = neighbours
+        .into_iter()
+        .flatten()
+        .chain(digit_changes(pull_request, 1));
+    for number in numbers.filter(|number| *number >= 1) {
+        set.insert(merge(number, base.clone()));
+    }
+    for other in MERGE_BASES.iter().filter(|other| **other != base.as_str()) {
+        let other = SpokenBranch::new(other).expect("each listed base is speakable");
+        set.insert(merge(pull_request, other));
+    }
+    insert_not_everywhere(expected, &mut set);
+    set.insert(spliced(expected, 0, 1, &[word("close")]));
     set
 }
 
@@ -417,22 +319,35 @@ fn amount_neighbours(amount: NearAmount) -> Vec<NearAmount> {
     if hundredths % 100 == 0 {
         candidates.push(hundredths / 100);
     }
-    let mut digits: Vec<u64> = Vec::new();
-    let mut rest = hundredths;
-    while rest > 0 || digits.len() < 3 {
-        digits.push(rest % 10);
-        rest /= 10;
-    }
-    for (position, current) in digits.iter().enumerate() {
-        let place = 10u64.pow(position as u32);
-        for digit in (0..10).filter(|digit| digit != current) {
-            candidates.push(hundredths - current * place + digit * place);
-        }
-    }
+    candidates.extend(digit_changes(hundredths, MIN_AMOUNT_DIGITS));
     candidates
         .into_iter()
         .filter_map(|candidate| NearAmount::from_hundredths(candidate).ok())
         .collect()
+}
+
+/// Each number that `value` gives with one decimal digit changed to each
+/// other digit. The digits are those of `value`, with leading zeros up to
+/// `min_digits` digits. A leading zero reads as the shorter number, and a
+/// change above `u64::MAX` gives no number.
+fn digit_changes(value: u64, min_digits: u32) -> Vec<u64> {
+    let mut changes = Vec::new();
+    let mut position = 0;
+    while let Some(place) = 10u64.checked_pow(position) {
+        if position >= min_digits && value / place == 0 {
+            break;
+        }
+        let current = value / place % 10;
+        let without_digit = value - current * place;
+        for digit in (0..10).filter(|digit| *digit != current) {
+            let changed = digit
+                .checked_mul(place)
+                .and_then(|digit_value| without_digit.checked_add(digit_value));
+            changes.extend(changed);
+        }
+        position += 1;
+    }
+    changes
 }
 
 fn proposal_variants(proposal: &ProposalV1, contacts: &[SpokenAccount]) -> Vec<ProposalV1> {
@@ -481,4 +396,81 @@ fn proposal_variants(proposal: &ProposalV1, contacts: &[SpokenAccount]) -> Vec<P
         }
         ProposalV1::SetVerifierVersion { .. } => Vec::new(),
     }
+}
+
+/// The position of the proposal in the spoken form of an approval with
+/// `proposal_id`: after "approve proposal" and the id words, and before the
+/// challenge words.
+fn proposal_clause(proposal_id: u64, approval: &[SpokenToken]) -> Range<usize> {
+    let mut id_words = Vec::new();
+    push_integer_words(proposal_id, &mut id_words);
+    2 + id_words.len()..approval.len() - CHALLENGE_LEN
+}
+
+/// A changed verb at `position`, each negation before it, and "not" after
+/// it.
+fn verb_changes(expected: &[SpokenToken], position: usize, set: &mut NearMisses) {
+    for verb in VERBS
+        .iter()
+        .filter(|verb| **verb != expected[position].as_str())
+    {
+        set.insert(spliced(expected, position, position + 1, &[word(verb)]));
+    }
+    for negation in NEGATION_PREFIXES {
+        let words: Vec<SpokenToken> = negation.iter().map(|w| word(w)).collect();
+        set.insert(spliced(expected, position, position, &words));
+    }
+    set.insert(spliced(
+        expected,
+        position + 1,
+        position + 1,
+        &[word("not")],
+    ));
+}
+
+/// The transfer clause at `clause` without its amount, without its amount
+/// and "near", without its receiver, and without its verb.
+fn transfer_drops(expected: &[SpokenToken], clause: Range<usize>, set: &mut NearMisses) {
+    let verb = clause.start;
+    if let Some(near) = expected[clause.clone()]
+        .iter()
+        .position(|w| w.as_str() == "near")
+    {
+        let near = verb + near;
+        set.insert(spliced(expected, verb + 1, near, &[]));
+        set.insert(spliced(expected, verb + 1, near + 1, &[]));
+        set.insert(spliced(expected, near + 1, clause.end, &[]));
+    }
+    set.insert(spliced(expected, verb, verb + 1, &[]));
+}
+
+/// The sentence, then "and" and `clause`.
+fn added_clause(expected: &[SpokenToken], clause: &[SpokenToken]) -> Vec<SpokenToken> {
+    let mut added = expected.to_vec();
+    added.push(word("and"));
+    added.extend_from_slice(clause);
+    added
+}
+
+/// "not" added at each position.
+fn insert_not_everywhere(expected: &[SpokenToken], set: &mut NearMisses) {
+    for position in 0..=expected.len() {
+        set.insert(spliced(expected, position, position, &[word("not")]));
+    }
+}
+
+fn word(text: &'static str) -> SpokenToken {
+    SpokenToken::from_static(text)
+}
+
+fn spliced(
+    tokens: &[SpokenToken],
+    start: usize,
+    end: usize,
+    insert: &[SpokenToken],
+) -> Vec<SpokenToken> {
+    let mut out = tokens[..start].to_vec();
+    out.extend_from_slice(insert);
+    out.extend_from_slice(&tokens[end..]);
+    out
 }

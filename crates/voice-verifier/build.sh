@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the OutLayer worker and prints its size and SHA-256.
-# The HTTPS design needs a small worker (Gate 0: the 8 MB tract worker cost
-# 8-13 s of fixed time), so this fails at 1,000,000 bytes or more.
+# The HTTPS design needs a small worker (the 8 MB tract worker cost 8-13 s
+# of fixed time), so this fails at 1,000,000 bytes or more.
 #
 #   ./build.sh           build with the local toolchain
 #   ./build.sh --docker  build in the pinned x86_64 Linux image (needs Docker)

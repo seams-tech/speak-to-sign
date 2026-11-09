@@ -3,9 +3,18 @@ use alloc::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::numbers::digit_word;
-use crate::render::SpokenToken;
+use crate::spelling::spelled_parts;
+use crate::token::SpokenToken;
 use crate::UnsupportedReason;
+
+/// The fewest bytes of a NEAR account id.
+const MIN_ACCOUNT_ID_LEN: usize = 2;
+
+/// The most bytes of a NEAR account id.
+pub(crate) const MAX_ACCOUNT_ID_LEN: usize = 64;
+
+/// The length of an implicit account id: the 32-byte public key in hex.
+const IMPLICIT_ACCOUNT_LEN: usize = 64;
 
 /// A named NEAR account that the grammar can speak.
 ///
@@ -36,28 +45,10 @@ impl SpokenAccount {
     /// "bob-1.testnet" gives "bob dash one dot testnet": each run of letters
     /// is one word, each digit is one word, and each separator is a word.
     pub(crate) fn spoken_tokens(&self) -> Vec<SpokenToken> {
-        let mut tokens = Vec::new();
-        let mut letters = String::new();
-        for byte in self.0.bytes() {
-            if byte.is_ascii_lowercase() {
-                letters.push(char::from(byte));
-                continue;
-            }
-            if !letters.is_empty() {
-                tokens.push(SpokenToken::from_letters(core::mem::take(&mut letters)));
-            }
-            let word = match byte {
-                b'.' => "dot",
-                b'-' => "dash",
-                b'_' => "underscore",
-                digit => digit_word(digit - b'0'),
-            };
-            tokens.push(SpokenToken::from_static(word));
-        }
-        if !letters.is_empty() {
-            tokens.push(SpokenToken::from_letters(letters));
-        }
-        tokens
+        spelled_parts(&self.0)
+            .into_iter()
+            .map(|word| SpokenToken::from_letters(String::from(word)))
+            .collect()
     }
 }
 
@@ -113,12 +104,13 @@ impl BorshDeserialize for NearAccount {
 
 fn is_valid_account_id(account_id: &str) -> bool {
     let length = account_id.len();
-    (2..=64).contains(&length) && account_id.split('.').all(is_valid_part)
+    (MIN_ACCOUNT_ID_LEN..=MAX_ACCOUNT_ID_LEN).contains(&length)
+        && account_id.split('.').all(is_valid_part)
 }
 
 fn is_speakable(account_id: &str) -> bool {
     let bytes = account_id.as_bytes();
-    if bytes.len() == 64 && bytes.iter().all(|byte| byte.is_ascii_hexdigit()) {
+    if bytes.len() == IMPLICIT_ACCOUNT_LEN && bytes.iter().all(|byte| byte.is_ascii_hexdigit()) {
         return false;
     }
     if account_id.starts_with("0x") {

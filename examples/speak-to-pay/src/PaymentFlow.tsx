@@ -5,134 +5,36 @@ import {
   DEFAULT_RECEIVER,
   FAUCET_URL,
   PAYMENT_NEED_YOCTO,
-  RECEIPT_BASE_URL,
   formatNear,
   parseSpokenAmount,
   readFreeBalance,
 } from './chain';
-import { CopyButton, LoadingButton } from './components';
-import {
-  STAGE_LABELS,
-  enrollmentRefusalText,
-  errorMessage,
-  formatSeconds,
-  transferRefusalText,
-  unavailableText,
-} from './text';
+import { CopyButton, Fact, LoadingButton, Notice, StepCard, type StepStatus } from './components';
+import { useLoaded, useOutcome, useWalletConnection, type Loaded, type Outcome } from './hooks';
+import { EnrollmentResult, TransferResult } from './results';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type Availability = Awaited<ReturnType<Seams['registration']['getAuthMethodAvailability']>>;
-type StepStatus = 'checking' | 'waiting' | 'todo' | 'working' | 'done' | 'failed';
-type Loaded<T> =
-  | Readonly<{ kind: 'loading' }>
-  | Readonly<{ kind: 'ready'; value: T }>
-  | Readonly<{ kind: 'failed'; message: string }>;
-type Outcome<T> =
-  | Readonly<{ kind: 'idle' }>
-  | Readonly<{ kind: 'working' }>
-  | Readonly<{ kind: 'result'; value: T }>
-  | Readonly<{ kind: 'failed'; message: string }>;
 type Owner = Readonly<{ seams: Seams; walletId: string; nearAccountId: string; rpcUrl: string }>;
 
-const STATUS_LABELS: Record<StepStatus, string> = {
-  checking: 'Checking',
-  waiting: 'Waiting',
-  todo: 'To do',
-  working: 'In progress',
-  done: 'Done',
-  failed: 'Failed',
-};
-
-/** Runs `load` on mount and on each `reload`. It keeps the last value while it reloads. */
-function useLoaded<T>(load: () => Promise<T>): [Loaded<T>, () => void] {
-  const [state, setState] = React.useState<Loaded<T>>({ kind: 'loading' });
-  const [round, setRound] = React.useState(0);
-  React.useEffect(() => {
-    let live = true;
-    load().then(
-      (value) => live && setState({ kind: 'ready', value }),
-      (error: unknown) => live && setState({ kind: 'failed', message: errorMessage(error) }),
-    );
-    return () => {
-      live = false;
-    };
-  }, [load, round]);
-  const reload = React.useCallback(() => setRound((value) => value + 1), []);
-  return [state, reload];
+/** The status of a step that checks something: a load, then whether its value is done. */
+function loadedStatus<T>(loaded: Loaded<T>, isDone: (value: T) => boolean): StepStatus {
+  if (loaded.kind === 'loading') return 'checking';
+  if (loaded.kind === 'failed') return 'failed';
+  return isDone(loaded.value) ? 'done' : 'todo';
 }
 
-/** Runs one owner action at a time and keeps its last result. */
-function useOutcome<T>(): [Outcome<T>, (run: () => Promise<T>) => Promise<T | null>] {
-  const [outcome, setOutcome] = React.useState<Outcome<T>>({ kind: 'idle' });
-  const start = React.useCallback(async (run: () => Promise<T>) => {
-    setOutcome({ kind: 'working' });
-    try {
-      const value = await run();
-      setOutcome({ kind: 'result', value });
-      return value;
-    } catch (error: unknown) {
-      setOutcome({ kind: 'failed', message: errorMessage(error) });
-      return null;
-    }
-  }, []);
-  return [outcome, start];
-}
-
-function StepCard(props: {
-  index: number;
-  title: string;
-  status: StepStatus;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <section
-      className="svi-step"
-      data-status={props.status}
-      aria-labelledby={`svi-step-${props.index}`}
-    >
-      <header className="svi-step__head">
-        <span className="svi-step__index" aria-hidden>
-          {props.index}
-        </span>
-        <h2 className="svi-step__title" id={`svi-step-${props.index}`}>
-          {props.title}
-        </h2>
-        <span className="svi-pill" data-status={props.status}>
-          {STATUS_LABELS[props.status]}
-        </span>
-      </header>
-      <div className="svi-step__body">{props.children}</div>
-    </section>
-  );
-}
-
-function Notice(props: { tone: 'info' | 'error' | 'success'; children: React.ReactNode }) {
-  return (
-    <div
-      className="svi-notice"
-      data-tone={props.tone}
-      role={props.tone === 'error' ? 'alert' : 'status'}
-    >
-      {props.children}
-    </div>
-  );
-}
-
-function ReceiptLink({ hash }: { hash: string }): React.JSX.Element {
-  return (
-    <a href={`${RECEIPT_BASE_URL}${hash}`} target="_blank" rel="noopener noreferrer">
-      View the transaction on NearBlocks
-    </a>
-  );
-}
-
-function Fact(props: { label: string; children: React.ReactNode }): React.JSX.Element {
-  return (
-    <div className="svi-fact">
-      <dt>{props.label}</dt>
-      <dd>{props.children}</dd>
-    </div>
-  );
+/** The status of a step that runs one owner action. A cancel leaves the step to do. */
+function stepStatus<T extends Readonly<{ kind: string }>>(
+  outcome: Outcome<T>,
+  ready: boolean,
+  isDone: (value: T) => boolean,
+): StepStatus {
+  if (outcome.kind === 'working') return 'working';
+  if (outcome.kind === 'failed') return 'failed';
+  if (outcome.kind === 'idle') return ready ? 'todo' : 'waiting';
+  if (isDone(outcome.value)) return 'done';
+  return outcome.value.kind === 'cancelled' ? 'todo' : 'failed';
 }
 
 function VoiceIdStep(props: {
@@ -167,13 +69,7 @@ function VoiceIdStep(props: {
   const status: StepStatus =
     outcome.kind === 'working'
       ? 'working'
-      : availability.kind === 'loading'
-        ? 'checking'
-        : availability.kind === 'failed'
-          ? 'failed'
-          : availability.value.kind === 'enabled'
-            ? 'done'
-            : 'todo';
+      : loadedStatus(availability, (value) => value.kind === 'enabled');
 
   return (
     <StepCard index={1} title="Turn on VoiceID" status={status}>
@@ -209,34 +105,6 @@ function VoiceIdStep(props: {
   );
 }
 
-function EnrollmentResult({ result }: { result: SpeakToSignEnrollmentResult }): React.JSX.Element {
-  switch (result.kind) {
-    case 'enrolled':
-      return (
-        <Notice tone="success">
-          The verifier stored your voice template. Template epoch {result.templateEpoch}, agreement{' '}
-          {(result.agreementMilli / 1000).toFixed(3)}.
-        </Notice>
-      );
-    case 'refused':
-      return (
-        <Notice tone="error">
-          Refused (<code>{result.reason}</code>): {enrollmentRefusalText(result.reason)}
-          {result.detail ? ` ${result.detail}` : ''}
-        </Notice>
-      );
-    case 'cancelled':
-      return <Notice tone="info">You closed a Wallet window. Nothing was enrolled.</Notice>;
-    case 'unavailable':
-      return (
-        <Notice tone="error">
-          Unavailable (<code>{result.reason}</code>): {unavailableText(result.reason)}
-          {result.detail ? ` ${result.detail}` : ''}
-        </Notice>
-      );
-  }
-}
-
 function EnrollStep(props: { owner: Owner; ready: boolean }): React.JSX.Element {
   const { owner, ready } = props;
   const [outcome, start] = useOutcome<SpeakToSignEnrollmentResult>();
@@ -247,20 +115,7 @@ function EnrollStep(props: { owner: Owner; ready: boolean }): React.JSX.Element 
       return await speakToSign.enroll({ walletId: owner.walletId });
     });
   }, [owner, start]);
-  const status: StepStatus =
-    outcome.kind === 'working'
-      ? 'working'
-      : outcome.kind === 'failed'
-        ? 'failed'
-        : outcome.kind === 'result'
-          ? outcome.value.kind === 'enrolled'
-            ? 'done'
-            : outcome.value.kind === 'cancelled'
-              ? 'todo'
-              : 'failed'
-          : ready
-            ? 'todo'
-            : 'waiting';
+  const status = stepStatus(outcome, ready, (result) => result.kind === 'enrolled');
 
   return (
     <StepCard index={2} title="Enroll your voice" status={status}>
@@ -296,14 +151,7 @@ function BalanceStep(props: {
 }): React.JSX.Element {
   const { owner, balance, onRefresh } = props;
   const free = balance.kind === 'ready' ? balance.value : null;
-  const status: StepStatus =
-    balance.kind === 'loading'
-      ? 'checking'
-      : balance.kind === 'failed'
-        ? 'failed'
-        : free !== null && free >= PAYMENT_NEED_YOCTO
-          ? 'done'
-          : 'todo';
+  const status = loadedStatus(balance, (value) => value !== null && value >= PAYMENT_NEED_YOCTO);
 
   return (
     <StepCard index={3} title="Check your balance" status={status}>
@@ -346,45 +194,6 @@ function BalanceStep(props: {
   );
 }
 
-function TransferResult({ result }: { result: SpeakToSignTransferResult }): React.JSX.Element {
-  switch (result.kind) {
-    case 'sent':
-      return (
-        <Notice tone="success">
-          <p>
-            {result.approval === 'voice'
-              ? 'Paid from your account by voice, with no confirm.'
-              : 'Paid from your account after your voice and your confirm.'}{' '}
-            <ReceiptLink hash={result.transactionHash} />
-          </p>
-          <dl className="svi-facts svi-facts--times">
-            {STAGE_LABELS.map(([key, label]) => (
-              <Fact key={key} label={label}>
-                {formatSeconds(result.times[key])}
-              </Fact>
-            ))}
-          </dl>
-        </Notice>
-      );
-    case 'refused':
-      return (
-        <Notice tone="error">
-          Refused (<code>{result.reason}</code>): {transferRefusalText(result.reason)}
-          {result.detail ? ` ${result.detail}` : ''} Nothing was sent.
-        </Notice>
-      );
-    case 'cancelled':
-      return <Notice tone="info">You closed the VoiceID window. Nothing was sent.</Notice>;
-    case 'unavailable':
-      return (
-        <Notice tone="error">
-          Unavailable (<code>{result.reason}</code>): {unavailableText(result.reason)}
-          {result.detail ? ` ${result.detail}` : ''}
-        </Notice>
-      );
-  }
-}
-
 function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): React.JSX.Element {
   const { owner, ready, onPaid } = props;
   const [amountText, setAmountText] = React.useState('1');
@@ -393,32 +202,20 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
   const amount = parseSpokenAmount(amountText);
   const [outcome, start] = useOutcome<SpeakToSignTransferResult>();
   const pay = React.useCallback(async () => {
-    const speakToSign = owner.seams.speakToSign;
-    if (!speakToSign || !amount.ok || !chosen) return;
-    const result = await start(() =>
-      speakToSign.requestTransfer({
+    if (!amount.ok || !chosen) return;
+    const result = await start(async () => {
+      const speakToSign = owner.seams.speakToSign;
+      if (!speakToSign) throw new Error('Speak-to-Sign is not configured.');
+      return await speakToSign.requestTransfer({
         walletId: owner.walletId,
         receiver: chosen,
         amount: amount.amount,
-      }),
-    );
+      });
+    });
     if (result?.kind === 'sent') onPaid();
   }, [amount, chosen, onPaid, owner, start]);
   const canPay = ready && amount.ok && Boolean(chosen) && outcome.kind !== 'working';
-  const status: StepStatus =
-    outcome.kind === 'working'
-      ? 'working'
-      : outcome.kind === 'failed'
-        ? 'failed'
-        : outcome.kind === 'result'
-          ? outcome.value.kind === 'sent'
-            ? 'done'
-            : outcome.value.kind === 'cancelled'
-              ? 'todo'
-              : 'failed'
-          : ready
-            ? 'todo'
-            : 'waiting';
+  const status = stepStatus(outcome, ready, (result) => result.kind === 'sent');
 
   return (
     <StepCard index={4} title="Pay by voice" status={status}>
@@ -494,29 +291,6 @@ function OwnerSteps({ owner }: { owner: Owner }): React.JSX.Element {
       <PayStep owner={owner} ready={voiceIdOn} onPaid={reloadBalance} />
     </>
   );
-}
-
-type Connection = 'connecting' | 'ready' | 'failed';
-
-/** Loads the Wallet iframe once for this page. */
-function useWalletConnection(): Connection {
-  const { seams } = useSeams();
-  const [connection, setConnection] = React.useState<Connection>('connecting');
-  React.useEffect(() => {
-    let live = true;
-    setConnection('connecting');
-    seams.connection.connect().then(
-      () => live && setConnection('ready'),
-      (error: unknown) => {
-        console.error('[speak-to-pay] The Wallet iframe did not load', error);
-        if (live) setConnection('failed');
-      },
-    );
-    return () => {
-      live = false;
-    };
-  }, [seams]);
-  return connection;
 }
 
 /** The wallet-origin sign-in menu. A new wallet starts with its passkey. */

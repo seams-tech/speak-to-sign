@@ -4,28 +4,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::numbers::{digit_word, push_integer_words};
-use crate::{NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
-
-/// One spoken word: lowercase ASCII letters only.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SpokenToken(String);
-
-impl SpokenToken {
-    pub(crate) fn from_static(word: &'static str) -> Self {
-        Self(word.to_owned())
-    }
-
-    /// `letters` holds only `a-z` and is not empty.
-    pub(crate) fn from_letters(letters: String) -> Self {
-        debug_assert!(!letters.is_empty() && letters.bytes().all(|byte| byte.is_ascii_lowercase()));
-        Self(letters)
-    }
-
-    /// The word.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
+use crate::token::{spoken_text, SpokenToken};
+use crate::{ChallengeWord, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
 
 /// The text of one request.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -59,12 +39,13 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
             words.push("proposal");
             words.push_integer(*proposal_id);
             let body = push_proposal_words(&mut words, proposal);
-            words.push(challenge[0].as_str());
-            words.push(challenge[1].as_str());
+            let challenge_words = challenge.map(ChallengeWord::as_str);
+            for word in challenge_words {
+                words.push(word);
+            }
             format!(
-                "Approve proposal {proposal_id}: {body}. Then say: {} {}.",
-                challenge[0].as_str(),
-                challenge[1].as_str()
+                "Approve proposal {proposal_id}: {body}. Then say: {}.",
+                challenge_words.join(" ")
             )
         }
         SpokenRequestV1::CommunityNote { summary, .. } => {
@@ -96,23 +77,11 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
         }
     };
     let spoken = words.0;
-    let spoken_text = join_tokens(&spoken);
     RenderedIntentV1 {
         display_text,
+        spoken_text: spoken_text(&spoken),
         spoken,
-        spoken_text,
     }
-}
-
-pub(crate) fn join_tokens(tokens: &[SpokenToken]) -> String {
-    let mut text = String::new();
-    for (index, token) in tokens.iter().enumerate() {
-        if index > 0 {
-            text.push(' ');
-        }
-        text.push_str(token.as_str());
-    }
-    text
 }
 
 #[derive(Default)]

@@ -11,21 +11,24 @@
 //!   (`bind: "project"`), and the Wallet checks that signature against the
 //!   key that it pins.
 //!
-//! The pure parts live here and build natively for tests. `main.rs` adds the
-//! OutLayer host (storage, secrets, signing, the clock and `wasi:http`).
+//! The pure parts live here and build natively for tests. The binary adds
+//! the OutLayer host in `wasm_host.rs` (storage, secrets, signing, the clock
+//! and `wasi:http`).
 #![forbid(unsafe_code)]
 
 pub mod audio;
+pub mod authorization;
 pub mod config;
 pub mod digest;
-pub mod enrollment;
+mod embedding;
 pub mod host;
 pub mod input;
 pub mod ops;
 pub mod output;
 pub mod policy;
-pub mod speaker;
-pub mod transcriber;
-pub mod words;
+pub mod speaker_client;
+mod template;
+mod transcriber;
+mod words;
 
 pub use ops::{run, run_with, Pins};

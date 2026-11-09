@@ -4,15 +4,20 @@
 //! [`verdict_json`] writes; the Seams route passes them to the Wallet as a
 //! string, so nobody serializes them again. The signed message is
 //! `SHA-256(VERDICT_DOMAIN || verdict JSON bytes)` (32 bytes), and the
-//! manifest signing key signs it with ed25519.
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+//! manifest signing key signs it with ed25519 ([`sign_verdict`]). Before
+//! that, [`fit_heard`] cuts `heard` so that the output fits its size limit.
+use std::collections::BTreeMap;
+use std::time::Instant;
 
-use crate::config::{MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
-use crate::digest::sha256;
+use serde::{Deserialize, Serialize};
+
+use crate::config::{MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
+use crate::digest::{b64, near_ed25519_key, sha256};
+use crate::host::Host;
+use crate::words::cut_at;
 
 /// The verdict kind. The Wallet accepts only this one.
-pub const VERDICT_KIND: &str = "seams_voice_signed_verdict_v2";
+const VERDICT_KIND: &str = "seams_voice_signed_verdict_v2";
 
 /// `accept`, `step_up` or `refuse`. On `step_up` the voice and the words
 /// passed, and a policy rule asks the Wallet for a fresh passkey as well.
@@ -58,9 +63,10 @@ pub enum Reason {
     AuthorizationUnavailable,
 }
 
+#[cfg(test)]
 impl Reason {
     /// Every reason, in declaration order.
-    pub const ALL: [Reason; 13] = [
+    const ALL: [Reason; 13] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -144,6 +150,37 @@ pub fn verdict_message(verdict_json: &[u8]) -> [u8; 32] {
     sha256(&preimage)
 }
 
+/// Stage times inside the worker, in ms, by stage name (not signed). A
+/// `BTreeMap`, so the JSON names the stages in alphabetical order.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct Stages(BTreeMap<&'static str, u64>);
+
+impl Stages {
+    /// Records the time since `started` as the stage `name`.
+    pub fn since(&mut self, name: &'static str, started: Instant) {
+        self.record(name, started.elapsed().as_millis() as u64);
+    }
+
+    /// Runs `step` and records its time as the stage `name`.
+    pub fn time<T>(&mut self, name: &'static str, step: impl FnOnce() -> T) -> T {
+        let started = Instant::now();
+        let value = step();
+        self.since(name, started);
+        value
+    }
+
+    /// Records a time that another party measured.
+    pub fn record(&mut self, name: &'static str, ms: u64) {
+        self.0.insert(name, ms);
+    }
+}
+
+// The `kind` of each output.
+const VERIFY_OUTPUT_KIND: &str = "seams_voice_verify_output_v2";
+const ENROLL_OUTPUT_KIND: &str = "seams_voice_enrollment_v3";
+pub const ERROR_OUTPUT_KIND: &str = "seams_voice_error_v1";
+
 /// The `verify` output. `verdict_json` is a string, so its bytes reach the
 /// Wallet as they were signed.
 #[derive(Clone, Debug, Serialize)]
@@ -157,17 +194,73 @@ pub struct VerifyOutput {
     /// The sentence of the policy rule on `step_up`, for the Wallet to show
     /// (not signed; the verdict names the rule id).
     pub policy_text: Option<&'static str>,
-    /// Stage times inside the worker, in ms (not signed).
-    pub ms: Map<String, Value>,
+    pub ms: Stages,
     /// A short error text for a refusal or a failed signature (not signed).
     pub detail: Option<String>,
 }
 
-pub const VERIFY_OUTPUT_KIND: &str = "seams_voice_verify_output_v2";
+impl VerifyOutput {
+    /// `signed` is the signature (standard base64) and the key
+    /// (`ed25519:<base58>`) of [`sign_verdict`], if it passed.
+    pub fn new(
+        verdict_json: String,
+        signed: Option<(String, String)>,
+        policy_text: Option<&'static str>,
+        ms: Stages,
+        detail: Option<String>,
+    ) -> Self {
+        let (signature_b64, public_key) = signed.unzip();
+        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail }
+    }
+}
+
+/// The `heard` caps that [`fit_heard`] tries, longest first. The last one
+/// leaves `heard` out.
+const HEARD_CAPS: [usize; 4] = [MAX_HEARD_BYTES, 120, 60, 0];
+
+/// The length of a standard base64 ed25519 signature (64 bytes).
+const SIGNATURE_B64_LEN: usize = 88;
+
+/// The longest base58 text of a 32-byte key.
+const KEY_BASE58_MAX_LEN: usize = 44;
+
+/// Room for the `sign` and `total` stage times, which come after the fit.
+const STAGE_TIME_ROOM: usize = 48;
+
+/// The verdict JSON with the longest `heard` of `HEARD_CAPS` for which the
+/// output stays below [`MAX_OUTPUT_BYTES`]. `heard` is part of the signed
+/// bytes, so the fit comes before the signature. It sizes the output with a
+/// signature and a key of full length.
+pub fn fit_heard(mut verdict: Verdict, policy_text: Option<&'static str>, ms: &Stages, detail: Option<&str>) -> String {
+    let heard = verdict.heard.take();
+    let longest_signature = ("A".repeat(SIGNATURE_B64_LEN), format!("ed25519:{}", "1".repeat(KEY_BASE58_MAX_LEN)));
+    let detail = detail.map(str::to_owned);
+    let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), policy_text, ms.clone(), detail);
+    for cap in HEARD_CAPS {
+        verdict.heard = heard.as_ref().filter(|_| cap > 0).map(|text| cut_at(text, cap));
+        sized.verdict_json = verdict_json(&verdict);
+        if serde_json::to_vec(&sized).expect("serializes").len() + STAGE_TIME_ROOM < MAX_OUTPUT_BYTES {
+            break;
+        }
+    }
+    sized.verdict_json
+}
+
+/// Signs the verdict JSON with the manifest signing key. Returns the
+/// signature (standard base64) and the key (`ed25519:<base58>`).
+pub fn sign_verdict(host: &mut dyn Host, verdict_json: &str) -> Result<(String, String), String> {
+    let message = verdict_message(verdict_json.as_bytes());
+    let signature = host.sign(&message)?;
+    let public_key = host.public_key()?;
+    if signature.len() != 64 || public_key.len() != 32 {
+        return Err("length".to_string());
+    }
+    Ok((b64(&signature), near_ed25519_key(&public_key)))
+}
 
 /// The `enroll` output.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Enrollment {
+pub struct EnrollOutput {
     pub kind: &'static str,
     pub verifier: &'static str,
     pub owner: Option<String>,
@@ -185,14 +278,14 @@ pub struct Enrollment {
     pub template_epoch: Option<u32>,
     /// `ed25519:<base58>` of the verdict signing key, which the Wallet pins.
     pub verifier_public_key: Option<String>,
-    pub ms: Map<String, Value>,
+    pub ms: Stages,
     pub detail: Option<String>,
 }
 
-impl Enrollment {
+impl EnrollOutput {
     pub fn new() -> Self {
         Self {
-            kind: "seams_voice_enrollment_v3",
+            kind: ENROLL_OUTPUT_KIND,
             verifier: VERIFIER_VERSION,
             owner: None,
             outcome: Outcome::Refuse,
@@ -202,13 +295,13 @@ impl Enrollment {
             enrollment_digest: None,
             template_epoch: None,
             verifier_public_key: None,
-            ms: Map::new(),
+            ms: Stages::default(),
             detail: None,
         }
     }
 }
 
-impl Default for Enrollment {
+impl Default for EnrollOutput {
     fn default() -> Self {
         Self::new()
     }
@@ -242,14 +335,14 @@ pub fn json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     #[test]
     fn verdict_has_thirteen_fields_in_order() {
         let text = verdict_json(&Verdict::new());
         assert_eq!(
             text,
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.5.1","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.5.2","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);
@@ -262,8 +355,18 @@ mod tests {
         assert_eq!(
             Value::Array(names),
             json!([
-                "quality", "speaker", "words", "audio_reused", "audio_invalid", "template_missing", "unsupported",
-                "speaker_unavailable", "storage", "template_exists", "transcriber_unavailable", "not_authorized",
+                "quality",
+                "speaker",
+                "words",
+                "audio_reused",
+                "audio_invalid",
+                "template_missing",
+                "unsupported",
+                "speaker_unavailable",
+                "storage",
+                "template_exists",
+                "transcriber_unavailable",
+                "not_authorized",
                 "authorization_unavailable"
             ])
         );

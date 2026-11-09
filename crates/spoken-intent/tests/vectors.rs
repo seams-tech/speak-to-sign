@@ -7,15 +7,17 @@ use std::fs;
 use std::num::NonZeroU8;
 use std::path::PathBuf;
 
+pub mod support;
+
 use serde_json::{json, Value};
 use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
-    request_digest, spoken_text_digest, ChallengeWord, NearAccount, NearAmount, Network,
-    NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
-    SpokenSummary, SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
+    request_digest, spoken_text, spoken_text_digest, NearAmount, Network, NoteRatingV1,
+    ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
+    CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
+use support::{account, challenge_word, contacts, near, near_account, IMPLICIT_ACCOUNT, ONE_NEAR};
 
-const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 const HUNDREDTH: u128 = ONE_NEAR / 100;
 
 fn fixture_path() -> PathBuf {
@@ -24,43 +26,8 @@ fn fixture_path() -> PathBuf {
         .join("spoken_intent_vectors_v1.json")
 }
 
-fn account(id: &str) -> SpokenAccount {
-    SpokenAccount::new(id).expect("speakable account")
-}
-
-fn near(hundredths: u64) -> NearAmount {
-    NearAmount::from_hundredths(hundredths).expect("speakable amount")
-}
-
-fn word(word: &str) -> ChallengeWord {
-    let index = CHALLENGE_WORDS
-        .iter()
-        .position(|candidate| *candidate == word)
-        .expect("challenge word");
-    ChallengeWord::from_index(index as u8).expect("index below 64")
-}
-
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-fn text(tokens: &[SpokenToken]) -> String {
-    tokens
-        .iter()
-        .map(SpokenToken::as_str)
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn near_account(id: &str) -> NearAccount {
-    NearAccount::new(id).expect("valid account")
-}
-
-fn contacts() -> Vec<SpokenAccount> {
-    ["alice.testnet", "bob.testnet", "bob-1.testnet"]
-        .into_iter()
-        .map(account)
-        .collect()
 }
 
 fn transfer(network: Network, receiver: &str, hundredths: u64) -> SpokenRequestV1 {
@@ -143,64 +110,40 @@ fn approval(proposal_id: u64, proposal: ProposalV1, words: [&str; 2]) -> SpokenR
         multisig: near_account("payroll-multisig.testnet"),
         proposal_id,
         proposal,
-        challenge: [word(words[0]), word(words[1])],
+        challenge: words.map(challenge_word),
     }
 }
+
+/// The account transfer vectors, the first request vectors: the name, the
+/// network, the receiver and the amount in hundredths.
+#[rustfmt::skip]
+const TRANSFER_CASES: [(&str, Network, &str, u64); 12] = [
+    ("account_transfer_25", Network::Testnet, "alice.testnet", 2_500),
+    ("account_transfer_2_5", Network::Testnet, "bob-1.testnet", 250),
+    ("account_transfer_1250", Network::Testnet, "alice.testnet", 125_000),
+    ("account_transfer_0_25", Network::Testnet, "bob.testnet", 25),
+    ("account_transfer_0_05", Network::Testnet, "bob.testnet", 5),
+    ("account_transfer_0_01", Network::Testnet, "alice.testnet", 1),
+    ("account_transfer_13_30", Network::Testnet, "alice.testnet", 1_330),
+    ("account_transfer_105", Network::Testnet, "alice.testnet", 10_500),
+    ("account_transfer_max", Network::Testnet, "alice.testnet", 100_000_000),
+    ("account_transfer_999999_99", Network::Testnet, "alice.testnet", 99_999_999),
+    ("account_transfer_underscore_digits", Network::Testnet, "pay_roll2.testnet", 1_000),
+    ("account_transfer_mainnet", Network::Mainnet, "alice.near", 2_500),
+];
 
 fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
     let mut sequential_hash = [0u8; 32];
     for (index, byte) in sequential_hash.iter_mut().enumerate() {
         *byte = index as u8;
     }
-    vec![
-        (
-            "account_transfer_25",
-            transfer(Network::Testnet, "alice.testnet", 2_500),
-        ),
-        (
-            "account_transfer_2_5",
-            transfer(Network::Testnet, "bob-1.testnet", 250),
-        ),
-        (
-            "account_transfer_1250",
-            transfer(Network::Testnet, "alice.testnet", 125_000),
-        ),
-        (
-            "account_transfer_0_25",
-            transfer(Network::Testnet, "bob.testnet", 25),
-        ),
-        (
-            "account_transfer_0_05",
-            transfer(Network::Testnet, "bob.testnet", 5),
-        ),
-        (
-            "account_transfer_0_01",
-            transfer(Network::Testnet, "alice.testnet", 1),
-        ),
-        (
-            "account_transfer_13_30",
-            transfer(Network::Testnet, "alice.testnet", 1_330),
-        ),
-        (
-            "account_transfer_105",
-            transfer(Network::Testnet, "alice.testnet", 10_500),
-        ),
-        (
-            "account_transfer_max",
-            transfer(Network::Testnet, "alice.testnet", 100_000_000),
-        ),
-        (
-            "account_transfer_999999_99",
-            transfer(Network::Testnet, "alice.testnet", 99_999_999),
-        ),
-        (
-            "account_transfer_underscore_digits",
-            transfer(Network::Testnet, "pay_roll2.testnet", 1_000),
-        ),
-        (
-            "account_transfer_mainnet",
-            transfer(Network::Mainnet, "alice.near", 2_500),
-        ),
+    let mut cases: Vec<(&'static str, SpokenRequestV1)> = TRANSFER_CASES
+        .iter()
+        .map(|&(name, network, receiver, hundredths)| {
+            (name, transfer(network, receiver, hundredths))
+        })
+        .collect();
+    cases.extend([
         (
             "multisig_transfer_42",
             approval(
@@ -302,7 +245,8 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
             "merge_approval_1001_main_implicit_owner",
             merge(IMPLICIT_OWNER, 1_001, "main"),
         ),
-    ]
+    ]);
+    cases
 }
 
 fn request_vectors() -> Value {
@@ -316,7 +260,7 @@ fn request_vectors() -> Value {
             let rendered = render(&request);
             let confusions: Vec<String> = confusion_set(&request, &contacts)
                 .iter()
-                .map(|tokens| text(tokens))
+                .map(|tokens| spoken_text(tokens))
                 .collect();
             assert!(!confusions.contains(&rendered.spoken_text), "{name}");
             json!({
@@ -359,9 +303,8 @@ fn unsupported_amount_vectors() -> Value {
 }
 
 fn unsupported_account_vectors() -> Value {
-    let implicit = "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de";
     let cases = vec![
-        ("implicit_hex", implicit.to_string()),
+        ("implicit_hex", IMPLICIT_ACCOUNT.to_string()),
         ("eth_implicit", format!("0x{}", "ab".repeat(20))),
         ("ox_prefix", "0xalice.testnet".to_string()),
         ("uppercase", "Alice.testnet".to_string()),
@@ -486,11 +429,7 @@ fn invalid_borsh_vectors() -> Value {
         ("amount_zero", account_transfer_bytes(0, "alice.testnet", 0)),
         (
             "receiver_implicit",
-            account_transfer_bytes(
-                0,
-                "98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de",
-                25 * ONE_NEAR,
-            ),
+            account_transfer_bytes(0, IMPLICIT_ACCOUNT, 25 * ONE_NEAR),
         ),
         (
             "receiver_uppercase",
@@ -566,7 +505,7 @@ fn normalize_vectors() -> Value {
         NORMALIZE_CASES
             .iter()
             .map(|transcript| {
-                let tokens = normalize(transcript).map(|tokens| text(&tokens));
+                let tokens = normalize(transcript).map(|tokens| spoken_text(&tokens));
                 json!({ "transcript": transcript, "tokens": tokens })
             })
             .collect(),
@@ -670,7 +609,7 @@ fn punctuated_vectors() -> Value {
             .iter()
             .map(|transcript| {
                 let result = match normalize_punctuated(transcript, &contacts) {
-                    Ok(tokens) => json!({ "tokens": text(&tokens) }),
+                    Ok(tokens) => json!({ "tokens": spoken_text(&tokens) }),
                     Err(reason) => json!({ "refused": format!("{reason:?}") }),
                 };
                 json!({ "transcript": transcript, "result": result })

@@ -4,10 +4,17 @@ use alloc::vec::Vec;
 use crate::numbers::{
     digit_word, is_multiplier_word, is_number_word, push_integer_words, split_hyphenated_tens,
 };
-use crate::render::SpokenToken;
+use crate::spelling::spelled_parts;
+use crate::token::SpokenToken;
 
-/// Punctuation that speech-to-text output may put around a word.
-const EDGE_PUNCTUATION: [char; 9] = [',', '.', '!', '?', ';', ':', '\'', '"', '\u{2019}'];
+/// The punctuation that speech-to-text output may put around a word.
+/// [`normalize`] accepts it in a transcript and removes it from the edges of
+/// each word.
+const TRANSCRIPT_PUNCTUATION: [char; 9] = [',', '.', '!', '?', ';', ':', '\'', '"', '\u{2019}'];
+
+/// The apostrophes, which [`normalize`] also removes inside a word ("don't"
+/// becomes "dont").
+const APOSTROPHES: [char; 2] = ['\'', '\u{2019}'];
 
 /// Maps a speech-to-text transcript to spoken tokens.
 ///
@@ -47,15 +54,15 @@ pub fn normalize(transcript: &str) -> Option<Vec<SpokenToken>> {
 
 fn push_raw_word(raw: &str, words: &mut Vec<String>) -> Option<()> {
     let allowed = |c: char| {
-        c.is_ascii_alphanumeric() || c == '-' || c == '_' || EDGE_PUNCTUATION.contains(&c)
+        c.is_ascii_alphanumeric() || c == '-' || c == '_' || TRANSCRIPT_PUNCTUATION.contains(&c)
     };
     if !raw.chars().all(allowed) {
         return None;
     }
     let word: String = raw
-        .trim_matches(&EDGE_PUNCTUATION[..])
+        .trim_matches(&TRANSCRIPT_PUNCTUATION[..])
         .chars()
-        .filter(|c| *c != '\'' && *c != '\u{2019}')
+        .filter(|c| !APOSTROPHES.contains(c))
         .map(|c| c.to_ascii_lowercase())
         .collect();
     if word.is_empty() {
@@ -69,27 +76,15 @@ fn push_raw_word(raw: &str, words: &mut Vec<String>) -> Option<()> {
         words.push(String::from(ones));
         return Some(());
     }
-    let mut letters = String::new();
-    for c in word.chars() {
-        if c.is_ascii_lowercase() {
-            letters.push(c);
-            continue;
-        }
-        if !letters.is_empty() {
-            words.push(core::mem::take(&mut letters));
-        }
-        let spoken = match c {
-            '.' => "dot",
-            '-' => "dash",
-            '_' => "underscore",
-            '0'..='9' => digit_word(c as u8 - b'0'),
-            _ => return None,
-        };
-        words.push(String::from(spoken));
+    let parts = spelled_parts(&word);
+    // Punctuation inside a word ("a,b") has no spoken form.
+    if !parts
+        .iter()
+        .all(|part| part.bytes().all(|byte| byte.is_ascii_lowercase()))
+    {
+        return None;
     }
-    if !letters.is_empty() {
-        words.push(letters);
-    }
+    words.extend(parts.into_iter().map(String::from));
     Some(())
 }
 

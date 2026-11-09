@@ -79,6 +79,9 @@ Wallet origin, so `src/config.ts` sets neither.
 | `src/config.ts`          | `seamsTestnetConfig` with the VoiceID auth method and the `speakToSign` feature.    |
 | `src/main.tsx`           | The page and `SeamsWebProvider`.                                                    |
 | `src/PaymentFlow.tsx`    | Sign-in (`HostedSeamsAuthMenu`), VoiceID, enrollment, balance and the spoken payment. |
+| `src/results.tsx`        | The result of an enrollment and of a spoken payment.                                |
+| `src/hooks.ts`           | The Wallet connection, a reloadable load, and one owner action at a time.           |
+| `src/components.tsx`     | The step card, the notices, the buttons and the facts.                              |
 | `src/chain.ts`           | The balance read from NEAR RPC and the amount check.                                |
 | `src/text.ts`            | The text for each refusal and unavailable reason.                                   |
 

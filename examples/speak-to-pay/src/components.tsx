@@ -77,3 +77,81 @@ export function CopyButton(props: { text: string; ariaLabel: string }): React.JS
     </button>
   );
 }
+
+export type StepStatus = 'checking' | 'waiting' | 'todo' | 'working' | 'done' | 'failed';
+
+const STATUS_LABELS: Record<StepStatus, string> = {
+  checking: 'Checking',
+  waiting: 'Waiting',
+  todo: 'To do',
+  working: 'In progress',
+  done: 'Done',
+  failed: 'Failed',
+};
+
+export function StepCard(props: {
+  index: number;
+  title: string;
+  status: StepStatus;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <section
+      className="svi-step"
+      data-status={props.status}
+      aria-labelledby={`svi-step-${props.index}`}
+    >
+      <header className="svi-step__head">
+        <span className="svi-step__index" aria-hidden>
+          {props.index}
+        </span>
+        <h2 className="svi-step__title" id={`svi-step-${props.index}`}>
+          {props.title}
+        </h2>
+        <span className="svi-pill" data-status={props.status}>
+          {STATUS_LABELS[props.status]}
+        </span>
+      </header>
+      <div className="svi-step__body">{props.children}</div>
+    </section>
+  );
+}
+
+export function Notice(props: { tone: 'info' | 'error' | 'success'; children: React.ReactNode }) {
+  return (
+    <div
+      className="svi-notice"
+      data-tone={props.tone}
+      role={props.tone === 'error' ? 'alert' : 'status'}
+    >
+      {props.children}
+    </div>
+  );
+}
+
+/** A refused or unavailable result: its reason, the text for the reason, and the detail. */
+export function ReasonNotice(props: {
+  result: Readonly<{ kind: 'refused' | 'unavailable'; reason: string; detail?: string }>;
+  text: string;
+  /** A sentence after the detail, such as what did not happen. */
+  after?: string;
+}): React.JSX.Element {
+  const { result } = props;
+  return (
+    <Notice tone="error">
+      {result.kind === 'refused' ? 'Refused' : 'Unavailable'} (<code>{result.reason}</code>):{' '}
+      {props.text}
+      {result.detail ? ` ${result.detail}` : ''}
+      {props.after ? ` ${props.after}` : ''}
+    </Notice>
+  );
+}
+
+export function Fact(props: { label: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="svi-fact">
+      <dt>{props.label}</dt>
+      <dd>{props.children}</dd>
+    </div>
+  );
+}

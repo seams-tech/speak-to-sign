@@ -1,6 +1,6 @@
 //! The word check, Rule A: `spoken_intent::normalize_punctuated` reads the
 //! Whisper transcript, and its tokens must equal `render(request).spoken`.
-use spoken_intent::{normalize_punctuated, SpokenAccount, SpokenRequestV1, SpokenToken};
+use spoken_intent::{normalize_punctuated, spoken_text, SpokenAccount, SpokenRequestV1, SpokenToken};
 
 use crate::config::MAX_HEARD_BYTES;
 
@@ -49,7 +49,7 @@ pub fn check_words(
         _ => None,
     };
     WordCheck {
-        heard: cut(&heard_words.join(" ")),
+        heard: cut(&spoken_text(&tokens)),
         matched: tokens.as_slice() == expected,
         distance: Some(to_expected),
         margin_milli,

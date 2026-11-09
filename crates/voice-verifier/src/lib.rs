@@ -16,16 +16,18 @@
 #![forbid(unsafe_code)]
 
 pub mod audio;
+pub mod authorization;
 pub mod config;
 pub mod digest;
-pub mod enrollment;
+mod embedding;
 pub mod host;
 pub mod input;
 pub mod ops;
 pub mod output;
 pub mod policy;
-pub mod speaker;
-pub mod transcriber;
-pub mod words;
+pub mod speaker_client;
+mod template;
+mod transcriber;
+mod words;
 
 pub use ops::{run, run_with, Pins};

@@ -1,4 +1,4 @@
-//! Owner-authorized enrollment.
+//! The owner's authorization of an enrollment.
 //!
 //! The owner signs one NEP-413 message with a full-access key of the owner
 //! account. The message names the enrollment digest of exactly the three

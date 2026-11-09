@@ -9,21 +9,20 @@ use super::request::{known_accounts, typed_request, unsupported};
 use super::steps::{consume, decode_clip, in_flight, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
-use crate::config::{
-    template_key, MAX_CONTACTS, MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV, VERDICT_TTL_MS,
-};
-use crate::digest::{b64, b64u, near_ed25519_key};
+use crate::config::{template_key, MAX_CONTACTS, NEAR_AI_API_KEY_ENV, VERDICT_TTL_MS};
+use crate::digest::b64u;
+use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
 use crate::input::VerifyInput;
-use crate::output::{
-    short, verdict_json, verdict_message, Outcome, Reason, Stages, Verdict, VerifyOutput, VERIFY_OUTPUT_KIND,
-};
+use crate::output::{fit_heard, short, sign_verdict, Outcome, Reason, Stages, Verdict, VerifyOutput};
 use crate::policy::{self, Decision};
-use crate::speaker::{model_sha256, service_request, similarity_milli, speaker_passes, TemplateRecord};
+use crate::speaker_client::service_request;
+use crate::template::{model_sha256, TemplateRecord};
 use crate::transcriber::{parse_reply, transcription_request};
-use crate::words::{check_words, cut_at, words_pass};
+use crate::words::{check_words, words_pass};
 
-/// One verify run. The output JSON stays below [`MAX_OUTPUT_BYTES`].
+/// One verify run. The output JSON stays below
+/// [`MAX_OUTPUT_BYTES`](crate::config::MAX_OUTPUT_BYTES).
 pub(super) fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> VerifyOutput {
     let started = Instant::now();
     let mut verdict = Verdict::new();
@@ -157,63 +156,22 @@ fn verify_storage(
     Ok(record)
 }
 
-/// Sets the expiry, fits the output below [`MAX_OUTPUT_BYTES`] (by a
-/// shorter `heard`, which is part of the signed bytes), then signs the
+/// Sets the expiry, fits the output below the size limit, then signs the
 /// verdict.
 fn finish(
     mut verdict: Verdict,
     mut ms: Stages,
     policy_text: Option<&'static str>,
-    mut detail: Option<String>,
+    detail: Option<String>,
     host: &mut dyn Host,
     started: Instant,
 ) -> VerifyOutput {
     verdict.expires_at_ms = host.now_ms().saturating_add(VERDICT_TTL_MS);
-    let heard = verdict.heard.take();
-    let mut verdict_text = String::new();
-    for cap in [MAX_HEARD_BYTES, 120, 60, 0] {
-        verdict.heard = heard.as_ref().filter(|_| cap > 0).map(|text| cut_at(text, cap));
-        verdict_text = verdict_json(&verdict);
-        let sized = VerifyOutput {
-            kind: VERIFY_OUTPUT_KIND,
-            verdict_json: verdict_text.clone(),
-            signature_b64: Some("A".repeat(88)),
-            public_key: Some(format!("ed25519:{}", "1".repeat(44))),
-            policy_text,
-            ms: ms.clone(),
-            detail: detail.clone(),
-        };
-        // Room for the `sign` and `total` stage times.
-        if serde_json::to_vec(&sized).expect("serializes").len() + 48 < MAX_OUTPUT_BYTES {
-            break;
-        }
-    }
-
-    let signing = Instant::now();
-    let message = verdict_message(verdict_text.as_bytes());
-    let signed = host.sign(&message).and_then(|signature| {
-        let public_key = host.public_key()?;
-        if signature.len() != 64 || public_key.len() != 32 {
-            return Err("length".to_string());
-        }
-        Ok((b64(&signature), near_ed25519_key(&public_key)))
-    });
-    ms.since("sign", signing);
+    let verdict_json = fit_heard(verdict, policy_text, &ms, detail.as_deref());
+    let signed = ms.time("sign", || sign_verdict(host, &verdict_json));
     ms.since("total", started);
-    let (signature_b64, public_key) = match signed {
-        Ok((signature, key)) => (Some(signature), Some(key)),
-        Err(error) => {
-            detail = Some(short(&format!("sign: {error}")));
-            (None, None)
-        }
-    };
-    VerifyOutput {
-        kind: VERIFY_OUTPUT_KIND,
-        verdict_json: verdict_text,
-        signature_b64,
-        public_key,
-        policy_text,
-        ms,
-        detail,
+    match signed {
+        Ok(signed) => VerifyOutput::new(verdict_json, Some(signed), policy_text, ms, detail),
+        Err(error) => VerifyOutput::new(verdict_json, None, policy_text, ms, Some(short(&format!("sign: {error}")))),
     }
 }

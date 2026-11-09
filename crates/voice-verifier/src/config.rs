@@ -4,8 +4,10 @@
 /// The verifier version that every output names.
 pub const VERIFIER_VERSION: &str = "0.5.1";
 
-/// The manifest, also linked into the `outlayer.manifest` custom section.
-pub const MANIFEST_JSON: &str = include_str!("../manifest/outlayer.json");
+/// The manifest, for the test that checks it against these values.
+/// `main.rs` links the same file into the `outlayer.manifest` custom section.
+#[cfg(test)]
+const MANIFEST_JSON: &str = include_str!("../manifest/outlayer.json");
 
 /// The declared signing key (manifest `signing_keys`, `bind: "project"`).
 /// The keystore derives it from the project and the caller: over HTTPS the
@@ -27,7 +29,8 @@ macro_rules! speaker_host {
         "627a3cc63411c2f454cb43695a3747f54618482c-8080.dstack-pha1-prod5.phala.network"
     };
 }
-pub const SPEAKER_HOST: &str = speaker_host!();
+#[cfg(test)]
+const SPEAKER_HOST: &str = speaker_host!();
 pub const SPEAKER_EMBED_URL: &str = concat!("https://", speaker_host!(), "/v1/embed");
 pub const SPEAKER_TIMEOUT_SECS: u64 = 30;
 pub const SPEAKER_MAX_RESPONSE_BYTES: usize = 8_192;
@@ -45,7 +48,8 @@ pub const SPEAKER_EMBED_DOMAIN: &[u8] = b"seams:speaker-embedding:v1";
 pub const REDIMNET_SHA256_HEX: &str = "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269";
 
 /// The NEAR AI Cloud host, endpoint, model and language.
-pub const NEAR_AI_HOST: &str = "cloud-api.near.ai";
+#[cfg(test)]
+const NEAR_AI_HOST: &str = "cloud-api.near.ai";
 pub const NEAR_AI_TRANSCRIPTIONS_URL: &str = "https://cloud-api.near.ai/v1/audio/transcriptions";
 pub const NEAR_AI_MODEL: &str = "openai/whisper-large-v3";
 pub const NEAR_AI_LANGUAGE: &str = "en";
@@ -62,7 +66,8 @@ macro_rules! near_rpc_host {
         "test.rpc.fastnear.com"
     };
 }
-pub const NEAR_RPC_HOST: &str = near_rpc_host!();
+#[cfg(test)]
+const NEAR_RPC_HOST: &str = near_rpc_host!();
 pub const NEAR_RPC_URL: &str = concat!("https://", near_rpc_host!(), "/");
 pub const NEAR_RPC_TIMEOUT_SECS: u64 = 10;
 pub const NEAR_RPC_MAX_RESPONSE_BYTES: usize = 8_192;
@@ -92,7 +97,7 @@ pub const EMBEDDING_DIM: usize = 192;
 /// Audio sample rate.
 pub const SAMPLE_RATE: u32 = 16_000;
 
-/// At most 8 s of audio (plan Section 7.2).
+/// At most 8 s of audio.
 pub const MAX_SAMPLES: usize = 8 * SAMPLE_RATE as usize;
 
 /// Energy gate frame: 512 samples (32 ms), as the Wallet's VAD frame.
@@ -107,10 +112,10 @@ pub const GATE_MIN_VOICED_MS: u32 = 600;
 /// At most this share of samples, in thousandths, may be at full scale.
 pub const GATE_MAX_CLIPPED_PERMILLE: u32 = 10;
 
-/// At most this many contacts in a verify input (plan Section 7.2).
+/// At most this many contacts in a verify input.
 pub const MAX_CONTACTS: usize = 32;
 
-/// `enroll` takes exactly this many recordings (plan Section 4.4).
+/// `enroll` takes exactly this many recordings.
 pub const ENROLL_RECORDINGS: usize = 3;
 
 /// The epoch of a first template. Each re-enrollment adds 1.

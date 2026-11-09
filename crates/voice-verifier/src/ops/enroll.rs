@@ -9,18 +9,20 @@ use super::request::unsupported;
 use super::steps::{consume, decode_clip, in_flight, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
+use crate::authorization::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
 use crate::config::{audio_used_key, template_key, ENROLL_RECORDINGS, TEMPLATE_EPOCH};
 use crate::digest::{b64u, near_ed25519_key};
-use crate::enrollment::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
+use crate::embedding::{agreement, Agreement};
 use crate::host::Host;
 use crate::input::EnrollInput;
-use crate::output::{short, Enrollment, Outcome, Reason};
-use crate::speaker::{self, model_sha256, service_request, TemplateRecord};
+use crate::output::{short, EnrollOutput, Outcome, Reason};
+use crate::speaker_client::service_request;
+use crate::template::{model_sha256, TemplateRecord};
 
 /// Three recordings of the owner become the template of the owner.
-pub(super) fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> Enrollment {
+pub(super) fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> EnrollOutput {
     let started = Instant::now();
-    let mut output = Enrollment::new();
+    let mut output = EnrollOutput::new();
     match enroll_steps(value, host, pins, &mut output) {
         Ok(()) => {
             output.outcome = Outcome::Accept;
@@ -41,7 +43,7 @@ pub(super) fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> Enrollme
     output
 }
 
-fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enrollment) -> Result<(), Refusal> {
+fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut EnrollOutput) -> Result<(), Refusal> {
     let input: EnrollInput = serde_json::from_value(value).map_err(unsupported)?;
     let owner = NearAccount::new(&input.owner).map_err(unsupported)?;
     if input.op != "enroll" {
@@ -105,12 +107,12 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
     for (index, (clip, nonce)) in clips.iter().zip(&nonces).enumerate() {
         embeddings.push(speaker_reply(results.get(index + 1), clip, nonce, pins)?.embedding);
     }
-    let template = match speaker::enroll(&embeddings) {
-        speaker::Enrollment::Agreed { template, agreement_milli } => {
+    let template = match agreement(&embeddings) {
+        Agreement::Agreed { template, agreement_milli } => {
             output.agreement_milli = Some(agreement_milli);
             template
         }
-        speaker::Enrollment::Disagreed { agreement_milli } => {
+        Agreement::Disagreed { agreement_milli } => {
             output.agreement_milli = Some(agreement_milli);
             return Err(Reason::Speaker.into());
         }

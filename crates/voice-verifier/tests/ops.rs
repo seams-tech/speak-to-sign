@@ -10,16 +10,16 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use seams_voice_verifier::audio::wav_bytes;
+use seams_voice_verifier::authorization::{authorization_message, enrollment_digest, nep413_hash};
 use seams_voice_verifier::config::{
     audio_used_key, template_key, EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV,
     NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL, VERDICT_TTL_MS,
 };
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
-use seams_voice_verifier::enrollment::{authorization_message, enrollment_digest, nep413_hash};
 use seams_voice_verifier::host::{Host, PostRequest, Timed};
 use seams_voice_verifier::output::{verdict_message, Verdict};
 use seams_voice_verifier::policy::STUB_AMOUNT_RULE;
-use seams_voice_verifier::speaker::service_message;
+use seams_voice_verifier::speaker_client::service_message;
 use seams_voice_verifier::{run_with, Pins};
 
 const SPEAKER_SEED: [u8; 32] = [0x11; 32];
@@ -326,7 +326,18 @@ fn enroll_stores_the_template_and_returns_the_key() {
     assert_eq!(fake.posts, [NEAR_RPC_URL, SPEAKER_EMBED_URL, SPEAKER_EMBED_URL, SPEAKER_EMBED_URL]);
     assert_eq!(
         fake.events,
-        ["start", "get", "marker_get", "marker_get", "marker_get", "wait", "marker_set", "marker_set", "marker_set", "set"]
+        [
+            "start",
+            "get",
+            "marker_get",
+            "marker_get",
+            "marker_get",
+            "wait",
+            "marker_set",
+            "marker_set",
+            "marker_set",
+            "set"
+        ]
     );
     for stage in ["send", "storage", "wait", "parallel", "rpc", "speaker", "write", "total"] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
@@ -465,7 +476,17 @@ fn verify_accepts_and_signs_the_verdict() {
     assert_eq!(verdict.spoken_text_digest.as_deref(), accept["spoken_text_digest"].as_str());
     assert!(verdict.speaker_score_milli.unwrap() >= 450);
     for stage in [
-        "decode", "send", "storage", "wait", "parallel", "speaker", "transcribe", "redimnet", "mark", "policy", "sign",
+        "decode",
+        "send",
+        "storage",
+        "wait",
+        "parallel",
+        "speaker",
+        "transcribe",
+        "redimnet",
+        "mark",
+        "policy",
+        "sign",
         "total",
     ] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");

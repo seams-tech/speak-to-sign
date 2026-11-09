@@ -4,17 +4,20 @@
 //! [`verdict_json`] writes; the Seams route passes them to the Wallet as a
 //! string, so nobody serializes them again. The signed message is
 //! `SHA-256(VERDICT_DOMAIN || verdict JSON bytes)` (32 bytes), and the
-//! manifest signing key signs it with ed25519.
+//! manifest signing key signs it with ed25519 ([`sign_verdict`]). Before
+//! that, [`fit_heard`] cuts `heard` so that the output fits its size limit.
 use std::collections::BTreeMap;
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::{MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
-use crate::digest::sha256;
+use crate::config::{MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
+use crate::digest::{b64, near_ed25519_key, sha256};
+use crate::host::Host;
+use crate::words::cut_at;
 
 /// The verdict kind. The Wallet accepts only this one.
-pub const VERDICT_KIND: &str = "seams_voice_signed_verdict_v2";
+const VERDICT_KIND: &str = "seams_voice_signed_verdict_v2";
 
 /// `accept`, `step_up` or `refuse`. On `step_up` the voice and the words
 /// passed, and a policy rule asks the Wallet for a fresh passkey as well.
@@ -60,9 +63,10 @@ pub enum Reason {
     AuthorizationUnavailable,
 }
 
+#[cfg(test)]
 impl Reason {
     /// Every reason, in declaration order.
-    pub const ALL: [Reason; 13] = [
+    const ALL: [Reason; 13] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -172,6 +176,11 @@ impl Stages {
     }
 }
 
+// The `kind` of each output.
+const VERIFY_OUTPUT_KIND: &str = "seams_voice_verify_output_v2";
+const ENROLL_OUTPUT_KIND: &str = "seams_voice_enrollment_v3";
+pub const ERROR_OUTPUT_KIND: &str = "seams_voice_error_v1";
+
 /// The `verify` output. `verdict_json` is a string, so its bytes reach the
 /// Wallet as they were signed.
 #[derive(Clone, Debug, Serialize)]
@@ -190,11 +199,68 @@ pub struct VerifyOutput {
     pub detail: Option<String>,
 }
 
-pub const VERIFY_OUTPUT_KIND: &str = "seams_voice_verify_output_v2";
+impl VerifyOutput {
+    /// `signed` is the signature (standard base64) and the key
+    /// (`ed25519:<base58>`) of [`sign_verdict`], if it passed.
+    pub fn new(
+        verdict_json: String,
+        signed: Option<(String, String)>,
+        policy_text: Option<&'static str>,
+        ms: Stages,
+        detail: Option<String>,
+    ) -> Self {
+        let (signature_b64, public_key) = signed.unzip();
+        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail }
+    }
+}
+
+/// The `heard` caps that [`fit_heard`] tries, longest first. The last one
+/// leaves `heard` out.
+const HEARD_CAPS: [usize; 4] = [MAX_HEARD_BYTES, 120, 60, 0];
+
+/// The length of a standard base64 ed25519 signature (64 bytes).
+const SIGNATURE_B64_LEN: usize = 88;
+
+/// The longest base58 text of a 32-byte key.
+const KEY_BASE58_MAX_LEN: usize = 44;
+
+/// Room for the `sign` and `total` stage times, which come after the fit.
+const STAGE_TIME_ROOM: usize = 48;
+
+/// The verdict JSON with the longest `heard` of `HEARD_CAPS` for which the
+/// output stays below [`MAX_OUTPUT_BYTES`]. `heard` is part of the signed
+/// bytes, so the fit comes before the signature. It sizes the output with a
+/// signature and a key of full length.
+pub fn fit_heard(mut verdict: Verdict, policy_text: Option<&'static str>, ms: &Stages, detail: Option<&str>) -> String {
+    let heard = verdict.heard.take();
+    let longest_signature = ("A".repeat(SIGNATURE_B64_LEN), format!("ed25519:{}", "1".repeat(KEY_BASE58_MAX_LEN)));
+    let detail = detail.map(str::to_owned);
+    let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), policy_text, ms.clone(), detail);
+    for cap in HEARD_CAPS {
+        verdict.heard = heard.as_ref().filter(|_| cap > 0).map(|text| cut_at(text, cap));
+        sized.verdict_json = verdict_json(&verdict);
+        if serde_json::to_vec(&sized).expect("serializes").len() + STAGE_TIME_ROOM < MAX_OUTPUT_BYTES {
+            break;
+        }
+    }
+    sized.verdict_json
+}
+
+/// Signs the verdict JSON with the manifest signing key. Returns the
+/// signature (standard base64) and the key (`ed25519:<base58>`).
+pub fn sign_verdict(host: &mut dyn Host, verdict_json: &str) -> Result<(String, String), String> {
+    let message = verdict_message(verdict_json.as_bytes());
+    let signature = host.sign(&message)?;
+    let public_key = host.public_key()?;
+    if signature.len() != 64 || public_key.len() != 32 {
+        return Err("length".to_string());
+    }
+    Ok((b64(&signature), near_ed25519_key(&public_key)))
+}
 
 /// The `enroll` output.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Enrollment {
+pub struct EnrollOutput {
     pub kind: &'static str,
     pub verifier: &'static str,
     pub owner: Option<String>,
@@ -216,10 +282,10 @@ pub struct Enrollment {
     pub detail: Option<String>,
 }
 
-impl Enrollment {
+impl EnrollOutput {
     pub fn new() -> Self {
         Self {
-            kind: "seams_voice_enrollment_v3",
+            kind: ENROLL_OUTPUT_KIND,
             verifier: VERIFIER_VERSION,
             owner: None,
             outcome: Outcome::Refuse,
@@ -235,7 +301,7 @@ impl Enrollment {
     }
 }
 
-impl Default for Enrollment {
+impl Default for EnrollOutput {
     fn default() -> Self {
         Self::new()
     }

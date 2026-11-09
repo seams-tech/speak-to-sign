@@ -9,7 +9,7 @@ use crate::config::audio_used_key;
 use crate::digest::{from_b64, sha256};
 use crate::host::{Host, PostRequest, Timed};
 use crate::output::{short, Reason, Stages};
-use crate::speaker::{check_service_reply, ServiceReply};
+use crate::speaker_client::{check_service_reply, ServiceReply};
 
 /// A decoded inline WAV: its samples, the canonical WAV and its digest.
 pub(super) struct Clip {

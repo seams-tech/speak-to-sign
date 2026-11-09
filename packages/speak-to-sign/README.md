@@ -81,8 +81,9 @@ const enrollment = await seams.speakToSign.enroll({ walletId });
 ```
 
 `enroll` shows three short phrases on the VoiceID surface, one at a time. Then
-the owner approves one signed message (NEP-413) on the wallet confirm. The
-message names the digest of exactly these three recordings. The Wallet sends
+the owner approves one signed message (NEP-413) on the wallet confirm, which
+opens over the VoiceID card. The card stays open from the last phrase to the
+result. The message names the digest of exactly these three recordings. The Wallet sends
 the recordings and the signature to the verifier. The verifier checks that a
 full-access key of the owner signed the message, and stores the template. A new
 enrollment replaces the template.

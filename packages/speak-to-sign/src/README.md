@@ -20,10 +20,13 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   owner, and when the transfer leaves for the network. A co-signer refusal comes back as
   `voice_limit` or `cosigner_refused`.
 - [`host/card.ts`](host/card.ts) holds the copy and the line segments of each state of the card:
-  the check, the payment, the step-up question, the paid result and each refusal.
+  the check, the payment, the step-up question, the paid result, each refusal, and the
+  enrollment states.
 - [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three prompts of one recording each,
   `authorizeEnrollment` for exactly these clips (core signs one NEP-413 message), then
-  `verify` with the verifier's `enroll` input. `tests/unit/speakToSignEnroll.unit.test.ts`
+  `verify` with the verifier's `enroll` input. The card of the third phrase stays open: it
+  waits while core prepares the message (the Wallet confirm, a modal dialog, opens over it),
+  shows the verifier's work, then shows the result. `tests/unit/speakToSignEnroll.unit.test.ts`
   checks the digest and the message against the verifier's vectors.
 - `openPrompt` loads the VoiceID host plugin through `loadWalletAuthMethodHostPlugin` and calls
   its `openPhrase`, which shows the sentence and records clips of it. The surface stays open for

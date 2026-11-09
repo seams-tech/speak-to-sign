@@ -139,6 +139,62 @@ export function paidView(input: CardInput, hash: string, seconds: number): Phras
   };
 }
 
+// An enrollment uses the same line: segment 1 is the recordings, segment 2 the owner's signed
+// message, and the rest the verifier, which stores the template.
+const ENROLL_SIGNATURE = 1;
+const ENROLL_TEMPLATE = 2;
+
+/** After the third phrase, until the Wallet confirm of the enrollment message opens over it. */
+export function enrollSigningView(): PhraseCheckView {
+  const states = segments(ENROLL_SIGNATURE, 'idle');
+  states[ENROLL_SIGNATURE] = 'wait';
+  return {
+    kind: 'check',
+    label: 'Enrolling',
+    caption: 'Preparing your signed enrollment',
+    details: ['Next, confirm one message that names these three recordings.'],
+    segments: states,
+  };
+}
+
+export function enrollSavingView(): PhraseCheckView {
+  return {
+    kind: 'check',
+    label: 'Enrolling',
+    caption: 'Storing your voice template',
+    details: ['ReDimNet · Intel TDX CVM on Phala', 'Signed by the OutLayer TEE verifier'],
+    segments: segments(ENROLL_TEMPLATE, 'run'),
+  };
+}
+
+export function enrolledView(templateEpoch: number, agreementMilli: number): PhraseResultView {
+  return {
+    kind: 'result',
+    label: '',
+    headline: 'Voice enrolled',
+    caption: 'The verifier stored your voice template.',
+    detail: `Template ${templateEpoch} · agreement ${(agreementMilli / 1000).toFixed(3)}`,
+    action: { label: 'Done' },
+    line: 'seal',
+  };
+}
+
+/** The verifier refused the recordings, or did not answer. Nothing was stored. */
+export function notEnrolledView(
+  result: Readonly<{ kind: 'refused' | 'unavailable'; reason: string }>,
+): PhraseResultView {
+  const refused = result.kind === 'refused';
+  return {
+    kind: 'result',
+    label: 'Not enrolled',
+    headline: refused ? 'The verifier refused the recordings' : 'The check is not available',
+    caption: refused ? `Reason: ${result.reason}` : 'A verifier service did not answer.',
+    detail: refused ? 'Record the three phrases again.' : 'Try again in a minute.',
+    action: { label: 'Close' },
+    line: blocked(ENROLL_TEMPLATE, 'fail'),
+  };
+}
+
 /** A failed result and whether "Try again" records the sentence again. */
 export type FailureView = Readonly<{ view: PhraseResultView; retry: boolean }>;
 

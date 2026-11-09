@@ -47,6 +47,8 @@ function clip(index: number): Extract<Clip, { kind: 'captured' }> {
 type FakeEnrollment = {
   input: SpeakToSignHostEnrollment;
   sentences: string[];
+  /** What happened on each card and in core, in order. */
+  events: string[];
   authorized: Array<readonly Uint8Array[]>;
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
 };
@@ -58,6 +60,7 @@ function fakeEnrollment(options: {
 }): FakeEnrollment {
   const fake: FakeEnrollment = {
     sentences: [],
+    events: [],
     authorized: [],
     verifyInputs: [],
     input: undefined as never,
@@ -66,12 +69,21 @@ function fakeEnrollment(options: {
     async openPrompt(request) {
       fake.sentences.push(request.sentence);
       const index = fake.sentences.length;
+      fake.events.push(`open ${index}`);
       return {
         kind: 'opened',
         prompt: {
-          record: async () => options.clips?.[index - 1] ?? clip(index),
-          show: async () => 'closed',
-          close: () => undefined,
+          record: async () => {
+            fake.events.push(`record ${index}`);
+            return options.clips?.[index - 1] ?? clip(index);
+          },
+          show: async (view) => {
+            fake.events.push(
+              `show ${index}: ${view.kind === 'check' ? view.caption : view.headline}`,
+            );
+            return view.kind === 'check' ? 'replaced' : 'action';
+          },
+          close: () => fake.events.push(`close ${index}`),
         },
       };
     },
@@ -79,6 +91,7 @@ function fakeEnrollment(options: {
       throw new Error('An enrollment checks no receiver.');
     },
     async verify(verifierInput) {
+      fake.events.push('verify');
       fake.verifyInputs.push(verifierInput);
       return options.reply ?? { kind: 'output', output: ACCEPTED_OUTPUT };
     },
@@ -89,6 +102,7 @@ function fakeEnrollment(options: {
       throw new Error('An enrollment signs no note.');
     },
     async authorizeEnrollment(clips) {
+      fake.events.push('authorize');
       fake.authorized.push(clips);
       return options.authorization ?? { kind: 'signed', authorization: AUTHORIZATION };
     },
@@ -119,6 +133,53 @@ test('an enrollment records three phrases, authorizes exactly them, then enrolls
       authorization: AUTHORIZATION,
     },
   ]);
+});
+
+test('the card of the third phrase stays open from the recording to the result', async () => {
+  const fake = fakeEnrollment({});
+  await runEnrollment(fake.input);
+  expect(fake.events).toEqual([
+    'open 1',
+    'record 1',
+    'close 1',
+    'open 2',
+    'record 2',
+    'close 2',
+    'open 3',
+    'record 3',
+    // No gap: the card waits while core prepares the message, and the confirm opens over it.
+    'show 3: Preparing your signed enrollment',
+    'authorize',
+    'show 3: Storing your voice template',
+    'verify',
+    'show 3: Voice enrolled',
+    'close 3',
+  ]);
+
+  const refused = fakeEnrollment({
+    reply: { kind: 'output', output: { ...ACCEPTED_OUTPUT, outcome: 'refuse', reason: 'speaker' } },
+  });
+  await runEnrollment(refused.input);
+  expect(refused.events.slice(-2)).toEqual([
+    'show 3: The verifier refused the recordings',
+    'close 3',
+  ]);
+
+  // The owner closed the confirm: the card closes, and nothing goes to the verifier.
+  const unsigned = fakeEnrollment({
+    authorization: { kind: 'not_signed', error: 'The owner closed the confirm.' },
+  });
+  await runEnrollment(unsigned.input);
+  expect(unsigned.events.slice(-3)).toEqual([
+    'show 3: Preparing your signed enrollment',
+    'authorize',
+    'close 3',
+  ]);
+
+  // A cancel on a phrase closes that card and opens no other.
+  const cancelled = fakeEnrollment({ clips: [clip(1), { kind: 'cancelled' }] });
+  await runEnrollment(cancelled.input);
+  expect(cancelled.events).toEqual(['open 1', 'record 1', 'close 1', 'open 2', 'record 2', 'close 2']);
 });
 
 test('a cancel, an unsigned message or a route failure enrolls nothing', async () => {

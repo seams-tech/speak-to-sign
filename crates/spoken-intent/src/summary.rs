@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::normalize_punctuated;
+use crate::punctuated::SEND_FORMS;
 use crate::token::SpokenToken;
 
 /// The most words of a [`SpokenSummary`]. Twelve plain words fit in one
@@ -12,10 +13,6 @@ pub const MAX_SUMMARY_WORDS: usize = 12;
 
 /// The most bytes of a [`SpokenSummary`].
 pub const MAX_SUMMARY_BYTES: usize = 120;
-
-/// The first words that start the transfer grammar of
-/// [`normalize_punctuated`]. A summary cannot start with one of them.
-const TRANSFER_VERBS: [&str; 3] = ["send", "sent", "sends"];
 
 /// The marks that can end a summary.
 const END_PUNCTUATION: [char; 3] = ['.', '!', '?'];
@@ -68,7 +65,7 @@ impl SpokenSummary {
                 return Err(InvalidSummary::Character);
             }
             if words == 0
-                && TRANSFER_VERBS
+                && SEND_FORMS
                     .iter()
                     .any(|verb| letters.eq_ignore_ascii_case(verb))
             {

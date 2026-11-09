@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react';
-import { accountUrl, config, shortAccount } from '../config';
+import { accountUrl, config, shortAccount, transactionUrl } from '../config';
 import { useDemo } from '../demoContext';
-import { formatNear, NOTE_GAS_NEED_YOCTO, readFreeBalance } from '../notes/nearAccount';
+import { requestFaucet } from '../faucet/client';
+import { formatNear, formatUsdc, NOTE_GAS_NEED_YOCTO, readFreeBalance, readTokenBalance, USDC_NEED } from '../notes/nearAccount';
 import type { SetupOutcome, SignerSetup, SignerStatus } from '../signer/notesSigner';
 
 /**
@@ -46,7 +47,9 @@ export function SetupPanel({ compact }: { compact: boolean }) {
   );
 }
 
-type Balance = { kind: 'loading' } | { kind: 'ready'; free: bigint | null } | { kind: 'failed'; message: string };
+type Balance = { kind: 'loading' } | { kind: 'ready'; free: bigint | null; usdc: bigint } | { kind: 'failed'; message: string };
+
+type Faucet = { kind: 'idle' } | { kind: 'busy' } | { kind: 'sent'; hash: string; text: string } | { kind: 'failed'; text: string };
 
 function enrolledKey(account: string) {
   return `spoken-notes:enrolled:${account}`;
@@ -88,7 +91,7 @@ export interface SetupStepsProps {
   variant: 'notes' | 'page';
 }
 
-/** The setup steps: sign in or create a wallet, set up your voice, testnet NEAR for gas. */
+/** The setup steps: sign in or create a wallet, set up your voice, testnet NEAR and USDC. */
 export function SetupSteps({ status, account, signer, walletConfigured, onSignIn, onChanged, variant }: SetupStepsProps) {
   const openSignIn = onSignIn;
   const reload = () => {
@@ -99,6 +102,7 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
   const [outcome, setOutcome] = useState<SetupOutcome | null>(null);
   const [enrolled, setEnrolled] = useState(() => readEnrolled(account));
   const [balance, setBalance] = useState<Balance>({ kind: 'loading' });
+  const [faucet, setFaucet] = useState<Faucet>({ kind: 'idle' });
   const signedIn = !!status?.signedIn;
   const voiceReady = !!status?.voiceReady;
 
@@ -112,12 +116,27 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
   const loadBalance = useCallback(() => {
     if (!account) return;
     setBalance({ kind: 'loading' });
-    readFreeBalance(config.rpcUrl, account).then(
-      (free) => setBalance({ kind: 'ready', free }),
+    Promise.all([readFreeBalance(config.rpcUrl, account), readTokenBalance(config.marketRpcUrl, config.marketToken, account)]).then(
+      ([free, usdc]) => setBalance({ kind: 'ready', free, usdc }),
       (cause: unknown) => setBalance({ kind: 'failed', message: cause instanceof Error ? cause.message : String(cause) }),
     );
   }, [account]);
   useEffect(loadBalance, [loadBalance]);
+  useEffect(() => setFaucet({ kind: 'idle' }), [account]);
+
+  // The faucet: one transaction sends 0.2 NEAR for gas and 2 USDC for bets, once per account.
+  const getFunds = async () => {
+    if (!account) return;
+    setFaucet({ kind: 'busy' });
+    const result = await requestFaucet(account);
+    if (!result.ok) {
+      setFaucet({ kind: 'failed', text: result.error });
+      return;
+    }
+    setFaucet({ kind: 'sent', hash: result.transactionHash, text: `Sent ${formatNear(result.near)} and ${formatUsdc(result.usdc)}.` });
+    // The NEAR transfer lands a block after the USDC; read the balances when both are in.
+    window.setTimeout(loadBalance, 2500);
+  };
 
   // One step for the user: turn on VoiceID when it is off, then enroll with the verifier.
   // enableVoice answers "done" at once when VoiceID is already on.
@@ -153,6 +172,8 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
   const voiceSetUp = voiceReady && enrolled;
 
   const gasReady = balance.kind === 'ready' && balance.free !== null && balance.free >= NOTE_GAS_NEED_YOCTO;
+  const usdcReady = balance.kind === 'ready' && balance.usdc >= USDC_NEED;
+  const fundsReady = gasReady && usdcReady;
 
   return (
     <>
@@ -182,17 +203,16 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
             {busy ? 'Wait…' : voiceSetUp ? 'Again' : 'Set up'}
           </button>
         </Step>
-        <Step index={3} done={gasReady} label="Testnet NEAR for gas">
-          {signedIn && (
+        <Step index={3} done={fundsReady} label="Testnet NEAR and USDC">
+          {signedIn && fundsReady && balance.kind === 'ready' && balance.free !== null && (
             <span className="small muted step-detail">
-              {balance.kind === 'loading'
-                ? 'Checking…'
-                : balance.kind === 'failed'
-                  ? 'Unknown'
-                  : balance.free === null
-                    ? 'Not on testnet yet'
-                    : formatNear(balance.free)}
+              {formatNear(balance.free)} · {formatUsdc(balance.usdc)}
             </span>
+          )}
+          {signedIn && !fundsReady && (
+            <button type="button" className="btn btn-dark btn-xs" disabled={faucet.kind === 'busy' || balance.kind === 'loading'} onClick={() => void getFunds()}>
+              {faucet.kind === 'busy' ? 'Sending…' : 'Get'}
+            </button>
           )}
         </Step>
       </ol>
@@ -201,14 +221,36 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
           This build has no Seams publishable key. Set <code>VITE_SEAMS_PUBLISHABLE_KEY</code> and build again.
         </p>
       )}
-      {signedIn && !gasReady && balance.kind !== 'loading' && (
+      {signedIn && !fundsReady && balance.kind === 'ready' && faucet.kind !== 'sent' && faucet.kind !== 'failed' && (
         <p className="side-note">
-          Each note or rating pays a little gas.{' '}
+          {balance.free === null
+            ? 'Your account is not on testnet yet. '
+            : `You have ${formatNear(balance.free)} and ${formatUsdc(balance.usdc)}. `}
+          Get sends 0.2 NEAR for gas and 2 USDC for bets, in one transaction, once per account.
+        </p>
+      )}
+      {faucet.kind === 'sent' && (
+        <p className="side-note" role="status">
+          {faucet.text}{' '}
+          <a className="lk" href={transactionUrl(faucet.hash)} target="_blank" rel="noopener noreferrer">
+            Transaction
+            <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
+          </a>
+        </p>
+      )}
+      {faucet.kind === 'failed' && (
+        <p className="side-note side-error" role="alert">
+          {faucet.text} You can also get{' '}
           <a className="lk" href={config.faucetUrl} target="_blank" rel="noopener noreferrer">
-            Get testnet NEAR
+            testnet NEAR
             <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
           </a>{' '}
-          ·{' '}
+          and{' '}
+          <a className="lk" href={config.usdcFaucetUrl} target="_blank" rel="noopener noreferrer">
+            testnet USDC
+            <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
+          </a>{' '}
+          (network: NEAR testnet) yourself.{' '}
           <button type="button" className="link-btn" onClick={loadBalance}>
             Check again
           </button>

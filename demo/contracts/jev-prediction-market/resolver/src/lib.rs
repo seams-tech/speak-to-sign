@@ -7,9 +7,11 @@
 //! `{"yes_bps", "provider", "model", "rationale"}`, or `{"error"}` when no provider answers.
 //!
 //! Providers, in this order:
-//! 1. JEV (Typesafe System One) with one Noul question. The Noul answer is the probability of
-//!    YES. Secret `TYPESAFE_API_KEY`.
-//! 2. NEAR AI Cloud chat completions, with a JSON reply. Secret `NEAR_AI_API_KEY`.
+//! 1. JEV at Typesafe (System One) with one Noul question. The Noul answer is the probability
+//!    of YES. Secret `TYPESAFE_API_KEY`.
+//! 2. JEV on NEAR AI Cloud (`typesafe/jev-1.13`, the same System One request at
+//!    `cloud-api.near.ai/v1/systemone`). Secret `NEAR_AI_API_KEY`.
+//! 3. A NEAR AI Cloud chat model, with a JSON reply. Secret `NEAR_AI_API_KEY`.
 //!
 //! The request shapes follow Signal's resolver (`resolver/src/jev.rs` and `near_ai.rs` in
 //! get-signal/prediction-market). The HTTP calls go through [`Host`], so that the native tests
@@ -21,6 +23,9 @@ use serde_json::{Map, Value, json};
 pub const JEV_ENDPOINT: &str = "https://api.typesafe.ai/v1/systemone";
 /// Pinned: a moving alias such as `jev-latest` could change the probabilities.
 pub const JEV_MODEL: &str = "jev-1.14.0";
+/// JEV served by NEAR AI Cloud: the System One request, with the NEAR AI key.
+pub const NEAR_AI_JEV_ENDPOINT: &str = "https://cloud-api.near.ai/v1/systemone";
+pub const NEAR_AI_JEV_MODEL: &str = "typesafe/jev-1.13";
 pub const NEAR_AI_ENDPOINT: &str = "https://cloud-api.near.ai/v1/chat/completions";
 /// The model that the demo summary function uses with the same key.
 pub const NEAR_AI_MODEL: &str = "Qwen/Qwen3.8-27B";
@@ -85,17 +90,23 @@ pub fn resolve(input: &[u8], host: &mut impl Host) -> Result<Answer, String> {
     let input = parse_input(input)?;
     let mut errors = Vec::new();
     match secret(host, TYPESAFE_SECRET) {
-        Some(token) => match ask_jev(&input, &token, host) {
+        Some(token) => match ask_jev(&input, &token, host, &TYPESAFE_JEV) {
             Ok(answer) => return Ok(answer),
             Err(error) => errors.push(format!("JEV: {error}")),
         },
         None => errors.push(format!("JEV: no {TYPESAFE_SECRET}")),
     }
     match secret(host, NEAR_AI_SECRET) {
-        Some(token) => match ask_near_ai(&input, &token, host) {
-            Ok(answer) => return Ok(answer),
-            Err(error) => errors.push(format!("NEAR AI: {error}")),
-        },
+        Some(token) => {
+            match ask_jev(&input, &token, host, &NEAR_AI_JEV) {
+                Ok(answer) => return Ok(answer),
+                Err(error) => errors.push(format!("JEV on NEAR AI: {error}")),
+            }
+            match ask_near_ai(&input, &token, host) {
+                Ok(answer) => return Ok(answer),
+                Err(error) => errors.push(format!("NEAR AI chat: {error}")),
+            }
+        }
         None => errors.push(format!("NEAR AI: no {NEAR_AI_SECRET}")),
     }
     Err(errors.join("; "))
@@ -123,10 +134,21 @@ pub fn parse_input(bytes: &[u8]) -> Result<Input, String> {
 
 // --- JEV (Typesafe System One) ---
 
+/// Where JEV runs: at Typesafe, or on NEAR AI Cloud.
+pub struct JevRoute {
+    pub endpoint: &'static str,
+    pub model: &'static str,
+    /// Empty for Typesafe; ", on NEAR AI" for NEAR AI, in the rationale.
+    pub via: &'static str,
+}
+
+pub const TYPESAFE_JEV: JevRoute = JevRoute { endpoint: JEV_ENDPOINT, model: JEV_MODEL, via: "" };
+pub const NEAR_AI_JEV: JevRoute = JevRoute { endpoint: NEAR_AI_JEV_ENDPOINT, model: NEAR_AI_JEV_MODEL, via: ", on NEAR AI" };
+
 /// The JEV request: the note and the post as the state, and one Noul question.
-pub fn jev_request(input: &Input) -> Value {
+pub fn jev_request(input: &Input, model: &str) -> Value {
     json!({
-        "model": JEV_MODEL,
+        "model": model,
         "state": {
             "market_question": input.question.trim(),
             "community_note_and_post": input.context.trim(),
@@ -147,20 +169,21 @@ pub fn jev_request(input: &Input) -> Value {
     })
 }
 
-fn ask_jev(input: &Input, token: &str, host: &mut impl Host) -> Result<Answer, String> {
-    let body = serde_json::to_vec(&jev_request(input)).map_err(|_| "cannot write the request")?;
-    let (status, response) = host.post_json(JEV_ENDPOINT, token, &body)?;
+fn ask_jev(input: &Input, token: &str, host: &mut impl Host, route: &JevRoute) -> Result<Answer, String> {
+    let body = serde_json::to_vec(&jev_request(input, route.model)).map_err(|_| "cannot write the request")?;
+    let (status, response) = host.post_json(route.endpoint, token, &body)?;
     if status != 200 {
         return Err(format!("HTTP {status}"));
     }
-    parse_jev_response(&response)
+    parse_jev_response(&response, route)
 }
 
 /// Reads `{"model", "answers": {"answer_is_yes": {"type": "noul", "noul": 0.73}}, "usage"}`.
-pub fn parse_jev_response(bytes: &[u8]) -> Result<Answer, String> {
+pub fn parse_jev_response(bytes: &[u8], route: &JevRoute) -> Result<Answer, String> {
     #[derive(Deserialize)]
     struct Response {
-        model: String,
+        #[serde(default)]
+        model: Option<String>,
         answers: Map<String, Value>,
     }
     let response: Response =
@@ -174,11 +197,11 @@ pub fn parse_jev_response(bytes: &[u8]) -> Result<Answer, String> {
         .and_then(Value::as_f64)
         .and_then(probability_bps)
         .ok_or("the Noul answer is not a probability from 0 to 1")?;
-    let model = clean_model(&response.model).unwrap_or_else(|| JEV_MODEL.to_owned());
+    let model = response.model.as_deref().and_then(clean_model).unwrap_or_else(|| route.model.to_owned());
     Ok(Answer {
         yes_bps,
         provider: "jev",
-        rationale: format!("JEV ({model}) gave a YES probability of {}.", percent(yes_bps)),
+        rationale: format!("JEV ({model}{}) gave a YES probability of {}.", route.via, percent(yes_bps)),
         model,
     })
 }

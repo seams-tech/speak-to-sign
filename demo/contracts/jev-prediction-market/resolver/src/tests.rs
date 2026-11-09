@@ -112,11 +112,11 @@ fn jev_answers_with_a_noul_probability() {
 #[test]
 fn the_noul_probability_rounds_to_basis_points() {
     for (noul, bps) in [(json!(0), 0), (json!(1), 10_000), (json!(0.73456), 7_346), (json!(0.00004), 0), (json!(0.99995), 10_000)] {
-        let answer = parse_jev_response(jev_answer(noul.clone()).to_string().as_bytes()).unwrap();
+        let answer = parse_jev_response(jev_answer(noul.clone()).to_string().as_bytes(), &TYPESAFE_JEV).unwrap();
         assert_eq!(answer.yes_bps, bps, "noul {noul}");
     }
     assert_eq!(
-        parse_jev_response(jev_answer(json!(0.7325)).to_string().as_bytes()).unwrap().rationale,
+        parse_jev_response(jev_answer(json!(0.7325)).to_string().as_bytes(), &TYPESAFE_JEV).unwrap().rationale,
         "JEV (jev-1.14.0) gave a YES probability of 73.25%."
     );
 }
@@ -134,9 +134,9 @@ fn bad_jev_answers_are_errors() {
         (jev_answer(json!(-0.1)), "the Noul answer is not a probability from 0 to 1"),
         (jev_answer(json!("0.7")), "the Noul answer is not a probability from 0 to 1"),
     ] {
-        assert_eq!(parse_jev_response(body.to_string().as_bytes()), Err(error.to_owned()));
+        assert_eq!(parse_jev_response(body.to_string().as_bytes(), &TYPESAFE_JEV), Err(error.to_owned()));
     }
-    assert_eq!(parse_jev_response(b"<html>"), Err("the response is not a JEV answer".to_owned()));
+    assert_eq!(parse_jev_response(b"<html>", &TYPESAFE_JEV), Err("the response is not a JEV answer".to_owned()));
 }
 
 #[test]
@@ -157,8 +157,9 @@ fn a_jev_failure_falls_back_to_near_ai() {
             rationale: "The date is right, but the photo claim is not sourced.".into(),
         })
     );
-    assert_eq!(host.posts.len(), 2);
-    let (url, token, body) = &host.posts[1];
+    assert_eq!(host.posts.len(), 3, "Typesafe, JEV on NEAR AI, then the NEAR AI chat model");
+    assert_eq!(host.posts[1].0, "https://cloud-api.near.ai/v1/systemone");
+    let (url, token, body) = &host.posts[2];
     assert_eq!(url, "https://cloud-api.near.ai/v1/chat/completions");
     assert_eq!(token, "nearai-test-key");
     assert_eq!(body["model"], "Qwen/Qwen3.8-27B");
@@ -173,13 +174,45 @@ fn a_jev_failure_falls_back_to_near_ai() {
 }
 
 #[test]
-fn without_a_typesafe_key_near_ai_answers() {
+fn without_jev_the_near_ai_chat_model_answers() {
     let mut host = FakeHost::with_keys(false, true);
+    host.respond(NEAR_AI_JEV_ENDPOINT, 503, json!({ "error": "unavailable" }));
     host.respond(NEAR_AI_ENDPOINT, 200, near_ai_answer("{\"yes_probability\": 0.05}"));
     let answer = resolve(&input(), &mut host).unwrap();
     assert_eq!(answer.yes_bps, 500);
     assert_eq!(answer.rationale, "NEAR AI (Qwen/Qwen3.8-27B) gave a YES probability of 5%.");
-    assert_eq!(host.posts.len(), 1);
+    assert_eq!(host.posts.len(), 2);
+}
+
+#[test]
+fn jev_on_near_ai_answers_with_the_near_ai_key() {
+    let mut host = FakeHost::with_keys(false, true);
+    host.respond(NEAR_AI_JEV_ENDPOINT, 200, jev_answer(json!(0.73)));
+    assert_eq!(
+        run(&input(), &mut host),
+        json!({
+            "yes_bps": 7_300,
+            "provider": "jev",
+            "model": "jev-1.14.0",
+            "rationale": "JEV (jev-1.14.0, on NEAR AI) gave a YES probability of 73%.",
+        })
+    );
+    assert_eq!(host.posts.len(), 1, "the chat model is not asked");
+    let (url, token, body) = &host.posts[0];
+    assert_eq!(url, "https://cloud-api.near.ai/v1/systemone");
+    assert_eq!(token, "nearai-test-key");
+    assert_eq!(body["model"], "typesafe/jev-1.13");
+    assert_eq!(body["questions"]["answer_is_yes"]["type"], "noul");
+    assert_eq!(body["state"]["market_question"], "Is this note accurate and helpful context for this post?");
+}
+
+#[test]
+fn a_jev_answer_without_a_model_names_the_requested_model() {
+    let mut response = jev_answer(json!(0.4));
+    response.as_object_mut().unwrap().remove("model");
+    let answer = parse_jev_response(response.to_string().as_bytes(), &NEAR_AI_JEV).unwrap();
+    assert_eq!(answer.model, "typesafe/jev-1.13");
+    assert_eq!(answer.rationale, "JEV (typesafe/jev-1.13, on NEAR AI) gave a YES probability of 40%.");
 }
 
 #[test]
@@ -219,7 +252,7 @@ fn every_failure_is_named_in_the_error() {
     host.respond(JEV_ENDPOINT, 500, json!({}));
     assert_eq!(
         run(&input(), &mut host),
-        json!({ "error": "JEV: HTTP 500; NEAR AI: no response" })
+        json!({ "error": "JEV: HTTP 500; JEV on NEAR AI: no response; NEAR AI chat: no response" })
     );
     let mut host = FakeHost::with_keys(false, false);
     assert_eq!(
@@ -268,5 +301,5 @@ fn the_answer_fits_the_contract_rules() {
     }
     let mut response = jev_answer(json!(0.5));
     response["model"] = json!("a model with spaces");
-    assert_eq!(parse_jev_response(response.to_string().as_bytes()).unwrap().model, JEV_MODEL);
+    assert_eq!(parse_jev_response(response.to_string().as_bytes(), &TYPESAFE_JEV).unwrap().model, JEV_MODEL);
 }

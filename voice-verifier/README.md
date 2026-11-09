@@ -91,7 +91,8 @@ Stage times (`ms`, not signed), in ms:
       "this note is somewhat helpful" or "this note is not helpful".
   - The words must match the rendered text of the request. Two kinds of
     forgiveness exist; each applies to words that hold no value:
-    - Send sentence (0.3.1 and later; `spoken-intent` commit `976167297`): the
+    - Send sentence (0.3.1 and later; `spoken-intent` commit `92c21bc`,
+      `976167297` in seams-wallet): the
       first word "sent" or "sends" counts as "send"; a closed list of
       sound-alikes of "near" and of "testnet" counts as the word itself; a
       number sound-alike counts as the number word in the amount slot; and a

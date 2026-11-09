@@ -5,7 +5,8 @@ aloud. A verifier in a TEE hears the audio. It checks the speaker and the
 words against one typed request, and signs a verdict. The Seams Wallet checks
 that verdict and signs the transfer from the owner's own account, with no
 confirm and no passkey. A policy rule can ask for a passkey. This repository
-holds the verifier, the speaker service and the Gate 0 probes. Testnet only.
+holds the verifier, the speaker service, the `spoken-intent` crate and the
+Gate 0 probes. Testnet only.
 
 ## Design in five lines
 
@@ -22,6 +23,7 @@ and `seams-monorepo/docs/refactor-210-voice-intents.md`.
 
 | Folder                   | What it is                                                         |
 | ------------------------ | ------------------------------------------------------------------ |
+| `spoken-intent/`         | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
 | `voice-verifier/`        | The OutLayer worker: `enroll` and `verify`. See its README.        |
 | `speaker-service/`       | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
 | `gate0/`, `voice-probe/` | Gate 0 probes, the FastFS uploader and the HTTPS latency probe.    |

@@ -32,7 +32,7 @@ speaker-service = ["dep:ed25519-dalek"]
 
 [dependencies]
 ed25519-dalek = { version = "2", default-features = false, optional = true }
-spoken-intent = { path = "../../seams-wallet/crates/spoken-intent" }
+spoken-intent = { path = "../spoken-intent" }
 sha2 = "=0.10.9"
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }

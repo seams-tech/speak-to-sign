@@ -8,6 +8,7 @@ import { useSeams } from '@seams/wallet/react';
 import { App as NotesApp } from '../App';
 import { config } from '../config';
 import { LiveMergeScreen } from '../merge/LiveMergeScreen';
+import { createSeamsMarketSigner, MarketSignerContext } from '../market/marketSigner';
 import { createMissingKeySigner, createSeamsSigner } from '../signer/seamsSigner';
 
 export type LiveId = 'notes' | 'merge';
@@ -56,7 +57,12 @@ function SeamsNotes() {
     () => createSeamsSigner({ seams, walletId, nearAccountId, contract: config.contract }),
     [seams, walletId, nearAccountId],
   );
-  return <NotesApp signer={signer} walletConfigured />;
+  const market = useMemo(() => createSeamsMarketSigner({ seams, walletId, contract: config.marketContract }), [seams, walletId]);
+  return (
+    <MarketSignerContext.Provider value={market}>
+      <NotesApp signer={signer} walletConfigured />
+    </MarketSignerContext.Provider>
+  );
 }
 
 function KeylessNotes() {

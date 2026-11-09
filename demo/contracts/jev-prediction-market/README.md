@@ -237,6 +237,41 @@ names only the provider and the HTTP status; it never holds a secret or a
 response body. `resolver/manifest/outlayer.json` allows the hosts
 `api.typesafe.ai` and `cloud-api.near.ai`.
 
+## Market strip in the notes example
+
+`demo/frontend/src/market/` puts one strip inside each note card on the post
+page (design: `pm-ui-mock.html` in the shared notes):
+
+- No market: "Will this note hold up?" and **Open a market** (a seed of 0.1,
+  0.5 or 1 NEAR, and a close time of 10 minutes to 3 days).
+- Open: the pool bar, the odds, the pool size, the bet count, and **Bet yes**
+  / **Bet no**. The bet sheet has the chips 0.1, 0.5 and 1 NEAR and "you get
+  about X NEAR if JEV says 100% and the pools stay as they are". The creator
+  can close the betting early.
+- Closed: **Ask JEV** (0.05 NEAR, 300 Tgas). A failed AI call shows its reason.
+- Resolved: "JEV: 72% this note holds up", the split of the pool, the
+  account's payout with **Claim**, and "Why JEV decided this".
+
+The Seams Wallet signs each call with its normal confirm step. Spoken bets need
+a new spoken request kind in the Wallet. The context that JEV reads is the post
+text and the note text, frozen when the market opens.
+
+Settings: `VITE_MARKET_CONTRACT` (default `pm-notes.seams-v1.testnet`) and
+`VITE_MARKET_RPC_URL` (default: the notes RPC). Until the contract is on
+testnet, the strip says so in one muted line.
+
+To see all states before the deploy, run a local stand-in for testnet. It
+deploys the notes contract and this contract to a sandbox, writes four notes
+on post 1, and opens markets that are open, closed and resolved:
+
+```bash
+./build.sh && NOTES_WASM=../community-notes/res/community_notes.wasm UI_DEMO_OUT=/tmp/ui-demo.json cargo test -p jev-prediction-market-sandbox --test ui_demo -- --ignored --nocapture
+```
+
+Put the printed `VITE_NEAR_RPC_URL`, `VITE_NOTES_CONTRACT` and
+`VITE_MARKET_CONTRACT` in `demo/frontend/.env.development.local`, run
+`pnpm dev` and open `#/notes/post/1`. The page cannot sign in that setup.
+
 ## Gas and storage
 
 Measured in the nearcore 2.14.0 sandbox (`sandbox/tests/sandbox.rs`):

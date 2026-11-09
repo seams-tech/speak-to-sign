@@ -15,6 +15,10 @@ export const config = {
   /** The merge approvals contract on NEAR testnet (demo/contracts/merge-approvals/). */
   mergeContract: env(e.VITE_MERGE_CONTRACT, 'github.seams-v1.testnet'),
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),
+  /** The note market contract on NEAR testnet (demo/contracts/jev-prediction-market/). */
+  marketContract: env(e.VITE_MARKET_CONTRACT, 'pm-notes.seams-v1.testnet'),
+  /** The RPC for the market views. A local sandbox can stand in for testnet in a test. */
+  marketRpcUrl: env(e.VITE_MARKET_RPC_URL, env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com')),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),
   faucetUrl: 'https://docs.near.org/getting-started/faucet',
   /** The Speak to pay page on the same site. */

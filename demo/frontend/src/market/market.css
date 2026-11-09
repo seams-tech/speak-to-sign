@@ -1,0 +1,132 @@
+/* The note market strip (design: pm-ui-mock.html). It sits inside .note-card. */
+.pm-strip {
+  border-top: 1px solid var(--line);
+  padding: 10px 16px 12px;
+  font-size: 13px;
+  display: grid;
+  gap: 8px;
+}
+.pm-quiet {
+  color: var(--muted);
+}
+.pm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pm-between {
+  justify-content: space-between;
+}
+.pm-wrap {
+  flex-wrap: wrap;
+}
+.pm-gap {
+  margin-bottom: 2px;
+}
+.pm-muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.pm-small {
+  font-size: 11px;
+}
+.pm-ink {
+  color: var(--ink);
+}
+.pm-mine {
+  margin-top: -2px;
+}
+.pm-yes {
+  color: #008a5c;
+}
+.pm-no {
+  color: #c4111b;
+}
+.pm-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.pm-bar-yes {
+  background: var(--green);
+  transition: width 0.3s;
+}
+.pm-bar-no {
+  background: var(--red);
+  transition: width 0.3s;
+}
+.pm-btn {
+  flex: 1;
+}
+.btn.pm-on-yes,
+.btn.pm-on-yes:not(:disabled):hover {
+  border-color: var(--green);
+  background: #e6f8f1;
+  color: #008a5c;
+}
+.btn.pm-on-no,
+.btn.pm-on-no:not(:disabled):hover {
+  border-color: var(--red);
+  background: #fdecee;
+  color: #c4111b;
+}
+.pm-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #e6f8f1;
+  color: #008a5c;
+}
+.pm-why {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pm-turn {
+  transform: rotate(180deg);
+}
+.pm-why-text {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+.pm-notice {
+  font-size: 12px;
+  color: #008a5c;
+}
+.pm-notice-bad {
+  color: #c4111b;
+}
+.pm-sheet {
+  display: grid;
+  gap: 12px;
+  font-size: 15px;
+}
+.pm-sheet .pm-muted {
+  font-size: 13px;
+}
+.pm-label {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.pm-amount {
+  margin-left: auto;
+  font-weight: 700;
+}
+.pm-foot {
+  display: grid;
+  gap: 8px;
+}
+.pm-foot .btn {
+  width: 100%;
+}

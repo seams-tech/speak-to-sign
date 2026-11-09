@@ -1,6 +1,7 @@
 import { IconUsers } from '@tabler/icons-react';
 import { MIN_RATINGS_FOR_STATUS, type Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
+import { NoteMarket } from '../market/NoteMarket';
 import { Linkified, VoiceSigned } from './bits';
 
 const ABOUT_URL = 'https://github.com/seams-tech/speak-to-sign';
@@ -110,6 +111,7 @@ function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind;
         </div>
       )}
       {!compact && kind !== 'mine' && (note.author === account ? <OwnNoteRow /> : <RateRow note={note} />)}
+      {!compact && <NoteMarket note={note} />}
     </section>
   );
 }

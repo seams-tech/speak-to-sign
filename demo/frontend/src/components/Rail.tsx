@@ -12,7 +12,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import { shortAccount } from '../config';
-import { useDemo } from '../demoContext';
+import { useDemo, useWriteCue } from '../demoContext';
 import { paths, type Route } from '../router';
 import { BrandMark } from './BrandMark';
 
@@ -103,11 +103,12 @@ export function BottomBar({ route }: { route: Route }) {
   const onTimeline = route.name === 'home' && route.tab === 'for_you';
   const onRate = route.name === 'home' && route.tab === 'needs_help';
   const Home = onTimeline ? IconHomeFilled : IconHome;
+  const cue = useWriteCue(route.name === 'post' ? route.postId : null);
 
   return (
     <>
       {route.name === 'post' && (
-        <button type="button" className="fab" aria-label="Write a note" onClick={() => openWrite(route.postId)}>
+        <button type="button" className={`fab ${cue ? 'fab-cue' : ''}`} aria-label="Write a note" onClick={() => openWrite(route.postId)}>
           <IconFeather size={24} stroke={1.8} aria-hidden="true" />
         </button>
       )}

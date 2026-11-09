@@ -1,6 +1,6 @@
-import { IconArrowLeft, IconDots, IconUsers } from '@tabler/icons-react';
+import { IconArrowLeft, IconDots, IconHandFingerRight, IconUsers } from '@tabler/icons-react';
 import { findPost } from '../data/posts';
-import { useDemo } from '../demoContext';
+import { useDemo, useWriteCue } from '../demoContext';
 import { navigate, paths } from '../router';
 import { ActionRow, AuthorBadge, Avatar, Media, PostHistoryLine, PostText } from './bits';
 import { LoadState } from './LoadState';
@@ -9,6 +9,10 @@ import { PostNotes } from './NotesBox';
 export function PostDetail({ postId }: { postId: number }) {
   const { notesByPost, openWrite } = useDemo();
   const post = findPost(postId);
+  const notes = notesByPost[postId] ?? [];
+  // Until the visitor has a note on this post, the write row is the next step: it is
+  // highlighted, and a hand points at its button.
+  const cue = useWriteCue(postId);
 
   const back = () => navigate(paths.home);
 
@@ -47,15 +51,16 @@ export function PostDetail({ postId }: { postId: number }) {
           {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
           <PostHistoryLine post={post} full />
           <LoadState />
-          <PostNotes notes={notesByPost[post.id] ?? []} />
+          <PostNotes notes={notes} />
           {/* Before the time and the actions, so the button shows without a scroll. */}
-          <div className="write-row">
-            <IconUsers size={20} stroke={1.8} className="muted" aria-hidden="true" />
+          <div className={`write-row ${cue ? 'write-row-cue' : ''}`}>
+            <IconUsers size={20} stroke={1.8} className={cue ? 'cue-icon' : 'muted'} aria-hidden="true" />
             <div className="write-row-text">
               <b>Does this post need context?</b>
               <div className="muted small">Write a Community Note and post it with your voice.</div>
             </div>
-            <button type="button" className="btn btn-dark btn-sm" onClick={() => openWrite(post.id)}>
+            {cue && <IconHandFingerRight size={28} stroke={1.7} className="cue-hand" aria-hidden="true" />}
+            <button type="button" className={`btn btn-sm ${cue ? 'btn-cue' : 'btn-dark'}`} onClick={() => openWrite(post.id)}>
               Write a note
             </button>
           </div>

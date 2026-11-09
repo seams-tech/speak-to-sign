@@ -358,18 +358,26 @@ fn dot_before_testnet_keeps_the_contact_match() {
         read_punctuated("Send 5 near to"),
         Err(PunctuatedRefusal::RecipientNotContact)
     );
-    // A dropped "dash" is not put back: "bob one" is not "bob dash one".
-    assert_eq!(read_punctuated("Send 5 near to bob 1 testnet"), not_contact);
+    // A dropped "dash" matches by the loose key ("bob one" is `bob-1`).
+    assert_eq!(
+        read_punctuated("Send 5 near to bob 1 testnet"),
+        transfer_of("bob-1.testnet", 500)
+    );
     // An added clause after the receiver.
     assert_eq!(
         read_punctuated("Send 5 near to alice testnet and send 5 near to bob testnet"),
         not_contact
     );
-    // A mainnet suffix gets no "dot".
+    // A mainnet suffix gets no "dot", but the loose key leaves the suffix
+    // out, so "alice near" is `alice.near`.
     let mainnet = [account("alice.near")];
     assert_eq!(
-        normalize_punctuated("Send 5 near to alice near", &mainnet),
-        Err(PunctuatedRefusal::RecipientNotContact)
+        normalize_punctuated("Send 5 near to alice near", &mainnet)
+            .map(|tokens| parse_transfer(&tokens, &mainnet)),
+        Ok(ParseResult::Transfer(spoken_intent::ParsedTransfer {
+            receiver: account("alice.near"),
+            amount: NearAmount::from_hundredths(500).expect("speakable"),
+        }))
     );
 }
 
@@ -452,6 +460,140 @@ fn send_slots_forgive_words_that_hold_no_value() {
     }
     assert_eq!(read_punctuated("Send 25 near to testnode"), not_contact);
     assert_eq!(read_punctuated("Send 25 near to test node"), not_contact);
+}
+
+#[test]
+fn account_separators_can_be_said_differently_or_left_out() {
+    for (heard, receiver, hundredths) in [
+        // Other words for a separator.
+        (
+            "Send 25 near to alice period testnet",
+            "alice.testnet",
+            2_500,
+        ),
+        (
+            "Send 25 near to alice full stop testnet",
+            "alice.testnet",
+            2_500,
+        ),
+        (
+            "Send 5 near to bob hyphen 1 dot testnet",
+            "bob-1.testnet",
+            500,
+        ),
+        ("Send 5 near to bob minus one testnet", "bob-1.testnet", 500),
+        // Separators or the network suffix left out.
+        ("Send 25 near to alice", "alice.testnet", 2_500),
+        ("Send 25 near to alice dot", "alice.testnet", 2_500),
+        ("Send 5 near to bob one", "bob-1.testnet", 500),
+        // Amounts: "oh" for zero, "dot" for "point", and no leading zero.
+        (
+            "Send point oh one near to alice dot testnet",
+            "alice.testnet",
+            1,
+        ),
+        (
+            "Send zero dot zero one near to alice dot testnet",
+            "alice.testnet",
+            1,
+        ),
+    ] {
+        assert_eq!(
+            read_punctuated(heard),
+            transfer_of(receiver, hundredths),
+            "{heard}"
+        );
+    }
+
+    let seams = [account("seams-v1.testnet")];
+    let lab = [account("lab_7.testnet")];
+    for (heard, contacts, receiver) in [
+        (
+            "Send 1 NEAR to seams v one.",
+            &seams[..],
+            "seams-v1.testnet",
+        ),
+        ("Send 1 NEAR to seams v1.", &seams[..], "seams-v1.testnet"),
+        (
+            "Send 1 NEAR to Seams hyphen V1 period testnet.",
+            &seams[..],
+            "seams-v1.testnet",
+        ),
+        (
+            "Send 1 near to lab under score seven dot testnet",
+            &lab[..],
+            "lab_7.testnet",
+        ),
+        ("Send 1 near to lab seven", &lab[..], "lab_7.testnet"),
+    ] {
+        let tokens = normalize_punctuated(heard, contacts).expect(heard);
+        assert_eq!(
+            parse_transfer(&tokens, contacts),
+            ParseResult::Transfer(spoken_intent::ParsedTransfer {
+                receiver: account(receiver),
+                amount: NearAmount::from_hundredths(100).expect("speakable"),
+            }),
+            "{heard}"
+        );
+    }
+
+    // Near misses that must stay refused.
+    let not_contact = Err(PunctuatedRefusal::RecipientNotContact);
+    assert_eq!(read_punctuated("Send 25 near to carol"), not_contact);
+    assert_eq!(
+        read_punctuated("Send 25 near to mallory dot testnet"),
+        not_contact
+    );
+    assert_eq!(
+        read_punctuated("Send 25 near to alice and send 5 near to bob"),
+        not_contact
+    );
+    let is_transfer = |heard: &str| matches!(read_punctuated(heard), Ok(ParseResult::Transfer(_)));
+    for heard in [
+        "Send 25 dollars to alice",
+        "Do not send 25 near to alice",
+        "Send near to alice",
+        "Send point to alice",
+    ] {
+        assert!(!is_transfer(heard), "{heard}");
+    }
+}
+
+#[test]
+fn joined_words_match_by_the_sound_of_the_sentence_end() {
+    // Whisper large-v3: "to" joined with the receiver.
+    let contacts = [account("ken.testnet"), account("dana.testnet")];
+    for (heard, receiver, hundredths) in [
+        ("Send 856 near toucane.testnet.", "ken.testnet", 85_600),
+        ("Send 856 near toucane.testnut.", "ken.testnet", 85_600),
+        (
+            "Send 526,844.23 near today in a dot testnet.",
+            "dana.testnet",
+            52_684_423,
+        ),
+    ] {
+        let tokens = normalize_punctuated(heard, &contacts).expect(heard);
+        assert_eq!(
+            parse_transfer(&tokens, &contacts),
+            ParseResult::Transfer(spoken_intent::ParsedTransfer {
+                receiver: account(receiver),
+                amount: NearAmount::from_hundredths(hundredths).expect("speakable"),
+            }),
+            "{heard}"
+        );
+    }
+
+    // The sound of another account, or of no amount, is not read.
+    let alice = [account("alice.testnet")];
+    let refused = |heard: &str, contacts: &[SpokenAccount]| {
+        !matches!(
+            normalize_punctuated(heard, contacts).map(|tokens| parse_transfer(&tokens, contacts)),
+            Ok(ParseResult::Transfer(_))
+        )
+    };
+    assert!(refused("Send 856 near toucane.testnet.", &alice));
+    assert!(refused("Send near toucane.testnet.", &contacts));
+    assert!(refused("Send 856 near tobob.testnet.", &contacts));
 }
 
 #[test]

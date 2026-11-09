@@ -490,6 +490,42 @@
         "refused": "RecipientNotContact"
       },
       "transcript": "Send 25 NEAR to huma.testnet."
+    },
+    {
+      "result": {
+        "tokens": "send twenty five near to alice dot testnet"
+      },
+      "transcript": "Send 25 NEAR to alice period testnet."
+    },
+    {
+      "result": {
+        "tokens": "send five near to bob dash one dot testnet"
+      },
+      "transcript": "Send 5 NEAR to bob hyphen 1 dot testnet"
+    },
+    {
+      "result": {
+        "tokens": "send twenty five near to alice dot testnet"
+      },
+      "transcript": "Send 25 NEAR to alice."
+    },
+    {
+      "result": {
+        "tokens": "send five near to bob dash one dot testnet"
+      },
+      "transcript": "Send 5 NEAR to bob one"
+    },
+    {
+      "result": {
+        "tokens": "send zero point zero one near to alice dot testnet"
+      },
+      "transcript": "Send point oh one NEAR to alice.testnet"
+    },
+    {
+      "result": {
+        "refused": "RecipientNotContact"
+      },
+      "transcript": "Send 25 NEAR to alice and send 5 NEAR to bob"
     }
   ],
   "parse_transfer": [

@@ -30,7 +30,8 @@ const UNIT_SOUND_ALIKES: [&str; 16] = [
 /// Words that Whisper writes for a number word, in the amount slot of a send
 /// sentence only. None of them is a number word, so a spoken number cannot
 /// become another number.
-const AMOUNT_SOUND_ALIKES: [(&str, &str); 6] = [
+const AMOUNT_SOUND_ALIKES: [(&str, &str); 7] = [
+    ("oh", "zero"),
     ("free", "three"),
     ("tree", "three"),
     ("for", "four"),
@@ -56,6 +57,25 @@ const TESTNET_SOUND_ALIKES: [&str; 10] = [
 
 /// The second word when Whisper writes "testnet" as two words ("test node").
 const TESTNET_SECOND_WORDS: [&str; 6] = ["net", "nut", "nit", "node", "note", "mode"];
+
+/// Other words that people say for a separator of an account name
+/// ("seams hyphen v one period testnet"), in the recipient only.
+const SEPARATOR_SAYINGS: [(&str, &str); 4] = [
+    ("period", "dot"),
+    ("point", "dot"),
+    ("hyphen", "dash"),
+    ("minus", "dash"),
+];
+
+/// Two-word sayings of a separator, in the recipient only.
+const SEPARATOR_PAIR_SAYINGS: [(&str, &str, &str); 2] =
+    [("full", "stop", "dot"), ("under", "score", "underscore")];
+
+/// The spoken separators of an account name.
+const SEPARATOR_WORDS: [&str; 3] = ["dot", "dash", "underscore"];
+
+/// The network suffixes that a recipient can end with.
+const NETWORK_WORDS: [&str; 2] = ["testnet", "near"];
 
 /// Punctuation that is removed from the edges of a word before the alias and
 /// account checks.
@@ -136,7 +156,7 @@ pub fn normalize_punctuated(
     two_heard_as_to(&mut tokens);
     unit_slot(&mut tokens);
     let Some(to) = tokens.iter().position(|token| token.as_str() == "to") else {
-        return Ok(tokens);
+        return Ok(joined_by_sound(&tokens, contacts).unwrap_or(tokens));
     };
     let recipient: Vec<&str> = tokens[to + 1..].iter().map(SpokenToken::as_str).collect();
     // A spoken account word may be one letter: "v1" is spoken "v one". The
@@ -148,23 +168,30 @@ pub fn normalize_punctuated(
     {
         return Err(PunctuatedRefusal::RecipientUnkeyable);
     }
-    let contact = recipient_contact(&recipient, contacts)?;
+    let contact = match recipient_contact(&recipient, contacts) {
+        Err(PunctuatedRefusal::RecipientNotContact) => {
+            return joined_by_sound(&tokens, contacts)
+                .ok_or(PunctuatedRefusal::RecipientNotContact);
+        }
+        other => other?,
+    };
     tokens.truncate(to + 1);
     tokens.extend(contact.spoken_tokens());
     Ok(tokens)
 }
 
-/// The recipient match: first the readings with an equal key, in order, and
-/// then the readings with a key one edit apart. A reading that matches two
-/// contacts ends the match as ambiguous.
+/// The recipient match, in this order: the readings with an equal key, the
+/// readings with a key one edit apart, and then both again with loose keys
+/// ([`loose_words`]: no separators and no network suffix). A reading that
+/// matches two contacts ends the match as ambiguous.
 fn recipient_contact<'a>(
     recipient: &[&str],
     contacts: &'a [SpokenAccount],
 ) -> Result<&'a SpokenAccount, PunctuatedRefusal> {
     let readings = recipient_readings(recipient);
-    for one_edit in [false, true] {
+    for (loose, one_edit) in [(false, false), (false, true), (true, false), (true, true)] {
         for words in &readings {
-            match contact_by_key(words, contacts, one_edit) {
+            match contact_by_key(words, contacts, loose, one_edit) {
                 Err(PunctuatedRefusal::RecipientNotContact) => continue,
                 other => return other,
             }
@@ -173,12 +200,21 @@ fn recipient_contact<'a>(
     Err(PunctuatedRefusal::RecipientNotContact)
 }
 
-/// The recipient words as heard, then with the suffix of
+/// The recipient words as heard, then with the separators of
+/// [`separators_said`], then each of these with the suffix of
 /// [`testnet_heard_differently`], then each of these with
 /// [`dot_before_testnet`].
 fn recipient_readings<'a>(recipient: &[&'a str]) -> Vec<Vec<&'a str>> {
     let mut readings = Vec::from([recipient.to_vec()]);
-    readings.extend(testnet_heard_differently(recipient));
+    let said = separators_said(recipient);
+    if said.as_slice() != recipient {
+        readings.push(said);
+    }
+    let suffixed: Vec<Vec<&str>> = readings
+        .iter()
+        .filter_map(|words| testnet_heard_differently(words))
+        .collect();
+    readings.extend(suffixed);
     let with_dot: Vec<Vec<&str>> = readings
         .iter()
         .filter_map(|words| dot_before_testnet(words))
@@ -187,19 +223,76 @@ fn recipient_readings<'a>(recipient: &[&'a str]) -> Vec<Vec<&'a str>> {
     readings
 }
 
+/// Separator rule. A word of [`SEPARATOR_SAYINGS`] or a pair of
+/// [`SEPARATOR_PAIR_SAYINGS`] in the recipient becomes its separator word
+/// ("period" becomes "dot", "full stop" becomes "dot").
+fn separators_said<'a>(recipient: &[&'a str]) -> Vec<&'a str> {
+    let mut words = Vec::with_capacity(recipient.len());
+    let mut index = 0;
+    while index < recipient.len() {
+        let word = recipient[index];
+        let next = recipient.get(index + 1).copied();
+        if let Some((_, _, separator)) = SEPARATOR_PAIR_SAYINGS
+            .iter()
+            .find(|(first, second, _)| *first == word && next == Some(*second))
+        {
+            words.push(*separator);
+            index += 2;
+            continue;
+        }
+        let said = SEPARATOR_SAYINGS.iter().find(|(said, _)| *said == word);
+        words.push(said.map_or(word, |(_, separator)| *separator));
+        index += 1;
+    }
+    words
+}
+
+/// Loose words: the account words without the separator words and without a
+/// final network suffix (or a sound-alike of "testnet"). People leave out
+/// "dot", "dash" and "testnet" ("seams v one" for `seams-v1.testnet`); the
+/// request fixes the network, so the suffix holds no value.
+fn loose_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
+    let mut loose: Vec<&str> = words
+        .iter()
+        .copied()
+        .filter(|word| !SEPARATOR_WORDS.contains(word))
+        .collect();
+    let suffix = |word: &&str| NETWORK_WORDS.contains(word) || TESTNET_SOUND_ALIKES.contains(word);
+    if loose.len() > 1 && loose.last().is_some_and(suffix) {
+        loose.pop();
+    }
+    loose
+}
+
+/// The [`phonetic_key`] of the loose words of an account.
+fn loose_key(account: &SpokenAccount) -> crate::PhoneticKey {
+    let spoken = account.spoken_tokens();
+    let words: Vec<&str> = spoken.iter().map(SpokenToken::as_str).collect();
+    words_key(&loose_words(&words))
+}
+
 /// The one contact whose [`phonetic_key`] equals the key of `words`, or,
 /// with `one_edit`, is at most one edit from it and starts with the same
-/// two letters. A short name with another first sound ("zoe" for "leo",
-/// "jon" for "dan", "anna" for "uma") is one edit away, so the first two
-/// letters must stay.
+/// two letters. With `loose`, both keys come from [`loose_words`]. A short
+/// name with another first sound ("zoe" for "leo", "jon" for "dan", "anna"
+/// for "uma") is one edit away, so the first two letters must stay.
 fn contact_by_key<'a>(
     words: &[&str],
     contacts: &'a [SpokenAccount],
+    loose: bool,
     one_edit: bool,
 ) -> Result<&'a SpokenAccount, PunctuatedRefusal> {
-    let key = words_key(words);
+    let key = if loose {
+        words_key(&loose_words(words))
+    } else {
+        words_key(words)
+    };
     let mut matches = contacts.iter().filter(|contact| {
-        let contact_key = phonetic_key(contact);
+        let contact_key = if loose {
+            loose_key(contact)
+        } else {
+            phonetic_key(contact)
+        };
         if one_edit {
             contact_key
                 .as_str()
@@ -227,13 +320,12 @@ fn contact_by_key<'a>(
 /// - A unit word in [`UNIT_SOUND_ALIKES`] becomes "near". If the word
 ///   before "to" is part of the amount, the unit was not heard, and "near"
 ///   is put in before "to".
-/// - In the amount slot, a word in [`AMOUNT_SOUND_ALIKES`] becomes its
-///   number word, and "dash" is removed ("200-1587.5").
+/// - The amount slot is read by [`read_amount`].
 ///
 /// The rule applies only if the amount slot holds a number word or an
-/// amount sound-alike, and every other word in it is "point" or "dash". So
-/// an empty amount ("send near to …"), a negation ("send not to …") and
-/// any other unit ("send five dollars to …") keep their words.
+/// amount sound-alike, and every other word in it is "point", "dot" or
+/// "dash". So an empty amount ("send near to …"), a negation ("send not to
+/// …") and any other unit ("send five dollars to …") keep their words.
 fn unit_slot(tokens: &mut Vec<SpokenToken>) {
     let Some(to) = tokens.iter().position(|token| token.as_str() == "to") else {
         return;
@@ -246,26 +338,88 @@ fn unit_slot(tokens: &mut Vec<SpokenToken>) {
     let unit_heard = word == "near" || UNIT_SOUND_ALIKES.contains(&word);
     let amount_end = if unit_heard { before_to } else { to };
     let amount = &tokens[1..amount_end];
-    let number = |word: &str| is_number_word(word) || amount_sound_alike(word).is_some();
-    let slot_word = |token: &SpokenToken| {
-        let word = token.as_str();
-        number(word) || word == "point" || word == "dash"
-    };
-    if !amount.iter().any(|token| number(token.as_str())) || !amount.iter().all(slot_word) {
+    if !amount.iter().any(|token| amount_number(token.as_str()))
+        || !amount.iter().all(|token| amount_slot_word(token.as_str()))
+    {
         return;
     }
-    let mut read: Vec<SpokenToken> = Vec::with_capacity(tokens.len() + 1);
+    let mut read: Vec<SpokenToken> = Vec::with_capacity(tokens.len() + 2);
     read.push(SpokenToken::from_static("send"));
+    read.extend(read_amount(amount));
+    read.push(SpokenToken::from_static("near"));
+    read.extend(tokens.drain(to..));
+    *tokens = read;
+}
+
+/// A number word, or a word of [`AMOUNT_SOUND_ALIKES`].
+fn amount_number(word: &str) -> bool {
+    is_number_word(word) || amount_sound_alike(word).is_some()
+}
+
+/// A word that the amount slot can hold.
+fn amount_slot_word(word: &str) -> bool {
+    amount_number(word) || matches!(word, "point" | "dot" | "dash")
+}
+
+/// The amount words as the grammar reads them: a sound-alike becomes its
+/// number word, "dot" becomes "point", "dash" is removed ("200-1587.5"), and
+/// an amount that starts with "point" gets "zero" first ("point oh one").
+fn read_amount(amount: &[SpokenToken]) -> Vec<SpokenToken> {
+    let mut read: Vec<SpokenToken> = Vec::with_capacity(amount.len() + 1);
     for token in amount {
-        match (token.as_str(), amount_sound_alike(token.as_str())) {
+        let word = token.as_str();
+        match (word, amount_sound_alike(word)) {
             ("dash", _) => {}
+            ("dot", _) => read.push(SpokenToken::from_static("point")),
             (_, Some(number)) => read.push(SpokenToken::from_static(number)),
             _ => read.push(token.clone()),
         }
     }
+    if read.first().map(SpokenToken::as_str) == Some("point") {
+        read.insert(0, SpokenToken::from_static("zero"));
+    }
+    read
+}
+
+/// Joined-words rule. Whisper can join "to" with the account ("near
+/// toucane" for "near to ken", "near today in a" for "near to dana"), so no
+/// "to" is heard, or the words after it match no contact. The rule compares
+/// the sound of all the words after the amount with the sound of "near to"
+/// and the loose words of each contact ([`loose_words`]). The keys must be
+/// equal, and exactly one contact must match. The amount is read by
+/// [`read_amount`] and must hold a number word.
+fn joined_by_sound(tokens: &[SpokenToken], contacts: &[SpokenAccount]) -> Option<Vec<SpokenToken>> {
+    let amount_len = tokens
+        .iter()
+        .skip(1)
+        .take_while(|token| amount_slot_word(token.as_str()))
+        .count();
+    let amount = &tokens[1..1 + amount_len];
+    if !amount.iter().any(|token| amount_number(token.as_str())) {
+        return None;
+    }
+    let tail: Vec<&str> = tokens[1 + amount_len..]
+        .iter()
+        .map(SpokenToken::as_str)
+        .collect();
+    let heard = words_key(&loose_words(&tail));
+    let mut matches = contacts.iter().filter(|contact| {
+        let spoken = contact.spoken_tokens();
+        let mut words: Vec<&str> = Vec::from(["near", "to"]);
+        let account: Vec<&str> = spoken.iter().map(SpokenToken::as_str).collect();
+        words.extend(loose_words(&account));
+        words_key(&words) == heard
+    });
+    let contact = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    let mut read = Vec::from([SpokenToken::from_static("send")]);
+    read.extend(read_amount(amount));
     read.push(SpokenToken::from_static("near"));
-    read.extend(tokens.drain(to..));
-    *tokens = read;
+    read.push(SpokenToken::from_static("to"));
+    read.extend(contact.spoken_tokens());
+    Some(read)
 }
 
 /// The number word that a word of [`AMOUNT_SOUND_ALIKES`] stands for.

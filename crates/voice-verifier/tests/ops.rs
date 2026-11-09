@@ -198,6 +198,9 @@ impl Host for Fake {
             .collect();
         self.batch = Some(results);
     }
+    fn post_poll(&mut self) {
+        self.events.push("poll");
+    }
     fn post_wait(&mut self) -> Vec<Timed> {
         self.events.push("wait");
         self.batch.take().unwrap_or_default()
@@ -467,17 +470,17 @@ fn verify_accepts_and_signs_the_verdict() {
     ] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
-    // Both calls went out in one batch, before the storage reads; the audio
-    // is marked used after the decision.
+    // Both calls went out in one batch, before the storage calls; the audio
+    // is marked used during the requests, before the decision.
     assert_eq!(fake.posts[4..], [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
-    assert_eq!(fake.events, ["start", "get", "marker_get", "wait", "marker_set"]);
+    assert_eq!(fake.events, ["start", "get", "poll", "marker_set", "wait"]);
 
-    // The same audio again: refused by the storage check; the batch is
-    // dropped without a wait.
+    // The same audio again: refused by the mark; the batch is dropped
+    // without a wait.
     fake.events.clear();
     let again = call(&mut fake, verify_input(&wav));
     assert_eq!(checked_verdict(&again).reason.map(|r| serde_json::to_value(r).unwrap()), Some(json!("audio_reused")));
-    assert_eq!(fake.events, ["start", "get", "marker_get", "cancel"]);
+    assert_eq!(fake.events, ["start", "get", "poll", "marker_set", "cancel"]);
 }
 
 #[test]
@@ -537,6 +540,7 @@ fn verify_refusals() {
     let mut fake = Fake::new();
     fake.transcript = Some("Send 2 NEAR to alice.testnet.".into());
     assert_eq!(reason(&call(&mut fake, verify_input(&wav))), "template_missing");
+    assert!(fake.markers.is_empty(), "an owner without a template uses up no audio");
 
     let mut fake = enrolled();
     fake.transcript = Some("Send 2 NEAR to alice.testnet.".into());
@@ -544,7 +548,7 @@ fn verify_refusals() {
     let out = call(&mut fake, verify_input(&wav));
     assert_eq!(reason(&out), "speaker_unavailable");
     assert_eq!(out["detail"], "speaker: bad_signature");
-    assert!(fake.markers.len() == 3, "an outage does not burn the audio");
+    assert!(fake.markers.len() == 4, "an outage uses up the audio: the Wallet records again");
 
     let mut fake = enrolled();
     fake.transcript = None;

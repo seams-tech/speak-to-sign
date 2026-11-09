@@ -62,6 +62,12 @@ mod wasm_host {
             self.batch = Some(concurrent::Batch::start(requests));
         }
 
+        fn post_poll(&mut self) {
+            if let Some(batch) = &mut self.batch {
+                batch.poll();
+            }
+        }
+
         fn post_wait(&mut self) -> Vec<Timed> {
             self.batch.take().map(concurrent::Batch::wait).unwrap_or_default()
         }
@@ -264,6 +270,16 @@ mod wasm_host {
                 let mut batch = Self { started, flights };
                 batch.drive(true);
                 batch
+            }
+
+            /// Pushes bodies and takes the responses that are ready, once,
+            /// without waiting.
+            pub fn poll(&mut self) {
+                let started = self.started;
+                for flight in self.flights.iter_mut().filter(|flight| flight.done.is_none()) {
+                    flight.push(started);
+                    flight.collect(started);
+                }
             }
 
             /// Waits for every response.

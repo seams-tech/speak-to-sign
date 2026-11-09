@@ -45,6 +45,10 @@ pub trait Host {
     /// blocking host calls; the host runs the requests during them. One
     /// batch at a time: a new start drops a batch that nobody waited for.
     fn post_start(&mut self, requests: Vec<PostRequest>);
+    /// Takes the responses that are ready now, without waiting, so that a
+    /// response that comes during a storage call gets its own time. Does
+    /// nothing if no batch was started.
+    fn post_poll(&mut self);
     /// Waits for every response of the started batch, in request order.
     /// Empty if no batch was started.
     fn post_wait(&mut self) -> Vec<Timed>;

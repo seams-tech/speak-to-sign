@@ -460,10 +460,10 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
     host.post_start(vec![service_request(&clip.wav, &nonce), transcription_request(&api_key, &clip.wav)]);
     run.ms.insert("send".into(), elapsed(flight));
 
-    // 4. The template and the used-audio check, while the requests are in
+    // 4. The template and the used-audio mark, while the requests are in
     //    flight. A refusal here drops them.
     let stored = Instant::now();
-    let record = match verify_storage(host, &input.owner, &digest_b64u) {
+    let record = match verify_storage(host, &input.owner, &digest_b64u, &mut run.ms) {
         Ok(record) => record,
         Err(reason) => {
             host.post_cancel();
@@ -493,8 +493,7 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
         return Err(Reason::Speaker);
     }
 
-    // 6. The transcript, then the used-audio mark. An outage of either
-    //    service does not burn the recording.
+    // 6. The transcript.
     let transcript = match results.get(1).map(|timed| &timed.result) {
         Some(Ok((status, body))) => parse_reply(*status, body),
         Some(Err(error)) => Err(format!("network: {error}")),
@@ -504,10 +503,6 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
         run.detail = Some(short(&format!("transcriber: {error}")));
         Reason::TranscriberUnavailable
     })?;
-    let marked = Instant::now();
-    let consumed = consume(host, &digest_b64u);
-    run.ms.insert("mark".into(), elapsed(marked));
-    consumed?;
 
     // 7. Words: the heard tokens must equal the rendered tokens (a note
     //    summary may differ by one word, see `words_pass`).
@@ -528,9 +523,19 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
     Ok(decision)
 }
 
-/// The owner's template for the pinned model, after a check that the audio
-/// was not used.
-fn verify_storage(host: &mut dyn Host, owner: &str, digest_b64u: &str) -> Result<TemplateRecord, Reason> {
+/// The owner's template for the pinned model, then the used-audio mark.
+///
+/// The mark is written here, during the requests, and not after the decision:
+/// it is off the critical path, and one atomic write replaces a read and a
+/// later write. So a refusal or a service outage also uses up the recording.
+/// The Wallet records new audio for each try. An owner without a template
+/// uses up nothing.
+fn verify_storage(
+    host: &mut dyn Host,
+    owner: &str,
+    digest_b64u: &str,
+    ms: &mut Map<String, Value>,
+) -> Result<TemplateRecord, Reason> {
     let record = match host.storage_get(&template_key(owner)) {
         Ok(Some(bytes)) => TemplateRecord::decode(&bytes).ok_or(Reason::TemplateMissing)?,
         Ok(None) => return Err(Reason::TemplateMissing),
@@ -539,7 +544,12 @@ fn verify_storage(host: &mut dyn Host, owner: &str, digest_b64u: &str) -> Result
     if record.model_sha256 != model_sha256() {
         return Err(Reason::TemplateMissing);
     }
-    check_unused(host, digest_b64u)?;
+    // A response that came during the template read gets its own time.
+    host.post_poll();
+    let marked = Instant::now();
+    let consumed = consume(host, digest_b64u);
+    ms.insert("mark".into(), elapsed(marked));
+    consumed?;
     Ok(record)
 }
 

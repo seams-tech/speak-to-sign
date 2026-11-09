@@ -12,7 +12,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.5.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.5.1 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -20,6 +20,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.3.0   | `09f4ce1b…` (330,322 bytes, commit `3dab63d`)                      | Replaced. Verdict v2, the policy step, the `AccountTransfer` request, NEP-413 enrollment and `template:v3:<owner>`. It removed the vault.             |
 | 0.3.1   | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | **Live.** 334,704 bytes, commit `446882b`. It adds the forgiving word check for a send sentence. `deployment/wallet-system/targets.json` pins this key. |
 | 0.4.0   | `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | Built and added to the OutLayer project on 2026-11-09. **Not active**: a call reaches it only if the caller sets `version_key`. It adds `community_note` and `note_rating`. Transfers are unchanged. |
+| 0.5.1   | `aae02d5e8a89aff155fde9ccc96a591614bc48e77197bf6e09caef20f83de4f5` | Built on 2026-11-09 (366,594 bytes), not deployed. It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -47,11 +48,18 @@ cargo test          # native tests (fake host), and the shared vectors
 
 The OutLayer storage functions are blocking host calls. So each operation
 starts its HTTPS requests and sends their bodies first (`Host::post_start`),
-then makes its storage reads, then polls the responses (`Host::post_wait`).
+then makes its storage calls, then polls the responses (`Host::post_wait`).
 The host carries the requests during the storage calls. A storage refusal
 (`template_missing`, `audio_reused`, `storage`) drops the requests
 (`Host::post_cancel`); a reused recording can thus cost one NEAR AI call.
-The used-audio mark is written only after a decision, as before.
+
+`verify` reads the template, then writes the used-audio mark with one atomic
+set-if-absent, while the requests are in flight (0.5.1 and later). So the
+mark is off the critical path, and a reused recording is refused by the same
+write. A refusal or a service outage after the mark also uses up the
+recording; the Wallet records new audio for each try. An owner without a
+template uses up nothing. Between the two storage calls, `Host::post_poll`
+takes the responses that are ready, so their times do not include the mark.
 
 Stage times (`ms`, not signed), in ms:
 
@@ -59,14 +67,14 @@ Stage times (`ms`, not signed), in ms:
 | ------------ | -------- | -------- | ------------------------------------------------------------------ |
 | `decode`     | yes      |          | input, request digests, WAV decode, energy gate                    |
 | `send`       | yes      | yes      | start the requests and send the bodies                             |
-| `storage`    | yes      | yes      | template read and used-audio check, during the requests            |
+| `storage`    | yes      | yes      | `verify`: template read and used-audio mark, during the requests   |
 | `wait`       | yes      | yes      | the rest of the network time after the storage calls               |
 | `parallel`   | yes      | yes      | start of the requests to the last response (send + storage + wait) |
 | `speaker`    | yes      | yes      | speaker service response (`enroll`: the slowest of three)          |
-| `transcribe` | yes      |          | NEAR AI response                                                   |
+| `transcribe` | yes      |          | NEAR AI response (at most the template read late)                  |
 | `redimnet`   | yes      |          | the service's own model time                                       |
 | `rpc`        |          | yes      | NEAR RPC access-key view response                                  |
-| `mark`       | yes      |          | used-audio write, after the decision                               |
+| `mark`       | yes      |          | used-audio write, inside `storage`                                 |
 | `policy`     | yes      |          | the policy step                                                    |
 | `write`      |          | yes      | used-audio writes and the template write                           |
 | `sign`       | yes      |          | verdict signature                                                  |

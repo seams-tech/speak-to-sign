@@ -417,6 +417,7 @@ first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'
 | Spoken notes in the Wallet. | `seams-wallet`: `packages/wallet/src` | 2026-11-09 10:25, `bec40080` | `TZ=UTC git -C seams-wallet log -S add_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- packages/wallet/src \| head -1` |
 | The Spoken Notes demo page. | `speak-to-sign`: `demo/frontend/` (was `demo/`; an earlier Python demo client is from 2026-11-07) | 2026-11-09 10:33, `e25f1ec` | `TZ=UTC git -C speak-to-sign log -1 --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' e25f1ec` |
 | The Speak to pay example. | `speak-to-sign`: `examples/` | 2026-11-09 11:05, `2999fd6` | `first speak-to-sign examples` |
+| The JEV prediction market for community notes: a parimutuel USDC market, the OutLayer resolver (JEV on NEAR AI), and the strip in the notes demo. | `speak-to-sign`: `demo/contracts/jev-prediction-market/`, `demo/frontend/src/market/` | 2026-11-09 15:11, `a6c2376` | `first speak-to-sign demo/contracts/jev-prediction-market` |
 
 The diffs:
 
@@ -484,6 +485,7 @@ Each top-level folder says what its contents are for.
 | `packages/speak-to-sign/` | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
 | `demo/frontend/` | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
 | `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
+| `demo/contracts/jev-prediction-market/` | The note market `pm-notes.seams-v1.testnet`: parimutuel bets in testnet USDC on a community note, resolved by JEV through OutLayer (`resolver/`), with a JEV-weighted payout. See its README. |
 | `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
 | `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |
 | `docs/` | The record of the screener commands and their outputs. |
@@ -500,6 +502,8 @@ The code is under the Apache License 2.0 (`LICENSE`).
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |
+| Note market         | `pm-notes.seams-v1.testnet`, code `077f554e7ae3d20b91b24df73969e0475bf7c2ac8818581b8c68615a10b255be`. Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 2 is the demo post's context box (note 0). |
+| Market resolver     | OutLayer project `seams-v1.testnet/pm-notes-resolver`, version `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`: JEV (`typesafe/jev-1.13`) on NEAR AI, then a NEAR AI chat model. |
 
 ## Trust limits
 

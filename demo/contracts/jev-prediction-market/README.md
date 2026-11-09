@@ -383,7 +383,7 @@ Deployed on 10 Nov 2026 from this branch (commit `33a2dfa` and its parents).
 | Worker upload | FastFS transaction `BHYUcVBUby77RkacXUkGzCEwjFmaxcd1MN6bV8m4aCPY` (it fails with `MethodNotFound` by design: FastFS reads the arguments), URL `https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2.wasm` |
 | OutLayer project | `seams-v1.testnet/pm-notes-resolver`, `create_project` transaction `DZM1ogMNDQ5ErcjmC1shRaYHFRyL4jpRFbxqHfgqkHZy` (0.03 NEAR) with version `74dfc1f9…37b2`. Active version `360beda4…223a` (JEV on NEAR AI first): FastFS transaction `DQm7sdhvKZtaHXkJKtxj86huoz7k7GBkPSgQtkFTAS2p`, `add_version` transaction `B7aiWF1QvReAssRgAmepDxrWmuBPufcvsT1FiqfwTCzU` |
 | Secrets | `NEAR_AI_API_KEY`, stored by the user for the project, profile `main`, owner `cyan-loong.testnet`, whitelist `pm-notes.seams-v1.testnet`. `set_resolver_config` transaction `CHQwMo4QzejReMNGUM7jJYU4fhGkWaSMD98Sy7t1x6DE` names it. OutLayer checks a plain whitelist against the signer of the transaction, so the rule needs "Direct calls only" (the contract calls OutLayer), or allow-all. |
-| Markets | 1: a smoke test without a note (2 USDC seed, 1 USDC bet, closed). 2: note 0, the post's context box, "Is this note true?", 10 USDC seed, closes 14 Nov 2026 23:59 UTC (transaction `4veiVAoxTFhxS3CagM9AYDRCMvPzmA9p6Ui5mhsmQmWB`). |
+| Markets | 1: a smoke test without a note (2 USDC seed, 1 USDC bet; an OutLayer run refused by the secret's rule, `2AJa14zS6W8qFhXG3SARxefA2WQ21RhsRSr6E59gjLzL`; admin resolve at 60%, `2HoS6vUx4okHA1ruJ299qtDC8p8Se4uMs1g3kiP151fE`; claim of 3 USDC, `4fypN2aCNB1QXVTrfUqdNnodWb5eWzUvjYt7SzfL456c`). 2: note 0, the post's context box, "Is this note true?", 10 USDC seed, closes 14 Nov 2026 23:59 UTC (transaction `4veiVAoxTFhxS3CagM9AYDRCMvPzmA9p6Ui5mhsmQmWB`). |
 
 Not done yet:
 
@@ -421,6 +421,34 @@ near contract call-function as-read-only pm-notes.seams-v1.testnet get_config js
 ```bash
 near contract call-function as-read-only outlayer.testnet get_project json-args '{"project_id":"seams-v1.testnet/pm-notes-resolver"}' network-config testnet now
 ```
+
+## Demo script
+
+What a judge can do on the demo page (`#/notes/post/1`):
+
+1. **Get money.** The setup card's faucet gives a new account 0.2 NEAR and 2
+   USDC in one transaction (`seams-faucet.testnet`, from the demo page
+   session).
+2. **Bet.** Under the post, the X-style "Readers added context" box asks "Do
+   you bet this is true or false?". **Bet** opens the Note dialog with market 2
+   (note 0). One tap on **Bet yes** or **Bet no** sends USDC with the token's
+   `ft_transfer_call`; the Seams Wallet asks for a confirm. The bar, the odds
+   and the pool move after the transaction.
+3. **Open a market.** After someone writes a note on the post, its card shows
+   "Will this note hold up?" and **Open a market** (a seed of 1, 2 or 5 USDC,
+   and a close time from 10 minutes to 3 days). The creator can close the
+   betting early.
+4. **Ask JEV.** After the close, **Ask JEV now** sends `request_resolution`
+   (0.05 NEAR, 300 Tgas). OutLayer runs the resolver: JEV on NEAR AI gives the
+   probability that the note holds up. The strip then shows "JEV: 72% this
+   note holds up", how the pool is split, and "Why JEV decided this".
+5. **Claim.** **Claim** sends the account's USDC payout.
+
+Checked on testnet on 10 Nov 2026: create, bet, close, the OutLayer run with
+its callback, the admin resolve and the claim (3 USDC back through
+`ft_transfer`). Not yet checked: an answer from JEV through OutLayer (it needs
+"Direct calls only" on the OutLayer secret), and a bet signed with the Seams
+Wallet (it needs a person with a passkey).
 
 ## Credits
 

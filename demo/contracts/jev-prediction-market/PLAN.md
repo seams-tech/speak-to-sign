@@ -193,3 +193,8 @@ spoken request. The strip signs it as a normal wallet call.
     `request_resolution` fee stays NEAR. The minimum bet and seed are 1 USDC,
     and the chips are 1, 5 and 10 USDC. `cyan-loong.testnet` holds USDC to
     seed demo markets. This replaces decisions 7 and 9 for the amounts.
+13. **Smallest bet** (the user, 10 Nov 2026): 0.1 USDC. The seed stays at least
+    1 USDC. The bet chips are 0.1, 0.5 and 1 USDC; the seed chips 1, 2 and 5.
+14. **JEV on NEAR AI** (the user, 10 Nov 2026): the worker calls JEV through
+    NEAR AI Cloud (`typesafe/jev-1.13`) with the NEAR AI key, so no Typesafe
+    key is needed.

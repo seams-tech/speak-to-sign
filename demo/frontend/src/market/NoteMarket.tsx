@@ -576,7 +576,8 @@ function OpenSheet({
   onOpen: (seed: bigint, durationMs: number) => Promise<string | null>;
 }) {
   const titleId = useId();
-  const [seed, setSeed] = useState<bigint>(currency.chips[0] ?? 0n);
+  const seedChips = currency.seedChips ?? currency.chips;
+  const [seed, setSeed] = useState<bigint>(seedChips[0] ?? 0n);
   const [duration, setDuration] = useState(DURATIONS[1]?.ms ?? 60 * MINUTE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -609,7 +610,7 @@ function OpenSheet({
             <b>Your seed</b>: half goes on yes and half on no, so the odds start at 50%. It is paid like any other bet.
           </p>
           <div className="nm-buttons" role="group" aria-label="Seed">
-            {currency.chips.map((chip) => (
+            {seedChips.map((chip) => (
               <button
                 key={chip.toString()}
                 type="button"

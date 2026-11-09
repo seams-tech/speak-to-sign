@@ -25,8 +25,10 @@ export interface Currency {
   /** "NEAR" or "USDC". */
   symbol: string;
   decimals: number;
-  /** The amount chips of the bet sheet and the seed, in base units. */
+  /** The amount chips of the bet sheet, in base units. */
   chips: readonly bigint[];
+  /** The seed chips of "Open a market". Default: `chips`. */
+  seedChips?: readonly bigint[];
   /** The word for the unit in a spoken bet: "near", "dollars". */
   spoken: string;
 }
@@ -120,5 +122,14 @@ export const NEAR_CURRENCY: Currency = { symbol: 'NEAR', decimals: 24, chips: BE
 /** 1 USDC in base units. */
 export const ONE_USDC = 1_000_000n;
 
-/** NEAR testnet USDC: chips of 1, 5 and 10 USDC. */
-export const USDC_CURRENCY: Currency = { symbol: 'USDC', decimals: 6, chips: [ONE_USDC, 5n * ONE_USDC, 10n * ONE_USDC], spoken: 'dollars' };
+/**
+ * NEAR testnet USDC. Bets of 0.1, 0.5 and 1 USDC (the contract's smallest bet is 0.1 USDC), and
+ * seeds of 1, 2 and 5 USDC (its smallest seed is 1 USDC).
+ */
+export const USDC_CURRENCY: Currency = {
+  symbol: 'USDC',
+  decimals: 6,
+  chips: [ONE_USDC / 10n, ONE_USDC / 2n, ONE_USDC],
+  seedChips: [ONE_USDC, 2n * ONE_USDC, 5n * ONE_USDC],
+  spoken: 'dollars',
+};

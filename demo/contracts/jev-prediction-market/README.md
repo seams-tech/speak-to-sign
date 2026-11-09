@@ -48,7 +48,7 @@ Amounts in the JSON are USDC base units as strings: `"1000000"` is 1 USDC.
    the YES pool and half into the NO pool, as the creator's stakes. So the
    odds start at 50%, and one early bet cannot swing them to 100%. Any note
    can have a market.
-2. **Bet.** Anyone sends at least 1 USDC on YES or NO. The USDC stays in its
+2. **Bet.** Anyone sends at least 0.1 USDC on YES or NO. The USDC stays in its
    pool until the payout: there is no sell. The odds are the pool split, YES
    pool / total pool. Each bet adds a point to the odds history. Betting stops
    at `closes_at_ms`, or earlier when the creator or the admin calls
@@ -110,7 +110,7 @@ or `"no"`.
 | `get_markets` | view | `{"before"?, "limit"?}` | | `MarketView[]`, newest first, at most 50 |
 | `get_market_for_note` | view | `{"note_id"}` | | the newest `MarketView` of the note, or `null` |
 | `get_position` | view | `{"market_id", "account_id"}` | | `PositionView` |
-| `quote_bet` | view | `{"market_id", "outcome", "amount"}` | | `BetQuote`, or `null` if the market is not open or the amount is below 1 USDC |
+| `quote_bet` | view | `{"market_id", "outcome", "amount"}` | | `BetQuote`, or `null` if the market is not open or the amount is below 0.1 USDC |
 | `get_odds_history` | view | `{"market_id"}` | | `OddsPoint[]`, the last 50, oldest first |
 | `get_config` | view | `{}` | | `ConfigView` |
 
@@ -123,7 +123,7 @@ To create a market or bet, call the token (1 yoctoNEAR, 100 Tgas):
 The `msg` is one of:
 
 - `{"action": "create_market", "question", "context"?, "note_id"?, "closes_at_ms"}`: the USDC is the seed (1 to 1,000,000 USDC).
-- `{"action": "bet", "market_id", "outcome"}`: a bet (at least 1 USDC).
+- `{"action": "bet", "market_id", "outcome"}`: a bet (at least 0.1 USDC).
 
 Other fields fail the transfer, and the token gives the USDC back.
 
@@ -278,11 +278,11 @@ that interface from this contract: views over NEAR RPC, and changes signed by
 the Seams Wallet with its normal confirm step. Bets and seeds are the USDC
 token's `ft_transfer_call`. `NoteCard` mounts the strip on the post page:
 
-- No market: "Will this note hold up?" and **Open a market** (a seed of 1, 5
-  or 10 USDC, and a close time of 10 minutes to 3 days). The context that JEV
+- No market: "Will this note hold up?" and **Open a market** (a seed of 1, 2
+  or 5 USDC, and a close time of 10 minutes to 3 days). The context that JEV
   reads is the post text and the note text, frozen at the open.
 - Open: the pool bar, the odds, the odds line from `get_odds_history`, the
-  pool size, the bet count, and **Bet yes** / **Bet no** (chips 1, 5 and 10
+  pool size, the bet count, and **Bet yes** / **Bet no** (chips 0.1, 0.5 and 1
   USDC, with the account's USDC balance). The creator sees **Close betting
   now**.
 - Closed: **Ask JEV now** (0.05 NEAR, 300 Tgas). A `resolution_failed` event
@@ -342,9 +342,9 @@ code.
 ./build.sh
 ```
 
-The build of 10 Nov 2026 gave `res/jev_prediction_market.wasm`, 274,282
-bytes, SHA-256
-`a1f89e15a61f191cbb6dc8fd94c9cb11effafe132d2c819ff2147b7ad7544621`. It also
+The build of 10 Nov 2026 with the 0.1 USDC smallest bet gave
+`res/jev_prediction_market.wasm`, 274,282 bytes, SHA-256
+`077f554e7ae3d20b91b24df73969e0475bf7c2ac8818581b8c68615a10b255be`. It also
 builds `res/fake_usdc.wasm` and `res/fake_outlayer.wasm` for the sandbox
 test.
 
@@ -364,8 +364,8 @@ cd resolver && cargo test && ./build.sh
 ```
 
 The worker build of 10 Nov 2026 gave `resolver/res/pm-notes-resolver.wasm`,
-428,789 bytes, SHA-256
-`74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2`. The
+429,160 bytes, SHA-256
+`360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`. The
 SHA-256 is the OutLayer version key. `resolver/manifest/outlayer.json` is
 linked into the WASM as the `outlayer.manifest` custom section; without it,
 OutLayer gives the worker no network access.
@@ -378,18 +378,20 @@ Deployed on 10 Nov 2026 from this branch (commit `33a2dfa` and its parents).
 | ---- | ----- |
 | Contract account | `pm-notes.seams-v1.testnet`, created by `seams-v1.testnet` with 3 NEAR, transaction `9DSNvSAoJtgZ7iFxwg6kYtJkQvgYfZrcceznF2FWDoX8` |
 | Deploy and `new` | transaction `BsCqyBD52fZykqEU622qmqrh9aaQ5g2AmrmGQouP7WFU`; admin `seams-v1.testnet`; token: testnet USDC; resolver `outlayer.testnet`, project `seams-v1.testnet/pm-notes-resolver`, no `secrets_ref` yet |
-| Code hash (base58) | `BuGX3Kt1b4u5TpcHRuPtczUV6Q6KbKLTPATttMaLANR6`, the SHA-256 `a1f89e15…544621` of the release WASM above |
+| Code hash (base58) | `WGU9Uhk1J5UWFrdSYRRmAxfdpa33QHZqmuAJmKCi6dB`, the SHA-256 `077f554e…55be` of the release WASM above. Upgrade to the 0.1 USDC smallest bet: transaction `Bz551nVETJEVgp2LDu9YyNiREEa3KrGv51WHYHWJTkN7` (no init call; the state stays). The first code was `a1f89e15…544621`. |
 | USDC registration | `pm-notes.seams-v1.testnet`: transaction `B5EAbZHXDb2qXmCBnXFcxCeCQxWdTaF6tKPGSmPMEjpj`; `seams-v1.testnet`: transaction `6vdntmaFRLHc1h61gPAF2a133dswbAUxcWHtif3Ks1p` |
 | Worker upload | FastFS transaction `BHYUcVBUby77RkacXUkGzCEwjFmaxcd1MN6bV8m4aCPY` (it fails with `MethodNotFound` by design: FastFS reads the arguments), URL `https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2.wasm` |
-| OutLayer project | `seams-v1.testnet/pm-notes-resolver`, `create_project` transaction `DZM1ogMNDQ5ErcjmC1shRaYHFRyL4jpRFbxqHfgqkHZy` (0.03 NEAR), active version `74dfc1f9…37b2` |
+| OutLayer project | `seams-v1.testnet/pm-notes-resolver`, `create_project` transaction `DZM1ogMNDQ5ErcjmC1shRaYHFRyL4jpRFbxqHfgqkHZy` (0.03 NEAR) with version `74dfc1f9…37b2`. Active version `360beda4…223a` (JEV on NEAR AI first): FastFS transaction `DQm7sdhvKZtaHXkJKtxj86huoz7k7GBkPSgQtkFTAS2p`, `add_version` transaction `B7aiWF1QvReAssRgAmepDxrWmuBPufcvsT1FiqfwTCzU` |
+| Secrets | `NEAR_AI_API_KEY`, stored by the user for the project, profile `main`, owner `cyan-loong.testnet`, whitelist `pm-notes.seams-v1.testnet`. `set_resolver_config` transaction `CHQwMo4QzejReMNGUM7jJYU4fhGkWaSMD98Sy7t1x6DE` names it. OutLayer checks a plain whitelist against the signer of the transaction, so the rule needs "Direct calls only" (the contract calls OutLayer), or allow-all. |
+| Markets | 1: a smoke test without a note (2 USDC seed, 1 USDC bet, closed). 2: note 0, the post's context box, "Is this note true?", 10 USDC seed, closes 14 Nov 2026 23:59 UTC (transaction `4veiVAoxTFhxS3CagM9AYDRCMvPzmA9p6Ui5mhsmQmWB`). |
 
 Not done yet:
 
-1. **OutLayer secrets.** Store `NEAR_AI_API_KEY` and, if you have it,
-   `TYPESAFE_API_KEY` for the project `seams-v1.testnet/pm-notes-resolver`
-   (for example profile `main`, owner `cyan-loong.testnet`, as for the voice
-   verifier). Allow the caller `pm-notes.seams-v1.testnet`: the contract
-   requests the run. Then the admin names the secrets:
+1. **OutLayer secrets** (stored; the access rule needs "Direct calls only").
+   For a new secret: store `NEAR_AI_API_KEY` and, if you have it,
+   `TYPESAFE_API_KEY` for the project `seams-v1.testnet/pm-notes-resolver`,
+   with a whitelist `pm-notes.seams-v1.testnet` and "Direct calls only". Then
+   the admin names the secrets:
 
    ```bash
    near contract call-function as-transaction pm-notes.seams-v1.testnet set_resolver_config json-args '{"resolver":{"outlayer_account":"outlayer.testnet","project_id":"seams-v1.testnet/pm-notes-resolver","secrets_ref":{"profile":"main","account_id":"cyan-loong.testnet"}}}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send

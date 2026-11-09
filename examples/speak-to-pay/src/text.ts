@@ -1,8 +1,11 @@
-import type { SpeakToSignEnrollmentResult, SpeakToSignTransferResult } from '@seams/wallet';
+import type {
+  SpeakToSignEnrollmentResult,
+  SpeakToSignTransferResult,
+  SpeakToSignUnavailableReason,
+} from '@seams/wallet';
 
 type TransferRefusal = Extract<SpeakToSignTransferResult, { kind: 'refused' }>['reason'];
 type EnrollmentRefusal = Extract<SpeakToSignEnrollmentResult, { kind: 'refused' }>['reason'];
-type Unavailable = Extract<SpeakToSignTransferResult, { kind: 'unavailable' }>['reason'];
 type Sent = Extract<SpeakToSignTransferResult, { kind: 'sent' }>;
 
 const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
@@ -22,7 +25,7 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   receiver_missing: 'The receiver account does not exist on NEAR testnet.',
   verdict_mismatch: 'The signed verdict did not match this payment, or it expired.',
   transaction_failed: 'NEAR ran the transfer, and it failed.',
-  // SDK 0.60.0: the Seams co-signer refused the verdict.
+  // The Seams co-signer checks the verdict again before it signs. These two are its refusals.
   voice_limit: 'This payment is over the voice limit: 10 NEAR per payment, 20 NEAR in 24 hours.',
   cosigner_refused: 'Seams did not accept the verdict, so nothing was signed.',
 };
@@ -40,7 +43,7 @@ const ENROLLMENT_REFUSALS: Record<EnrollmentRefusal, string> = {
   authorization_unavailable: 'The verifier could not read your account key on NEAR.',
 };
 
-const UNAVAILABLE: Record<Unavailable, string> = {
+const UNAVAILABLE: Record<SpeakToSignUnavailableReason, string> = {
   flow_not_available: 'This Wallet cannot start the flow.',
   voiceid_unavailable: 'VoiceID is not on for this wallet. Do step 1 first.',
   verifier_unavailable: 'The Seams verify route did not answer.',
@@ -56,7 +59,7 @@ export function enrollmentRefusalText(reason: EnrollmentRefusal): string {
   return ENROLLMENT_REFUSALS[reason];
 }
 
-export function unavailableText(reason: Unavailable): string {
+export function unavailableText(reason: SpeakToSignUnavailableReason): string {
   return UNAVAILABLE[reason];
 }
 

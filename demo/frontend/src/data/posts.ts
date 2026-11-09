@@ -28,6 +28,21 @@ export interface PostHistory {
   source: { title: string; url: string };
 }
 
+/**
+ * The Community Note that the post got on X, in our own words, without the account's name or
+ * links. The post page shows it as "Readers added context", and its bet question opens the note
+ * market.
+ */
+export interface PostContext {
+  text: string;
+  /** Short lines under the text, for example other posts of the same account. */
+  examples: string[];
+  /** The day the note became "Currently rated helpful", for example "Oct 29". */
+  ratedHelpfulOn: string;
+  /** What raters said about the note. */
+  tags: string[];
+}
+
 /** A note that the write dialog starts with, so a demo needs no typing. Every field can change. */
 export interface NoteDraft {
   classification: 'misleading' | 'not_misleading';
@@ -54,6 +69,7 @@ export interface Post {
   /** The counts on the action row. Real posts have none here: the page does not invent them. */
   stats?: { replies: string; reposts: string; likes: string; bookmarks: string; views: string };
   history: PostHistory;
+  context?: PostContext;
   noteDraft?: NoteDraft;
 }
 
@@ -81,6 +97,15 @@ export const POSTS: Post[] = [
         title: 'Fact-check: the viral post on deleted iPhone photos and Claude Code falls apart',
         url: 'https://pasqualepillitteri.it/en/news/28147/deleted-iphone-photos-claude-code-viral-post',
       },
+    },
+    context: {
+      text: 'The author posts AI-generated engagement bait every day, with random claims about deleted photos or videos.',
+      examples: [
+        'Another post from the same account says that Claude Code found 12,847 photos of the author’s face.',
+        'Another says that it found 214,856 deleted photos and videos.',
+      ],
+      ratedHelpfulOn: 'Oct 29',
+      tags: ['Easy to understand', 'Provides important context'],
     },
     noteDraft: {
       classification: 'misleading',

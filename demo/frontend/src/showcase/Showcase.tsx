@@ -5,14 +5,16 @@ import { SignInModal } from '../components/SignInModal';
 import { config } from '../config';
 import { paths, START_POST_ID } from '../router';
 import { EXAMPLES, type ExampleId, type VoiceExample } from './examples';
-import { BrowserChrome, DrawnFrame, FitScreen, ScaledScreen, WalletVoiceCard } from './frame';
+import { BrowserChrome, DrawnFrame, FitScreen, ScaledScreen } from './frame';
 import { LiveApps, LiveSlot } from './live';
+import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
 import { MergeScreen, MultisigScreen } from './screens';
 import { ExampleWindow } from './window';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
 const MERGE_INTRO =
   'Your merge approval is signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
+const SETUP_INTRO = 'Create a Seams Wallet with a passkey, or sign in to yours. It is a NEAR testnet account.';
 
 // One page. The hash names the open window: #/notes (and the notes app's own pages under it),
 // #/merge or #/multisig. No hash: no window.
@@ -45,7 +47,8 @@ export function Showcase({ seams }: { seams: boolean }) {
   const hash = useHash();
   const routed = exampleFromHash(hash);
   const [shown, setShown] = useState<ExampleId | null>(routed);
-  const [mergeSignIn, setMergeSignIn] = useState(false);
+  // The sign-in dialog, with the line that says what the wallet signs here.
+  const [signIn, setSignIn] = useState<string | null>(null);
   const closing = shown !== null && routed !== shown;
 
   useEffect(() => {
@@ -79,7 +82,7 @@ export function Showcase({ seams }: { seams: boolean }) {
           </div>
         </header>
         <main className="ss-col">
-          <Hero />
+          <Intro seams={seams} onSignIn={() => setSignIn(SETUP_INTRO)} />
           <Apps seams={seams} shown={shown} />
         </main>
         <footer className="ss-footer">
@@ -100,7 +103,7 @@ export function Showcase({ seams }: { seams: boolean }) {
           title={open.title}
           tag={tagOf(open)}
           tone={open.status === 'live' ? 'live' : 'example'}
-          url={open.id === 'notes' ? `${window.location.host}/${hash}` : open.url}
+          url={open.url}
           closing={closing}
           onClose={closeWindow}
           onExited={onExited}
@@ -109,10 +112,8 @@ export function Showcase({ seams }: { seams: boolean }) {
         </ExampleWindow>
       )}
 
-      <LiveApps seams={seams} mergeSay={merge?.say ?? ''} onMergeSignIn={() => setMergeSignIn(true)} />
-      {seams && mergeSignIn && (
-        <SignInModal intro={MERGE_INTRO} onClose={() => setMergeSignIn(false)} onSignedIn={() => setMergeSignIn(false)} />
-      )}
+      <LiveApps seams={seams} mergeSay={merge?.say ?? ''} onMergeSignIn={() => setSignIn(MERGE_INTRO)} />
+      {seams && signIn && <SignInModal intro={signIn} onClose={() => setSignIn(null)} onSignedIn={() => setSignIn(null)} />}
     </>
   );
 }
@@ -121,27 +122,39 @@ function tagOf(example: VoiceExample): string {
   return example.status === 'live' ? 'Live on testnet' : 'Example';
 }
 
-function Hero() {
+/** What Speak-to-Sign is, in three steps, and the setup card. */
+function Intro({ seams, onSignIn }: { seams: boolean; onSignIn: () => void }) {
   return (
-    <section className="ss-hero" aria-labelledby="hero-title">
-      <div className="ss-hero-main">
-        <h1 id="hero-title" className="ss-display">
-          Say what you approve.
-          <br />
-          Your wallet signs it.
+    <section className="ss-intro" aria-labelledby="intro-title">
+      <div className="ss-intro-text">
+        <h1 id="intro-title" className="ss-display">
+          Sign with your voice.
         </h1>
-        <p className="ss-sub">A verifier checks your voice and your words. Then your wallet signs that one request.</p>
-        <div className="ss-ctas">
-          <a className="ss-btn ss-btn-primary ss-btn-lg" href={openHref('notes')}>
-            Try the demo <IconChevronRight size={16} stroke={2.4} aria-hidden="true" />
-          </a>
-        </div>
+        <p className="ss-sub">
+          Speak-to-Sign lets you approve a wallet request by saying it. Your Seams Wallet signs only when the voice is
+          yours and the words match the request.
+        </p>
+        <ol className="ss-how">
+          <li>
+            <b>Say the request.</b> The Wallet shows one short sentence, for example “this note is helpful”.
+          </li>
+          <li>
+            <b>A verifier checks it.</b> It hears that the account owner speaks, and that the words match the request.
+          </li>
+          <li>
+            <b>Your wallet signs that one call.</b> No confirm tap. The permission ends after two minutes.
+          </li>
+        </ol>
       </div>
-      <div className="ss-hero-demo">
-        <div className="ss-grain" aria-hidden="true" />
-        <div className="ss-hero-stage">
-          <WalletVoiceCard say="this note is helpful" />
+      <div className="ss-setup-card">
+        <div className="ss-setup-head">
+          <h2 className="ss-setup-title">Set up</h2>
+          <span className="ss-setup-sub">Once · NEAR testnet</span>
         </div>
+        {seams ? <SeamsOnboarding onSignIn={onSignIn} /> : <KeylessOnboarding />}
+        <a className="ss-btn ss-btn-primary ss-setup-go" href={openHref('notes')}>
+          Try the demo <IconChevronRight size={15} stroke={2.4} aria-hidden="true" />
+        </a>
       </div>
     </section>
   );
@@ -149,10 +162,7 @@ function Hero() {
 
 function Apps({ seams, shown }: { seams: boolean; shown: ExampleId | null }) {
   return (
-    <section className="ss-section ss-rule" aria-labelledby="apps-title">
-      <h2 id="apps-title" className="ss-display ss-section-title">
-        One sentence, one signature.
-      </h2>
+    <section className="ss-section ss-rule" aria-label="Examples">
       <div className="ss-apps">
         {EXAMPLES.map((example, index) => (
           <AppRow key={example.id} example={example} flip={index % 2 === 1} seams={seams} away={shown === example.id} />
@@ -178,7 +188,7 @@ function AppRow({ example, flip, seams, away }: { example: VoiceExample; flip: b
       </div>
       <div className="ss-app-screen" data-example-screen={example.id}>
         <DrawnFrame tag={tagOf(example)} tone={live ? 'live' : 'example'}>
-          <BrowserChrome url={live ? `${window.location.host}/${openHref(example.id)}` : example.url}>
+          <BrowserChrome url={example.url}>
             <div className="ss-preview" inert>
               <SmallScreen example={example} seams={seams} away={away} />
             </div>
@@ -198,7 +208,7 @@ function AppRow({ example, flip, seams, away }: { example: VoiceExample; flip: b
 function SmallScreen({ example, seams, away }: { example: VoiceExample; seams: boolean; away: boolean }) {
   if (example.id === 'notes') {
     return (
-      <ScaledScreen width={1280} height={800}>
+      <ScaledScreen width={960} height={680}>
         <LiveSlot id="notes" active={!away} />
       </ScaledScreen>
     );

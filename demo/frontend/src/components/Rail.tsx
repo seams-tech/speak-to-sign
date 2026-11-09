@@ -6,15 +6,13 @@ import {
   IconDotsCircleHorizontal,
   IconFeather,
   IconHome,
-  IconHomeFilled,
   IconMail,
   IconSearch,
   IconUser,
 } from '@tabler/icons-react';
 import { shortAccount } from '../config';
 import { useDemo, useWriteCue } from '../demoContext';
-import { paths, type Route } from '../router';
-import { BrandMark } from './BrandMark';
+import type { Route } from '../router';
 
 const DECOR = [
   { label: 'Explore', Icon: IconSearch },
@@ -27,44 +25,29 @@ const DECOR = [
 
 /**
  * The left navigation. Wide screens show the labels; narrow screens show icons only.
- * Only Home and the main button work; the other items copy the look.
+ * The demo has one page, the post, so the menu items copy the look only, in a dim grey that does
+ * not invite a click. The account works.
  */
-export function Rail({ route }: { route: Route }) {
-  const { account, status, openWrite, openSignIn } = useDemo();
-  const onHome = route.name === 'home';
-  const Home = onHome ? IconHomeFilled : IconHome;
+export function Rail() {
+  const { account, status, openSignIn } = useDemo();
 
   return (
     <header className="rail">
       <nav className="rail-inner" aria-label="Main">
-        <a className="rail-logo" href={paths.home} aria-label="Spoken Notes, home">
-          <BrandMark />
-        </a>
-        <a className="rail-item rail-link" href={paths.home} aria-current={onHome ? 'page' : undefined}>
+        <span className="rail-item" aria-hidden="true">
           <span className="rail-item-pill">
-            <Home size={26} stroke={1.8} aria-hidden="true" />
-            <span className={`rail-label ${onHome ? 'rail-label-on' : ''}`}>Home</span>
+            <IconHome size={24} stroke={1.8} />
+            <span className="rail-label">Home</span>
           </span>
-        </a>
+        </span>
         {DECOR.map(({ label, Icon }) => (
           <span key={label} className="rail-item" aria-hidden="true">
             <span className="rail-item-pill">
-              <Icon size={26} stroke={1.6} />
+              <Icon size={24} stroke={1.6} />
               <span className="rail-label">{label}</span>
             </span>
           </span>
         ))}
-        {route.name === 'post' ? (
-          <button type="button" className="rail-cta" onClick={() => openWrite(route.postId)}>
-            <IconFeather className="rail-cta-icon" size={22} stroke={1.8} aria-hidden="true" />
-            <span className="rail-cta-label">Write a note</span>
-          </button>
-        ) : (
-          <a className="rail-cta" href={paths.needsHelp}>
-            <IconChecklist className="rail-cta-icon" size={22} stroke={1.8} aria-hidden="true" />
-            <span className="rail-cta-label">Rate notes</span>
-          </a>
-        )}
       </nav>
 
       {account ? (
@@ -95,14 +78,11 @@ export function Rail({ route }: { route: Route }) {
 
 /**
  * The tab bar at the bottom of a phone screen, where the left navigation is hidden.
- * Home, Rate and the account work; Search, Notifications and Messages copy the look.
+ * The account works; the other places copy the look.
  * On a post page, a round button writes a note.
  */
 export function BottomBar({ route }: { route: Route }) {
   const { account, openWrite, openSignIn } = useDemo();
-  const onTimeline = route.name === 'home' && route.tab === 'for_you';
-  const onRate = route.name === 'home' && route.tab === 'needs_help';
-  const Home = onTimeline ? IconHomeFilled : IconHome;
   const cue = useWriteCue(route.name === 'post' ? route.postId : null);
 
   return (
@@ -113,15 +93,15 @@ export function BottomBar({ route }: { route: Route }) {
         </button>
       )}
       <nav className="bottom-bar" aria-label="Main">
-        <a className="bottom-item" href={paths.home} aria-label="Home" aria-current={onTimeline ? 'page' : undefined}>
-          <Home size={26} stroke={1.8} aria-hidden="true" />
-        </a>
+        <span className="bottom-item" aria-hidden="true">
+          <IconHome size={26} stroke={1.8} />
+        </span>
         <span className="bottom-item" aria-hidden="true">
           <IconSearch size={26} stroke={1.6} />
         </span>
-        <a className="bottom-item" href={paths.needsHelp} aria-label="Rate notes" aria-current={onRate ? 'page' : undefined}>
-          <IconChecklist size={26} stroke={onRate ? 2.4 : 1.6} aria-hidden="true" />
-        </a>
+        <span className="bottom-item" aria-hidden="true">
+          <IconChecklist size={26} stroke={1.6} />
+        </span>
         <span className="bottom-item" aria-hidden="true">
           <IconBell size={26} stroke={1.6} />
         </span>

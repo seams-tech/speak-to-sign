@@ -176,10 +176,6 @@ h1.ss-display {
   }
 }
 
-.ss-page .ss-section-title {
-  margin-bottom: 56px;
-}
-
 .ss-brand {
   white-space: nowrap;
   display: inline-flex;
@@ -217,72 +213,106 @@ h1.ss-display {
   pointer-events: none;
 }
 
-/* ---------- hero ---------- */
+/* ---------- intro: what Speak-to-Sign is, and the setup card ---------- */
 
-.ss-hero {
+.ss-intro {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 620px;
-}
-
-.ss-hero-main {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-  padding: 72px 44px;
-}
-
-.ss-ctas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-}
-
-.ss-hero-demo {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 56px;
   align-items: center;
-  justify-content: center;
-  gap: 22px;
-  padding: 48px 32px 28px;
-  border-left: 1px solid var(--stone);
-  background:
-    radial-gradient(120% 90% at 100% 100%, #efc3c6 0%, rgba(239, 195, 198, 0) 55%),
-    radial-gradient(100% 80% at 0% 0%, #2f86bd 0%, rgba(47, 134, 189, 0) 60%),
-    linear-gradient(160deg, #4f8fbf 0%, #7fa9cc 42%, #c6aebd 78%, #e9c2c4 100%);
+  padding: 72px 44px 64px;
 }
 
-/* Film grain over the gradient, like the Seams Wallet hero field. */
-.ss-grain {
+.ss-intro-text {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.ss-how {
+  list-style: none;
+  counter-reset: how;
+  display: grid;
+  gap: 14px;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.ss-how li {
+  position: relative;
+  max-width: 34rem;
+  padding-left: 40px;
+  counter-increment: how;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--graphite);
+}
+
+.ss-how li::before {
+  content: counter(how);
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.38;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-.ss-hero-stage {
-  position: relative;
+  left: 0;
+  top: -2px;
+  width: 26px;
+  height: 26px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  animation: ss-rise 420ms ease both;
+  justify-content: center;
+  border: 1px solid var(--stone);
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-@keyframes ss-rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
+.ss-how b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* The setup card holds the notes app's setup steps (.steps), in the page's type. */
+.ss-setup-card {
+  padding: 24px 24px 22px;
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-card);
+  background: #ffffff;
+  box-shadow: 0 24px 48px -32px rgba(15, 23, 42, 0.35);
+}
+
+.ss-setup-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ss-setup-title {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.ss-setup-sub {
+  font-size: 12.5px;
+  color: var(--smoke);
+}
+
+.ss-setup-card .steps {
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.ss-setup-card .step {
+  font-size: 15px;
+}
+
+.ss-setup-card .side-note {
+  line-height: 1.45;
+}
+
+.ss-page .ss-setup-go {
+  width: 100%;
+  margin-top: 20px;
 }
 
 /* ---------- the Seams Wallet voice card ---------- */
@@ -747,6 +777,11 @@ h1.ss-display {
   inset: max(14px, 2.5dvh) 5vw;
   display: flex;
   outline: none;
+}
+
+/* The notes app has two columns (240 + 600), so its window is narrower. */
+.ss-window[data-example='notes'] {
+  inset: max(14px, 2.5dvh) max(5%, calc((100% - 900px) / 2));
 }
 
 .ss-window .ss-drawn {
@@ -1785,17 +1820,10 @@ h1.ss-display {
 }
 
 @media (max-width: 980px) {
-  .ss-hero {
+  .ss-intro {
     grid-template-columns: 1fr;
-    min-height: 0;
-  }
-  .ss-hero-main {
-    padding: 56px 28px 40px;
-  }
-  .ss-hero-demo {
-    border-left: none;
-    border-top: 1px solid var(--stone);
-    padding: 40px 20px 24px;
+    gap: 36px;
+    padding: 56px 28px 48px;
   }
   .ss-app,
   .ss-app-flip {
@@ -1824,8 +1852,11 @@ h1.ss-display {
     justify-content: space-between;
     padding: 10px 16px;
   }
-  .ss-hero-main {
-    padding: 44px 16px 32px;
+  .ss-intro {
+    padding: 44px 16px 40px;
+  }
+  .ss-setup-card {
+    padding: 20px 18px 18px;
   }
   .ss-section {
     padding: 52px 16px;
@@ -1846,8 +1877,7 @@ h1.ss-display {
 
 @media (prefers-reduced-motion: reduce) {
   .ss-wave i,
-  .sw-btn svg,
-  .ss-hero-stage {
+  .sw-btn svg {
     animation: none;
   }
 }

@@ -74,6 +74,14 @@ fn transfer(network: Network, receiver: &str, hundredths: u64) -> SpokenRequestV
 
 const NOTES_CONTRACT: &str = "community-notes.testnet";
 
+/// The note of every community note vector. The Wallet's port hashes the same text.
+const NOTE_TEXT: &str = "The city closes one lane for two weeks of repairs. The bridge stays open to traffic. harborcity.gov/notices/1182";
+
+fn note_sha256() -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(NOTE_TEXT.as_bytes()).into()
+}
+
 /// An implicit account: 64 lowercase hex characters.
 const IMPLICIT_OWNER: &str = "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29";
 
@@ -228,7 +236,7 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
             note(
                 "owner.testnet",
                 7,
-                sequential_hash,
+                note_sha256(),
                 "The bridge stays open, only one lane closes for two weeks.",
             ),
         ),
@@ -237,13 +245,13 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
             note(
                 IMPLICIT_OWNER,
                 0,
-                [0xab; 32],
+                note_sha256(),
                 "The city approved the repairs",
             ),
         ),
         (
             "community_note_one_word",
-            note("owner.testnet", u64::MAX, [0u8; 32], "False!"),
+            note("owner.testnet", u64::MAX, note_sha256(), "False!"),
         ),
         ("note_rating_helpful", rating(1, NoteRatingV1::Helpful)),
         (

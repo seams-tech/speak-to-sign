@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
-import { Rail } from './components/Rail';
+import { BottomBar, Rail } from './components/Rail';
 import { HowItWorks, SetupPanel } from './components/SetupPanel';
 import { NotesActivity, SideSearch, StickySide } from './components/SideColumn';
 import { SignInModal } from './components/SignInModal';
@@ -242,6 +242,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
           }}
         />
       )}
+      <BottomBar route={route} />
       <div className="toast-region" role="status" aria-live="polite">
         {toast && (
           <div key={toast.id} className="toast">

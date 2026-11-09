@@ -92,6 +92,56 @@ export function Rail({ route }: { route: Route }) {
   );
 }
 
+/**
+ * The tab bar at the bottom of a phone screen, where the left navigation is hidden.
+ * Home, Rate and the account work; Search, Notifications and Messages copy the look.
+ * On a post page, a round button writes a note.
+ */
+export function BottomBar({ route }: { route: Route }) {
+  const { account, openWrite, openSignIn } = useDemo();
+  const onTimeline = route.name === 'home' && route.tab === 'for_you';
+  const onRate = route.name === 'home' && route.tab === 'needs_help';
+  const Home = onTimeline ? IconHomeFilled : IconHome;
+
+  return (
+    <>
+      {route.name === 'post' && (
+        <button type="button" className="fab" aria-label="Write a note" onClick={() => openWrite(route.postId)}>
+          <IconFeather size={24} stroke={1.8} aria-hidden="true" />
+        </button>
+      )}
+      <nav className="bottom-bar" aria-label="Main">
+        <a className="bottom-item" href={paths.home} aria-label="Home" aria-current={onTimeline ? 'page' : undefined}>
+          <Home size={26} stroke={1.8} aria-hidden="true" />
+        </a>
+        <span className="bottom-item" aria-hidden="true">
+          <IconSearch size={26} stroke={1.6} />
+        </span>
+        <a className="bottom-item" href={paths.needsHelp} aria-label="Rate notes" aria-current={onRate ? 'page' : undefined}>
+          <IconChecklist size={26} stroke={onRate ? 2.4 : 1.6} aria-hidden="true" />
+        </a>
+        <span className="bottom-item" aria-hidden="true">
+          <IconBell size={26} stroke={1.6} />
+        </span>
+        <span className="bottom-item" aria-hidden="true">
+          <IconMail size={26} stroke={1.6} />
+        </span>
+        {account ? (
+          <span className="bottom-item" title={account} aria-label={`Signed in as ${account}`}>
+            <span className="bottom-avatar" aria-hidden="true">
+              {account.charAt(0).toUpperCase()}
+            </span>
+          </span>
+        ) : (
+          <button type="button" className="bottom-item bottom-btn" aria-label="Sign in to Seams Wallet" onClick={openSignIn}>
+            <IconUser size={26} stroke={1.6} aria-hidden="true" />
+          </button>
+        )}
+      </nav>
+    </>
+  );
+}
+
 /** Spoken Notes: a speech bubble with sound bars. */
 export function BrandMark({ size = 30 }: { size?: number }) {
   return (

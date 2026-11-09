@@ -142,7 +142,7 @@ a.lk:hover {
   align-self: flex-start;
 }
 
-/* Left navigation: icons only, with labels from 1265px */
+/* Left navigation: icons only, with labels from 840px (two columns: 240 + 600) */
 .rail {
   width: 88px;
   flex: none;
@@ -178,14 +178,14 @@ a.lk:hover {
 }
 .rail-item {
   display: flex;
-  padding: 4px 0;
+  padding: 1px 0;
   color: var(--ink);
 }
 .rail-item-pill {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 12px;
+  gap: 16px;
+  padding: 8px 12px;
   border-radius: 9999px;
   transition: background-color 0.2s;
 }
@@ -194,17 +194,17 @@ a.lk:hover {
 }
 .rail-label {
   display: none;
-  font-size: 20px;
-  line-height: 24px;
+  font-size: 17px;
+  line-height: 22px;
   padding-right: 16px;
 }
 .rail-label-on {
   font-weight: 700;
 }
 .rail-cta {
-  margin-top: 16px;
-  width: 52px;
-  height: 52px;
+  margin-top: 12px;
+  width: 48px;
+  height: 48px;
   border: 0;
   border-radius: 9999px;
   background: var(--ink);
@@ -276,9 +276,9 @@ a.lk:hover {
   display: none;
   flex: none;
 }
-@container notes (min-width: 1265px) {
+@container notes (min-width: 840px) {
   .rail {
-    width: 275px;
+    width: 240px;
     align-items: stretch;
   }
   .rail-inner {

@@ -42,14 +42,14 @@ export function Rail({ route }: { route: Route }) {
         </a>
         <a className="rail-item rail-link" href={paths.home} aria-current={onHome ? 'page' : undefined}>
           <span className="rail-item-pill">
-            <Home size={26} stroke={1.8} aria-hidden="true" />
+            <Home size={24} stroke={1.8} aria-hidden="true" />
             <span className={`rail-label ${onHome ? 'rail-label-on' : ''}`}>Home</span>
           </span>
         </a>
         {DECOR.map(({ label, Icon }) => (
           <span key={label} className="rail-item" aria-hidden="true">
             <span className="rail-item-pill">
-              <Icon size={26} stroke={1.6} />
+              <Icon size={24} stroke={1.6} />
               <span className="rail-label">{label}</span>
             </span>
           </span>

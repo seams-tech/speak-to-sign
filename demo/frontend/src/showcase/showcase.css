@@ -749,6 +749,11 @@ h1.ss-display {
   outline: none;
 }
 
+/* The notes app has two columns (240 + 600), so its window is narrower. */
+.ss-window[data-example='notes'] {
+  inset: max(14px, 2.5dvh) max(5%, calc((100% - 900px) / 2));
+}
+
 .ss-window .ss-drawn {
   padding: 12px;
   flex: 1;

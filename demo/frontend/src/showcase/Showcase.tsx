@@ -198,7 +198,7 @@ function AppRow({ example, flip, seams, away }: { example: VoiceExample; flip: b
 function SmallScreen({ example, seams, away }: { example: VoiceExample; seams: boolean; away: boolean }) {
   if (example.id === 'notes') {
     return (
-      <ScaledScreen width={1280} height={800}>
+      <ScaledScreen width={960} height={680}>
         <LiveSlot id="notes" active={!away} />
       </ScaledScreen>
     );

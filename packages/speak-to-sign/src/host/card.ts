@@ -2,10 +2,10 @@ import type {
   PhraseCheckView,
   PhraseResultView,
   PhraseSegmentState,
-  SpeakToSignTransferResult,
+  VerifierRefusal,
 } from '@seams/wallet/speak-to-sign-host';
 
-// The line under the sentence has one segment for each step of a spoken payment.
+// The line under the sentence has one segment for each step of a spoken request.
 const SPEAKER = 1;
 const WORDS = 2;
 const POLICY = 3;
@@ -21,14 +21,44 @@ const VERIFIER_STEPS = [
   'Signed by the OutLayer TEE verifier',
 ] as const;
 
-export type TransferCardInput = Readonly<{
+/** What the card calls the request it signs. */
+export type CardNoun = 'payment' | 'note' | 'rating';
+
+export type CardInput = Readonly<{
   network: 'testnet' | 'mainnet';
-  receiver: string;
-  /** Decimal NEAR as the sentence says it, such as `"0.01"`. */
-  amount: string;
+  noun: CardNoun;
+  /** The result, such as "Sent 0.01 NEAR" and "To bob.testnet". */
+  doneHeadline: string;
+  doneCaption: string;
   /** The spoken form of the sentence, to align with the words that the verifier heard. */
   spokenText: string;
 }>;
+
+const NOUN_COPY: Readonly<
+  Record<
+    CardNoun,
+    Readonly<{ done: string; failedLabel: string; failedDetail: string; unknownLabel: string }>
+  >
+> = {
+  payment: {
+    done: 'paid',
+    failedLabel: 'Not paid',
+    failedDetail: 'Check your balance, then try again.',
+    unknownLabel: 'Check before you pay again',
+  },
+  note: {
+    done: 'posted',
+    failedLabel: 'Not posted',
+    failedDetail: 'Check the post and your balance, then try again.',
+    unknownLabel: 'Check before you post again',
+  },
+  rating: {
+    done: 'saved',
+    failedLabel: 'Not saved',
+    failedDetail: 'Check the note and your balance, then try again.',
+    unknownLabel: 'Check before you rate again',
+  },
+};
 
 /** Segment 1 is the recording; every segment after `from` waits or works. */
 function segments(done: number, after: PhraseSegmentState): PhraseSegmentState[] {
@@ -42,7 +72,7 @@ function blocked(at: number, state: 'fail' | 'wait'): PhraseSegmentState[] {
   );
 }
 
-function networkName(network: TransferCardInput['network']): string {
+function networkName(network: CardInput['network']): string {
   return network === 'mainnet' ? 'NEAR mainnet' : 'NEAR testnet';
 }
 
@@ -59,7 +89,7 @@ export function verifyingView(): PhraseCheckView {
 }
 
 export function sendingView(
-  input: TransferCardInput,
+  input: CardInput,
   approval: 'voice' | 'passkey',
 ): PhraseCheckView {
   const states = segments(PAYMENT, 'run');
@@ -74,25 +104,25 @@ export function sendingView(
   };
 }
 
-export function stepUpView(policyText: string | null, waiting: boolean): PhraseResultView {
+export function stepUpView(
+  noun: CardNoun,
+  policyText: string | null,
+  waiting: boolean,
+): PhraseResultView {
   return {
     kind: 'result',
     label: 'Not sent yet',
     headline: 'Confirm with your passkey',
     caption: waiting
       ? 'Waiting for your passkey'
-      : (policyText ?? 'Your policy asks for a passkey for this payment.'),
+      : (policyText ?? `Your policy asks for a passkey for this ${noun}.`),
     detail: waiting ? 'Use the passkey prompt on your device.' : 'Your voice and words passed.',
     action: { label: 'Confirm with passkey', icon: 'passkey', busy: waiting },
     line: blocked(POLICY, 'wait'),
   };
 }
 
-export function paidView(
-  input: TransferCardInput,
-  hash: string,
-  seconds: number,
-): PhraseResultView {
+export function paidView(input: CardInput, hash: string, seconds: number): PhraseResultView {
   const explorer =
     input.network === 'mainnet'
       ? 'https://nearblocks.io/txns/'
@@ -100,9 +130,9 @@ export function paidView(
   return {
     kind: 'result',
     label: '',
-    headline: `Sent ${input.amount} NEAR`,
-    caption: `To ${input.receiver}`,
-    detail: `Checked and paid in ${seconds.toFixed(1)} s ·`,
+    headline: input.doneHeadline,
+    caption: input.doneCaption,
+    detail: `Checked and ${NOUN_COPY[input.noun].done} in ${seconds.toFixed(1)} s ·`,
     link: { text: 'View transaction', href: `${explorer}${encodeURIComponent(hash)}` },
     action: { label: 'Done' },
     line: 'seal',
@@ -112,11 +142,22 @@ export function paidView(
 /** A failed result and whether "Try again" records the sentence again. */
 export type FailureView = Readonly<{ view: PhraseResultView; retry: boolean }>;
 
-type FailedResult = Exclude<SpeakToSignTransferResult, { kind: 'sent' } | { kind: 'cancelled' }>;
+/** A failure after the card opened. The flow refuses an unspeakable request before that. */
+export type FailedResult =
+  | Readonly<{
+      kind: 'refused';
+      reason: VerifierRefusal | 'verdict_mismatch' | 'transaction_failed';
+      detail?: string;
+    }>
+  | Readonly<{
+      kind: 'unavailable';
+      reason: 'voiceid_unavailable' | 'verifier_unavailable' | 'not_submitted' | 'submission_unknown';
+      detail?: string;
+    }>;
 
-/** `canRetry` is false for the last recording of a payment. */
+/** `canRetry` is false for the last recording of a request. */
 export function failureView(
-  input: TransferCardInput,
+  input: CardInput,
   result: FailedResult,
   canRetry: boolean,
 ): FailureView {
@@ -145,7 +186,8 @@ type FailureCopy = Readonly<{
   retry: boolean;
 }>;
 
-function failureCopy(input: TransferCardInput, result: FailedResult): FailureCopy {
+function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
+  const noun = NOUN_COPY[input.noun];
   const unavailable = {
     headline: 'The check is not available',
     caption: 'A verifier service did not answer.',
@@ -156,7 +198,7 @@ function failureCopy(input: TransferCardInput, result: FailedResult): FailureCop
     switch (result.reason) {
       case 'not_submitted':
         return {
-          headline: 'The payment was not sent',
+          headline: `The ${input.noun} was not sent`,
           caption: 'Your Wallet did not send the transaction.',
           detail: 'Try again in a minute.',
           at: PAYMENT,
@@ -164,8 +206,8 @@ function failureCopy(input: TransferCardInput, result: FailedResult): FailureCop
         };
       case 'submission_unknown':
         return {
-          label: 'Check before you pay again',
-          headline: 'The payment may have been sent',
+          label: noun.unknownLabel,
+          headline: `The ${input.noun} may have been sent`,
           caption: 'The network did not confirm the transaction.',
           detail: 'Check your account before you try again.',
           at: PAYMENT,
@@ -226,30 +268,19 @@ function failureCopy(input: TransferCardInput, result: FailedResult): FailureCop
     case 'verdict_mismatch':
       return {
         headline: 'The verdict did not match',
-        caption: 'Your Wallet refused the signed verdict for this payment.',
+        caption: `Your Wallet refused the signed verdict for this ${input.noun}.`,
         detail: 'Record the sentence again.',
         at: VERDICT,
         retry: true,
       };
     case 'transaction_failed':
       return {
-        label: 'Not paid',
-        headline: 'The payment failed',
+        label: noun.failedLabel,
+        headline: `The ${input.noun} failed`,
         caption: 'NEAR refused the transaction.',
-        detail: 'Check your balance, then try again.',
+        detail: noun.failedDetail,
         at: PAYMENT,
         retry: true,
-      };
-    // The flow checks these before it opens the card.
-    case 'amount_not_speakable':
-    case 'receiver_not_speakable':
-    case 'receiver_missing':
-      return {
-        headline: 'This payment cannot be spoken',
-        caption: 'Check the amount and the receiver.',
-        detail: '',
-        at: SPEAKER,
-        retry: false,
       };
     default:
       return result satisfies never;

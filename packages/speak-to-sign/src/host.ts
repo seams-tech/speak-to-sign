@@ -3,16 +3,18 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignHostEnrollment,
   SpeakToSignHostPlugin,
+  SpeakToSignNoteResult,
   SpeakToSignTransferResult,
 } from '@seams/wallet/speak-to-sign-host';
 
 // The type makes a Wallet with a different host API version fail to compile.
-export const hostApiVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION = 5;
+export const hostApiVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION = 6;
 
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
+type NoteInput = Parameters<SpeakToSignHostPlugin['requestNoteAction']>[0];
 
 export function createSpeakToSignHostPlugin(): SpeakToSignHostPlugin {
-  return { requestTransfer, enroll };
+  return { requestTransfer, requestNoteAction, enroll };
 }
 
 async function requestTransfer(input: TransferInput): Promise<SpeakToSignTransferResult> {
@@ -22,6 +24,13 @@ async function requestTransfer(input: TransferInput): Promise<SpeakToSignTransfe
   const { runSpokenTransfer } = await import('./host/flow');
   input.signal.throwIfAborted();
   return await runSpokenTransfer({ ...input, transfer: input.transfer });
+}
+
+async function requestNoteAction(input: NoteInput): Promise<SpeakToSignNoteResult> {
+  input.signal.throwIfAborted();
+  const { runSpokenNote } = await import('./host/flow');
+  input.signal.throwIfAborted();
+  return await runSpokenNote(input);
 }
 
 async function enroll(input: SpeakToSignHostEnrollment): Promise<SpeakToSignEnrollmentResult> {

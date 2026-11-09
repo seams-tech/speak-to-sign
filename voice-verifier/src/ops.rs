@@ -15,8 +15,8 @@ use std::time::Instant;
 
 use serde_json::{json, Map, Value};
 use spoken_intent::{
-    confusion_set, render, request_digest, spoken_text_digest, NearAccount, NearAmount, Network, SpokenAccount,
-    SpokenRequestV1,
+    confusion_set, render, request_digest, spoken_text_digest, NearAccount, NearAmount, Network, NoteRatingV1,
+    SpokenAccount, SpokenRequestV1, SpokenSummary,
 };
 
 use crate::audio::{decode_wav, energy_gate, wav_bytes};
@@ -27,7 +27,7 @@ use crate::config::{
 use crate::digest::{b64, b64u, from_b64, from_hex, near_ed25519_key, sha256};
 use crate::enrollment::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
 use crate::host::{Host, Timed};
-use crate::input::{parse_yocto, EnrollInput, RequestInput, VerifyInput};
+use crate::input::{parse_yocto, EnrollInput, RatingInput, RequestInput, VerifyInput};
 use crate::policy::{self, Decision};
 use crate::output::{
     json_bytes, short, verdict_json, verdict_message, Enrollment, Outcome, Reason, UnknownOp, Verdict, VerifyOutput,
@@ -37,7 +37,7 @@ use crate::speaker::{
     self, check_service_reply, model_sha256, service_request, similarity_milli, speaker_passes, TemplateRecord,
 };
 use crate::transcriber::{parse_reply, transcription_request};
-use crate::words::{check_words, cut_at};
+use crate::words::{check_words, cut_at, WordCheck};
 
 /// The network that this version serves.
 pub const SERVED_NETWORK: Network = Network::Testnet;
@@ -96,7 +96,49 @@ fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1,
             let amount = parse_yocto(amount_yocto).ok_or(Reason::Unsupported)?;
             transfer_request(owner, receiver, amount)
         }
+        RequestInput::CommunityNote { contract, post_id, note_sha256_hex, summary } => {
+            let lowercase_hex = note_sha256_hex.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
+            let note_sha256 = from_hex::<32>(note_sha256_hex).filter(|_| lowercase_hex).ok_or(Reason::Unsupported)?;
+            Ok(SpokenRequestV1::CommunityNote {
+                network: SERVED_NETWORK,
+                owner: NearAccount::new(owner).map_err(|_| Reason::Unsupported)?,
+                contract: NearAccount::new(contract).map_err(|_| Reason::Unsupported)?,
+                post_id: *post_id,
+                note_sha256,
+                summary: SpokenSummary::new(summary).map_err(|_| Reason::Unsupported)?,
+            })
+        }
+        RequestInput::NoteRating { contract, note_id, rating } => Ok(SpokenRequestV1::NoteRating {
+            network: SERVED_NETWORK,
+            owner: NearAccount::new(owner).map_err(|_| Reason::Unsupported)?,
+            contract: NearAccount::new(contract).map_err(|_| Reason::Unsupported)?,
+            note_id: *note_id,
+            rating: match rating {
+                RatingInput::Helpful => NoteRatingV1::Helpful,
+                RatingInput::SomewhatHelpful => NoteRatingV1::SomewhatHelpful,
+                RatingInput::NotHelpful => NoteRatingV1::NotHelpful,
+            },
+        }),
     }
+}
+
+/// A note summary is free text, so one word heard in another way is
+/// forgiven when the summary has at least this many words.
+pub const SUMMARY_FORGIVE_MIN_WORDS: usize = 4;
+
+/// The word decision. A transfer, an approval and a rating need the exact
+/// words. A note summary also passes with one word changed or dropped, when
+/// the heard words are still closer to the summary than to every near miss.
+/// An added word is as close to the near miss with "not" in its place, so
+/// it does not pass, and an added or dropped "not" never passes.
+fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected_words: usize) -> bool {
+    if check.matched {
+        return true;
+    }
+    matches!(request, SpokenRequestV1::CommunityNote { .. })
+        && expected_words >= SUMMARY_FORGIVE_MIN_WORDS
+        && check.distance == Some(1)
+        && check.margin_milli.is_some_and(|margin| margin > 0)
 }
 
 fn elapsed(started: Instant) -> Value {
@@ -448,12 +490,14 @@ fn verify_steps(value: Value, host: &mut dyn Host, pins: &Pins, run: &mut Verify
     run.ms.insert("mark".into(), elapsed(marked));
     consumed?;
 
-    // 7. Words: the heard tokens must equal the rendered tokens.
+    // 7. Words: the heard tokens must equal the rendered tokens (a note
+    //    summary may differ by one word, see `words_pass`).
     let confusions = confusion_set(&request, &contacts);
     let check = check_words(&transcript, &contacts, &rendered.spoken, &confusions);
+    let passed = words_pass(&request, &check, rendered.spoken.len());
     run.verdict.heard = Some(check.heard);
     run.verdict.word_margin_milli = check.margin_milli;
-    if !check.matched {
+    if !passed {
         return Err(Reason::Words);
     }
 

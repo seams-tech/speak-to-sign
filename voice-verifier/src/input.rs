@@ -50,6 +50,31 @@ pub enum RequestInput {
         /// Decimal yoctoNEAR (a JSON string: it does not fit a JSON number).
         amount_yocto: String,
     },
+    /// A community note on a post. The owner says only the summary.
+    CommunityNote {
+        /// The notes contract.
+        contract: String,
+        post_id: u64,
+        /// SHA-256 of the UTF-8 note text, 64 lowercase hex characters.
+        note_sha256_hex: String,
+        summary: String,
+    },
+    /// A rating of a community note.
+    NoteRating {
+        /// The notes contract.
+        contract: String,
+        note_id: u64,
+        rating: RatingInput,
+    },
+}
+
+/// The rating of a `note_rating` request.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RatingInput {
+    Helpful,
+    SomewhatHelpful,
+    NotHelpful,
 }
 
 /// Decimal `u128` with no sign and no leading zero.
@@ -87,6 +112,26 @@ mod tests {
         let mut unknown = request;
         unknown["kind"] = json!("vault_transfer");
         assert!(serde_json::from_value::<RequestInput>(unknown).is_err());
+
+        let note = json!({
+            "kind": "community_note",
+            "contract": "notes.testnet",
+            "post_id": 7,
+            "note_sha256_hex": "00",
+            "summary": "The bridge stays open",
+        });
+        assert!(matches!(
+            serde_json::from_value::<RequestInput>(note).unwrap(),
+            RequestInput::CommunityNote { post_id: 7, .. }
+        ));
+        let rating = json!({ "kind": "note_rating", "contract": "notes.testnet", "note_id": 1, "rating": "somewhat_helpful" });
+        assert!(matches!(
+            serde_json::from_value::<RequestInput>(rating.clone()).unwrap(),
+            RequestInput::NoteRating { rating: RatingInput::SomewhatHelpful, .. }
+        ));
+        let mut unknown_rating = rating;
+        unknown_rating["rating"] = json!("great");
+        assert!(serde_json::from_value::<RequestInput>(unknown_rating).is_err());
     }
 
     #[test]

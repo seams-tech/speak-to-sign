@@ -12,6 +12,9 @@ pub struct WordCheck {
     pub heard: String,
     /// The heard tokens equal the expected tokens.
     pub matched: bool,
+    /// The word edit distance from the heard tokens to the expected tokens.
+    /// `None` if the text does not normalize.
+    pub distance: Option<usize>,
     /// (word edit distance to the closest near miss − distance to the
     /// expected text) × 1000 / expected word count. `None` if the confusion
     /// set is empty or the text does not normalize.
@@ -27,7 +30,7 @@ pub fn check_words(
     confusions: &[Vec<SpokenToken>],
 ) -> WordCheck {
     let Ok(tokens) = normalize_punctuated(transcript, contacts) else {
-        return WordCheck { heard: cut(&printable(transcript)), matched: false, margin_milli: None };
+        return WordCheck { heard: cut(&printable(transcript)), matched: false, distance: None, margin_milli: None };
     };
     let heard_words: Vec<&str> = tokens.iter().map(SpokenToken::as_str).collect();
     let expected_words: Vec<&str> = expected.iter().map(SpokenToken::as_str).collect();
@@ -45,7 +48,12 @@ pub fn check_words(
         }
         _ => None,
     };
-    WordCheck { heard: cut(&heard_words.join(" ")), matched: tokens.as_slice() == expected, margin_milli }
+    WordCheck {
+        heard: cut(&heard_words.join(" ")),
+        matched: tokens.as_slice() == expected,
+        distance: Some(to_expected),
+        margin_milli,
+    }
 }
 
 /// Word-level Levenshtein distance.

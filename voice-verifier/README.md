@@ -62,10 +62,22 @@ Stage times (`ms`, not signed), in ms:
 
 - `enroll`: `{"op":"enroll","owner","audio_wav_b64":[3 WAVs],"authorization":{"public_key","signature_b64","nonce_b64"}}`.
 - `verify`: `{"op":"verify","owner","request":{"kind":"transfer","receiver","amount_yocto"},"contacts":[...],"audio_wav_b64"}`.
-  - `request` is tagged by `kind`. Today only `transfer` exists: a native
-    NEAR transfer from `owner` to `receiver`, as
-    `spoken_intent::SpokenRequestV1::AccountTransfer`. The receiver must be a
-    named account that the text can say, and not the owner.
+  - `request` is tagged by `kind`:
+    - `transfer`: a native NEAR transfer from `owner` to `receiver`, as
+      `spoken_intent::SpokenRequestV1::AccountTransfer`. The receiver must be
+      a named account that the text can say, and not the owner.
+    - `community_note`: `{"contract","post_id","note_sha256_hex","summary"}`,
+      as `SpokenRequestV1::CommunityNote`. The owner says only the summary:
+      1 to 12 words of ASCII letters (`spoken_intent::SpokenSummary`). The
+      note is bound by its SHA-256 (64 lowercase hex characters).
+    - `note_rating`: `{"contract","note_id","rating"}` with `rating`
+      `helpful`, `somewhat_helpful` or `not_helpful`, as
+      `SpokenRequestV1::NoteRating`. The owner says "this note is helpful",
+      "this note is somewhat helpful" or "this note is not helpful".
+  - The words must match exactly, with one exception: a summary of 4 or more
+    words also passes with one word changed or dropped, when the heard words
+    are still closer to the summary than to every near miss (an added or
+    dropped "not" never passes).
   - `contacts`: at most 32 named accounts that the owner knows, for the
     account names and the confusion set. The receiver is added if missing.
 - Unknown fields are refused at every level.

@@ -95,10 +95,26 @@ cargo test -p merge-approvals
 ./build.sh && cargo test -p merge-approvals-sandbox -- --nocapture
 ```
 
+## Testnet deployment
+
+Deployed on 9 Nov 2026 from commit `eed641a` (the source has not changed since).
+
+| Item               | Value                                                                  |
+| ------------------ | ---------------------------------------------------------------------- |
+| Contract account   | `github.seams-v1.testnet` (created by `seams-v1.testnet` with 3 NEAR)   |
+| Code hash (base58) | `BUSix8iRMdLeEjd1yVn7r5Sk4NWUZVuopXPcsm44KHcT`, the SHA-256 of the release WASM above |
+| Create account     | transaction `7U7cjHkx5ENdpKbvbL7vWCKvw8gEjjpxaBgezL5JmpVr`             |
+| Deploy             | transaction `EkUHakC3kqVF44gz82CAyTmY1PW5SNLinphTJNTFTzGV`             |
+| Smoke test         | `approve_merge` from `seams-v1.testnet`, transaction `BRrRMw9PSqXoQPGgngEWBZhp5MLvShXFBpj7NX2vSeRp`, 2.4 Tgas |
+
+The smoke test approved `seams-tech/smoke-test` pull request 1 (approval 1),
+not the demo pull request, so the demo screen shows only voice approvals. The
+first voice approval of the demo pull request gets id 2.
+
 ## Deploy to testnet
 
-Not deployed yet. The proposed account is `github.seams-v1.testnet`, with
-3 NEAR from `seams-v1.testnet`.
+The commands for a new deployment. Replace `github.seams-v1.testnet` with a
+new account name.
 
 ```bash
 near account create-account fund-myself github.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send

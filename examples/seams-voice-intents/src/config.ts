@@ -10,6 +10,13 @@ import { speakToSign } from '@seams/speak-to-sign';
 const DEFAULT_WALLET_ORIGIN = 'https://staging.sign.seams.sh';
 const DEFAULT_RELAYER_URL = 'https://staging.api.wallet.seams.sh';
 const DEFAULT_NEAR_RPC_URL = 'https://test.rpc.fastnear.com';
+/* The passkey RP ID must be the Wallet host or a parent domain of it.
+   seamsTestnetConfig keeps the SDK default "example.localhost", and then
+   "Create wallet with passkey" fails. The staging console uses this value. */
+const DEFAULT_RP_ID = 'staging.sign.seams.sh';
+/* Managed registration (a publishable key) needs Router A/B normal signing,
+   which the SDK default turns off. This is the staging signing worker. */
+const DEFAULT_SIGNING_WORKER_ID = 'router-ab-signing-worker-staging';
 
 export type Settings =
   | Readonly<{ kind: 'ready'; seamsConfig: SeamsConfigsInput; nearRpcUrl: string }>
@@ -30,7 +37,15 @@ export function readSettings(): Settings {
       publishableKey,
       ...(projectEnvironmentId ? { projectEnvironmentId } : {}),
       chains: [{ network: 'near-testnet' }],
+      iframeWallet: { rpIdOverride: read(import.meta.env.VITE_SEAMS_RP_ID) || DEFAULT_RP_ID },
     }),
+    routerAb: {
+      normalSigning: {
+        mode: 'enabled',
+        signingWorkerId: read(import.meta.env.VITE_SEAMS_SIGNING_WORKER_ID) || DEFAULT_SIGNING_WORKER_ID,
+      },
+    },
+    signingSessionPersistenceMode: 'sealed_refresh_v1',
     appearance: { locale: 'en' },
     // VoiceID records the spoken sentence; Speak-to-Sign verifies it and pays.
     authMethods: [voiceIdAuthMethod()],

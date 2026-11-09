@@ -103,7 +103,7 @@ export function Showcase({ seams }: { seams: boolean }) {
           title={open.title}
           tag={tagOf(open)}
           tone={open.status === 'live' ? 'live' : 'example'}
-          url={open.id === 'notes' ? `${window.location.host}/${hash}` : open.url}
+          url={open.url}
           closing={closing}
           onClose={closeWindow}
           onExited={onExited}
@@ -188,7 +188,7 @@ function AppRow({ example, flip, seams, away }: { example: VoiceExample; flip: b
       </div>
       <div className="ss-app-screen" data-example-screen={example.id}>
         <DrawnFrame tag={tagOf(example)} tone={live ? 'live' : 'example'}>
-          <BrowserChrome url={live ? `${window.location.host}/${openHref(example.id)}` : example.url}>
+          <BrowserChrome url={example.url}>
             <div className="ss-preview" inert>
               <SmallScreen example={example} seams={seams} away={away} />
             </div>

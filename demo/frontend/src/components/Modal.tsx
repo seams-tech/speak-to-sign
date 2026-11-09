@@ -4,6 +4,14 @@ import { createPortal } from 'react-dom';
 /** Open dialogs, newest last. Only the newest one answers Escape and Tab. */
 const openDialogs: object[] = [];
 
+/**
+ * The open modals that hold the page's scroll. Separate from `openDialogs`: the page's app
+ * window is in that stack for Escape, but it does not lock the body, so a closed modal must not
+ * wait for the window before it gives the scroll back.
+ */
+let scrollLocks = 0;
+let bodyOverflow = '';
+
 /** An X-style dialog over a grey overlay. Escape and a click outside close it unless `locked`. */
 export function Modal({
   labelledBy,
@@ -29,7 +37,8 @@ export function Modal({
     openDialogs.push(token);
     const opener = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
-    const { overflow } = document.body.style;
+    if (scrollLocks === 0) bodyOverflow = document.body.style.overflow;
+    scrollLocks += 1;
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== token) return;
@@ -40,7 +49,8 @@ export function Modal({
     return () => {
       openDialogs.splice(openDialogs.indexOf(token), 1);
       document.removeEventListener('keydown', onKey);
-      if (openDialogs.length === 0) document.body.style.overflow = overflow;
+      scrollLocks -= 1;
+      if (scrollLocks === 0) document.body.style.overflow = bodyOverflow;
       opener?.focus();
     };
   }, []);

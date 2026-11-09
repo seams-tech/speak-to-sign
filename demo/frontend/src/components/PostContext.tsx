@@ -3,13 +3,12 @@
 // view does, with the note market at its foot.
 
 import { useId, useState } from 'react';
-import { IconCircleCheckFilled, IconExternalLink, IconEye, IconMessage2Exclamation, IconUsers, IconX } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconExternalLink, IconUsers, IconX } from '@tabler/icons-react';
 import type { Post, PostContext as Context } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { NoteMarketStrip } from '../market/NoteMarket';
 import { createMockMarketSource } from '../market/mockSource';
 import type { MarketSource } from '../market/types';
-import { Avatar } from './bits';
 import { MediaThumb } from './Media';
 import { Modal } from './Modal';
 
@@ -55,12 +54,11 @@ export function PostContextBox({ post }: { post: Post }) {
         </div>
         <div className="note-foot note-rate">
           <span>Do you bet this is true or false?</span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setOpen(true)}>
+          <button type="button" className="btn btn-blue" onClick={() => setOpen(true)}>
             Bet
           </button>
         </div>
       </section>
-      <p className="notes-caption">Context is written by people who use X, and appears when rated helpful by others.</p>
       {open && <NoteDialog post={post} context={context} onClose={() => setOpen(false)} />}
     </>
   );
@@ -83,7 +81,7 @@ function ContextText({ context, source }: { context: Context; source: Post['hist
   );
 }
 
-/** The note view: the quoted post, the note's status and text, then the bet. */
+/** The note view, kept short: the quoted post, the note, then the bet with two colored buttons. */
 function NoteDialog({ post, context, onClose }: { post: Post; context: Context; onClose: () => void }) {
   const { account, openSignIn } = useDemo();
   const titleId = useId();
@@ -97,49 +95,38 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
       </header>
       <div className="dialog-body">
         <div className="pc-note">
-          <div className="pc-post">
-            <div className="pc-post-head">
-              <Avatar author={post.author} size={24} />
-              <b>{post.author.name}</b>
-              <span className="muted">
-                @{post.author.handle} · {post.age}
-              </span>
-            </div>
-            <div className="pc-post-row">
-              {post.media && <MediaThumb kind={post.media} />}
+          <div className="pc-post pc-post-row">
+            {post.media && <MediaThumb kind={post.media} />}
+            <div className="pc-post-main">
+              <div className="pc-post-head">
+                <b>{post.author.name}</b>
+                <span className="muted">
+                  @{post.author.handle} · {post.age}
+                </span>
+              </div>
               <p className="pc-post-text">{post.text}</p>
             </div>
           </div>
           <div className="pc-status">
             <p className="pc-status-row">
-              <IconCircleCheckFilled size={20} className="pc-ok" aria-hidden="true" />
-              <b>Currently rated helpful</b>
-              <span className="muted">{context.ratedHelpfulOn}</span>
+              <IconCircleCheckFilled size={18} className="pc-ok" aria-hidden="true" />
+              <b>Rated helpful on X</b>
             </p>
-            <p className="pc-status-row muted">
-              <IconEye size={20} stroke={1.6} aria-hidden="true" />
-              Shown on X
+            <p className="pc-note-text">
+              {context.text}{' '}
+              <a className="lk pc-source" href={post.history.source.url} target="_blank" rel="noopener noreferrer" title={post.history.source.title}>
+                Source
+                <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
+              </a>
             </p>
-            <p className="pc-status-row muted">
-              <IconMessage2Exclamation size={20} stroke={1.6} aria-hidden="true" />
-              {context.tags.join(' · ')}
-            </p>
-            <div className="pc-note-text">
-              <ContextText context={context} source={post.history.source} />
-            </div>
           </div>
           <div className="pc-bet">
-            <b className="pc-bet-title">Do you bet this is true or false?</b>
+            <b className="pc-bet-title">Is this note true?</b>
             <NoteMarketStrip noteId={CONTEXT_MARKET_NOTE_ID} source={contextMarketSource} account={account} onSignIn={openSignIn} />
-            {PRACTICE && (
-              <p className="pc-practice">
-                Practice market: the JEV market contract is not on testnet yet, so these bets stay in this browser.
-              </p>
-            )}
+            {PRACTICE && <p className="pc-practice">Practice market: bets stay in this browser until the JEV contract is on testnet.</p>}
           </div>
         </div>
       </div>
-      <p className="pc-foot">Context is written by contributors on X, and appears when rated helpful by others.</p>
     </Modal>
   );
 }

@@ -4,14 +4,13 @@ import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
 import { SETUP_CHANGED, SetupPanel } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
-import { Timeline } from './components/Timeline';
 import { WriteNoteModal } from './components/WriteNoteModal';
 import { config } from './config';
 import { findPost, POSTS } from './data/posts';
 import { DemoContext, type DemoState } from './demoContext';
 import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
-import { routeKey, useRoute } from './router';
+import { routeKey, START_POST_ID, useRoute } from './router';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 
 const POLL_MS = 1500;
@@ -196,10 +195,10 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     <DemoContext.Provider value={state}>
       <div className="notes-app" ref={rootRef}>
         <div className="layout">
-          <Rail route={route} />
+          <Rail />
           <main className="column">
             <SetupPanel compact />
-            {route.name === 'home' ? <Timeline tab={route.tab} /> : <PostDetail postId={route.postId} />}
+            <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />
           </main>
         </div>
 

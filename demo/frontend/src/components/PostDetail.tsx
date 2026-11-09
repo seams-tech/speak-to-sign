@@ -44,20 +44,11 @@ export function PostDetail({ postId }: { postId: number }) {
           <div className="pd-text">
             <PostText post={post} />
           </div>
-          {post.media && <Media kind={post.media} caption={post.mediaCaption} />}
+          {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
           <PostHistoryLine post={post} full />
           <LoadState />
           <PostNotes notes={notesByPost[post.id] ?? []} />
-          <div className="pd-time muted">
-            {post.postedAt}
-            {post.stats && (
-              <>
-                {' '}
-                · <b className="ink">{post.stats.views}</b> Views
-              </>
-            )}
-          </div>
-          <ActionRow post={post} showViews={false} />
+          {/* Before the time and the actions, so the button shows without a scroll. */}
           <div className="write-row">
             <IconUsers size={20} stroke={1.8} className="muted" aria-hidden="true" />
             <div className="write-row-text">
@@ -68,6 +59,16 @@ export function PostDetail({ postId }: { postId: number }) {
               Write a note
             </button>
           </div>
+          <div className="pd-time muted">
+            {post.postedAt}
+            {post.stats && (
+              <>
+                {' '}
+                · <b className="ink">{post.stats.views}</b> Views
+              </>
+            )}
+          </div>
+          <ActionRow post={post} showViews={false} />
         </article>
       )}
     </>

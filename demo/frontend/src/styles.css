@@ -509,6 +509,11 @@ a.lk:hover {
   width: 100%;
   height: 100%;
 }
+.media-compact {
+  aspect-ratio: auto;
+  height: 180px;
+  background: #1f2937;
+}
 .media-caption {
   position: absolute;
   left: 12px;
@@ -663,7 +668,11 @@ a.lk:hover {
   align-items: center;
   gap: 12px;
   padding: 14px 0;
+  margin-top: 4px;
   border-bottom: 1px solid var(--line);
+}
+.draft-help {
+  margin: 10px 0 -4px;
 }
 .write-row-text {
   flex: 1;

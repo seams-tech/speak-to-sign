@@ -28,6 +28,17 @@ export interface PostHistory {
   source: { title: string; url: string };
 }
 
+/** A note that the write dialog starts with, so a demo needs no typing. Every field can change. */
+export interface NoteDraft {
+  classification: 'misleading' | 'not_misleading';
+  reasons: string[];
+  /** At most 280 characters, with a link to a source. */
+  text: string;
+  sources: 'yes' | 'no';
+  /** The spoken summary: 1 to 12 words of ASCII letters (src/summaryRules.ts). */
+  summary: string;
+}
+
 export interface Post {
   id: number;
   author: PostAuthor;
@@ -43,6 +54,7 @@ export interface Post {
   /** The counts on the action row. Real posts have none here: the page does not invent them. */
   stats?: { replies: string; reposts: string; likes: string; bookmarks: string; views: string };
   history: PostHistory;
+  noteDraft?: NoteDraft;
 }
 
 export const POSTS: Post[] = [
@@ -69,6 +81,13 @@ export const POSTS: Post[] = [
         title: 'Fact-check: the viral post on deleted iPhone photos and Claude Code falls apart',
         url: 'https://pasqualepillitteri.it/en/news/28147/deleted-iphone-photos-claude-code-viral-post',
       },
+    },
+    noteDraft: {
+      classification: 'misleading',
+      reasons: ['It presents an unverified claim as a fact'],
+      text: 'This account posts AI-written engagement bait daily, with new numbers each time. Thumbnails can outlive deleted photos, but nothing shows they keep full photos, and the video shows no search. https://pasqualepillitteri.it/en/news/28147/deleted-iphone-photos-claude-code-viral-post',
+      sources: 'yes',
+      summary: 'this post is engagement bait and its photo claim has no proof',
     },
   },
 ];

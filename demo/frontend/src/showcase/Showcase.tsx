@@ -3,6 +3,7 @@ import { IconArrowUpRight, IconChevronRight } from '@tabler/icons-react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
 import { config } from '../config';
+import { paths, START_POST_ID } from '../router';
 import { EXAMPLES, type ExampleId, type VoiceExample } from './examples';
 import { BrowserChrome, DrawnFrame, FitScreen, ScaledScreen, WalletVoiceCard } from './frame';
 import { LiveApps, LiveSlot } from './live';
@@ -30,7 +31,8 @@ function exampleFromHash(hash: string): ExampleId | null {
   return match ? (match[1] as ExampleId) : null;
 }
 
-const openHref = (id: ExampleId) => `#/${id}`;
+// The notes window opens on the post page, where the demo starts.
+const openHref = (id: ExampleId) => (id === 'notes' ? paths.post(START_POST_ID) : `#/${id}`);
 
 function closeWindow() {
   if (!exampleFromHash(window.location.hash)) return;

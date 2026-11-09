@@ -744,12 +744,13 @@ h1.ss-display {
 
 .ss-window {
   position: absolute;
-  inset: 5dvh 5vw;
+  inset: max(14px, 2.5dvh) 5vw;
   display: flex;
   outline: none;
 }
 
 .ss-window .ss-drawn {
+  padding: 12px;
   flex: 1;
   min-width: 0;
   display: flex;

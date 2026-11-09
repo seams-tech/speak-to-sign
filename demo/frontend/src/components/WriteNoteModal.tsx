@@ -45,12 +45,15 @@ interface Props {
 export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
   const { signer, account, status, openSignIn } = useDemo();
   const titleId = useId();
+  // The demo post has a note ready, so a visitor can press Next and read the summary aloud.
+  const draft = post.noteDraft;
   const [step, setStep] = useState<'write' | 'summary'>('write');
-  const [classification, setClassification] = useState<Classification | null>(null);
-  const [reasons, setReasons] = useState<string[]>([]);
-  const [text, setText] = useState('');
-  const [sources, setSources] = useState<'yes' | 'no' | null>(null);
-  const [summary, setSummary] = useState('');
+  const [classification, setClassification] = useState<Classification | null>(draft?.classification ?? null);
+  const [reasons, setReasons] = useState<string[]>(draft?.reasons ?? []);
+  const [text, setText] = useState(draft?.text ?? '');
+  const [sources, setSources] = useState<'yes' | 'no' | null>(draft?.sources ?? null);
+  const [summary, setSummary] = useState(draft?.summary ?? '');
+  const [prefilled, setPrefilled] = useState(Boolean(draft?.summary));
   const [suggesting, setSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [suggested, setSuggested] = useState(false);
@@ -87,6 +90,7 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
     if (result.ok) {
       setSummary(result.summary);
       setSuggested(true);
+      setPrefilled(false);
     } else {
       setSuggestError(result.error);
     }
@@ -131,6 +135,7 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
         <>
           <div className="dialog-body">
             <PostQuote post={post} />
+            {draft && <p className="muted small field-help draft-help">A note is filled in for this demo. Change anything, or press Next.</p>}
             <fieldset className="group">
               <legend className="q">Which of the following best describes this post?</legend>
               <Choice type="radio" name="classification" label="Misinformed or potentially misleading" checked={classification === 'misleading'} onChange={() => pickClassification('misleading')} />
@@ -199,6 +204,7 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
               onChange={(event) => {
                 setSummary(event.target.value.replace(/\n/g, ' '));
                 setSuggested(false);
+                setPrefilled(false);
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') event.preventDefault();
@@ -211,7 +217,13 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
                 {suggesting ? 'Suggesting…' : summary.trim() ? 'Suggest again' : 'Suggest summary'}
               </button>
               <span className="muted small" aria-live="polite">
-                {suggesting ? 'NEAR AI is writing a summary' : suggested ? 'Suggested by NEAR AI. You can edit it.' : ''}
+                {suggesting
+                  ? 'NEAR AI is writing a summary'
+                  : suggested
+                    ? 'Suggested by NEAR AI. You can edit it.'
+                    : prefilled
+                      ? 'Filled in for this demo. You can edit it.'
+                      : ''}
               </span>
               <span className={`word-count ${check.words > SUMMARY_MAX_WORDS ? 'counter-over' : ''}`}>
                 {check.words} / {SUMMARY_MAX_WORDS} words

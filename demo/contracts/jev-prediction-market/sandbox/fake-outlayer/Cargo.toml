@@ -1,0 +1,13 @@
+[package]
+name = "fake-outlayer"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+description = "A fake outlayer.testnet for the sandbox test: request_execution returns a scripted answer. Never deploy it to testnet."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "=5.30.1"

@@ -1,6 +1,6 @@
 # JEV prediction market for community notes: plan
 
-Status: draft for the user's OK (10 Nov 2026). Demo only, testnet only.
+Status: approved by the user on 10 Nov 2026. Demo only, testnet only.
 Hackathon end: 14 Nov 2026, 23:59 UTC.
 
 ## Goal
@@ -147,15 +147,14 @@ spoken request.
 - 11 Nov: sandbox test, resolver worker, README.
 - 12 Nov: deploy after the user's yes, and the hand-over to the widget.
 
-## Open questions for the user
+## Decisions (10 Nov 2026)
 
-1. **JEV key.** JEV needs our own `TYPESAFE_API_KEY` in the OutLayer secrets
-   (Signal's secrets belong to its own publisher account). NEAR AI works now
-   with our key, but its probabilities are less calibrated.
-2. **Snapping.** ≥ 90% → 1 and ≤ 10% → 0? Other thresholds, or no snapping?
-3. **Contract account.** `pm-notes.seams-v1.testnet`?
-4. **Signal code.** Signal's repo is private with no licence, and this repo is
-   public (Apache-2.0). Proposal: write new code with the same shapes and
-   formulas, and credit Signal.
-5. **Who resolves.** Proposal: any account can request the AI resolution
-   after the close; the creator and the admin can close early.
+1. **JEV key.** JEV first, NEAR AI as the fallback. The user adds our own
+   `TYPESAFE_API_KEY` to the OutLayer secrets at deploy time.
+2. **Snapping.** ≥ 90% → 1 and ≤ 10% → 0, as proposed.
+3. **Signal code.** The user allows us to copy Signal code. The README
+   credits Signal for the pool formulas and the JEV and NEAR AI request shapes.
+4. **Who resolves.** As proposed: any account requests the AI resolution after
+   the close; the creator and the admin can close early.
+5. **Contract account.** `pm-notes.seams-v1.testnet` is the proposal. I ask
+   again with the deploy proposal.

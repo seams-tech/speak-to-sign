@@ -1,0 +1,33 @@
+[package]
+name = "jev-prediction-market"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+description = "A mini prediction market on community notes for the Speak-to-Sign demo, resolved by an OutLayer AI call to JEV with a weighted payout"
+repository = "https://github.com/seams-tech/speak-to-sign"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "=5.30.1"
+
+[dev-dependencies]
+near-sdk = { version = "=5.30.1", features = ["unit-testing"] }
+
+# A standalone workspace: it must not join a parent workspace. The sandbox
+# test crate and the fake OutLayer contract are members so that they share
+# this lock file and target folder. The resolver worker (`resolver/`) is a
+# separate workspace with its own toolchain.
+[workspace]
+members = ["sandbox", "sandbox/fake-outlayer"]
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+strip = true
+panic = "abort"
+overflow-checks = true

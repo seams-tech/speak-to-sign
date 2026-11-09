@@ -153,10 +153,26 @@ downloads the sandbox binary.
 ./build.sh && cargo test -p community-notes-sandbox -- --nocapture
 ```
 
+## Testnet deployment
+
+Deployed on 9 Nov 2026 from commit `7f0e014`.
+
+| Item                | Value                                                                  |
+| ------------------- | ---------------------------------------------------------------------- |
+| Contract account    | `notes.seams-v1.testnet` (created by `seams-v1.testnet` with 5 NEAR)   |
+| Code hash (base58)  | `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY`, the SHA-256 of the release WASM above |
+| Create account      | transaction `GxZNoaKqZnoR9kmoFK2PVJqYqDaPUDBrScd1Eks7h9fa`             |
+| Deploy              | transaction `7eVv1CLTX5MTaanpJvJVHj2PXNv23aztqQHqmJyCc5a4`             |
+| Smoke test          | `add_note` from `seams-v1.testnet`, transaction `4QQh3AXaz64BhGqhCjd72qGYt2iFuNB8LGfn4HtdQowM`, 2.2 Tgas |
+
+The smoke test added note 1 on post 9999, which is not a demo post. The
+first demo note gets id 2. `get_notes({"post_id":9999})` returns note 1 with
+all ten `NoteView` fields.
+
 ## Deploy to testnet
 
-The commands use `notes.seams-v1.testnet`. Replace it with the account that
-you choose. They sign with the key in `~/.near-credentials/testnet/`.
+The commands use `notes.seams-v1.testnet`. For a new deployment, replace it
+with a new account name. They sign with the key in `~/.near-credentials/testnet/`.
 
 1. Create the contract account with 5 NEAR from `seams-v1.testnet`. The key of the new account goes to `~/.near-credentials/testnet/`.
 

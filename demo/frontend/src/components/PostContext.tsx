@@ -122,8 +122,18 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
           </div>
           <div className="pc-bet">
             <b className="pc-bet-title">Is this note true?</b>
-            <NoteMarketStrip noteId={CONTEXT_MARKET_NOTE_ID} source={contextMarketSource} account={account} onSignIn={openSignIn} />
-            {PRACTICE && <p className="pc-practice">Practice market: bets stay in this browser until the JEV contract is on testnet.</p>}
+            <NoteMarketStrip
+              noteId={CONTEXT_MARKET_NOTE_ID}
+              source={contextMarketSource}
+              account={account}
+              onSignIn={openSignIn}
+              directBet
+            />
+            <p className="pc-practice">
+              {PRACTICE
+                ? 'One tap bets 0.5 NEAR. Practice market: bets stay in this browser until this note has a market on testnet.'
+                : 'One tap places one bet. Your Seams Wallet asks you to confirm.'}
+            </p>
           </div>
         </div>
       </div>

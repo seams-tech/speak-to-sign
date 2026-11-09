@@ -39,11 +39,15 @@ export async function runEnrollment(
   const { operations, signal } = input;
   const clips: Uint8Array<ArrayBuffer>[] = [];
   for (const sentence of ENROLLMENT_PHRASES) {
-    const clip = await operations.captureClip({
+    const opened = await operations.openPrompt({
       sentence,
       signal,
       surfaceMeasurementBinding: input.surfaceMeasurementBinding,
     });
+    if (opened.kind === 'unavailable') {
+      return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: opened.detail };
+    }
+    const clip = await opened.prompt.record().finally(opened.prompt.close);
     if (clip.kind === 'cancelled') return clip;
     if (clip.kind === 'unavailable') {
       return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: clip.detail };

@@ -11,7 +11,8 @@ so an accepted payment shows no confirm and no passkey.
 One spoken payment has these steps:
 
 1. Wallet core shows the expected sentence on the VoiceID surface. It records
-   one clip of at most 8 s.
+   one clip of at most 8 s. The surface stays open: it shows the check, the
+   payment and the result in the same card.
 2. The host plugin sends the clip and the typed transfer to the Seams server
    route `POST /speak-to-sign/v1/verify`. The server calls the pinned OutLayer
    verifier.
@@ -19,8 +20,12 @@ One spoken payment has these steps:
    Wallet pins: the transfer, the spoken text, the clip, the expiry and the
    signature.
 4. On `accept`, Wallet core signs the transfer through the warm Wallet Session
-   with no confirm and sends it. On `step_up`, a policy rule asked for more, and
-   the owner approves again on the confirm (a passkey on a passkey session).
+   with no confirm and sends it. On `step_up`, a policy rule asked for more: the
+   card asks the owner to confirm, and the Wallet asks for a fresh approval with
+   the session's own method (a passkey on a passkey session).
+5. The card shows the result. "Done" closes it after a payment. After a
+   refusal, "Try again" records the sentence again, and the result is the last
+   attempt's. `requestTransfer` returns when the card closes.
 
 ## Install
 
@@ -98,7 +103,7 @@ gas of each transfer, about 0.00005 NEAR.
 | ------------- | ------------------------------------------------------------------------------- |
 | `sent`        | The transfer was paid. The result has the hash, `approval` and the stage times. |
 | `refused`     | The verifier, the verdict check or the chain refused, for example `words`.      |
-| `cancelled`   | The owner closed the surface or the confirm.                                    |
+| `cancelled`   | The owner closed the surface before a verdict, or closed the step-up question.  |
 | `unavailable` | VoiceID, the verifier or the Wallet signing path could not be reached.          |
 
 `approval` is `voice` when the verdict alone approved the payment, and

@@ -11,17 +11,21 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   Wallet core loads it with `loadSpeakToSignHost` (`core/transactionFeatures/hostRegistry.ts`)
   and refuses a different `hostApiVersion`.
 - [`host/flow.ts`](host/flow.ts) runs one spoken payment with the scoped core operations
-  `captureClip`, `receiverExists`, `verify` and `payWithVerdict`
+  `openPrompt`, `receiverExists`, `verify` and `payWithVerdict`
   (`core/transactionFeatures/hostOperations.ts`). The plugin gets no signing context, key or
   session. Wallet core checks the verdict (`core/transactionFeatures/voiceVerdict.ts`) and
-  builds the one transfer that it signs.
-- [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three `captureClip` calls,
+  builds the one transfer that it signs. `payWithVerdict` tells the open prompt when the
+  verdict passed, when a step-up needs the owner, and when the transfer leaves for the network.
+- [`host/card.ts`](host/card.ts) holds the copy and the line segments of each state of the card:
+  the check, the payment, the step-up question, the paid result and each refusal.
+- [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three prompts of one recording each,
   `authorizeEnrollment` for exactly these clips (core signs one NEP-413 message), then
   `verify` with the verifier's `enroll` input. `tests/unit/speakToSignEnroll.unit.test.ts`
   checks the digest and the message against the verifier's vectors.
-- `captureClip` loads the VoiceID host plugin through `loadWalletAuthMethodHostPlugin` and calls
-  its `recordPhrase`, which shows the sentence and records one clip. Core returns it as a 16 kHz
-  mono PCM16 WAV of at most 8 s. This package bundles no VoiceID code.
+- `openPrompt` loads the VoiceID host plugin through `loadWalletAuthMethodHostPlugin` and calls
+  its `openPhrase`, which shows the sentence and records clips of it. The surface stays open for
+  the check and the result (`packages/voiceid/src/capture/phraseCard.ts`). Core returns each
+  clip as a 16 kHz mono PCM16 WAV of at most 8 s. This package bundles no VoiceID code.
 - The host bundle imports only `@seams/wallet/speak-to-sign-host`, served by the Wallet as
   `/sdk/speak-to-sign-host.js`.
 - `core/transactionFeatures/spokenTransfer.ts` in `@seams/wallet` ports the account transfer

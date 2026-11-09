@@ -1,24 +1,20 @@
-import type {
-  SpeakToSignHostPlugin,
-  SpeakToSignTransferResult,
-} from '@seams/wallet/speak-to-sign-host';
 import {
+  base64Encode,
   isSpeakableAccount,
   parseSpeakableNear,
   renderTransfer,
-  sha256,
-  type VaultTransferRequest,
-} from './intent';
-import { parseVaultState, transferArgs, verifyInput, type VaultState } from './request';
-import { checkVerdict, parseVerifyOutput } from './verdict';
+  type SpeakToSignHostPlugin,
+  type SpeakToSignTransferResult,
+} from '@seams/wallet/speak-to-sign-host';
 
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
 export type HostTransfer = NonNullable<TransferInput['transfer']>;
 
 /**
- * One spoken payment: read the vault, record the sentence on the VoiceID surface, verify it
- * on the Seams server, check the signed verdict against the vault's pinned key, then send
- * `transfer_with_verdict`. Nothing reaches the vault unless the local check accepts the verdict.
+ * One spoken payment: record the sentence on the VoiceID surface, verify it on the Seams server,
+ * then hand the verifier output to Wallet core. Core checks the signed verdict against this
+ * transfer and sends it from the owner's account: with no confirm on `accept`, and with a fresh
+ * approval on `step_up`.
  */
 export async function runSpokenTransfer(
   input: Omit<TransferInput, 'transfer'> & { readonly transfer: HostTransfer },
@@ -29,22 +25,11 @@ export async function runSpokenTransfer(
   if (!isSpeakableAccount(transfer.receiver)) {
     return { kind: 'refused', reason: 'receiver_not_speakable' };
   }
-
-  const vault = await readVault(transfer, signal);
-  if (vault.kind !== 'ready') return vault.result;
   const receiver = await receiverExists(transfer, signal);
   if (receiver.kind !== 'exists') return receiver.result;
-  const request: VaultTransferRequest = {
-    network: input.network,
-    vault: input.vault,
-    owner: transfer.ownerAccountId,
-    receiver: transfer.receiver,
-    amountYocto,
-    nonce: vault.state.nonce,
-  };
 
   const clip = await transfer.operations.captureClip({
-    sentence: renderTransfer(request).displayText,
+    sentence: renderTransfer({ receiver: transfer.receiver, amountYocto }).displayText,
     signal,
     surfaceMeasurementBinding: transfer.surfaceMeasurementBinding,
   });
@@ -55,61 +40,59 @@ export async function runSpokenTransfer(
 
   const verifyStartedAt = performance.now();
   const reply = await transfer.operations.verify(
-    verifyInput(request, vault.state.contacts, clip.wav),
+    {
+      op: 'verify',
+      owner: transfer.ownerAccountId,
+      request: { kind: 'transfer', receiver: transfer.receiver, amount_yocto: String(amountYocto) },
+      contacts: [],
+      audio_wav_b64: base64Encode(clip.wav),
+    },
     signal,
   );
   const verifiedAt = performance.now();
   if (reply.kind === 'failed') {
     return { kind: 'unavailable', reason: 'verifier_unavailable', detail: reply.code };
   }
-  const output = parseVerifyOutput(reply.output);
-  if (!output) {
-    return { kind: 'unavailable', reason: 'verifier_unavailable', detail: 'invalid output' };
-  }
-  const check = await checkVerdict({
-    output,
-    request,
-    audioDigest: await sha256(clip.wav),
-    pinnedVerifierKey: vault.state.verifierPublicKey,
-  });
-  const checkedAt = performance.now();
-  if (check.kind === 'refused') return check;
-  if (check.kind === 'mismatch') {
-    return { kind: 'refused', reason: 'verdict_mismatch', detail: check.detail };
-  }
 
-  const submission = await transfer.operations.submitTransfer(
-    transferArgs(request, check.verdictJson, check.signatureB64),
+  const payment = await transfer.operations.payWithVerdict(
+    { receiver: transfer.receiver, amountYocto },
+    reply.output,
     signal,
   );
   const receiptAt = performance.now();
-  switch (submission.kind) {
+  switch (payment.kind) {
     case 'executed':
       return {
         kind: 'sent',
-        transactionHash: submission.transactionHash,
+        transactionHash: payment.transactionHash,
+        approval: payment.approval,
         times: {
           speechMs: clip.speechMs,
           verifyMs: Math.round(verifiedAt - verifyStartedAt),
-          checkMs: Math.round(checkedAt - verifiedAt),
-          transactionMs: Math.round(receiptAt - checkedAt),
+          transactionMs: Math.round(receiptAt - verifiedAt),
           endOfSpeechToReceiptMs: Math.round(receiptAt - clip.endOfSpeechAt),
         },
       };
     case 'reverted':
-      return { kind: 'refused', reason: 'vault_rejected', detail: submission.error };
+      return { kind: 'refused', reason: 'transaction_failed', detail: payment.error };
+    case 'refused':
+      return payment.detail === undefined
+        ? { kind: 'refused', reason: payment.reason }
+        : { kind: 'refused', reason: payment.reason, detail: payment.detail };
+    case 'unavailable':
+      return { kind: 'unavailable', reason: 'verifier_unavailable', detail: payment.detail };
     case 'not_submitted':
     case 'submission_unknown':
-      return { kind: 'unavailable', reason: submission.kind, detail: submission.error };
+      return { kind: 'unavailable', reason: payment.kind, detail: payment.error };
     default:
-      return submission satisfies never;
+      return payment satisfies never;
   }
 }
 
 type ReceiverCheck =
   Readonly<{ kind: 'exists' }> | Readonly<{ kind: 'failed'; result: SpeakToSignTransferResult }>;
 
-/** A transfer to a missing account would fail and return to the vault, after the verifier ran. */
+/** A transfer to a missing account would fail on chain, after the verifier ran. */
 async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Promise<ReceiverCheck> {
   try {
     if (await transfer.operations.receiverExists(transfer.receiver, signal)) {
@@ -124,42 +107,4 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
     };
   }
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
-}
-
-type VaultRead =
-  | Readonly<{ kind: 'ready'; state: VaultState }>
-  | Readonly<{ kind: 'failed'; result: SpeakToSignTransferResult }>;
-
-async function readVault(transfer: HostTransfer, signal: AbortSignal): Promise<VaultRead> {
-  const { operations } = transfer;
-  let views: [unknown, unknown, unknown];
-  try {
-    views = await Promise.all([
-      operations.viewVault('get_vault', signal),
-      operations.viewVault('get_contacts', signal),
-      operations.viewVault('get_verifier', signal),
-    ]);
-  } catch (error) {
-    signal.throwIfAborted();
-    const detail = error instanceof Error ? error.message.slice(0, 200) : 'vault view failed';
-    return {
-      kind: 'failed',
-      result: { kind: 'unavailable', reason: 'verifier_unavailable', detail },
-    };
-  }
-  if (views[0] === null) {
-    return { kind: 'failed', result: { kind: 'unavailable', reason: 'vault_missing' } };
-  }
-  const state = parseVaultState({ vault: views[0], contacts: views[1], verifier: views[2] });
-  if (!state || state.nonce > BigInt(Number.MAX_SAFE_INTEGER)) {
-    return {
-      kind: 'failed',
-      result: {
-        kind: 'unavailable',
-        reason: 'verifier_unavailable',
-        detail: 'invalid vault state',
-      },
-    };
-  }
-  return { kind: 'ready', state };
 }

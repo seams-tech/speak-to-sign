@@ -1,5 +1,6 @@
-// Builds the whole site into dist/: this Community Notes page at /, then the Speak to pay
-// example (../../examples/speak-to-pay) at /pay/. Both use one Seams project, so the
+// Builds the whole site into dist/: the Speak-to-Sign page at /, Community Notes at
+// /notes/, then the Speak to pay example (../../examples/speak-to-pay) at /pay/.
+// All use one Seams project, so the
 // pay build gets the VITE_SEAMS_* settings of demo/frontend/ (.env.local, .env.production.local, or the
 // environment). Nothing is written into examples/.
 import { spawnSync } from 'node:child_process';
@@ -31,4 +32,4 @@ run('pnpm', ['exec', 'vite', 'build', '--base', '/pay/', '--outDir', resolve(dem
   ...process.env,
   ...seamsEnv,
 });
-console.log('Site built: dist/ (notes at /) and dist/pay/ (Speak to pay at /pay/).');
+console.log('Site built: dist/ (Speak-to-Sign at /, Community Notes at /notes/) and dist/pay/ (Speak to pay at /pay/).');

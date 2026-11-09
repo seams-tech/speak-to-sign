@@ -19,7 +19,7 @@ localhost:5443 {
 }
 
 # https://localhost:8443 → the built site (pnpm build:site, then pnpm preview, port 8788):
-# Community Notes at /, Speak to pay at /pay/, and /api/summary.
+# Speak-to-Sign at /, Community Notes at /notes/, Speak to pay at /pay/, and /api/summary.
 localhost:8443 {
 	tls internal
 	encode gzip

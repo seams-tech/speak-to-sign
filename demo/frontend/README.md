@@ -1,4 +1,12 @@
-# Spoken Notes demo
+# Speak-to-Sign demo site
+
+The site opens on the Speak-to-Sign page (`/`): what a spoken approval is, and
+the applications as framed screens. The live one is Community Notes
+(`/notes/`); a pull request merge and a multisig confirmation are drawn
+concepts. The page style is warm paper, ink lines and monospace type, in the
+spirit of hand-inked product pages. Its code is in `src/showcase/`.
+
+## Community Notes (`/notes/`)
 
 A Community Notes page in the light style of X. You post a note and rate a
 note with your voice, through Seams Speak-to-Sign. Testnet only. The two
@@ -20,10 +28,12 @@ signed output: one call, for a short time.
 There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
-The site has two pages on one origin, `https://seams-voice-intents.pages.dev`:
-this Community Notes page at `/`, and the Speak to pay example
-(`../../examples/speak-to-pay`) at `/pay/`. Both use the same Seams project,
-so one wallet works on both.
+The site has three pages on one origin, `https://seams-voice-intents.pages.dev`:
+the Speak-to-Sign page at `/` (`index.html`), this Community Notes page at
+`/notes/` (`notes/index.html`), and the Speak to pay example
+(`../../examples/speak-to-pay`) at `/pay/`. All use the same Seams project, so
+one wallet works on all of them. The Speak-to-Sign page shows a live preview of
+`/notes/` in an iframe; a click opens it full size.
 
 ## What must be live
 
@@ -64,7 +74,8 @@ pnpm dev         # Vite on http://localhost:5173, sends /api/* to port 8788
 pnpm dev:https   # Caddy: https://localhost:5443 → 5173, https://localhost:8443 → 8788
 ```
 
-Open https://localhost:5443. Passkeys in the Wallet iframe need the app on
+Open https://localhost:5443 for the Speak-to-Sign page, and
+https://localhost:5443/notes/ for Community Notes. Passkeys in the Wallet iframe need the app on
 trusted HTTPS: on plain `http://localhost` the Wallet says "Passkeys require
 trusted HTTPS for the app and wallet". Caddy signs the certificates with its
 local CA (`tls internal`). If the browser does not trust it yet, run

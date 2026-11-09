@@ -192,8 +192,9 @@ impl Vault {
         Ok(active_at_ns)
     }
 
-    /// Checks a transfer against the nonce, contacts and limits. Returns the
-    /// receiver and the speakable amount.
+    /// Checks a transfer against the nonce and the limits. The receiver can be
+    /// any named account that the text can say; it need not be a contact.
+    /// Returns the receiver and the speakable amount.
     pub fn check_transfer(
         &self,
         receiver_id: &AccountId,
@@ -204,10 +205,7 @@ impl Vault {
         if nonce != self.next_nonce {
             return Err(VaultError::BadNonce);
         }
-        let contact = self.contact(receiver_id).ok_or(VaultError::NotAContact)?;
-        if !contact.is_active(now_ns) {
-            return Err(VaultError::ContactNotActive);
-        }
+        let receiver = Speakable::new(receiver_id)?;
         let spoken_amount =
             NearAmount::from_yocto(amount.as_yoctonear()).map_err(|_| VaultError::AmountNotSpeakable)?;
         let limits = self.effective_limits(now_ns);
@@ -221,7 +219,7 @@ impl Vault {
         if amount > self.balance {
             return Err(VaultError::InsufficientBalance);
         }
-        Ok((contact.account.clone(), spoken_amount))
+        Ok((receiver, spoken_amount))
     }
 
     /// Returns a reservation to the balance and to today's limit.

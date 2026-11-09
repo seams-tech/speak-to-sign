@@ -2,11 +2,13 @@
 //! Sections 4 and 7.5).
 //!
 //! Each owner has one vault: a balance, saved contacts, limits and a nonce.
+//! A spoken payment can go to any named account that the text can say; the
+//! contacts are the known accounts that the verifier checks the words against.
 //! The Wallet calls the verifier through OutLayer's HTTPS API and gets a
 //! verdict signed by the verifier's project-bound key. It then sends one
 //! transaction, `transfer_with_verdict`. The vault rebuilds the request from
 //! its own state and the arguments, checks the signature against the key
-//! pinned at `new`, checks the verdict, the nonce, the contact, the limits
+//! pinned at `new`, checks the verdict, the nonce, the receiver, the limits
 //! and the audio digest, and pays in the same transaction. No yield and no
 //! `request_execution`.
 //!
@@ -256,8 +258,9 @@ impl VoiceVault {
         vault.pending_limits.take().map(|_| ()).ok_or(VaultError::NoLimitsChange)
     }
 
-    /// Pays `amount` to an active contact on a verdict that the pinned
-    /// verifier key signed. The caller is the owner. The vault rebuilds the
+    /// Pays `amount` to a named account that the text can say, on a verdict
+    /// that the pinned verifier key signed. The receiver need not be a
+    /// contact; the owner and the vault cannot receive. The caller is the owner. The vault rebuilds the
     /// request (network, vault, owner, receiver, amount, nonce) from its own
     /// state and these arguments; the verdict's request digest and
     /// spoken-text digest must equal its own, and its audio digest must be
@@ -278,6 +281,9 @@ impl VoiceVault {
         let accepted = verdict::parse_accepted(&verdict_json)?;
 
         let owner_id = env::predecessor_account_id();
+        if receiver_id == owner_id || receiver_id == env::current_account_id() {
+            return Err(VaultError::BadReceiver);
+        }
         let now = env::block_timestamp();
         let vault = self.vaults.get_mut(&owner_id).ok_or(VaultError::NoVault)?;
         vault.settle(now);

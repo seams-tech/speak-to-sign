@@ -13,7 +13,7 @@ import path from "node:path";
 
 const ENROLL_PHRASES = [
   "My voice is my signature for this vault.",
-  "I send money only to the contacts I saved.",
+  "I send money only when I say so.",
   "Seams, please learn how I sound today.",
 ];
 const argv = process.argv.slice(2);

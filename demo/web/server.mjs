@@ -36,7 +36,7 @@ const SETTLE_TIMEOUT_MS = 60_000;
 const MAX_BODY_BYTES = 2_000_000;
 export const ENROLL_PHRASES = [
   "My voice is my signature for this vault.",
-  "I send money only to the contacts I saved.",
+  "I send money only when I say so.",
   "Seams, please learn how I sound today.",
 ];
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -308,7 +308,6 @@ export async function payFlow(cfg, input, emit) {
   ]);
   if (!vault) throw new Error(`${cfg.owner} has no vault on ${cfg.vault}`);
   const names = contacts.map((c) => c.account_id);
-  if (!contacts.some((c) => c.account_id === contact && c.active)) throw new Error(`${contact} is not an active contact`);
   const pinned = verifier.verifier_public_key;
   const nonce = Number(vault.next_nonce);
   emit({ stage: "state", ms: since(), nonce, contacts: names, pinned });

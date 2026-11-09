@@ -264,14 +264,30 @@ fn implicit_owner_pays_by_voice() {
 }
 
 #[test]
-fn non_contact() {
+fn named_account_that_is_not_a_contact_is_paid() {
     let mut contract = setup();
-    assert_eq!(signed(&mut contract, "bob.testnet", near(1), 0, 8), Err(VaultError::NotAContact));
-    // A contact in its delay (default 120 s).
+    signed(&mut contract, "bob.testnet", near(1), 0, 8).unwrap();
+    assert_eq!(transfers(), vec![(id("bob.testnet"), near(1))]);
+    // A contact in its delay (default 120 s) is a named account, so it is paid too.
     let mut contract = setup_with(pinned_key(), None);
     assert_eq!(contract.get_verifier().contact_delay_seconds, U64(120));
-    assert_eq!(signed(&mut contract, "alice.testnet", near(1), 0, 8), Err(VaultError::ContactNotActive));
+    signed(&mut contract, "alice.testnet", near(1), 0, 9).unwrap();
+    assert_eq!(transfers(), vec![(alice(), near(1))]);
+}
+
+#[test]
+fn receiver_must_be_speakable_and_not_the_owner_or_the_vault() {
+    let mut contract = setup();
+    // An implicit receiver cannot be said, so no verdict can name it.
+    let text = verdict_for("alice.testnet", near(1), 0, 8);
+    assert_eq!(
+        transfer(&mut contract, id(&"a".repeat(64)), near(1), 0, &text, &sign(&text)),
+        Err(VaultError::AccountNotSpeakable)
+    );
+    assert_eq!(signed(&mut contract, owner().as_str(), near(1), 0, 8), Err(VaultError::BadReceiver));
+    assert_eq!(signed(&mut contract, vault_id().as_str(), near(1), 0, 8), Err(VaultError::BadReceiver));
     assert!(transfers().is_empty());
+    assert_eq!(view(&contract).next_nonce, U64(0));
 }
 
 #[test]

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 publish = false
-description = "Speak-to-Sign vault: native NEAR transfers to saved contacts, paid only on a verdict signed by the pinned OutLayer verifier key"
+description = "Speak-to-Sign vault: native NEAR transfers to named accounts, paid only on a verdict signed by the pinned OutLayer verifier key"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

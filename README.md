@@ -100,7 +100,8 @@ python3 demo/demo.py pay --env-file .env --vault seams-wallet.testnet \
 ## Demo script (about 5 minutes)
 
 Before the demo: start the Phala speaker service and the page server. The
-vault has some NEAR and the active contact `seams-v1.testnet`. Enroll the
+vault has some NEAR. A payment can go to any named account, such as
+`seams-v1.testnet`; it need not be a contact. Enroll the
 presenter's voice on the Enroll screen (about 15 s), and do one test payment.
 
 1. **0:00** Open the vault on nearblocks (link at the foot of the page). Show the contact, the limits and the pinned verifier key.

@@ -9,7 +9,7 @@
           OutLayer's HTTPS API. Prints the result and the verifier key to pin
           in the vault.
   pay     Reads the vault state over RPC, makes a WAV that says
-          "send <amount> near to <contact>", calls `verify`, checks the signed
+          "send <amount> near to <receiver>", calls `verify`, checks the signed
           verdict locally, then signs and sends ONE vault transaction
           `transfer_with_verdict` over RPC (send_tx, NONE) and polls
           EXPERIMENTAL_tx_status. Prints two times: "vault accepted" (the
@@ -54,7 +54,7 @@ POLL_SECONDS = 0.1
 SETTLE_TIMEOUT_SECONDS = 60
 ENROLL_PHRASES = [
     "My voice is my signature for this vault.",
-    "I send money only to the contacts I saved.",
+    "I send money only when I say so.",
     "Seams, please learn how I sound today.",
 ]
 B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -420,9 +420,6 @@ def cmd_pay(args):
         sys.exit(f"error: {args.owner} has no vault on {args.vault}")
     contacts = view(args.vault, "get_contacts", {"owner_id": args.owner})
     names = [contact["account_id"] for contact in contacts]
-    active = {contact["account_id"]: contact["active"] for contact in contacts}
-    if not active.get(args.contact):
-        sys.exit(f"error: {args.contact} is not an active contact (contacts: {active})")
     pinned = view(args.vault, "get_verifier", {})["verifier_public_key"]
     nonce = int(vault["next_nonce"])
     access_nonce, block_hash = tx_inputs(args.owner, public_key_text)
@@ -495,7 +492,7 @@ def main(argv=None):
         command.add_argument("--key-file", required=True, help="near-cli legacy key file of the owner")
         if name == "pay":
             command.add_argument("--amount", required=True, help="NEAR, whole hundredths, e.g. 2 or 0.5")
-            command.add_argument("--contact", required=True, help="an active vault contact")
+            command.add_argument("--contact", required=True, help="the receiver: a named account that can be said")
             command.add_argument("--say", help="speak this text instead of the request (shows a refusal)")
     args = parser.parse_args(argv)
     try:

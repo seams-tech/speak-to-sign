@@ -32,7 +32,7 @@ export const EXAMPLES: VoiceExample[] = [
     target: 'notes.seams-v1.testnet · 0 NEAR · 30 Tgas',
     status: 'live',
     blurb: 'Rate or post a note by voice, on an X-style page.',
-    url: 'notes',
+    url: 'x.com',
   },
   {
     id: 'merge',

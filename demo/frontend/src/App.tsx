@@ -195,7 +195,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     <DemoContext.Provider value={state}>
       <div className="notes-app" ref={rootRef}>
         <div className="layout">
-          <Rail route={route} />
+          <Rail />
           <main className="column">
             <SetupPanel compact />
             <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />

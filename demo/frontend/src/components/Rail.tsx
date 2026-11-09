@@ -12,8 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { shortAccount } from '../config';
 import { useDemo, useWriteCue } from '../demoContext';
-import { paths, type Route } from '../router';
-import { BrandMark } from './BrandMark';
+import type { Route } from '../router';
 
 const DECOR = [
   { label: 'Explore', Icon: IconSearch },
@@ -26,18 +25,15 @@ const DECOR = [
 
 /**
  * The left navigation. Wide screens show the labels; narrow screens show icons only.
- * The demo has one page, the post, so the logo and the menu items copy the look only. The main
- * button and the account work.
+ * The demo has one page, the post, so the menu items copy the look only, in a dim grey that does
+ * not invite a click. The account works.
  */
-export function Rail({ route }: { route: Route }) {
-  const { account, status, openWrite, openSignIn } = useDemo();
+export function Rail() {
+  const { account, status, openSignIn } = useDemo();
 
   return (
     <header className="rail">
       <nav className="rail-inner" aria-label="Main">
-        <span className="rail-logo" aria-hidden="true">
-          <BrandMark />
-        </span>
         <span className="rail-item" aria-hidden="true">
           <span className="rail-item-pill">
             <IconHome size={24} stroke={1.8} />
@@ -52,17 +48,6 @@ export function Rail({ route }: { route: Route }) {
             </span>
           </span>
         ))}
-        {route.name === 'post' ? (
-          <button type="button" className="rail-cta rail-cta-blue" onClick={() => openWrite(route.postId)}>
-            <IconFeather className="rail-cta-icon" size={22} stroke={1.8} aria-hidden="true" />
-            <span className="rail-cta-label">Write a note</span>
-          </button>
-        ) : (
-          <a className="rail-cta" href={paths.needsHelp}>
-            <IconChecklist className="rail-cta-icon" size={22} stroke={1.8} aria-hidden="true" />
-            <span className="rail-cta-label">Rate notes</span>
-          </a>
-        )}
       </nav>
 
       {account ? (

@@ -35,7 +35,7 @@ with rustc 1.97.1, Node 24.18.0 and pnpm 11.11.0. Times, and the hashes in
 You need:
 
 - `git`, `curl`, `jq` and `shasum` (on Linux, `sha256sum` gives the same hash).
-- Rust from rustup. `community-notes/` pins Rust 1.97.0 with the
+- Rust from rustup. `contracts/community-notes/` pins Rust 1.97.0 with the
   `wasm32-unknown-unknown` target; rustup installs it on the first `cargo` call.
 - Node 24 and pnpm 11. `corepack enable` gives the pnpm version that
   `seams-wallet` pins.
@@ -73,7 +73,7 @@ ratings), with their sentences, Borsh bytes and digests, plus the vectors for
 normalization, transcript parsing and sound-alike words.
 
 ```bash
-(cd speak-to-sign/spoken-intent && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
+(cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
 Expected (23 tests):
@@ -99,7 +99,7 @@ The 24 request vectors, with their sentences, Borsh bytes and digests, are the
 same in both files:
 
 ```bash
-diff <(jq -S .requests speak-to-sign/spoken-intent/fixtures/spoken_intent_vectors_v1.json) <(jq -S .requests seams-wallet/crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json) && echo 'the 24 request vectors are the same'
+diff <(jq -S .requests speak-to-sign/crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json) <(jq -S .requests seams-wallet/crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json) && echo 'the 24 request vectors are the same'
 ```
 
 Expected:
@@ -111,7 +111,7 @@ the 24 request vectors are the same
 ### 2. The verifier
 
 ```bash
-(cd speak-to-sign/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
+(cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
 Expected (52 tests):
@@ -136,7 +136,7 @@ with a fake host. The fake host has an enrolled owner and returns the given
 transcript. Each test checks the ed25519 signature of the verdict.
 
 ```bash
-(cd speak-to-sign/voice-verifier && cargo test --test ops -- note rating 2>&1 | grep -E '^test')
+(cd speak-to-sign/crates/voice-verifier && cargo test --test ops -- note rating 2>&1 | grep -E '^test')
 ```
 
 Expected:
@@ -164,7 +164,7 @@ For the summary "The bridge is not closed for six months", the transcript
 "The bridge is closed for six months." is refused (`words`): a dropped "not"
 does not pass. A summary of fewer than four words, and every rating, needs the
 exact words. "This note is not helpful." for a `helpful` rating is refused.
-The rule is `words_pass` in `voice-verifier/src/ops.rs`.
+The rule is `words_pass` in `crates/voice-verifier/src/ops.rs`.
 
 ### 3. The Wallet verdict check
 
@@ -228,7 +228,7 @@ and signs nothing. With the verdict of this note, core signs one transaction:
 Unit tests, one for each rule of the contract:
 
 ```bash
-(cd speak-to-sign/community-notes && cargo test -p community-notes 2>&1 | grep -E 'Running|Doc-tests|test result')
+(cd speak-to-sign/contracts/community-notes && cargo test -p community-notes 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
 Expected:
@@ -244,7 +244,7 @@ The sandbox test deploys the release WASM to a local nearcore sandbox and
 calls it as the Wallet does (30 Tgas, no deposit). First build the WASM:
 
 ```bash
-(cd speak-to-sign/community-notes && ./build.sh 2>&1 | tail -3)
+(cd speak-to-sign/contracts/community-notes && ./build.sh 2>&1 | tail -3)
 ```
 
 Expected on the computer that deployed the contract:
@@ -259,7 +259,7 @@ On another computer the hash can be different: the WASM holds the local
 source paths of panic locations.
 
 ```bash
-(cd speak-to-sign/community-notes && cargo test -p community-notes-sandbox 2>&1 | grep -E 'Running|Doc-tests|test result|^test')
+(cd speak-to-sign/contracts/community-notes && cargo test -p community-notes-sandbox 2>&1 | grep -E 'Running|Doc-tests|test result|^test')
 ```
 
 Expected:
@@ -401,11 +401,11 @@ first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'
 | **Baseline.** VoiceID UI scaffold: a voice assistant card with no speech check. | `seams-wallet`: `packages/wallet/src/react/components/VoiceAssistantCard.tsx` (removed later) | 2026-10-13 03:28, `21503882` | `first seams-wallet packages/wallet/src/react/components/VoiceAssistantCard.tsx` |
 | Window starts. The last earlier commit on `seams-wallet` `main` is `620794d9`. | | 2026-10-18 23:54 | `TZ=UTC git -C seams-wallet log -1 --before=2026-10-19T00:00:00Z --date=format-local:'%Y-%m-%d %H:%M' --format='%cd UTC %h %s'` |
 | VoiceID speech verification. | `seams-wallet`: commits that name VoiceID; `packages/voiceid` from 2026-10-26 | 2026-10-22 16:36, `9ace901f` | `TZ=UTC git -C seams-wallet log -i --grep=voiceid --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' \| sed -n 2p` |
-| The `spoken-intent` crate. It moved here from `seams-wallet` `crates/spoken-intent` with its history. | `speak-to-sign`: `spoken-intent/` | 2026-11-07 06:50, `923e576` | `first speak-to-sign spoken-intent` |
-| The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/` | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
+| The `spoken-intent` crate. It moved here from `seams-wallet` `crates/spoken-intent` with its history. | `speak-to-sign`: `crates/spoken-intent/` (was `spoken-intent/`) | 2026-11-07 06:50, `923e576` | `first speak-to-sign spoken-intent` |
+| The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `crates/voice-verifier/`, `crates/speaker-service/`, `gate0/` (was `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/`) | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
 | Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/speak-to-sign/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | `first seams-wallet packages/speak-to-sign` |
-| Spoken notes in the verifier (version 0.4.0). | `speak-to-sign`: `voice-verifier/src` | 2026-11-09 10:14, `ff1409b` | `TZ=UTC git -C speak-to-sign log -S community_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- voice-verifier/src \| head -1` |
-| The community notes contract. | `speak-to-sign`: `community-notes/` | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
+| Spoken notes in the verifier (version 0.4.0). | `speak-to-sign`: `crates/voice-verifier/src` (was `voice-verifier/src`) | 2026-11-09 10:14, `ff1409b` | `TZ=UTC git -C speak-to-sign log -S community_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- voice-verifier/src \| head -1` |
+| The community notes contract. | `speak-to-sign`: `contracts/community-notes/` (was `community-notes/`) | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
 | Spoken notes in the Wallet. | `seams-wallet`: `packages/wallet/src` | 2026-11-09 10:25, `bec40080` | `TZ=UTC git -C seams-wallet log -S add_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- packages/wallet/src \| head -1` |
 | The Spoken Notes demo page. | `speak-to-sign`: `demo/` (an earlier Python demo client is from 2026-11-07) | 2026-11-09 10:33, `e25f1ec` | `TZ=UTC git -C speak-to-sign log -1 --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' e25f1ec` |
 | The Speak to pay example. | `speak-to-sign`: `examples/` | 2026-11-09 11:05, `2999fd6` | `first speak-to-sign examples` |
@@ -466,14 +466,14 @@ and `seams-monorepo/docs/refactor-210-voice-intents.md`.
 
 ## Repository
 
-| Folder                   | What it is                                                         |
-| ------------------------ | ------------------------------------------------------------------ |
-| `spoken-intent/`         | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
-| `voice-verifier/`        | The OutLayer worker: `enroll` and `verify`. See its README.        |
-| `speaker-service/`       | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
-| `gate0/`, `voice-probe/` | Gate 0 probes, the FastFS uploader and the HTTPS latency probe.    |
-| `packages/speak-to-sign/` | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
-| `community-notes/`       | The NEAR contract `notes.seams-v1.testnet`: `add_note`, `rate_note` and the views. See its README. |
+| Folder                       | What it is |
+| ---------------------------- | ---------- |
+| `crates/spoken-intent/`      | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
+| `crates/voice-verifier/`     | The OutLayer worker: `enroll` and `verify`. See its README. |
+| `crates/speaker-service/`    | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
+| `contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet`: `add_note`, `rate_note` and the views. See its README. |
+| `packages/speak-to-sign/`    | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
+| `gate0/`                     | Gate 0 probes, the FastFS uploader, and the HTTPS latency probe (`gate0/voice-probe/`). |
 | `demo/`                  | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
 | `examples/seams-voice-intents/` | Seams Voice Intents: a web page that pays a NEAR testnet account by voice. See its README. |
 | `docs/`                  | The record of the screener commands and their outputs.             |

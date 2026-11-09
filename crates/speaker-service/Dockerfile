@@ -3,7 +3,7 @@
 #
 # The model comes from a named build context, so the repo holds no copy:
 #   docker build --platform linux/amd64 \
-#     --build-context model=../../seams-wallet/packages/voiceid/assets \
+#     --build-context model=../../../seams-wallet/packages/voiceid/assets \
 #     -t seams-speaker-service .
 # (build.sh does this.) Both stages are linux/amd64, so the binary is a native
 # x86_64-unknown-linux-gnu build. tract picks its AVX2/FMA/AVX-512 kernels at

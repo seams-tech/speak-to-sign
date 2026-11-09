@@ -32,7 +32,7 @@ speaker-service = ["dep:ed25519-dalek"]
 
 [dependencies]
 ed25519-dalek = { version = "2", default-features = false, optional = true }
-spoken-intent = { path = "../spoken-intent" }
+spoken-intent = { path = "../../crates/spoken-intent" }
 sha2 = "=0.10.9"
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
@@ -48,7 +48,7 @@ tract-onnx = { version = "=0.23.10", optional = true }
 [patch.crates-io]
 # The verifier's vendored bit-vec: it removes an optional borsh 1.7
 # requirement that conflicts with spoken-intent's borsh =1.6.1 pin.
-bit-vec = { path = "../voice-verifier/vendor/bit-vec" }
+bit-vec = { path = "../../crates/voice-verifier/vendor/bit-vec" }
 
 [profile.release]
 opt-level = "z"

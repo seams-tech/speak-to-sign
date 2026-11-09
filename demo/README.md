@@ -27,7 +27,7 @@ so one wallet works on both.
 
 | Part                     | Where                                                        | Status on 9 Nov 2026                                   |
 | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
-| Notes contract           | `notes.seams-v1.testnet` (`../community-notes/`)             | Deployed.                                              |
+| Notes contract           | `notes.seams-v1.testnet` (`../contracts/community-notes/`)             | Deployed.                                              |
 | Seams Wallet host        | `https://staging.sign.seams.sh`                              | 0.59.0: Speak-to-Sign host API 6 with spoken notes.    |
 | Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.4.0 (`8a0b7ba0…29ef`): community notes and ratings. |
 | Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.59.0.                                 |

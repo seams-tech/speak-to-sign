@@ -514,6 +514,78 @@ a.lk:hover {
   height: 180px;
   background: #1f2937;
 }
+/* The drawn video: a play button over the poster frame. While it plays, the terminal lines come
+   one after the other, and a bar fills at the bottom. */
+.media-play {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 60px;
+  height: 60px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 0 3px;
+  border: 4px solid #fff;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 120ms ease,
+    background 120ms ease;
+}
+.media-play:hover {
+  background: var(--accent-ink);
+  transform: scale(1.05);
+}
+.media-compact .media-play {
+  width: 52px;
+  height: 52px;
+  border-width: 3px;
+}
+.media-playing .media-line {
+  animation: media-line-in 0.3s ease-out both;
+}
+.media-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 100%;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: 0 50%;
+  animation: media-progress linear both;
+}
+@keyframes media-line-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes media-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .media-playing .media-line {
+    animation: none;
+  }
+  .media-progress {
+    animation-duration: 0.01s !important;
+  }
+}
 .media-caption {
   position: absolute;
   left: 12px;

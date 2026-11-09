@@ -7,7 +7,7 @@ import type {
 } from '@seams/wallet/speak-to-sign-host';
 
 // The type makes a Wallet with a different host API version fail to compile.
-export const hostApiVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION = 2;
+export const hostApiVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION = 3;
 
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
 

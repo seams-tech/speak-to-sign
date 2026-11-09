@@ -10,7 +10,7 @@ The design is Refactor 210, Section 11.4, in `seams-monorepo/docs/refactor-210-v
   Wallet core loads it with `loadSpeakToSignHost` (`core/transactionFeatures/hostRegistry.ts`)
   and refuses a different `hostApiVersion`.
 - [`host/flow.ts`](host/flow.ts) runs one spoken payment with the scoped core operations
-  `captureClip`, `viewVault`, `verify` and `submitTransfer`
+  `captureClip`, `viewVault`, `receiverExists`, `verify` and `submitTransfer`
   (`core/transactionFeatures/hostOperations.ts`). The plugin gets no signing context, key or
   session.
 - [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three `captureClip` calls,

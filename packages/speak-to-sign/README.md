@@ -23,7 +23,7 @@ Speak-to-Sign needs `@seams/voiceid` for the enrollment, the capture surface
 and the speech assets. Install all three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.56.2 @seams/voiceid@0.56.2 @seams/speak-to-sign@0.56.2
+pnpm add @seams/wallet@0.57.0 @seams/voiceid@0.57.0 @seams/speak-to-sign@0.57.0
 ```
 
 `@seams/wallet` does not depend on this package. An app without the
@@ -48,7 +48,7 @@ const seams = new SeamsWeb({
 if (seams.speakToSign) {
   const result = await seams.speakToSign.requestTransfer({
     walletId,
-    receiver: 'alice.testnet', // an active contact of the vault
+    receiver: 'alice.testnet', // any named NEAR account; it need not be a contact
     amount: '2', // decimal NEAR, at most two decimal places
   });
 }
@@ -63,9 +63,9 @@ Before the first spoken payment, the owner needs three things:
 
 1. VoiceID is on for the wallet
    (`seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`).
-2. A vault with at least one contact. The owner calls `create_vault` (with a
-   deposit; the vault keeps 0.1 NEAR for storage) and `add_contact` on the
-   vault contract, for example with `seams.near.signAndSendTransaction`.
+2. A vault. The owner calls `create_vault` (with a deposit; the vault keeps
+   0.1 NEAR for storage) on the vault contract, for example with
+   `seams.near.signAndSendTransaction`. Contacts are optional.
 3. A voice template at the verifier:
 
 ```ts
@@ -85,8 +85,8 @@ authorized. A new enrollment replaces the template.
 | `cancelled`   | The owner closed the surface. Nothing was authorized.                     |
 | `unavailable` | VoiceID, the vault or the verifier could not be reached, or no vault yet. |
 
-Create the vault and a contact with two owner calls on the vault contract.
-Each call opens the wallet confirmation:
+Create the vault with one owner call on the vault contract. The call opens the
+wallet confirmation:
 
 ```ts
 import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
@@ -94,7 +94,7 @@ import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
 const VAULT = 'seams-wallet.testnet';
 const GAS = '30000000000000';
 
-async function setUpVault(near: BoundNearSigner, contact: string): Promise<void> {
+async function createVault(near: BoundNearSigner): Promise<void> {
   // 0.15 NEAR: the vault keeps 0.1 NEAR for storage.
   await near.signAndSendTransaction({
     receiverId: VAULT,
@@ -107,19 +107,11 @@ async function setUpVault(near: BoundNearSigner, contact: string): Promise<void>
       }),
     ],
   });
-  await near.signAndSendTransaction({
-    receiverId: VAULT,
-    actions: [
-      functionCall({
-        method: 'add_contact',
-        args: { account_id: contact },
-        gas: GAS,
-        deposit: '0',
-      }),
-    ],
-  });
 }
 ```
+
+To save a contact, call `add_contact` with `{ account_id }` in the same way.
+The verifier checks the words against the saved contacts.
 
 On testnet the owner account needs about 0.3 NEAR: `create_vault` takes 0.15
 NEAR, and NEAR charges prepaid gas up front (about 0.03 NEAR for each 30 Tgas
@@ -133,6 +125,10 @@ call and 0.051 NEAR for each spoken payment).
 | `refused`     | The verifier, the local check or the vault refused. Nothing was sent. |
 | `cancelled`   | The owner closed the surface.                                         |
 | `unavailable` | VoiceID, the verifier or the vault could not be reached.              |
+
+The receiver can be any named NEAR account that the owner can say. An implicit
+or `0x` account gives `receiver_not_speakable`, and an account that does not
+exist gives `receiver_missing`.
 
 ## Wallet host setup
 
@@ -181,17 +177,17 @@ The vault is a NEAR contract. On testnet it is `seams-wallet.testnet`, with
 the verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` pinned
 at init.
 
-| Method                   | Use                                                                                 |
-| ------------------------ | ----------------------------------------------------------------------------------- |
-| `transfer_with_verdict`  | Pays an active contact on a verdict that the pinned key signed. The owner calls it. |
-| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings, for 10 minutes.        |
-| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.                |
-| `get_vault`              | Balance, limits and the next nonce of an owner.                                     |
-| `get_contacts`           | The owner's contacts and whether each one is active.                                |
-| `get_verifier`           | The pinned verifier key.                                                            |
+| Method                   | Use                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `transfer_with_verdict`  | Pays a named account on a verdict that the pinned key signed. The owner calls it. |
+| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings, for 10 minutes.      |
+| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.              |
+| `get_vault`              | Balance, limits and the next nonce of an owner.                                   |
+| `get_contacts`           | The owner's contacts and whether each one is active.                              |
+| `get_verifier`           | The pinned verifier key.                                                          |
 
 The vault rebuilds the request from its own state and the call arguments. It
-checks the signature, the nonce, the contact, the limits and audio reuse.
+checks the signature, the nonce, the receiver, the limits and audio reuse.
 Any failure changes no state. The host plugin reads only `get_vault`,
 `get_contacts`, `get_verifier` and `get_pending_enrollment`, and sends only
 `transfer_with_verdict` and `authorize_enrollment`, with no deposit.
@@ -209,3 +205,9 @@ Any failure changes no state. The host plugin reads only `get_vault`,
 - Code at `walletOrigin` cannot change the amount or the receiver after the
   owner speaks: the words then do not match. The audio leaves the browser for
   OutLayer, Phala and NEAR AI.
+- Any named account can receive. If the voice check accepts a clone or a
+  replay of the owner's voice, the payment can go to any named account. Only
+  the per-transfer and daily limits bound the loss.
+- The verifier cannot tell apart two accounts that sound the same, such as
+  `bob.testnet` and `bobb.testnet`. The owner must read the account on the
+  screen before speaking.

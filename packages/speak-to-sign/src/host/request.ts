@@ -9,7 +9,6 @@ export type VaultState = Readonly<{
   nonce: bigint;
   /** Every contact, active or not, in vault order. The verifier uses them for the confusion set. */
   contacts: readonly string[];
-  activeContacts: ReadonlySet<string>;
   verifierPublicKey: string;
 }>;
 
@@ -25,18 +24,11 @@ export function parseVaultState(views: {
   const key = verifier.verifier_public_key;
   if (nonce === null || typeof key !== 'string' || !key.startsWith('ed25519:')) return null;
   const names: string[] = [];
-  const active = new Set<string>();
   for (const contact of contacts) {
     if (!isPlainObject(contact) || typeof contact.account_id !== 'string') return null;
     names.push(contact.account_id);
-    if (contact.active === true) active.add(contact.account_id);
   }
-  return {
-    nonce,
-    contacts: names.slice(0, MAX_CONTACTS),
-    activeContacts: active,
-    verifierPublicKey: key,
-  };
+  return { nonce, contacts: names.slice(0, MAX_CONTACTS), verifierPublicKey: key };
 }
 
 /** The verify input, as the demo client sends it to the verifier. */

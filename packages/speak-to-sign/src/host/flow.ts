@@ -27,14 +27,13 @@ export async function runSpokenTransfer(
   const amountYocto = parseSpeakableNear(transfer.amount);
   if (amountYocto === null) return { kind: 'refused', reason: 'amount_not_speakable' };
   if (!isSpeakableAccount(transfer.receiver)) {
-    return { kind: 'refused', reason: 'receiver_not_contact' };
+    return { kind: 'refused', reason: 'receiver_not_speakable' };
   }
 
   const vault = await readVault(transfer, signal);
   if (vault.kind !== 'ready') return vault.result;
-  if (!vault.state.activeContacts.has(transfer.receiver)) {
-    return { kind: 'refused', reason: 'receiver_not_contact' };
-  }
+  const receiver = await receiverExists(transfer, signal);
+  if (receiver.kind !== 'exists') return receiver.result;
   const request: VaultTransferRequest = {
     network: input.network,
     vault: input.vault,
@@ -105,6 +104,26 @@ export async function runSpokenTransfer(
     default:
       return submission satisfies never;
   }
+}
+
+type ReceiverCheck =
+  Readonly<{ kind: 'exists' }> | Readonly<{ kind: 'failed'; result: SpeakToSignTransferResult }>;
+
+/** A transfer to a missing account would fail and return to the vault, after the verifier ran. */
+async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Promise<ReceiverCheck> {
+  try {
+    if (await transfer.operations.receiverExists(transfer.receiver, signal)) {
+      return { kind: 'exists' };
+    }
+  } catch (error) {
+    signal.throwIfAborted();
+    const detail = error instanceof Error ? error.message.slice(0, 200) : 'account view failed';
+    return {
+      kind: 'failed',
+      result: { kind: 'unavailable', reason: 'verifier_unavailable', detail },
+    };
+  }
+  return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
 }
 
 type VaultRead =

@@ -13,7 +13,7 @@ const ENROLLMENT_OUTPUT_KIND = 'seams_voice_enrollment_v2';
 /** The owner reads these three phrases. The verifier needs exactly three recordings. */
 export const ENROLLMENT_PHRASES = [
   'My voice is my signature for this vault.',
-  'I send money only to the contacts I saved.',
+  'I send money only when I say so.',
   'Seams, please learn how I sound today.',
 ] as const;
 

@@ -172,6 +172,34 @@
     {
       "borsh_hex": "0300",
       "name": "unknown_request_kind"
+    },
+    {
+      "borsh_hex": "0600",
+      "name": "unknown_request_kind_6"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e65740700000000000000000000000000000000000000000000000000000000000000000000000000000013000000436c6f73656420666f722036206d6f6e746873",
+      "name": "note_summary_digit"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e6574070000000000000000000000000000000000000000000000000000000000000000000000000000000f00000049742069736e277420636c6f736564",
+      "name": "note_summary_apostrophe"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e65740700000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "name": "note_summary_empty"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e657407000000000000000000000000000000000000000000000000000000000000000000000000000000470000006f6e652074776f20746872656520666f757220666976652073697820736576656e206569676874206e696e652074656e20656c6576656e207477656c766520746869727465656e",
+      "name": "note_summary_thirteen_words"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e6574070000000000000000000000000000000000000000000000000000000000000000000000000000000d00000053656e642068656c70206e6f77",
+      "name": "note_summary_transfer_verb"
+    },
+    {
+      "borsh_hex": "05000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e6574010000000000000003",
+      "name": "note_rating_unknown"
     }
   ],
   "normalize": [
@@ -2489,6 +2517,107 @@
       "request_digest_hex": "cc1a60b52b5ff41d4adac7ba24022f1cb38da48c14160b250dd1d666e1642e82",
       "spoken_text": "approve proposal eighteen quintillion four hundred forty six quadrillion seven hundred forty four trillion seventy three billion seven hundred nine million five hundred fifty one thousand six hundred fifteen set verifier version zero zero zero zero zero zero zero zero river river",
       "spoken_text_digest_hex": "4081326b9f2c11aa8206fb891007012b6d1ae8d81c132d529805e71301bddcf0"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e65740700000000000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f3a00000054686520627269646765207374617973206f70656e2c206f6e6c79206f6e65206c616e6520636c6f73657320666f722074776f207765656b732e",
+      "confusion_set": [
+        "not the bridge stays open only one lane closes for two weeks",
+        "the bridge not stays open only one lane closes for two weeks",
+        "the bridge stays not open only one lane closes for two weeks",
+        "the bridge stays open not only one lane closes for two weeks",
+        "the bridge stays open only not one lane closes for two weeks",
+        "the bridge stays open only one lane closes for not two weeks",
+        "the bridge stays open only one lane closes for two not weeks",
+        "the bridge stays open only one lane closes for two weeks not",
+        "the bridge stays open only one lane closes not for two weeks",
+        "the bridge stays open only one lane not closes for two weeks",
+        "the bridge stays open only one not lane closes for two weeks",
+        "the not bridge stays open only one lane closes for two weeks"
+      ],
+      "display_text": "The bridge stays open, only one lane closes for two weeks.",
+      "name": "community_note",
+      "request_digest_hex": "8267767f95a5264219da8794f739f05f087cd803385edebbcddb26db5b2c54cd",
+      "spoken_text": "the bridge stays open only one lane closes for two weeks",
+      "spoken_text_digest_hex": "a214438a899a8bc952ce1094b1271af856457475cfff232e1e3a18ca12b17981"
+    },
+    {
+      "borsh_hex": "0400400000003362366132376263636562366134326436326133613864303261366630643733363533323135373731646532343361363361633034386131386235396461323917000000636f6d6d756e6974792d6e6f7465732e746573746e65740000000000000000abababababababababababababababababababababababababababababababab1d000000546865206369747920617070726f766564207468652072657061697273",
+      "confusion_set": [
+        "not the city approve the repairs",
+        "the city approve not the repairs",
+        "the city approve the not repairs",
+        "the city approve the repairs not",
+        "the city not approve the repairs",
+        "the not city approve the repairs"
+      ],
+      "display_text": "The city approved the repairs",
+      "name": "community_note_implicit_owner",
+      "request_digest_hex": "6ab1b230225a84769ba84b5f7a6c57fd27ff6662553650a5328f2d851bdae4bb",
+      "spoken_text": "the city approve the repairs",
+      "spoken_text_digest_hex": "7722db892ba942d6dada46c12734f4d2e1b8d995c3a9b875ab7c109f1c576117"
+    },
+    {
+      "borsh_hex": "04000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e6574ffffffffffffffff00000000000000000000000000000000000000000000000000000000000000000600000046616c736521",
+      "confusion_set": [
+        "false not",
+        "not false"
+      ],
+      "display_text": "False!",
+      "name": "community_note_one_word",
+      "request_digest_hex": "7e634c61356c23b18219783e3f64d43869b80b42e726c1451faae84ccd68bb6f",
+      "spoken_text": "false",
+      "spoken_text_digest_hex": "4c1402c07ad345e0850ddc4f28f75f9c02012e3daa33594be582162e823b36cd"
+    },
+    {
+      "borsh_hex": "05000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e6574010000000000000000",
+      "confusion_set": [
+        "not this note is helpful",
+        "this not note is helpful",
+        "this note is helpful not",
+        "this note is not helpful",
+        "this note is somewhat helpful",
+        "this note not is helpful"
+      ],
+      "display_text": "This note is helpful",
+      "name": "note_rating_helpful",
+      "request_digest_hex": "42233828fe77b395672d038e331402c1b9201f66fab8103124c11142b557b4bd",
+      "spoken_text": "this note is helpful",
+      "spoken_text_digest_hex": "c339998caff492902f1eddfe95c6ed4fddab5a4e03440a8129f9cacc6586ec1a"
+    },
+    {
+      "borsh_hex": "05000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e65742a0000000000000001",
+      "confusion_set": [
+        "not this note is somewhat helpful",
+        "this not note is somewhat helpful",
+        "this note is helpful",
+        "this note is not helpful",
+        "this note is not somewhat helpful",
+        "this note is somewhat helpful not",
+        "this note is somewhat not helpful",
+        "this note not is somewhat helpful"
+      ],
+      "display_text": "This note is somewhat helpful",
+      "name": "note_rating_somewhat_helpful",
+      "request_digest_hex": "31ce03ce26620da1303e78dceda20be2ec7295f2c7f47b276f2398c7d593ce9b",
+      "spoken_text": "this note is somewhat helpful",
+      "spoken_text_digest_hex": "a082d22a0d6469bdc119d6bba2bb39c1c8fdbbb264b1486123c0ea0ead7e5c04"
+    },
+    {
+      "borsh_hex": "05000d0000006f776e65722e746573746e657417000000636f6d6d756e6974792d6e6f7465732e746573746e6574ffffffffffffffff02",
+      "confusion_set": [
+        "not this note is not helpful",
+        "this not note is not helpful",
+        "this note is helpful",
+        "this note is not helpful not",
+        "this note is not not helpful",
+        "this note is somewhat helpful",
+        "this note not is not helpful"
+      ],
+      "display_text": "This note is not helpful",
+      "name": "note_rating_not_helpful",
+      "request_digest_hex": "67c24d0ac4e6a53fee8318c16e8663d3b9e8af645b2d72a3b079ad67cc98a004",
+      "spoken_text": "this note is not helpful",
+      "spoken_text_digest_hex": "b524501dd0464f63f99bb54c92aaf7640dc6b8cbb7569a92396bc4d45acd3545"
     }
   ],
   "spoken_text_digest_domain": "seams:spoken-intent:spoken:v1",

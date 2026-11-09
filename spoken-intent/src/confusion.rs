@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use crate::numbers::{digit_value, digit_word, push_integer_words};
 use crate::render::{SpokenToken, VERSION_CHECK_DIGITS};
-use crate::{render, NearAmount, ProposalV1, SpokenAccount, SpokenRequestV1};
+use crate::{render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
 
 /// The verbs of the grammar: the two request verbs, "reject" (the opposite
 /// of "approve") and the proposal verbs.
@@ -37,16 +37,67 @@ const NEGATIONS: [&[&str]; 4] = [&["do", "not"], &["dont"], &["never"], &["not"]
 ///   challenge words.
 /// - An added clause: "and" and the transfer or proposal again, for the
 ///   request itself and for each of its field changes with the same id.
+///
+/// A community note or a note rating moves no value, so its near misses
+/// guard only the meaning of the sentence: "not" added at each position,
+/// each negation word removed, and for a rating each other rating.
 pub fn confusion_set(
     request: &SpokenRequestV1,
     contacts: &[SpokenAccount],
 ) -> Vec<Vec<SpokenToken>> {
     let expected = render(request).spoken;
-    let mut set = field_changes(request, contacts, &expected);
-    let (clause_start, clause_end, clauses) = clauses(request, contacts, &expected);
-    sentence_changes(&expected, clause_start, clause_end, &clauses, &mut set);
+    let mut set = match request {
+        SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {
+            note_changes(request, &expected)
+        }
+        SpokenRequestV1::AccountTransfer { .. } | SpokenRequestV1::MultisigApproval { .. } => {
+            let mut set = field_changes(request, contacts, &expected);
+            let (clause_start, clause_end, clauses) = clauses(request, contacts, &expected);
+            sentence_changes(&expected, clause_start, clause_end, &clauses, &mut set);
+            set
+        }
+    };
     set.remove(&expected);
     set.into_iter().collect()
+}
+
+/// Negation words that a near miss of a note or a rating drops.
+const NOTE_NEGATIONS: [&str; 4] = ["not", "never", "no", "dont"];
+
+/// The near misses of a community note or a note rating.
+fn note_changes(request: &SpokenRequestV1, expected: &[SpokenToken]) -> BTreeSet<Vec<SpokenToken>> {
+    let mut set = BTreeSet::new();
+    if let SpokenRequestV1::NoteRating {
+        network,
+        owner,
+        contract,
+        note_id,
+        rating,
+    } = request
+    {
+        for other in NoteRatingV1::ALL
+            .into_iter()
+            .filter(|other| other != rating)
+        {
+            let variant = SpokenRequestV1::NoteRating {
+                network: *network,
+                owner: owner.clone(),
+                contract: contract.clone(),
+                note_id: *note_id,
+                rating: other,
+            };
+            set.insert(render(&variant).spoken);
+        }
+    }
+    for position in 0..=expected.len() {
+        set.insert(spliced(expected, position, position, &[word("not")]));
+    }
+    for (position, token) in expected.iter().enumerate() {
+        if NOTE_NEGATIONS.contains(&token.as_str()) {
+            set.insert(spliced(expected, position, position + 1, &[]));
+        }
+    }
+    set
 }
 
 fn word(text: &'static str) -> SpokenToken {
@@ -127,6 +178,10 @@ fn clauses(
                 .collect();
             (start, expected.len() - 2, clauses)
         }
+        // `note_changes` gives the near misses of these kinds.
+        SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {
+            (0, expected.len(), Vec::new())
+        }
     }
 }
 
@@ -143,14 +198,22 @@ fn sentence_changes(
         verb_positions.push(clause_start);
     }
     for &position in &verb_positions {
-        for verb in VERBS.iter().filter(|verb| **verb != expected[position].as_str()) {
+        for verb in VERBS
+            .iter()
+            .filter(|verb| **verb != expected[position].as_str())
+        {
             set.insert(spliced(expected, position, position + 1, &[word(verb)]));
         }
         for negation in NEGATIONS {
             let words: Vec<SpokenToken> = negation.iter().map(|w| word(w)).collect();
             set.insert(spliced(expected, position, position, &words));
         }
-        set.insert(spliced(expected, position + 1, position + 1, &[word("not")]));
+        set.insert(spliced(
+            expected,
+            position + 1,
+            position + 1,
+            &[word("not")],
+        ));
     }
 
     // A dropped part of the clause, when the clause is a transfer.
@@ -248,6 +311,8 @@ fn field_changes(
                 }
             }
         }
+        // `note_changes` gives the near misses of these kinds.
+        SpokenRequestV1::CommunityNote { .. } | SpokenRequestV1::NoteRating { .. } => {}
     }
     set
 }
@@ -269,7 +334,10 @@ fn transfer_variants(
 
 fn amount_neighbours(amount: NearAmount) -> Vec<NearAmount> {
     let hundredths = amount.hundredths();
-    let mut candidates = vec![hundredths.saturating_mul(10), hundredths.saturating_mul(100)];
+    let mut candidates = vec![
+        hundredths.saturating_mul(10),
+        hundredths.saturating_mul(100),
+    ];
     if hundredths % 10 == 0 {
         candidates.push(hundredths / 10);
     }

@@ -4,7 +4,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::numbers::{digit_word, push_integer_words};
-use crate::{NearAmount, ProposalV1, SpokenAccount, SpokenRequestV1};
+use crate::{NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
 
 /// One spoken word: lowercase ASCII letters only.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -67,6 +67,22 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
                 challenge[1].as_str()
             )
         }
+        SpokenRequestV1::CommunityNote { summary, .. } => {
+            words.0.extend(summary.spoken_tokens());
+            summary.as_str().to_owned()
+        }
+        SpokenRequestV1::NoteRating { rating, .. } => {
+            let rating_words = rating_words(*rating);
+            for word in rating_words {
+                words.push(word);
+            }
+            let mut display = String::from("This");
+            for word in &rating_words[1..] {
+                display.push(' ');
+                display.push_str(word);
+            }
+            display
+        }
     };
     let spoken = words.0;
     let spoken_text = join_tokens(&spoken);
@@ -119,6 +135,15 @@ fn push_transfer_words(words: &mut Words, receiver: &SpokenAccount, amount: Near
     words.push("near");
     words.push("to");
     words.push_account(receiver);
+}
+
+/// The words of a note rating.
+fn rating_words(rating: NoteRatingV1) -> &'static [&'static str] {
+    match rating {
+        NoteRatingV1::Helpful => &["this", "note", "is", "helpful"],
+        NoteRatingV1::SomewhatHelpful => &["this", "note", "is", "somewhat", "helpful"],
+        NoteRatingV1::NotHelpful => &["this", "note", "is", "not", "helpful"],
+    }
 }
 
 /// Pushes the spoken words of a proposal and returns its display text.

@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
     request_digest, spoken_text_digest, ChallengeWord, NearAccount, NearAmount, Network,
-    ParseResult, ProposalV1, SpokenAccount, SpokenRequestV1, SpokenToken, CHALLENGE_WORDS,
-    PUNCTUATED_ALIASES, RENDERER_VERSION,
+    NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenRequestV1, SpokenSummary,
+    SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -69,6 +69,32 @@ fn transfer(network: Network, receiver: &str, hundredths: u64) -> SpokenRequestV
         owner: near_account("owner.testnet"),
         receiver: account(receiver),
         amount: near(hundredths),
+    }
+}
+
+const NOTES_CONTRACT: &str = "community-notes.testnet";
+
+/// An implicit account: 64 lowercase hex characters.
+const IMPLICIT_OWNER: &str = "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29";
+
+fn note(owner: &str, post_id: u64, note_sha256: [u8; 32], summary: &str) -> SpokenRequestV1 {
+    SpokenRequestV1::CommunityNote {
+        network: Network::Testnet,
+        owner: near_account(owner),
+        contract: near_account(NOTES_CONTRACT),
+        post_id,
+        note_sha256,
+        summary: SpokenSummary::new(summary).expect("speakable summary"),
+    }
+}
+
+fn rating(note_id: u64, rating: NoteRatingV1) -> SpokenRequestV1 {
+    SpokenRequestV1::NoteRating {
+        network: Network::Testnet,
+        owner: near_account("owner.testnet"),
+        contract: near_account(NOTES_CONTRACT),
+        note_id,
+        rating,
     }
 }
 
@@ -197,6 +223,37 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 ["river", "river"],
             ),
         ),
+        (
+            "community_note",
+            note(
+                "owner.testnet",
+                7,
+                sequential_hash,
+                "The bridge stays open, only one lane closes for two weeks.",
+            ),
+        ),
+        (
+            "community_note_implicit_owner",
+            note(
+                IMPLICIT_OWNER,
+                0,
+                [0xab; 32],
+                "The city approved the repairs",
+            ),
+        ),
+        (
+            "community_note_one_word",
+            note("owner.testnet", u64::MAX, [0u8; 32], "False!"),
+        ),
+        ("note_rating_helpful", rating(1, NoteRatingV1::Helpful)),
+        (
+            "note_rating_somewhat_helpful",
+            rating(42, NoteRatingV1::SomewhatHelpful),
+        ),
+        (
+            "note_rating_not_helpful",
+            rating(u64::MAX, NoteRatingV1::NotHelpful),
+        ),
     ]
 }
 
@@ -297,6 +354,25 @@ fn account_transfer_bytes(network: u8, receiver: &str, amount_yocto: u128) -> Ve
     out
 }
 
+fn note_bytes(summary: &str) -> Vec<u8> {
+    let mut out = vec![4, 0];
+    borsh_string(&mut out, "owner.testnet");
+    borsh_string(&mut out, NOTES_CONTRACT);
+    out.extend_from_slice(&7u64.to_le_bytes());
+    out.extend_from_slice(&[0u8; 32]);
+    borsh_string(&mut out, summary);
+    out
+}
+
+fn rating_bytes(rating: u8) -> Vec<u8> {
+    let mut out = vec![5, 0];
+    borsh_string(&mut out, "owner.testnet");
+    borsh_string(&mut out, NOTES_CONTRACT);
+    out.extend_from_slice(&1u64.to_le_bytes());
+    out.push(rating);
+    out
+}
+
 fn threshold_bytes(threshold: u8, challenge: [u8; 2]) -> Vec<u8> {
     let mut out = vec![1, 0];
     borsh_string(&mut out, "payroll-multisig.testnet");
@@ -322,6 +398,20 @@ fn invalid_borsh_vectors() -> Value {
             ["river", "lantern"],
         ))
         .expect("borsh"),
+    );
+    assert_eq!(
+        note_bytes("The bridge stays open"),
+        borsh::to_vec(&note(
+            "owner.testnet",
+            7,
+            [0u8; 32],
+            "The bridge stays open"
+        ))
+        .expect("borsh"),
+    );
+    assert_eq!(
+        rating_bytes(2),
+        borsh::to_vec(&rating(1, NoteRatingV1::NotHelpful)).expect("borsh"),
     );
     let mut trailing = account_transfer_bytes(0, "alice.testnet", 25 * ONE_NEAR);
     trailing.push(0);
@@ -352,6 +442,16 @@ fn invalid_borsh_vectors() -> Value {
         ("challenge_index_64", threshold_bytes(2, [0, 64])),
         ("retired_vault_transfer_kind", vec![0, 0]),
         ("unknown_request_kind", vec![3, 0]),
+        ("unknown_request_kind_6", vec![6, 0]),
+        ("note_summary_digit", note_bytes("Closed for 6 months")),
+        ("note_summary_apostrophe", note_bytes("It isn't closed")),
+        ("note_summary_empty", note_bytes("")),
+        (
+            "note_summary_thirteen_words",
+            note_bytes("one two three four five six seven eight nine ten eleven twelve thirteen"),
+        ),
+        ("note_summary_transfer_verb", note_bytes("Send help now")),
+        ("note_rating_unknown", rating_bytes(3)),
     ];
     Value::Array(
         cases

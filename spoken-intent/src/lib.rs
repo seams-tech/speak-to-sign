@@ -9,8 +9,10 @@
 //! [`SpokenAccount`], which holds only an account that the grammar can speak.
 //! The owner and the multisig are not said, so each is a [`NearAccount`],
 //! which can be implicit. A [`NearAmount`] holds only an
-//! exact multiple of 0.01 NEAR up to 1,000,000 NEAR. So [`render`] cannot
-//! fail, and Borsh decoding refuses bytes that hold an unspeakable value.
+//! exact multiple of 0.01 NEAR up to 1,000,000 NEAR. A [`SpokenSummary`]
+//! holds only short plain words that a speech-to-text model writes back the
+//! same way. So [`render`] cannot fail, and Borsh decoding refuses bytes
+//! that hold an unspeakable value.
 //!
 //! A change to any rendered text is a new renderer version.
 
@@ -30,6 +32,7 @@ mod phonetic;
 mod punctuated;
 mod render;
 mod request;
+mod summary;
 
 use sha2::{Digest, Sha256};
 
@@ -42,7 +45,8 @@ pub use parse::{parse_transfer, ParseRefusal, ParseResult, ParsedTransfer};
 pub use phonetic::{phonetic_key, PhoneticKey};
 pub use punctuated::{normalize_punctuated, PunctuatedRefusal, PUNCTUATED_ALIASES};
 pub use render::{render, RenderedIntentV1, SpokenToken};
-pub use request::{Network, ProposalV1, SpokenRequestV1};
+pub use request::{Network, NoteRatingV1, ProposalV1, SpokenRequestV1};
+pub use summary::{InvalidSummary, SpokenSummary, MAX_SUMMARY_BYTES, MAX_SUMMARY_WORDS};
 
 /// The renderer version that statements and verdicts name.
 pub const RENDERER_VERSION: &str = "spoken-intent/1";

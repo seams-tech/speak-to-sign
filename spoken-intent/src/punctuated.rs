@@ -495,7 +495,7 @@ mod tests {
 
     /// The fixed words of every rendered request, near miss and account
     /// suffix, besides number words and challenge words.
-    const GRAMMAR_WORDS: [&str; 23] = [
+    const GRAMMAR_WORDS: [&str; 28] = [
         "send",
         "near",
         "to",
@@ -519,6 +519,11 @@ mod tests {
         "do",
         "dont",
         "never",
+        "this",
+        "note",
+        "is",
+        "somewhat",
+        "helpful",
     ];
 
     #[test]

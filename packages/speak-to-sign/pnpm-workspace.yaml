@@ -3,5 +3,5 @@
 allowBuilds:
   protobufjs: false
 minimumReleaseAgeExclude:
-  - '@seams/voiceid@0.61.0'
-  - '@seams/wallet@0.61.0'
+  - '@seams/voiceid@0.62.0'
+  - '@seams/wallet@0.62.0'

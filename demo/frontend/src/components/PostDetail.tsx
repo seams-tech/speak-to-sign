@@ -5,6 +5,7 @@ import { navigate, paths } from '../router';
 import { ActionRow, AuthorBadge, Avatar, Media, PostHistoryLine, PostText } from './bits';
 import { LoadState } from './LoadState';
 import { PostNotes } from './NotesBox';
+import { PostContextBox } from './PostContext';
 
 export function PostDetail({ postId }: { postId: number }) {
   const { notesByPost, openWrite } = useDemo();
@@ -49,7 +50,7 @@ export function PostDetail({ postId }: { postId: number }) {
             <PostText post={post} />
           </div>
           {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
-          <PostHistoryLine post={post} full />
+          {post.context ? <PostContextBox post={post} /> : <PostHistoryLine post={post} full />}
           <LoadState />
           <PostNotes notes={notes} />
           {/* Before the time and the actions, so the button shows without a scroll. */}

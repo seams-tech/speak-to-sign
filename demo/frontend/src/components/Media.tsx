@@ -51,6 +51,18 @@ export function Media({ kind, caption, compact = false }: { kind: MediaKind; cap
   );
 }
 
+/** A small still of the drawn video, as in a quoted post. */
+export function MediaThumb({ kind }: { kind: MediaKind }) {
+  return (
+    <span className="media-thumb" aria-hidden="true">
+      {kind === 'thumbnails' && <ThumbnailsScene fit="slice" label={LABELS[kind]} />}
+      <span className="media-thumb-play">
+        <IconPlayerPlayFilled size={14} />
+      </span>
+    </span>
+  );
+}
+
 const VIEW_BOX = '0 0 640 360';
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 

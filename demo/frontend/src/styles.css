@@ -883,6 +883,130 @@ a.lk:hover {
   color: var(--muted);
 }
 
+/* The post's Community Note from X ("Readers added context") and its note view with the bet. */
+.pc-card .note-head {
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.pc-card .note-body {
+  padding: 12px 16px;
+}
+.pc-examples {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+.pc-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+}
+.pc-note {
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.pc-post {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.pc-post-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.pc-post-head .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-post-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.pc-post-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 20px;
+}
+.media-thumb {
+  position: relative;
+  flex: none;
+  width: 128px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1f2937;
+}
+.media-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.media-thumb-play {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  padding: 3px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+.pc-status {
+  padding: 12px 16px 14px;
+}
+.pc-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.pc-ok {
+  color: var(--green);
+  flex: none;
+}
+.pc-status-row svg {
+  flex: none;
+}
+.pc-note-text {
+  margin-top: 10px;
+  line-height: 20px;
+}
+.pc-bet {
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.pc-bet-title {
+  display: block;
+  padding: 0 16px 4px;
+  font-size: 16px;
+}
+.pc-bet .nm-strip {
+  border-top: 0;
+}
+.pc-practice {
+  padding: 0 16px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pc-foot {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
 /* Loading, errors, empty */
 .loading {
   display: flex;

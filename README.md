@@ -317,9 +317,9 @@ Expected:
 ```
 
 The active version, which a caller gets when it sets no `version_key`, is
-`d078eb11…`. It is verifier 0.4.1, the source on this branch, added on
-2026-11-09 at 12:23 UTC. It keeps the note and rating rules of 0.4.0 and
-forgives more words in a spoken transfer.
+`96b79b51…`. It is verifier 0.5.2, the source on this branch, added on
+2026-11-09 at 17:04 UTC. It is 0.5.1 with the code reorganised: the signed
+output is the same, except the version.
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -c '{owner, active_version}'
@@ -328,17 +328,17 @@ view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifie
 Expected:
 
 ```text
-{"owner":"seams-v1.testnet","active_version":"d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c"}
+{"owner":"seams-v1.testnet","active_version":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5"}
 ```
 
 ```bash
-view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c"}' | jq -c '{wasm_hash, is_active, added_at}'
+view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5"}' | jq -c '{wasm_hash, is_active, added_at}'
 ```
 
 Expected:
 
 ```text
-{"wasm_hash":"d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c","is_active":true,"added_at":1794227029277031521}
+{"wasm_hash":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5","is_active":true,"added_at":1794243895396184670}
 ```
 
 The notes contract `notes.seams-v1.testnet` answers `get_notes`. Note 1 is
@@ -494,9 +494,9 @@ The code is under the Apache License 2.0 (`LICENSE`).
 
 | Item                | Value                                                                                        |
 | ------------------- | -------------------------------------------------------------------------------------------- |
-| Verifier            | `seams-v1.testnet/voice-verifier`, version 0.4.1, `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`, active since 2026-11-09 12:23 UTC. Notes and ratings as in 0.4.0; a more forgiving word check for transfers. |
+| Verifier            | `seams-v1.testnet/voice-verifier`, version 0.5.2, `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`, active since 2026-11-09 17:04 UTC. Transfers, notes, ratings and merge approvals. |
 | Verifier with notes | version 0.4.0, `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`, added 2026-11-09 and not active (FastFS tx `GPzHTAuC2VADuGR46ks7Mij8oPcZ4xVW9h7VuEkyqfuh`, `add_version` tx `9k7qWvG1JcCVyfzRjWjbWsjdK5MjXwQQ7vh71rT8me7y`). It adds `community_note` and `note_rating`; transfers are unchanged. A caller selects it by `version_key`. |
-| Earlier verifier    | version 0.3.1, `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`, transfers only, not active. |
+| Earlier verifiers   | version 0.5.1, `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258`, and version 0.4.1, `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`, not active. Version 0.3.1, `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`, transfers only, not active. |
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |

@@ -95,20 +95,24 @@ page with `useMarketSource()`.
 | `getMarketForNote(noteId)` | view `get_market_for_note({note_id})` | `null` before the deploy too. |
 | `getPosition(marketId, accountId)` | view `get_position({market_id, account_id})` | `payout` (null before the resolution) and `claimed`. |
 | `getOddsHistory(marketId)` | view `get_odds_history({market_id})` | The last 50 points, oldest first. |
-| `bet({marketId, side, amount})` | `bet({market_id, outcome})`, deposit `amount`, 30 Tgas | At least 0.1 NEAR. |
-| `claim(marketId)` | `claim({market_id})`, 30 Tgas | The payout goes to the wallet. |
+| `bet({marketId, side, amount})` | USDC `ft_transfer_call` to the market, `msg` `{"action":"bet","market_id","outcome"}`, 1 yoctoNEAR, 100 Tgas | At least 1 USDC. A refused bet comes back, and the signer reports it from the missing `bet` event. |
+| `claim(marketId)` | `claim({market_id})`, 50 Tgas | The market sends the USDC with `ft_transfer`. A `claim_failed` event becomes a `refused` result. |
 | `requestResolution(marketId)` | `request_resolution({market_id})`, 0.05 NEAR, 300 Tgas | A `resolution_failed` event becomes a `refused` result with its reason. |
-| `createMarket(input)` | `create_market({question, context, note_id, closes_at_ms})`, deposit `seed` | Optional in the interface. The strip then shows "Open a market" on a note without a market. |
+| `createMarket(input)` | USDC `ft_transfer_call`, `msg` `{"action":"create_market","question","context","note_id","closes_at_ms"}`, amount `seed` | Optional in the interface. The strip then shows "Open a market" on a note without a market. |
 | `closeMarket(marketId)` | `close_market({market_id})` | Optional. The creator sees "Close betting now". |
 | `canOpenMarkets()` | view `get_config` | False before the deploy: "Open a market" stays hidden. |
+| `currency` | — | `USDC_CURRENCY`: 6 decimals, chips 1, 5 and 10 USDC. Without it, a source is in NEAR (the mock). |
+| `getBalance(accountId)` | USDC view `ft_balance_of` | The bet sheet shows it, and a hint to the faucet when it is too low. |
 | `signsByVoice` | — | `false`. See "Spoken bets". |
 
 The strip takes `context`, the text that JEV reads for a new market
 (`noteContext.ts`: the post and the note). The contract freezes it at the
 open.
 
-Settings: `VITE_MARKET_CONTRACT` (default `pm-notes.seams-v1.testnet`) and
-`VITE_MARKET_RPC_URL` (default: the notes RPC). The contract README explains a
+The money is NEAR testnet USDC (Circle, from https://faucet.circle.com).
+Settings: `VITE_MARKET_CONTRACT` (default `pm-notes.seams-v1.testnet`),
+`VITE_MARKET_TOKEN` (default: testnet USDC) and `VITE_MARKET_RPC_URL`
+(default: the notes RPC). `/market-preview.html?usdc` shows the mock in USDC. The contract README explains a
 local sandbox with seeded markets for a check before the deploy.
 
 ### Spoken bets

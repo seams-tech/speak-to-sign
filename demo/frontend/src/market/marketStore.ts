@@ -27,6 +27,11 @@ export class MarketStore {
     return (await this.view<OddsPointView[]>('get_odds_history', { market_id: marketId })) ?? [];
   }
 
+  /** The USDC balance of an account, from the token's `ft_balance_of`. */
+  async balance(tokenId: string, accountId: string): Promise<bigint> {
+    return BigInt(await this.viewOn<string>(tokenId, 'ft_balance_of', { account_id: accountId }));
+  }
+
   /** True when the contract answers its views (it is on the network). */
   async deployed(): Promise<boolean> {
     try {
@@ -38,7 +43,11 @@ export class MarketStore {
     }
   }
 
-  private async view<T>(methodName: string, args: unknown): Promise<T> {
+  private view<T>(methodName: string, args: unknown): Promise<T> {
+    return this.viewOn<T>(this.contractId, methodName, args);
+  }
+
+  private async viewOn<T>(accountId: string, methodName: string, args: unknown): Promise<T> {
     const response = await fetch(this.rpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,7 +58,7 @@ export class MarketStore {
         params: {
           request_type: 'call_function',
           finality: 'optimistic',
-          account_id: this.contractId,
+          account_id: accountId,
           method_name: methodName,
           args_base64: btoa(JSON.stringify(args)),
         },
@@ -58,7 +67,7 @@ export class MarketStore {
     if (!response.ok) throw new Error(`NEAR RPC answered ${response.status}.`);
     const body = (await response.json()) as RpcResponse;
     const cause = body.error?.cause?.name;
-    if (cause === 'UNKNOWN_ACCOUNT' || cause === 'NO_CONTRACT_CODE') throw new MarketNotDeployed(this.contractId);
+    if (cause === 'UNKNOWN_ACCOUNT' || cause === 'NO_CONTRACT_CODE') throw new MarketNotDeployed(accountId);
     if (body.error) throw new Error(cause ?? body.error.message ?? 'NEAR RPC error.');
     if (body.result?.error) throw new Error(body.result.error);
     const bytes = body.result?.result;

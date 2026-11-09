@@ -1,0 +1,13 @@
+[package]
+name = "fake-usdc"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+description = "A fake NEP-141 USDC for the sandbox test: free minting, ft_transfer and ft_transfer_call. Never deploy it to testnet."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "=5.30.1"

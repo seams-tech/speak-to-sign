@@ -1,6 +1,7 @@
 // The changes of the pm-notes contract, signed by the Seams Wallet with its normal confirm step
-// (passkey). Bets attach NEAR, so they are not spoken requests yet: a spoken bet needs a new
-// spoken request kind in the Wallet.
+// (passkey). The money is USDC: a bet or a seed is the token's `ft_transfer_call` to the market,
+// and a claim makes the market call the token's `ft_transfer`. A spoken bet needs a new spoken
+// request kind in the Wallet.
 
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
@@ -12,6 +13,10 @@ type Seams = ReturnType<typeof useSeams>['seams'];
 const TGAS = 1_000_000_000_000n;
 /** A normal market call. */
 const CALL_GAS = (30n * TGAS).toString();
+/** A claim: the market, the token's `ft_transfer` and the callback. */
+const CLAIM_GAS = (50n * TGAS).toString();
+/** `ft_transfer_call`: the token, the market's `ft_on_transfer` and the token again. */
+const FT_CALL_GAS = (100n * TGAS).toString();
 /** `request_resolution` calls OutLayer and waits for the AI answer. */
 const REQUEST_GAS = (300n * TGAS).toString();
 /** The OutLayer fee that `request_resolution` attaches: 0.05 NEAR. */
@@ -37,8 +42,8 @@ export const missingKeyMarketSigner: MarketSigner = {
   claim: async () => ({ kind: 'unavailable', reason: NO_KEY }),
 };
 
-export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string | null; contract: string }): MarketSigner {
-  const { seams, walletId, contract } = owner;
+export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string | null; contract: string; token: string }): MarketSigner {
+  const { seams, walletId, contract, token } = owner;
 
   /** Sends one call. `check` can turn a sent transaction into a refusal (from its events). */
   const send = async (
@@ -46,17 +51,18 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
     args: Record<string, unknown>,
     deposit: bigint,
     gas: string,
-    check?: (events: ContractEvent[]) => string | null,
+    check?: (events: ContractEvent[], outcome: unknown) => string | null,
+    receiverId = contract,
   ): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     try {
       const result = await seams.near.signAndSendTransaction({
         walletSession: walletId,
-        receiverId: contract,
+        receiverId,
         actions: [functionCall({ method, args, gas, deposit: deposit.toString() })],
       });
       if (result.success) {
-        const refusal = check?.(eventsOf(result.result)) ?? null;
+        const refusal = check?.(eventsOf(result.result), result.result) ?? null;
         return refusal ? { kind: 'refused', reason: refusal } : { kind: 'sent', transactionHash: result.transactionId };
       }
       switch (result.kind) {
@@ -75,17 +81,39 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
     return { kind: 'unavailable', reason: 'The Wallet gave no result.' };
   };
 
+  /**
+   * Sends USDC to the market with `ft_transfer_call`. If the market refuses, the token gives the
+   * USDC back and the transaction still succeeds, so the market's event tells a refusal apart.
+   */
+  const sendUsdc = (amount: bigint, msg: Record<string, unknown>, expectedEvent: string) =>
+    send(
+      'ft_transfer_call',
+      { receiver_id: contract, amount: amount.toString(), msg: JSON.stringify(msg) },
+      1n,
+      FT_CALL_GAS,
+      (events, outcome) =>
+        events.some((event) => event.event === expectedEvent)
+          ? null
+          : `The market refused it, and the USDC came back. ${panicOf(outcome) ?? ''}`.trim(),
+      token,
+    );
+
   return {
     createMarket: ({ noteId, question, context, closesAtMs, seed }) =>
-      send('create_market', { question, context, note_id: noteId, closes_at_ms: closesAtMs }, seed, CALL_GAS),
-    bet: ({ marketId, side, amount }) => send('bet', { market_id: marketId, outcome: side }, amount, CALL_GAS),
+      sendUsdc(seed, { action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs }, 'market_created'),
+    bet: ({ marketId, side, amount }) => sendUsdc(amount, { action: 'bet', market_id: marketId, outcome: side }, 'bet'),
     closeMarket: (marketId) => send('close_market', { market_id: marketId }, 0n, CALL_GAS),
     requestResolution: (marketId) =>
       send('request_resolution', { market_id: marketId }, RESOLUTION_FEE_YOCTO, REQUEST_GAS, (events) => {
         const failed = events.find((event) => event.event === 'resolution_failed');
         return failed ? `JEV gave no answer that counts: ${String(failed.data.reason)}. You can ask again.` : null;
       }),
-    claim: (marketId) => send('claim', { market_id: marketId }, 0n, CALL_GAS),
+    claim: (marketId) =>
+      send('claim', { market_id: marketId }, 0n, CLAIM_GAS, (events) =>
+        events.some((event) => event.event === 'claim_failed')
+          ? 'The USDC could not arrive: your account is not registered with USDC. Register it, then claim again.'
+          : null,
+      ),
   };
 }
 
@@ -110,6 +138,12 @@ function eventsOf(outcome: unknown): ContractEvent[] {
     }
   }
   return events;
+}
+
+/** The first contract message of a failed receipt in a final execution outcome, if any. */
+function panicOf(outcome: unknown): string | null {
+  const match = /Smart contract panicked: ([^"\\]+)/.exec(JSON.stringify(outcome ?? null));
+  return match ? `The market says: ${match[1]}.` : null;
 }
 
 /** The contract's own message out of NEAR's failure text ("Smart contract panicked: ..."). */

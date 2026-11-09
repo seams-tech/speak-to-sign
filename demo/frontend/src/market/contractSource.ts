@@ -6,7 +6,7 @@ import { config } from '../config';
 import type { MarketView } from './contractTypes';
 import { type MarketSigner, missingKeyMarketSigner } from './marketSigner';
 import { MarketNotDeployed, MarketStore } from './marketStore';
-import type { MarketSource, NoteMarket } from './types';
+import { USDC_CURRENCY, type MarketSource, type NoteMarket } from './types';
 
 export function createContractMarketSource(signer: MarketSigner, store = new MarketStore(config.marketRpcUrl, config.marketContract)): MarketSource {
   let deployed: Promise<boolean> | null = null;
@@ -47,6 +47,8 @@ export function createContractMarketSource(signer: MarketSigner, store = new Mar
     createMarket: (input) => signer.createMarket(input),
     closeMarket: (marketId) => signer.closeMarket(marketId),
     canOpenMarkets: isDeployed,
+    currency: USDC_CURRENCY,
+    getBalance: (accountId) => store.balance(config.marketToken, accountId),
     // A spoken bet needs a new spoken request kind in the Wallet. Until then: passkey.
     signsByVoice: false,
   };

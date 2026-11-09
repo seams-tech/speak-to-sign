@@ -7,17 +7,26 @@ import { IconChartBar, IconChevronDown, IconMicrophone, IconScale, IconX } from 
 import { Modal } from '../components/Modal';
 import type { SignResult } from '../signer/notesSigner';
 import {
+  amountText,
   betSentence,
   chipText,
   estimatePayout,
-  nearText,
   payoutWeightBps,
   percentText,
   positionPayout,
   timeLeftText,
   yesShareBps,
 } from './math';
-import { BET_CHIPS, MARKET_QUESTION, type MarketPosition, type MarketSource, type NoteMarket, type OddsPoint, type Side } from './types';
+import {
+  MARKET_QUESTION,
+  NEAR_CURRENCY,
+  type Currency,
+  type MarketPosition,
+  type MarketSource,
+  type NoteMarket,
+  type OddsPoint,
+  type Side,
+} from './types';
 import './market.css';
 
 const EMPTY_POSITION: MarketPosition = { yes: 0n, no: 0n, claimed: false };
@@ -47,6 +56,7 @@ export function NoteMarketStrip({
    */
   context?: string;
 }) {
+  const currency = source.currency ?? NEAR_CURRENCY;
   const [market, setMarket] = useState<NoteMarket | null>(null);
   const [position, setPosition] = useState<MarketPosition>(EMPTY_POSITION);
   const [history, setHistory] = useState<OddsPoint[]>([]);
@@ -114,6 +124,7 @@ export function NoteMarketStrip({
         )}
         {opening && (
           <OpenSheet
+            currency={currency}
             onClose={() => setOpening(false)}
             onOpen={async (seed, durationMs) => {
               const result = await createMarket({ noteId, question: MARKET_QUESTION, context, closesAtMs: Date.now() + durationMs, seed });
@@ -145,7 +156,7 @@ export function NoteMarketStrip({
     const result = await source.claim(market.id);
     setBusy(null);
     if (result.kind !== 'sent') return failed(result);
-    setNotice({ text: `You got ${nearText(amount)}.`, isError: false });
+    setNotice({ text: `You got ${amountText(amount, currency)}.`, isError: false });
     await load();
   };
 
@@ -176,7 +187,7 @@ export function NoteMarketStrip({
   return (
     <div className="nm-strip" onClick={(event) => event.stopPropagation()}>
       {market.status === 'resolved' ? (
-        <Resolved market={market} position={position} account={account} claiming={busy === 'claim'} onClaim={() => void claim()} />
+        <Resolved market={market} position={position} account={account} currency={currency} claiming={busy === 'claim'} onClaim={() => void claim()} />
       ) : (
         <>
           <div className="nm-row">
@@ -198,7 +209,7 @@ export function NoteMarketStrip({
               <b className="nm-yes">{percentText(share)} yes</b> · <span className="nm-no">{percentText(10_000 - share)} no</span>
             </span>
             <span className="nm-muted">
-              {nearText(pool, 1)} · {market.bets} {market.bets === 1 ? 'bet' : 'bets'}
+              {amountText(pool, currency, 1)} · {market.bets} {market.bets === 1 ? 'bet' : 'bets'}
             </span>
           </div>
           {history.length > 1 && <Sparkline points={history} />}
@@ -246,7 +257,7 @@ export function NoteMarketStrip({
           {staked > 0n && (
             <p className="nm-muted nm-small">
               Your bets:{' '}
-              {[position.yes > 0n && `${nearText(position.yes)} on yes`, position.no > 0n && `${nearText(position.no)} on no`]
+              {[position.yes > 0n && `${amountText(position.yes, currency)} on yes`, position.no > 0n && `${amountText(position.no, currency)} on no`]
                 .filter(Boolean)
                 .join(' · ')}
             </p>
@@ -263,6 +274,7 @@ export function NoteMarketStrip({
           market={market}
           initialSide={betSide}
           source={source}
+          account={account}
           onClose={() => setBetSide(null)}
           onDone={(text) => {
             setBetSide(null);
@@ -279,12 +291,14 @@ function Resolved({
   market,
   position,
   account,
+  currency,
   claiming,
   onClaim,
 }: {
   market: NoteMarket;
   position: MarketPosition;
   account?: string;
+  currency: Currency;
   claiming: boolean;
   onClaim: () => void;
 }) {
@@ -307,13 +321,13 @@ function Resolved({
       <p className="nm-muted nm-small">
         {refund
           ? 'One side had no bets, so every bet is refunded.'
-          : `Yes bets share ${percentText(weight)} of ${nearText(pool, 1)}. No bets share ${percentText(10_000 - weight)}.`}
+          : `Yes bets share ${percentText(weight)} of ${amountText(pool, currency, 1)}. No bets share ${percentText(10_000 - weight)}.`}
         {!refund && weight !== verdict && ` JEV was sure enough, so its ${percentText(verdict)} counts as ${percentText(weight)}.`}
       </p>
       {account && staked > 0n && (
         <div className="nm-row nm-payout">
           <span>
-            Your bets: {nearText(staked)} → <b>{nearText(payout)}</b>
+            Your bets: {amountText(staked, currency)} → <b>{amountText(payout, currency)}</b>
           </span>
           {position.claimed ? (
             <span className="nm-muted">Claimed</span>
@@ -381,18 +395,27 @@ function BetSheet({
   market,
   initialSide,
   source,
+  account,
   onClose,
   onDone,
 }: {
   market: NoteMarket;
   initialSide: Side;
   source: MarketSource;
+  account?: string;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const titleId = useId();
+  const currency = source.currency ?? NEAR_CURRENCY;
   const [side, setSide] = useState<Side>(initialSide);
-  const [amount, setAmount] = useState<bigint>(BET_CHIPS[1] ?? 0n);
+  const [amount, setAmount] = useState<bigint>(currency.chips[1] ?? 0n);
+  const [balance, setBalance] = useState<bigint | null>(null);
+  useEffect(() => {
+    if (!account || !source.getBalance) return;
+    source.getBalance(account).then(setBalance, () => setBalance(null));
+  }, [account, source]);
+  const short = balance !== null && balance < amount;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const share = yesShareBps(market.yesPool, market.noPool);
@@ -403,7 +426,7 @@ function BetSheet({
     setError(null);
     const result = await source.bet({ marketId: market.id, side, amount });
     setBusy(false);
-    if (result.kind === 'sent') onDone(`Your bet of ${nearText(amount)} on ${side} is in.`);
+    if (result.kind === 'sent') onDone(`Your bet of ${amountText(amount, currency)} on ${side} is in.`);
     else if (result.kind === 'cancelled') setError('You closed the Wallet. Nothing was signed.');
     else setError(result.reason);
   };
@@ -432,7 +455,7 @@ function BetSheet({
           ))}
         </div>
         <div className="nm-buttons" role="group" aria-label="Amount">
-          {BET_CHIPS.map((chip) => (
+          {currency.chips.map((chip) => (
             <button
               key={chip.toString()}
               type="button"
@@ -440,20 +463,26 @@ function BetSheet({
               className={`btn btn-outline btn-sm nm-chip ${amount === chip ? 'btn-choice-on' : ''}`}
               onClick={() => setAmount(chip)}
             >
-              {chipText(chip)} NEAR
+              {chipText(chip, currency)} {currency.symbol}
             </button>
           ))}
         </div>
         <p>
-          Win about <b>{nearText(win)}</b> if JEV says {side} fully, and the pool stays as it is.
+          Win about <b>{amountText(win, currency)}</b> if JEV says {side} fully, and the pool stays as it is.
         </p>
         {source.signsByVoice && (
           <div className="nm-say">
             <span className="nm-muted">
               <IconMicrophone size={14} stroke={2} aria-hidden="true" /> Say this to sign
             </span>
-            <b>“{betSentence(side, amount)}”</b>
+            <b>“{betSentence(side, amount, currency)}”</b>
           </div>
+        )}
+        {balance !== null && (
+          <p className={short ? 'nm-error' : 'nm-muted'}>
+            You have {amountText(balance, currency)}.
+            {short && currency.symbol === 'USDC' && ' Get test USDC at faucet.circle.com (network: Near Testnet).'}
+          </p>
         )}
         {error && (
           <p className="nm-error" role="alert">
@@ -462,8 +491,8 @@ function BetSheet({
         )}
       </div>
       <div className="dialog-foot dialog-foot-end">
-        <button type="button" className="btn btn-dark" onClick={() => void place()} disabled={busy}>
-          {busy ? 'Waiting for the Wallet…' : source.signsByVoice ? 'Say it to bet' : `Bet ${nearText(amount)} on ${side}`}
+        <button type="button" className="btn btn-dark" onClick={() => void place()} disabled={busy || short}>
+          {busy ? 'Waiting for the Wallet…' : source.signsByVoice ? 'Say it to bet' : `Bet ${amountText(amount, currency)} on ${side}`}
         </button>
       </div>
     </Modal>
@@ -480,9 +509,17 @@ const DURATIONS: readonly { label: string; ms: number }[] = [
 ];
 
 /** Opens a market on a note: the seed and the close time. `onOpen` gives an error text, or null. */
-function OpenSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (seed: bigint, durationMs: number) => Promise<string | null> }) {
+function OpenSheet({
+  currency,
+  onClose,
+  onOpen,
+}: {
+  currency: Currency;
+  onClose: () => void;
+  onOpen: (seed: bigint, durationMs: number) => Promise<string | null>;
+}) {
   const titleId = useId();
-  const [seed, setSeed] = useState<bigint>(BET_CHIPS[0] ?? 0n);
+  const [seed, setSeed] = useState<bigint>(currency.chips[0] ?? 0n);
   const [duration, setDuration] = useState(DURATIONS[1]?.ms ?? 60 * MINUTE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -515,7 +552,7 @@ function OpenSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (seed: bi
             <b>Your seed</b>: half goes on yes and half on no, so the odds start at 50%. It is paid like any other bet.
           </p>
           <div className="nm-buttons" role="group" aria-label="Seed">
-            {BET_CHIPS.map((chip) => (
+            {currency.chips.map((chip) => (
               <button
                 key={chip.toString()}
                 type="button"
@@ -523,7 +560,7 @@ function OpenSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (seed: bi
                 className={`btn btn-outline btn-sm nm-chip ${seed === chip ? 'btn-choice-on' : ''}`}
                 onClick={() => setSeed(chip)}
               >
-                {chipText(chip)} NEAR
+                {chipText(chip, currency)} {currency.symbol}
               </button>
             ))}
           </div>
@@ -554,7 +591,7 @@ function OpenSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (seed: bi
       </div>
       <div className="dialog-foot dialog-foot-end">
         <button type="button" className="btn btn-dark" onClick={() => void open()} disabled={busy}>
-          {busy ? 'Waiting for the Wallet…' : `Open market · ${nearText(seed)}`}
+          {busy ? 'Waiting for the Wallet…' : `Open market · ${amountText(seed, currency)}`}
         </button>
       </div>
     </Modal>

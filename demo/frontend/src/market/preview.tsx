@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { IconUsers } from '@tabler/icons-react';
 import { createMockMarketSource } from './mockSource';
 import { NoteMarketStrip } from './NoteMarket';
-import { YOCTO_PER_NEAR } from './types';
+import { USDC_CURRENCY, YOCTO_PER_NEAR } from './types';
 import '../styles.css';
 
 const ACCOUNT = 'you.testnet';
@@ -14,11 +14,13 @@ const ACCOUNT = 'you.testnet';
 function Preview() {
   const [version, setVersion] = useState(0);
   const source = useMemo(() => {
-    const mock = createMockMarketSource({ noteIds: [1, 2, 3], delayMs: 600 });
+    // `?usdc` shows the markets in USDC, as the contract has them.
+    const usdc = new URLSearchParams(window.location.search).has('usdc');
+    const mock = createMockMarketSource({ noteIds: [1, 2, 3], delayMs: 600, currency: usdc ? USDC_CURRENCY : undefined });
     mock.close(2);
     // Note 3: a bet of 0.5 NEAR on yes, then JEV says 72%.
     void mock.getMarketForNote(3).then(async () => {
-      await mock.bet({ marketId: 3, side: 'yes', amount: YOCTO_PER_NEAR / 2n });
+      await mock.bet({ marketId: 3, side: 'yes', amount: usdc ? 5n * USDC_CURRENCY.chips[0]! : YOCTO_PER_NEAR / 2n });
       mock.resolve(
         3,
         7_200,

@@ -1,9 +1,12 @@
 //! `pm-notes`: a parimutuel prediction market on community notes, for the Speak-to-Sign demo.
 //!
+//! The currency is NEAR testnet USDC (NEP-141, 6 decimals). Money comes in with the token's
+//! `ft_transfer_call`, and the message says what it is for.
+//!
 //! - **Create:** anyone opens a yes-or-no market about a note ("Will this note hold up?") with
-//!   context text for the AI and a close time. The attached NEAR (at least 0.1) is the
-//!   creator's seed, split 50/50 into a YES stake and a NO stake.
-//! - **Bet:** anyone puts NEAR (at least 0.1) into the YES pool or the NO pool until the close.
+//!   context text for the AI and a close time. The USDC sent (at least 1) is the creator's seed,
+//!   split 50/50 into a YES stake and a NO stake.
+//! - **Bet:** anyone puts USDC (at least 1) into the YES pool or the NO pool until the close.
 //!   The odds are the pool split.
 //! - **Resolve:** after the close, any account calls `request_resolution`. The contract calls
 //!   the OutLayer resolver worker, which asks JEV (Typesafe) or NEAR AI for the probability
@@ -13,26 +16,32 @@
 //!   proportion to the stakes. So a grey answer pays both sides. If one pool is empty,
 //!   everyone gets the stake back.
 //!
-//! Amounts inside the contract are in micro-NEAR units (10^18 yoctoNEAR), so every product
-//! fits in a `u128`. The JSON shows NEAR amounts in yoctoNEAR. Each payout rounds down, so the
-//! payouts never add up to more than the pool.
+//! Amounts are USDC base units (10^6 for 1 USDC), as `U128` strings in the JSON. Each payout
+//! rounds down, so the payouts never add up to more than the pool. The `request_resolution`
+//! fee is NEAR, because OutLayer charges NEAR.
 
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json;
 use near_sdk::store::LookupMap;
 use near_sdk::{
-    AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError, env, near,
+    AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError, PromiseOrValue, env,
+    near,
 };
 
-/// One unit: a micro-NEAR.
-pub const YOCTO_PER_UNIT: u128 = 1_000_000_000_000_000_000;
-/// The smallest seed of a new market: 0.1 NEAR.
-pub const MIN_SEED_UNITS: u128 = 100_000;
-/// The smallest bet: 0.1 NEAR.
-pub const MIN_BET_UNITS: u128 = 100_000;
-/// The largest total pool of one market: 1,000,000 NEAR. It keeps every product in a u128.
-pub const MAX_POOL_UNITS: u128 = 1_000_000_000_000;
+/// NEAR testnet USDC (Circle), the default currency.
+pub const DEFAULT_TOKEN: &str = "3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af";
+/// 1 USDC in base units (6 decimals).
+pub const ONE_USDC: u128 = 1_000_000;
+/// The smallest seed of a new market: 1 USDC.
+pub const MIN_SEED: u128 = ONE_USDC;
+/// The smallest bet: 1 USDC.
+pub const MIN_BET: u128 = ONE_USDC;
+/// The largest total pool of one market: 1,000,000 USDC. It keeps every product in a u128.
+pub const MAX_POOL: u128 = 1_000_000 * ONE_USDC;
+/// The gas for the token's `ft_transfer` of a claim, and for the callback after it.
+pub const FT_TRANSFER_GAS: Gas = Gas::from_tgas(10);
+pub const CLAIM_CALLBACK_GAS: Gas = Gas::from_tgas(10);
 /// The longest question, in Unicode scalar values.
 pub const MAX_QUESTION_CHARS: usize = 200;
 /// The longest context (the note text and the post text for the AI).
@@ -128,7 +137,7 @@ pub struct OddsPoint {
     pub yes_bps: u16,
 }
 
-/// A market as the contract stores it. Amounts are in units.
+/// A market as the contract stores it. Amounts are USDC base units.
 #[near(serializers = [borsh])]
 #[derive(Clone, Debug)]
 pub struct Market {
@@ -143,7 +152,7 @@ pub struct Market {
     pub no_pool: u128,
     /// The number of bets (the seed is not a bet).
     pub bets: u32,
-    /// The NEAR that the claims paid.
+    /// The USDC that the claims paid.
     pub paid_out: u128,
     pub pending: Option<PendingRequest>,
     pub resolution: Option<Resolution>,
@@ -182,13 +191,13 @@ impl Market {
             creator: self.creator.clone(),
             created_at_ms: self.created_at_ms,
             closes_at_ms: self.closes_at_ms,
-            yes_pool: to_yocto(self.yes_pool),
-            no_pool: to_yocto(self.no_pool),
-            total_pool: to_yocto(self.total()),
+            yes_pool: U128(self.yes_pool),
+            no_pool: U128(self.no_pool),
+            total_pool: U128(self.total()),
             yes_share_bps: yes_share_bps(self.yes_pool, self.no_pool),
             bets: self.bets,
             refund_all: self.yes_pool == 0 || self.no_pool == 0,
-            paid_out: to_yocto(self.paid_out),
+            paid_out: U128(self.paid_out),
             status: self.status(env::block_timestamp_ms()),
             pending: self.pending.clone(),
             resolution: self.resolution.clone(),
@@ -218,7 +227,7 @@ pub enum MarketStatus {
     Resolved,
 }
 
-/// A market as the views return it. NEAR amounts are yoctoNEAR strings.
+/// A market as the views return it. Amounts are USDC base units, as strings.
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MarketView {
@@ -258,7 +267,7 @@ pub struct PositionView {
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BetQuote {
-    /// The bet, in yoctoNEAR, rounded down to the micro-NEAR.
+    /// The bet, in USDC base units.
     pub amount: U128,
     /// What this bet alone pays if the verdict is 100% its side and no other bet comes.
     pub payout_if_right: U128,
@@ -304,6 +313,8 @@ impl Default for ResolverConfig {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConfigView {
     pub admin: AccountId,
+    /// The NEP-141 token of the bets: USDC.
+    pub token: AccountId,
     pub resolver: ResolverConfig,
     pub snap_high_bps: u16,
     pub snap_low_bps: u16,
@@ -336,6 +347,8 @@ enum StorageKey {
 pub struct PredictionMarkets {
     /// Can resolve and close every market, and change the resolver config.
     admin: AccountId,
+    /// The NEP-141 token of the bets (USDC). Only it can call `ft_on_transfer`.
+    token: AccountId,
     resolver: ResolverConfig,
     /// The id of the newest market. The first market gets id 1.
     last_market_id: u64,
@@ -351,14 +364,16 @@ pub struct PredictionMarkets {
 
 #[near]
 impl PredictionMarkets {
-    /// `resolver` defaults to `outlayer.testnet` and the project
-    /// `seams-v1.testnet/pm-notes-resolver`, with no secrets.
+    /// `token` defaults to NEAR testnet USDC. `resolver` defaults to `outlayer.testnet` and the
+    /// project `seams-v1.testnet/pm-notes-resolver`, with no secrets. Register this contract
+    /// with the token (`storage_deposit`) before the first claim.
     #[init]
-    pub fn new(admin: AccountId, resolver: Option<ResolverConfig>) -> Self {
+    pub fn new(admin: AccountId, token: Option<AccountId>, resolver: Option<ResolverConfig>) -> Self {
         let resolver = resolver.unwrap_or_default();
         check_resolver_config(&resolver);
         Self {
             admin,
+            token: token.unwrap_or_else(|| DEFAULT_TOKEN.parse().unwrap()),
             resolver,
             last_market_id: 0,
             last_request_id: 0,
@@ -369,135 +384,31 @@ impl PredictionMarkets {
         }
     }
 
-    /// Opens a market and returns its id. The attached NEAR (at least 0.1) is the creator's
-    /// seed: half goes into the YES pool and half into the NO pool, as the creator's stakes.
-    /// So the odds start at 50%.
-    #[payable]
-    pub fn create_market(
-        &mut self,
-        question: String,
-        context: Option<String>,
-        note_id: Option<u64>,
-        closes_at_ms: u64,
-    ) -> u64 {
-        let question = question.trim().to_owned();
-        let chars = question.chars().count();
-        if chars == 0 || chars > MAX_QUESTION_CHARS {
-            env::panic_str("question must have 1 to 200 characters");
+    /// The token calls this for `ft_transfer_call` (NEP-141). `msg` says what the USDC is for:
+    /// - `{"action": "create_market", "question", "context"?, "note_id"?, "closes_at_ms"}`: the
+    ///   USDC is the seed of a new market (at least 1 USDC).
+    /// - `{"action": "bet", "market_id", "outcome": "yes" | "no"}`: a bet (at least 1 USDC).
+    ///
+    /// It uses all of the USDC and returns 0. A refused transfer fails, and the token then
+    /// sends the USDC back.
+    pub fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
+        if env::predecessor_account_id() != self.token {
+            env::panic_str("only the market token can send to this contract");
         }
-        let context = context.unwrap_or_default().trim().to_owned();
-        if context.chars().count() > MAX_CONTEXT_CHARS {
-            env::panic_str("context must have at most 1000 characters");
-        }
-        let now = env::block_timestamp_ms();
-        if closes_at_ms <= now {
-            env::panic_str("closes_at_ms must be in the future");
-        }
-        if closes_at_ms - now > MAX_OPEN_MS {
-            env::panic_str("closes_at_ms must be at most 30 days ahead");
-        }
-        let seed = deposit_units();
-        if seed < MIN_SEED_UNITS {
-            env::panic_str("attach at least 0.1 NEAR as the seed");
-        }
-        let creator = env::predecessor_account_id();
-        let yes = seed / 2;
-        let no = seed - yes;
-
-        self.last_market_id += 1;
-        let id = self.last_market_id;
-        self.markets.insert(
-            id,
-            Market {
-                creator: creator.clone(),
-                question: question.clone(),
-                context,
-                note_id,
-                created_at_ms: now,
-                closes_at_ms,
-                yes_pool: yes,
-                no_pool: no,
-                bets: 0,
-                paid_out: 0,
-                pending: None,
-                resolution: None,
-            },
-        );
-        self.stakes.insert((id, creator.clone()), Stake { yes, no, claimed: false });
-        self.odds.insert(id, vec![OddsPoint { at_ms: now, yes_bps: yes_share_bps(yes, no) as u16 }]);
-        if let Some(note_id) = note_id {
-            self.note_markets.insert(note_id, id);
-        }
-        emit(
-            "market_created",
-            MarketCreated {
-                market_id: id,
-                creator: &creator,
-                question: &question,
-                note_id,
-                closes_at_ms,
-                seed: to_yocto(seed),
-            },
-        );
-        id
-    }
-
-    /// Bets the attached NEAR (at least 0.1) on `outcome`. Returns the caller's stake on that
-    /// outcome after the bet (yoctoNEAR).
-    #[payable]
-    pub fn bet(&mut self, market_id: u64, outcome: Outcome) -> U128 {
-        let amount = deposit_units();
-        if amount < MIN_BET_UNITS {
-            env::panic_str("bet at least 0.1 NEAR");
-        }
-        let account = env::predecessor_account_id();
-        let mut market = self.open_market(market_id);
-        if market.total() + amount > MAX_POOL_UNITS {
-            env::panic_str("the pool is full");
-        }
-        match outcome {
-            Outcome::Yes => market.yes_pool += amount,
-            Outcome::No => market.no_pool += amount,
-        }
-        market.bets += 1;
-        let share = yes_share_bps(market.yes_pool, market.no_pool);
-
-        let key = (market_id, account.clone());
-        let mut stake = self.stakes.get(&key).copied().unwrap_or_default();
-        let staked = match outcome {
-            Outcome::Yes => {
-                stake.yes += amount;
-                stake.yes
+        let mut message: TransferMessage = serde_json::from_str(&msg).unwrap_or_else(|_| {
+            env::panic_str("msg must be a create_market or bet message")
+        });
+        let action = std::mem::take(&mut message.action);
+        match (action.as_str(), message) {
+            ("create_market", TransferMessage { question: Some(question), context, note_id, closes_at_ms: Some(closes_at_ms), market_id: None, outcome: None, .. }) => {
+                self.create_market(sender_id, amount.0, question, context, note_id, closes_at_ms);
             }
-            Outcome::No => {
-                stake.no += amount;
-                stake.no
+            ("bet", TransferMessage { market_id: Some(market_id), outcome: Some(outcome), question: None, context: None, note_id: None, closes_at_ms: None, .. }) => {
+                self.bet(sender_id, amount.0, market_id, outcome);
             }
-        };
-        self.stakes.insert(key, stake);
-
-        let mut odds = self.odds.get(&market_id).cloned().unwrap_or_default();
-        if odds.len() >= MAX_ODDS_POINTS {
-            odds.remove(0);
+            _ => env::panic_str("msg must be a create_market or bet message"),
         }
-        odds.push(OddsPoint { at_ms: env::block_timestamp_ms(), yes_bps: share as u16 });
-        self.odds.insert(market_id, odds);
-
-        emit(
-            "bet",
-            BetPlaced {
-                market_id,
-                account_id: &account,
-                outcome,
-                amount: to_yocto(amount),
-                yes_pool: to_yocto(market.yes_pool),
-                no_pool: to_yocto(market.no_pool),
-                yes_share_bps: share,
-                bets: market.bets,
-            },
-        );
-        self.markets.insert(market_id, market);
-        to_yocto(staked)
+        PromiseOrValue::Value(U128(0))
     }
 
     /// Stops the betting now. Only the creator or the admin, and only while the market is open.
@@ -665,10 +576,11 @@ impl PredictionMarkets {
         self.markets.insert(market_id, market);
     }
 
-    /// Sends the caller's payout to the wallet, once: the caller's share of `w × T` for the YES
-    /// stake and of `(1 − w) × T` for the NO stake, rounded down to the micro-NEAR. If one pool
-    /// is empty, the payout is the stakes. Returns the NEAR paid (yoctoNEAR).
-    pub fn claim(&mut self, market_id: u64) -> U128 {
+    /// Sends the caller's payout in USDC, once: the caller's share of `w × T` for the YES stake
+    /// and of `(1 − w) × T` for the NO stake, rounded down. If one pool is empty, the payout is
+    /// the stakes. The result is the USDC paid (0 if the token refused the transfer). Attach
+    /// 30 Tgas or more.
+    pub fn claim(&mut self, market_id: u64) -> PromiseOrValue<U128> {
         let account = env::predecessor_account_id();
         let mut market = self.market(market_id);
         let Some(weight) = market.resolution.as_ref().map(|r| r.payout_yes_bps) else {
@@ -692,14 +604,41 @@ impl PredictionMarkets {
         self.markets.insert(market_id, market);
         emit(
             "claimed",
-            Claimed { market_id, account_id: &account, amount: to_yocto(amount), refund },
+            Claimed { market_id, account_id: &account, amount: U128(amount), refund },
         );
-        if amount > 0 {
-            Promise::new(account)
-                .transfer(NearToken::from_yoctonear(amount * YOCTO_PER_UNIT))
-                .detach();
+        if amount == 0 {
+            return PromiseOrValue::Value(U128(0));
         }
-        to_yocto(amount)
+        let transfer = to_json_bytes(&FtTransferArgs { receiver_id: &account, amount: U128(amount), memo: "pm-notes claim" });
+        Promise::new(self.token.clone())
+            .function_call("ft_transfer".to_owned(), transfer, NearToken::from_yoctonear(1), FT_TRANSFER_GAS)
+            .then(Promise::new(env::current_account_id()).function_call(
+                "on_claim_transfer".to_owned(),
+                to_json_bytes(&ClaimCallbackArgs { market_id, account_id: &account, amount: U128(amount) }),
+                NearToken::from_yoctonear(0),
+                CLAIM_CALLBACK_GAS,
+            ))
+            .into()
+    }
+
+    /// After the token's `ft_transfer` of a claim. If the transfer failed (for example, the
+    /// account is not registered with the token), the claim is open again. Returns the USDC paid.
+    #[private]
+    pub fn on_claim_transfer(&mut self, market_id: u64, account_id: AccountId, amount: U128) -> U128 {
+        if env::promise_result_checked(0, 64).is_ok() {
+            return amount;
+        }
+        let key = (market_id, account_id.clone());
+        if let Some(mut stake) = self.stakes.get(&key).copied() {
+            stake.claimed = false;
+            self.stakes.insert(key, stake);
+        }
+        if let Some(mut market) = self.markets.get(&market_id).cloned() {
+            market.paid_out = market.paid_out.saturating_sub(amount.0);
+            self.markets.insert(market_id, market);
+        }
+        emit("claim_failed", ClaimFailed { market_id, account_id: &account_id, amount });
+        U128(0)
     }
 
     /// Changes where `request_resolution` sends the request. Only the admin.
@@ -739,24 +678,24 @@ impl PredictionMarkets {
         let stake = self.stakes.get(&(market_id, account_id)).copied().unwrap_or_default();
         let payout = self.markets.get(&market_id).and_then(|market| {
             let weight = market.resolution.as_ref()?.payout_yes_bps;
-            Some(to_yocto(payout(stake.yes, stake.no, market.yes_pool, market.no_pool, weight)))
+            Some(U128(payout(stake.yes, stake.no, market.yes_pool, market.no_pool, weight)))
         });
         PositionView {
-            yes: to_yocto(stake.yes),
-            no: to_yocto(stake.no),
+            yes: U128(stake.yes),
+            no: U128(stake.no),
             payout,
             claimed: stake.claimed,
         }
     }
 
-    /// What a bet of `amount` NEAR (yoctoNEAR) on `outcome` would do now, or null when the
-    /// market is not open or the amount is below 0.1 NEAR.
+    /// What a bet of `amount` USDC (base units) on `outcome` would do now, or null when the
+    /// market is not open or the amount is below 1 USDC.
     pub fn quote_bet(&self, market_id: u64, outcome: Outcome, amount: U128) -> Option<BetQuote> {
         let market = self.markets.get(&market_id)?;
-        let units = amount.0 / YOCTO_PER_UNIT;
+        let units = amount.0;
         if market.status(env::block_timestamp_ms()) != MarketStatus::Open
-            || units < MIN_BET_UNITS
-            || market.total() + units > MAX_POOL_UNITS
+            || units < MIN_BET
+            || market.total() + units > MAX_POOL
         {
             return None;
         }
@@ -769,8 +708,8 @@ impl PredictionMarkets {
             Outcome::No => payout(0, units, yes, no, 0),
         };
         Some(BetQuote {
-            amount: to_yocto(units),
-            payout_if_right: to_yocto(paid),
+            amount: U128(units),
+            payout_if_right: U128(paid),
             yes_share_bps: yes_share_bps(yes, no),
         })
     }
@@ -783,11 +722,12 @@ impl PredictionMarkets {
     pub fn get_config(&self) -> ConfigView {
         ConfigView {
             admin: self.admin.clone(),
+            token: self.token.clone(),
             resolver: self.resolver.clone(),
             snap_high_bps: SNAP_HIGH_BPS,
             snap_low_bps: SNAP_LOW_BPS,
-            min_seed: to_yocto(MIN_SEED_UNITS),
-            min_bet: to_yocto(MIN_BET_UNITS),
+            min_seed: U128(MIN_SEED),
+            min_bet: U128(MIN_BET),
             min_resolution_deposit: U128(MIN_RESOLUTION_DEPOSIT.as_yoctonear()),
             max_open_ms: MAX_OPEN_MS,
         }
@@ -795,6 +735,135 @@ impl PredictionMarkets {
 }
 
 impl PredictionMarkets {
+    /// Opens a market with `seed` USDC from `creator`: half goes into the YES pool and half into
+    /// the NO pool, as the creator's stakes. So the odds start at 50%. Returns the market id.
+    fn create_market(
+        &mut self,
+        creator: AccountId,
+        seed: u128,
+        question: String,
+        context: Option<String>,
+        note_id: Option<u64>,
+        closes_at_ms: u64,
+    ) -> u64 {
+        let question = question.trim().to_owned();
+        let chars = question.chars().count();
+        if chars == 0 || chars > MAX_QUESTION_CHARS {
+            env::panic_str("question must have 1 to 200 characters");
+        }
+        let context = context.unwrap_or_default().trim().to_owned();
+        if context.chars().count() > MAX_CONTEXT_CHARS {
+            env::panic_str("context must have at most 1000 characters");
+        }
+        let now = env::block_timestamp_ms();
+        if closes_at_ms <= now {
+            env::panic_str("closes_at_ms must be in the future");
+        }
+        if closes_at_ms - now > MAX_OPEN_MS {
+            env::panic_str("closes_at_ms must be at most 30 days ahead");
+        }
+        if seed < MIN_SEED {
+            env::panic_str("the seed must be at least 1 USDC");
+        }
+        if seed > MAX_POOL {
+            env::panic_str("the seed must be at most 1,000,000 USDC");
+        }
+        let yes = seed / 2;
+        let no = seed - yes;
+
+        self.last_market_id += 1;
+        let id = self.last_market_id;
+        self.markets.insert(
+            id,
+            Market {
+                creator: creator.clone(),
+                question: question.clone(),
+                context,
+                note_id,
+                created_at_ms: now,
+                closes_at_ms,
+                yes_pool: yes,
+                no_pool: no,
+                bets: 0,
+                paid_out: 0,
+                pending: None,
+                resolution: None,
+            },
+        );
+        self.stakes.insert((id, creator.clone()), Stake { yes, no, claimed: false });
+        self.odds.insert(id, vec![OddsPoint { at_ms: now, yes_bps: yes_share_bps(yes, no) as u16 }]);
+        if let Some(note_id) = note_id {
+            self.note_markets.insert(note_id, id);
+        }
+        emit(
+            "market_created",
+            MarketCreated {
+                market_id: id,
+                creator: &creator,
+                question: &question,
+                note_id,
+                closes_at_ms,
+                seed: U128(seed),
+            },
+        );
+        id
+    }
+
+    /// A bet of `amount` USDC on `outcome`. Returns the account's stake on that outcome.
+    fn bet(&mut self, account: AccountId, amount: u128, market_id: u64, outcome: Outcome) -> u128 {
+        if amount < MIN_BET {
+            env::panic_str("bet at least 1 USDC");
+        }
+        let mut market = self.open_market(market_id);
+        if market.total() + amount > MAX_POOL {
+            env::panic_str("the pool is full");
+        }
+        match outcome {
+            Outcome::Yes => market.yes_pool += amount,
+            Outcome::No => market.no_pool += amount,
+        }
+        market.bets += 1;
+        let share = yes_share_bps(market.yes_pool, market.no_pool);
+
+        let key = (market_id, account.clone());
+        let mut stake = self.stakes.get(&key).copied().unwrap_or_default();
+        let staked = match outcome {
+            Outcome::Yes => {
+                stake.yes += amount;
+                stake.yes
+            }
+            Outcome::No => {
+                stake.no += amount;
+                stake.no
+            }
+        };
+        self.stakes.insert(key, stake);
+
+        let mut odds = self.odds.get(&market_id).cloned().unwrap_or_default();
+        if odds.len() >= MAX_ODDS_POINTS {
+            odds.remove(0);
+        }
+        odds.push(OddsPoint { at_ms: env::block_timestamp_ms(), yes_bps: share as u16 });
+        self.odds.insert(market_id, odds);
+
+        emit(
+            "bet",
+            BetPlaced {
+                market_id,
+                account_id: &account,
+                outcome,
+                amount: U128(amount),
+                yes_pool: U128(market.yes_pool),
+                no_pool: U128(market.no_pool),
+                yes_share_bps: share,
+                bets: market.bets,
+            },
+        );
+        self.markets.insert(market_id, market);
+        staked
+    }
+
+
     fn market(&self, market_id: u64) -> Market {
         self.markets
             .get(&market_id)
@@ -984,18 +1053,6 @@ fn check_resolver_config(config: &ResolverConfig) {
 
 // --- helpers ---
 
-/// The attached deposit in units. Less than one unit (10^18 yoctoNEAR) stays in the contract.
-fn deposit_units() -> u128 {
-    let units = env::attached_deposit().as_yoctonear() / YOCTO_PER_UNIT;
-    if units > MAX_POOL_UNITS {
-        env::panic_str("attach at most 1,000,000 NEAR");
-    }
-    units
-}
-
-fn to_yocto(units: u128) -> U128 {
-    U128(units * YOCTO_PER_UNIT)
-}
 
 /// 7300 → "73%", 7325 → "73.25%".
 fn percent(bps: u16) -> String {
@@ -1023,6 +1080,44 @@ fn emit_resolved(market_id: u64, resolution: &Resolution) {
 
 fn to_json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).unwrap_or_else(|_| env::panic_str("cannot serialize the arguments"))
+}
+
+// --- token messages and arguments ---
+
+/// The `msg` of an `ft_transfer_call` to this contract. One flat struct, because a tagged enum
+/// costs about 30 KB of WASM. `action` is `create_market` or `bet`.
+#[derive(Deserialize)]
+#[serde(crate = "near_sdk::serde", deny_unknown_fields)]
+struct TransferMessage {
+    action: String,
+    #[serde(default)]
+    question: Option<String>,
+    #[serde(default)]
+    context: Option<String>,
+    #[serde(default)]
+    note_id: Option<u64>,
+    #[serde(default)]
+    closes_at_ms: Option<u64>,
+    #[serde(default)]
+    market_id: Option<u64>,
+    #[serde(default)]
+    outcome: Option<Outcome>,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+struct FtTransferArgs<'a> {
+    receiver_id: &'a AccountId,
+    amount: U128,
+    memo: &'static str,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+struct ClaimCallbackArgs<'a> {
+    market_id: u64,
+    account_id: &'a AccountId,
+    amount: U128,
 }
 
 // --- OutLayer arguments and the resolver input ---
@@ -1146,6 +1241,14 @@ struct Claimed<'a> {
     account_id: &'a AccountId,
     amount: U128,
     refund: bool,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+struct ClaimFailed<'a> {
+    market_id: u64,
+    account_id: &'a AccountId,
+    amount: U128,
 }
 
 #[derive(Serialize)]

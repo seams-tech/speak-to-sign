@@ -3,7 +3,7 @@
 
 import type { SignResult } from '../signer/notesSigner';
 import { yesShareBps } from './math';
-import { YOCTO_PER_NEAR, type MarketPosition, type MarketSource, type NoteMarket, type OddsPoint } from './types';
+import { NEAR_CURRENCY, type Currency, type MarketPosition, type MarketSource, type NoteMarket, type OddsPoint } from './types';
 
 export interface MockMarketSource extends MarketSource {
   /** Ends betting, as the close time would. */
@@ -20,6 +20,8 @@ interface MockOptions {
   delayMs?: number;
   /** JEV's answer to "Ask JEV now". Default: 93%, which snaps to a full YES. */
   jevAnswer?: { verdictBps: number; rationale: string };
+  /** The money of the markets. Default: NEAR. With USDC, the pools are 10 times larger. */
+  currency?: Currency;
 }
 
 const DAY_MS = 86_400_000;
@@ -36,6 +38,9 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
   const histories = new Map<number, OddsPoint[]>();
   const positions = new Map<number, MarketPosition>();
   const delay = () => new Promise((resolve) => setTimeout(resolve, options.delayMs ?? 700));
+  const currency = options.currency ?? NEAR_CURRENCY;
+  // A tenth of the pool unit: 0.1 NEAR, or 1 USDC.
+  const tenth = currency.symbol === 'NEAR' ? 10n ** BigInt(currency.decimals) / 10n : 10n ** BigInt(currency.decimals);
 
   const marketOf = (noteId: number): NoteMarket | null => {
     if (options.noteIds && !options.noteIds.includes(noteId) && !markets.has(noteId)) return null;
@@ -50,8 +55,8 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
         question: 'Will this note hold up?',
         closesAtMs: Date.now() + 2 * DAY_MS,
         status: 'open',
-        yesPool: (yesTenths * YOCTO_PER_NEAR) / 10n,
-        noPool: (noTenths * YOCTO_PER_NEAR) / 10n,
+        yesPool: yesTenths * tenth,
+        noPool: noTenths * tenth,
         bets: 4 + (noteId % 7),
       };
       markets.set(noteId, market);
@@ -64,6 +69,10 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
 
   return {
     signsByVoice: options.signsByVoice ?? true,
+    currency,
+    async getBalance() {
+      return 20n * tenth;
+    },
 
     async getMarketForNote(noteId) {
       const market = marketOf(noteId);

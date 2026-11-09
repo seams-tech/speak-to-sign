@@ -17,7 +17,21 @@ export type Side = 'yes' | 'no';
  */
 export type MarketStatus = 'open' | 'closed' | 'resolving' | 'resolved';
 
-/** One market about one community note. NEAR amounts are yoctoNEAR. */
+/**
+ * The money of a market. Amounts are bigint base units: yoctoNEAR for NEAR (24 decimals), and
+ * 10^-6 USDC for USDC (6 decimals).
+ */
+export interface Currency {
+  /** "NEAR" or "USDC". */
+  symbol: string;
+  decimals: number;
+  /** The amount chips of the bet sheet and the seed, in base units. */
+  chips: readonly bigint[];
+  /** The word for the unit in a spoken bet: "near", "dollars". */
+  spoken: string;
+}
+
+/** One market about one community note. Amounts are base units of the source's currency. */
 export interface NoteMarket {
   id: number;
   noteId: number;
@@ -87,6 +101,10 @@ export interface MarketSource {
   closeMarket?(marketId: number): Promise<SignResult>;
   /** False while new markets cannot open, for example before the contract is on testnet. */
   canOpenMarkets?(): Promise<boolean>;
+  /** The money of the markets. Default: NEAR. */
+  currency?: Currency;
+  /** The account's balance of the currency, for the bet sheet. */
+  getBalance?(accountId: string): Promise<bigint>;
 }
 
 /** The question of a new market. */
@@ -96,3 +114,11 @@ export const YOCTO_PER_NEAR = 10n ** 24n;
 
 /** The amount chips of the bet sheet: 0.1, 0.5 and 1 NEAR. */
 export const BET_CHIPS: readonly bigint[] = [YOCTO_PER_NEAR / 10n, YOCTO_PER_NEAR / 2n, YOCTO_PER_NEAR];
+
+export const NEAR_CURRENCY: Currency = { symbol: 'NEAR', decimals: 24, chips: BET_CHIPS, spoken: 'near' };
+
+/** 1 USDC in base units. */
+export const ONE_USDC = 1_000_000n;
+
+/** NEAR testnet USDC: chips of 1, 5 and 10 USDC. */
+export const USDC_CURRENCY: Currency = { symbol: 'USDC', decimals: 6, chips: [ONE_USDC, 5n * ONE_USDC, 10n * ONE_USDC], spoken: 'dollars' };

@@ -17,6 +17,8 @@ export const config = {
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),
   /** The note market contract on NEAR testnet (demo/contracts/jev-prediction-market/). */
   marketContract: env(e.VITE_MARKET_CONTRACT, 'pm-notes.seams-v1.testnet'),
+  /** The money of the note markets: NEAR testnet USDC (Circle, NEP-141, 6 decimals). */
+  marketToken: env(e.VITE_MARKET_TOKEN, '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af'),
   /** The RPC for the market views. A local sandbox can stand in for testnet in a test. */
   marketRpcUrl: env(e.VITE_MARKET_RPC_URL, env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com')),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),

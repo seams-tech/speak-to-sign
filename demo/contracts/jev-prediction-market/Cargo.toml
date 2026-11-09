@@ -17,11 +17,11 @@ near-sdk = "=5.30.1"
 near-sdk = { version = "=5.30.1", features = ["unit-testing"] }
 
 # A standalone workspace: it must not join a parent workspace. The sandbox
-# test crate and the fake OutLayer contract are members so that they share
+# test crate and the fake OutLayer and USDC contracts are members so that they share
 # this lock file and target folder. The resolver worker (`resolver/`) is a
 # separate workspace with its own toolchain.
 [workspace]
-members = ["sandbox", "sandbox/fake-outlayer"]
+members = ["sandbox", "sandbox/fake-outlayer", "sandbox/fake-usdc"]
 
 [profile.release]
 codegen-units = 1

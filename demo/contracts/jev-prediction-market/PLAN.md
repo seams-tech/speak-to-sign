@@ -187,3 +187,9 @@ spoken request. The strip signs it as a normal wallet call.
     demo is easy to use.
 11. **Front end.** This session builds the market strip into the notes
     example after the contract.
+12. **Currency** (the user, 10 Nov 2026): NEAR testnet USDC
+    (`3e2210e1…b8af`, 6 decimals). Bets and seeds come in with the token's
+    `ft_transfer_call`, and claims go out with `ft_transfer`. The
+    `request_resolution` fee stays NEAR. The minimum bet and seed are 1 USDC,
+    and the chips are 1, 5 and 10 USDC. `cyan-loong.testnet` holds USDC to
+    seed demo markets. This replaces decisions 7 and 9 for the amounts.

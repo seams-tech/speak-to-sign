@@ -1,8 +1,9 @@
-// The parimutuel arithmetic of the note market, in yoctoNEAR (bigint), and the words of the UI.
+// The parimutuel arithmetic of the note market, in base units of its currency (bigint), and the
+// words of the UI.
 // The contract must pay by the same rule; the UI only estimates.
 
-import type { MarketPosition, NoteMarket, Side } from './types';
-import { YOCTO_PER_NEAR } from './types';
+import type { Currency, MarketPosition, NoteMarket, Side } from './types';
+import { NEAR_CURRENCY } from './types';
 
 const FULL_BPS = 10_000n;
 
@@ -47,20 +48,26 @@ export function payout(position: Pick<MarketPosition, 'yes' | 'no'>, yesPool: bi
   return fromYes + fromNo;
 }
 
-/** "0.70 NEAR": NEAR with two decimals, rounded down. */
-export function nearText(yocto: bigint, decimals = 2): string {
+/** "0.70 NEAR", "12.50 USDC": the amount with `decimals` decimals, rounded down. */
+export function amountText(amount: bigint, currency: Currency = NEAR_CURRENCY, decimals = 2): string {
   const scale = 10n ** BigInt(decimals);
-  const value = (yocto * scale) / YOCTO_PER_NEAR;
+  const value = (amount * scale) / 10n ** BigInt(currency.decimals);
   const whole = value / scale;
   const fraction = (value % scale).toString().padStart(decimals, '0');
-  return `${whole}.${fraction} NEAR`;
+  return decimals === 0 ? `${whole} ${currency.symbol}` : `${whole}.${fraction} ${currency.symbol}`;
 }
 
-/** "0.1", "0.5", "1": the amount of a chip, without the unit. */
-export function chipText(yocto: bigint): string {
-  return nearText(yocto, 2)
-    .replace(/\.?0+ NEAR$/, '')
-    .replace(/ NEAR$/, '');
+/** "0.70 NEAR": NEAR with two decimals, rounded down. */
+export function nearText(yocto: bigint, decimals = 2): string {
+  return amountText(yocto, NEAR_CURRENCY, decimals);
+}
+
+/** "0.1", "0.5", "1", "10": the amount of a chip, without the unit. */
+export function chipText(amount: bigint, currency: Currency = NEAR_CURRENCY): string {
+  return amountText(amount, currency, 2)
+    .replace(` ${currency.symbol}`, '')
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1');
 }
 
 /** "68%" from basis points. */
@@ -81,13 +88,14 @@ export function timeLeftText(closesAtMs: number, nowMs = Date.now()): string {
 const DIGITS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
 
 /**
- * The sentence for a spoken bet, for example "bet zero point five near yes on this note".
- * The Wallet's spoken request kind decides the final words; this is what the sheet shows.
+ * The sentence for a spoken bet, for example "bet zero point five near yes on this note" or
+ * "bet five dollars yes on this note". The Wallet's spoken request kind decides the final
+ * words; this is what the sheet shows.
  */
-export function betSentence(side: Side, amount: bigint): string {
-  const tenths = (amount * 10n) / YOCTO_PER_NEAR;
+export function betSentence(side: Side, amount: bigint, currency: Currency = NEAR_CURRENCY): string {
+  const tenths = (amount * 10n) / 10n ** BigInt(currency.decimals);
   const whole = Number(tenths / 10n);
   const tenth = Number(tenths % 10n);
   const number = whole < 10 ? (tenth === 0 ? DIGITS[whole] : `${DIGITS[whole]} point ${DIGITS[tenth]}`) : String(whole);
-  return `bet ${number} near ${side} on this note`;
+  return `bet ${number} ${currency.spoken} ${side} on this note`;
 }

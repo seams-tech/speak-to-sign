@@ -42,7 +42,7 @@ export const EXAMPLES: VoiceExample[] = [
     signs: 'approve({ pr: 412, head: "9c1e2fa", base: "main" })',
     target: 'a required check verifies it, then the merge runs',
     status: 'concept',
-    blurb: 'A required check waits for the maintainer\'s voice before main can move.',
+    blurb: 'The maintainer reads the intent aloud, so it is hard to merge the wrong PR by accident.',
     url: 'github.com/seams-tech/speak-to-sign/pull/412',
   },
   {
@@ -53,7 +53,7 @@ export const EXAMPLES: VoiceExample[] = [
     signs: 'confirm(safeTx #7, hash 0x4f2a…91bd)',
     target: 'one owner confirmation · 2 of 3 needed',
     status: 'concept',
-    blurb: 'Each owner confirms by voice. The words must match the amount and the receiver.',
+    blurb: 'Each owner reads the amount and the receiver aloud. You cannot blind-sign what you must say, so a phishing transaction is harder to approve.',
     url: 'app.safe.global/transactions/queue',
   },
 ];

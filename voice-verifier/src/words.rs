@@ -128,11 +128,14 @@ mod tests {
 
     #[test]
     fn whisper_style_transcripts_match() {
-        let contacts = [account("alice.testnet"), account("bob-1.testnet")];
+        let contacts = [account("alice.testnet"), account("bob-1.testnet"), account("seams-v1.testnet")];
         for (heard, receiver, hundredths) in [
             (" Send 25 NEAR to alice.testnet.", "alice.testnet", 2_500),
             ("Send 2.5 NEAR to bob-1.testnet.", "bob-1.testnet", 250),
             ("Send 1,300 NIR to alice.testnet", "alice.testnet", 130_000),
+            // Staging: the unit heard as "year".
+            ("Send 0.01 year to seams-v1.testnet.", "seams-v1.testnet", 1),
+            ("Sent 25 NIA to alice.testnode.", "alice.testnet", 2_500),
         ] {
             let request = transfer(receiver, hundredths);
             let rendered = render(&request);

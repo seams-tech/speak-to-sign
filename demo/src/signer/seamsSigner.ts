@@ -165,6 +165,9 @@ const REFUSALS: Record<string, string> = {
   note_not_valid: 'The note, the contract or the id is not valid.',
   verdict_mismatch: 'The signed verdict did not match this request, so the Wallet signed nothing.',
   transaction_failed: 'The transaction failed on chain.',
+  // SDK 0.60.0: the Seams co-signer refused the verdict. `detail` holds its reason.
+  voice_limit: 'This payment is over the voice limit.',
+  cosigner_refused: 'Seams did not accept the verdict, so nothing was signed.',
 };
 
 const UNAVAILABLE: Record<string, string> = {

@@ -46,10 +46,12 @@ cargo test
 | USDC registration of the faucet | transaction `3ZrCs6REMC9RhzAGig1doCoyhtoEZBXqKjkadXTgAvk7` |
 | `drip` key | `ed25519:2WVRyde9Adz9f28ZjA4KzfdSk166Hz4e4r3oAii7GHqM`, function-call access to `drip` on `seams-faucet.testnet`, allowance 1 NEAR, transaction `Bx4eZEE9EcsreukRcz1GP2nqchMFVW9s11jp8w8HZ9Bp`. The secret is in `demo/frontend/.dev.vars` (not in git). |
 | Empty-faucet test | transaction `FdrcGFHZv9zV24AiwgHV69ZV38hTZDop4ECHtos5X6ms`: the USDC receipt failed as one unit ("not enough balance"), `on_drip` returned `false`, no NEAR left the faucet, and the account could try again. |
+| Funding | 500 USDC from the project owner (10 Nov 2026). |
+| First real drip | transaction `tNMCqaLzpsMmFbpAf362Dg34G4sWuybYkt7XpbUVTWp`, through the page's `/api/faucet`, to a new account `seams-faucet-check.testnet`: it was registered with USDC and got 2 USDC and 0.2 NEAR (10.0 → 10.2); the faucet went from 500 to 498 USDC; a second claim answered "This account already got testnet NEAR and USDC from the faucet." |
 
-About 8.38 NEAR is free after the contract's storage: about 40 drips at
-0.2 NEAR. The faucet needs USDC from its owner: 2 USDC for each account (for
-example 40 USDC for 20 accounts), sent to `seams-faucet.testnet`.
+About 8.38 NEAR was free after the contract's storage: about 40 drips at
+0.2 NEAR. Then NEAR runs out before USDC does (500 USDC is 250 drips): top up
+the account's NEAR to serve more accounts.
 
 To top up NEAR or change the amounts:
 

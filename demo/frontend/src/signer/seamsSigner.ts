@@ -161,6 +161,7 @@ const REFUSALS: Record<string, string> = {
   transcriber_unavailable: 'The speech-to-text service did not answer.',
   summary_not_speakable: 'The summary must be 1 to 12 words of letters A to Z.',
   note_not_valid: 'The note, the contract or the id is not valid.',
+  merge_not_valid: 'The repository, the pull request, the base branch or the commit is not valid.',
   verdict_mismatch: 'The signed verdict did not match this request, so the Wallet signed nothing.',
   transaction_failed: 'The transaction failed on chain.',
   // SDK 0.60.0: the Seams co-signer refused the verdict. `detail` holds its reason.

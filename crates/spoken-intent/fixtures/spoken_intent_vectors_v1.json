@@ -2711,7 +2711,7 @@
         "merge pull request two into main",
         "not merge pull request forty two into main"
       ],
-      "display_text": "Merge pull request #42 into main",
+      "display_text": "Merge pull request 42 into main",
       "name": "merge_approval_42_main",
       "request_digest_hex": "f0d910bebc7cde7c463e141185e2939e49080b3a155446fcbd07b382d01ab563",
       "spoken_text": "merge pull request forty two into main",
@@ -2742,7 +2742,7 @@
         "merge pull request two into develop",
         "not merge pull request one into develop"
       ],
-      "display_text": "Merge pull request #1 into develop",
+      "display_text": "Merge pull request 1 into develop",
       "name": "merge_approval_1_develop",
       "request_digest_hex": "eb64cbe85a89af3d6045732e509158580f68d9ce97ccbd287ce1666891672334",
       "spoken_text": "merge pull request one into develop",
@@ -2803,7 +2803,7 @@
         "merge pull request two thousand one into main",
         "not merge pull request one thousand one into main"
       ],
-      "display_text": "Merge pull request #1001 into main",
+      "display_text": "Merge pull request 1001 into main",
       "name": "merge_approval_1001_main_implicit_owner",
       "request_digest_hex": "1b1c999d00374243fe95973a68d278dff6fcac65fb6ec983117ae15cef984685",
       "spoken_text": "merge pull request one thousand one into main",

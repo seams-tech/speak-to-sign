@@ -92,7 +92,7 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
             words.push_integer(*pull_request);
             words.push("into");
             words.0.push(base.spoken_token());
-            format!("Merge pull request #{pull_request} into {}", base.as_str())
+            format!("Merge pull request {pull_request} into {}", base.as_str())
         }
     };
     let spoken = words.0;

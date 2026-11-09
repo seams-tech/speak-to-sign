@@ -30,7 +30,7 @@ and `seams-monorepo/docs/refactor-210-voice-intents.md`.
 
 | Item                | Value                                                                                        |
 | ------------------- | -------------------------------------------------------------------------------------------- |
-| Verifier            | `seams-v1.testnet/voice-verifier`, version `1eef1bf32070f696b6de2c33cde8b997e73444f77b9d276af35aa2777ef7d7be` |
+| Verifier            | `seams-v1.testnet/voice-verifier`, version `09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294` |
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |

@@ -2,6 +2,14 @@
 //! writes an object and exits with 0, also for an error (`{"error": "..."}`), so that the
 //! contract can show the reason in its `resolution_failed` event.
 
+/// The manifest (display name and the network hosts), in the `outlayer.manifest` custom
+/// section. Without it, OutLayer gives the worker no network access.
+#[cfg(target_arch = "wasm32")]
+#[used]
+#[unsafe(link_section = "outlayer.manifest")]
+static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest/outlayer.json").len()] =
+    *include_bytes!("../manifest/outlayer.json");
+
 #[cfg(target_arch = "wasm32")]
 fn main() {
     use pm_notes_resolver::{MAX_INPUT_BYTES, run};

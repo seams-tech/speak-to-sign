@@ -6,8 +6,7 @@ export const START_POST_ID = POSTS[0]?.id ?? 1;
 
 // The notes app lives in the Speak-to-Sign page, under the hash #/notes. The page opens the
 // notes window when the hash starts with #/notes, and closes it when the hash goes.
-// Without a #/notes hash (the small screen on the page) the app shows the post page, where the
-// demo starts. #/notes alone is the timeline.
+// The app has one page: the post. Every hash shows a post: #/notes/post/<id>, or the demo post.
 
 export type HomeTab = 'for_you' | 'needs_help';
 export type Route = { name: 'home'; tab: HomeTab } | { name: 'post'; postId: number };
@@ -20,8 +19,6 @@ function subscribe(onChange: () => void) {
 function parse(hash: string): Route {
   const post = /^#\/notes\/post\/(\d+)/.exec(hash);
   if (post) return { name: 'post', postId: Number(post[1]) };
-  if (hash.startsWith('#/notes/needs-help')) return { name: 'home', tab: 'needs_help' };
-  if (/^#\/notes\/?$/.test(hash)) return { name: 'home', tab: 'for_you' };
   return { name: 'post', postId: START_POST_ID };
 }
 

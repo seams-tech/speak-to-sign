@@ -1,7 +1,6 @@
 import { IconArrowLeft, IconDots, IconHandFingerRight, IconUsers } from '@tabler/icons-react';
 import { findPost } from '../data/posts';
 import { useDemo, useWriteCue } from '../demoContext';
-import { navigate, paths } from '../router';
 import { ActionRow, AuthorBadge, Avatar, Media, PostHistoryLine, PostText } from './bits';
 import { LoadState } from './LoadState';
 import { PostNotes } from './NotesBox';
@@ -15,24 +14,17 @@ export function PostDetail({ postId }: { postId: number }) {
   // highlighted, and a hand points at its button.
   const cue = useWriteCue(postId);
 
-  const back = () => navigate(paths.home);
-
   return (
     <>
       <header className="page-head">
-        <button type="button" className="icon-btn" onClick={back} aria-label="Back">
+        <span className="icon-btn" aria-hidden="true">
           <IconArrowLeft size={20} />
-        </button>
+        </span>
         <h1>Post</h1>
       </header>
       {!post ? (
         <div className="empty">
           <b>This post does not exist</b>
-          <p>
-            <a className="lk" href={paths.home}>
-              Go to the timeline
-            </a>
-          </p>
         </div>
       ) : (
         <article className="pd">

@@ -10,6 +10,8 @@ export interface PostAuthor {
   color: string;
   /** Organizations have a square avatar and a gold badge. */
   kind: 'organization' | 'person';
+  /** A logo in place of the initials. */
+  logo?: 'metro' | 'weather' | 'zoo';
 }
 
 export interface Post {
@@ -28,7 +30,7 @@ export interface Post {
 export const POSTS: Post[] = [
   {
     id: 1,
-    author: { name: 'Metro Daily', handle: 'metrodaily', initials: 'METRO', color: '#0f1419', kind: 'organization' },
+    author: { name: 'Metro Daily', handle: 'metrodaily', initials: 'METRO', color: '#0f1419', kind: 'organization', logo: 'metro' },
     text: 'Harbor Bridge will close for six months from Monday. Plan another route.',
     link: 'metro.news/hb-close',
     media: 'bridge',
@@ -38,7 +40,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 2,
-    author: { name: 'Northfield Weather Desk', handle: 'northfieldwx', initials: 'NWD', color: '#c2410c', kind: 'organization' },
+    author: { name: 'Northfield Weather Desk', handle: 'northfieldwx', initials: 'NWD', color: '#ea580c', kind: 'organization', logo: 'weather' },
     text: 'Saturday will reach 41°C in Northfield, the hottest day on record here. Stay indoors from noon.',
     media: 'heat',
     age: '8h',
@@ -55,7 +57,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 4,
-    author: { name: 'Lakeport City Zoo', handle: 'lakeportzoo', initials: 'ZOO', color: '#15803d', kind: 'organization' },
+    author: { name: 'Lakeport City Zoo', handle: 'lakeportzoo', initials: 'ZOO', color: '#15803d', kind: 'organization', logo: 'zoo' },
     text: 'Meet Pip and Poppy, our new red panda twins. Come and say hello from Friday.',
     media: 'panda',
     age: '6h',

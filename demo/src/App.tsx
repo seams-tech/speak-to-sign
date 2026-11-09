@@ -3,6 +3,7 @@ import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { Rail } from './components/Rail';
 import { HowItWorks, SetupPanel } from './components/SetupPanel';
+import { NotesActivity, SideSearch, StickySide } from './components/SideColumn';
 import { SignInModal } from './components/SignInModal';
 import { Timeline } from './components/Timeline';
 import { WriteNoteModal } from './components/WriteNoteModal';
@@ -185,14 +186,16 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   return (
     <DemoContext.Provider value={state}>
       <div className="layout">
-        <Rail onHome={route.name === 'home'} />
+        <Rail route={route} />
         <main className="column">
           {!wide && <SetupPanel compact />}
           {route.name === 'home' ? <Timeline tab={route.tab} /> : <PostDetail postId={route.postId} />}
         </main>
         {wide && (
-          <aside className="side">
+          <StickySide>
+            <SideSearch />
             <SetupPanel compact={false} />
+            <NotesActivity />
             <HowItWorks />
             <p className="side-foot muted">
               Also on this site:{' '}
@@ -201,7 +204,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
               </a>
               , a NEAR payment by voice. Demo for the NEAR Hackathon. The posts are fictional. NEAR testnet only.
             </p>
-          </aside>
+          </StickySide>
         )}
       </div>
 

@@ -1,52 +1,48 @@
 import type { ReactNode } from 'react';
 import {
   IconBookmark,
-  IconBuildingBridge,
   IconChartBar,
   IconExternalLink,
   IconHeart,
   IconMessageCircle,
   IconMicrophone,
-  IconPaw,
+  IconPawFilled,
   IconRepeat,
   IconRosetteDiscountCheckFilled,
-  IconTemperature,
+  IconSunFilled,
   IconUpload,
 } from '@tabler/icons-react';
 import { shortAccount, shortHash, transactionUrl } from '../config';
-import type { MediaKind, Post, PostAuthor } from '../data/posts';
+import type { Post, PostAuthor } from '../data/posts';
+
+export { Media } from './Media';
 
 export function Avatar({ author, size = 40 }: { author: PostAuthor; size?: number }) {
   const square = author.kind === 'organization';
   return (
     <div
-      className={`avatar ${square ? 'avatar-square' : ''}`}
-      style={{ width: size, height: size, background: author.color, fontSize: author.initials.length > 3 ? 10 : 13 }}
+      className={`avatar ${square ? 'avatar-square' : 'avatar-round'}`}
+      style={{ width: size, height: size, backgroundColor: author.color, fontSize: author.initials.length > 3 ? 10 : 15 }}
       aria-hidden="true"
     >
-      {author.initials}
+      {author.logo ? <Logo logo={author.logo} size={size} /> : author.initials}
     </div>
+  );
+}
+
+function Logo({ logo, size }: { logo: NonNullable<PostAuthor['logo']>; size: number }) {
+  if (logo === 'weather') return <IconSunFilled size={Math.round(size * 0.6)} />;
+  if (logo === 'zoo') return <IconPawFilled size={Math.round(size * 0.58)} />;
+  return (
+    <span className="logo-metro" style={{ fontSize: Math.round(size * 0.62) }}>
+      M<span className="logo-metro-bar" />
+    </span>
   );
 }
 
 export function AuthorBadge({ author }: { author: PostAuthor }) {
   if (author.kind !== 'organization') return null;
   return <IconRosetteDiscountCheckFilled className="badge-gold" size={18} aria-label="Verified organization" />;
-}
-
-const MEDIA_ICONS: Record<MediaKind, typeof IconPaw> = {
-  bridge: IconBuildingBridge,
-  heat: IconTemperature,
-  panda: IconPaw,
-};
-
-export function Media({ kind, height }: { kind: MediaKind; height: number }) {
-  const Icon = MEDIA_ICONS[kind];
-  return (
-    <div className="media" style={{ height }} aria-hidden="true">
-      <Icon size={56} stroke={1.5} />
-    </div>
-  );
 }
 
 const LINK = /((?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s]*)?)/gi;
@@ -86,32 +82,43 @@ export function PostText({ post }: { post: Post }) {
   );
 }
 
+/** The reply, repost, like, views or bookmark, and share buttons. They copy the look only. */
 export function ActionRow({ post, showViews }: { post: Post; showViews: boolean }) {
   return (
     <div className={`actions ${showViews ? '' : 'actions-wide'}`} aria-hidden="true">
-      <span>
-        <IconMessageCircle size={19} stroke={1.6} /> {post.stats.replies}
-      </span>
-      <span>
-        <IconRepeat size={19} stroke={1.6} /> {post.stats.reposts}
-      </span>
-      <span>
-        <IconHeart size={19} stroke={1.6} /> {post.stats.likes}
-      </span>
+      <Action tone="blue" icon={<IconMessageCircle size={19} stroke={1.6} />} count={post.stats.replies} />
+      <Action tone="green" icon={<IconRepeat size={19} stroke={1.6} />} count={post.stats.reposts} />
+      <Action tone="pink" icon={<IconHeart size={19} stroke={1.6} />} count={post.stats.likes} />
       {showViews ? (
-        <span>
-          <IconChartBar size={19} stroke={1.6} /> {post.stats.views}
-        </span>
+        <>
+          <Action tone="blue" icon={<IconChartBar size={19} stroke={1.6} />} count={post.stats.views} />
+          <span className="act-end">
+            <Action tone="blue" icon={<IconBookmark size={19} stroke={1.6} />} />
+            <Action tone="blue" icon={<IconUpload size={19} stroke={1.6} />} />
+          </span>
+        </>
       ) : (
-        <span>
-          <IconBookmark size={19} stroke={1.6} /> {post.stats.bookmarks}
-        </span>
+        <>
+          <Action tone="blue" icon={<IconBookmark size={19} stroke={1.6} />} count={post.stats.bookmarks} />
+          <Action tone="blue" icon={<IconUpload size={19} stroke={1.6} />} />
+        </>
       )}
-      <span>
-        <IconUpload size={19} stroke={1.6} />
-      </span>
     </div>
   );
+}
+
+function Action({ tone, icon, count }: { tone: 'blue' | 'green' | 'pink'; icon: ReactNode; count?: string }) {
+  return (
+    <span className={`act act-${tone}`}>
+      <span className="act-icon">{icon}</span>
+      {count && <span className="act-count">{count}</span>}
+    </span>
+  );
+}
+
+/** The domain of a link such as "metro.news/hb-close". */
+export function domainOf(link: string): string {
+  return link.replace(/^https?:\/\//i, '').split('/')[0] ?? link;
 }
 
 /** "Voice-signed by alice.testnet" with the transaction link when this session knows it. */

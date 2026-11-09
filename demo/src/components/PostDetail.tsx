@@ -2,7 +2,7 @@ import { IconArrowLeft, IconDots, IconUsers } from '@tabler/icons-react';
 import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { navigate, paths } from '../router';
-import { ActionRow, AuthorBadge, Avatar, Media, PostText } from './bits';
+import { ActionRow, AuthorBadge, Avatar, domainOf, Media, PostText } from './bits';
 import { LoadState } from './LoadState';
 import { PostNotes } from './NotesBox';
 
@@ -44,7 +44,7 @@ export function PostDetail({ postId }: { postId: number }) {
           <div className="pd-text">
             <PostText post={post} />
           </div>
-          {post.media && <Media kind={post.media} height={180} />}
+          {post.media && <Media kind={post.media} domain={post.link ? domainOf(post.link) : undefined} />}
           <LoadState />
           <PostNotes notes={notesByPost[post.id] ?? []} />
           <div className="pd-time muted">

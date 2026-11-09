@@ -387,7 +387,7 @@ function TransferResult({ result }: { result: SpeakToSignTransferResult }): Reac
 
 function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): React.JSX.Element {
   const { owner, ready, onPaid } = props;
-  const [amountText, setAmountText] = React.useState('0.01');
+  const [amountText, setAmountText] = React.useState('1');
   const [receiver, setReceiver] = React.useState(DEFAULT_RECEIVER);
   const chosen = receiver.trim();
   const amount = parseSpokenAmount(amountText);
@@ -449,8 +449,8 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
       {!amount.ok ? <p className="svi-field-error">{amount.message}</p> : null}
       <p>
         Pay to any named NEAR account. The VoiceID window shows the exact sentence, for example
-        "Send 0.01 NEAR to seams-v1.testnet." Click Record, then read it aloud. In the account
-        name, say "dash" for "-" and "dot" for ".".
+        "Send 1 NEAR to seams-v1.testnet." Click Record, then read it aloud. In the account name,
+        you can say "dash" and "dot", or leave them out: "seams v one" is enough.
       </p>
       <p className="svi-hint">
         An accepted payment needs no confirm. A payment above 10 NEAR asks you to confirm again: a

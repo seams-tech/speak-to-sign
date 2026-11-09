@@ -1,7 +1,7 @@
 # Seams Voice Intents
 
 An example web page for Seams Speak-to-Sign. Pay a named NEAR testnet account
-with your voice. You read one sentence, for example "Send 0.01 NEAR to
+with your voice. You read one sentence, for example "Send 1 NEAR to
 seams-v1.testnet." An attested verifier checks your voice and your words. Then
 your Seams Wallet pays from your own account, with no confirm. Testnet only. Do
 not use real funds.
@@ -90,7 +90,7 @@ The two calls that matter:
 
 ```ts
 await seams.speakToSign.enroll({ walletId });
-await seams.speakToSign.requestTransfer({ walletId, receiver: 'seams-v1.testnet', amount: '0.01' });
+await seams.speakToSign.requestTransfer({ walletId, receiver: 'seams-v1.testnet', amount: '1' });
 ```
 
 `requestTransfer` returns `sent`, `refused`, `cancelled` or `unavailable`.
@@ -109,5 +109,6 @@ app whose Wallet protocol is too old, and the page then asks you to upgrade.
 - Your audio leaves the browser. It goes to the Seams Gateway, the verifier on
   OutLayer, the speaker service on Phala and NEAR AI. Your voice template stays
   in the verifier's storage.
-- The verifier accepts a receiver name that sounds alike. Read the account on
+- The verifier accepts a receiver name that sounds alike, and an account name
+  said without "dash", "dot" or "testnet" ("seams v one"). Read the account on
   the screen before you speak.

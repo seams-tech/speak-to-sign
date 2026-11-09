@@ -8,8 +8,8 @@ export const FAUCET_URL = 'https://docs.near.org/getting-started/faucet';
 
 const YOCTO_PER_NEAR = 10n ** 24n;
 const STORAGE_YOCTO_PER_BYTE = 10n ** 19n;
-/** A 0.01 NEAR spoken payment and the gas of one transfer (under 0.0001 NEAR), with a margin. */
-export const PAYMENT_NEED_YOCTO = 20_000_000_000_000_000_000_000n;
+/** The default 1 NEAR payment and the gas of one transfer (under 0.0001 NEAR), with a margin. */
+export const PAYMENT_NEED_YOCTO = 1_010_000_000_000_000_000_000_000n;
 const MAX_SPOKEN_HUNDREDTHS = 100_000_000n;
 
 export type SpokenAmount =

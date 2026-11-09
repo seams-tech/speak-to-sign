@@ -68,9 +68,9 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
   const source = useMarketSource();
   const titleId = useId();
   const currency = source.currency ?? NEAR_CURRENCY;
-  // A tap bets the smallest chip: 1 USDC, the market's smallest bet (pm-notes MIN_BET), so the
-  // faucet's 2 USDC give two bets. The line under the buttons says how much.
-  const stake = currency.chips[0] ?? 0n;
+  // A tap bets the middle chip: 0.5 USDC (the market takes 0.1 USDC or more), so the faucet's
+  // 2 USDC give four bets. The line under the buttons says how much.
+  const stake = currency.chips[1] ?? currency.chips[0] ?? 0n;
   const [balance, setBalance] = useState<bigint | null>(null);
   useEffect(() => {
     if (!account || !source.getBalance) {

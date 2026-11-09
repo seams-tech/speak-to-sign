@@ -3,7 +3,8 @@
    headings, pill buttons and a grainy gradient panel. The example screens copy the real apps
    (X-style notes, a code host, a multisig wallet) inside a hand-drawn frame. */
 
-.ss-page {
+.ss-page,
+.ss-window-root {
   --ink: #0a0a0a;
   --graphite: #44403b;
   --smoke: #777169;
@@ -20,6 +21,10 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-family: var(--font);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.ss-page {
   background: #ffffff;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
@@ -37,19 +42,17 @@ body {
   box-sizing: border-box;
 }
 
-.ss-page a {
+/* Low specificity (:where), so the classes of the notes app in a screen still win. */
+:where(.ss-page, .ss-window-root) a {
   color: inherit;
   text-decoration: none;
 }
 
-.ss-page h1,
-.ss-page h2,
-.ss-page h3,
-.ss-page p {
+:where(.ss-page, .ss-window-root) :where(h1, h2, h3, p) {
   margin: 0;
 }
 
-.ss-page :focus-visible {
+:where(.ss-page, .ss-window-root) :focus-visible:not(.notes-app *) {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
   border-radius: 6px;
@@ -144,7 +147,8 @@ h1.ss-display {
 .ss-nav {
   position: sticky;
   top: 0;
-  z-index: 50;
+  /* Under the app window (30), the notes dialogs (50) and the Wallet's windows. */
+  z-index: 20;
   background: color-mix(in srgb, #ffffff 92%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -669,34 +673,143 @@ h1.ss-display {
   transform-origin: 0 0;
 }
 
-.ss-live {
+/* ---------- the live apps, the small screens and the big window ---------- */
+
+/* A live app renders once and moves between its small screen and the window. Its fixed parts
+   (the notes tab bar and toasts) stay inside it: contain makes it their containing block. */
+.ss-live-slot,
+.ss-live-node {
+  position: absolute;
+  inset: 0;
+}
+
+.ss-live-node {
+  contain: layout paint;
+}
+
+.ss-app-screen {
   position: relative;
 }
 
-.ss-live-frame {
-  display: block;
-  width: 1280px;
-  height: 800px;
-  border: 0;
-  pointer-events: none;
-  background: #ffffff;
-}
-
-.ss-live-open {
+.ss-preview-open {
   position: absolute;
   inset: 0;
+  z-index: 4;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 18px;
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%);
-  opacity: 0;
-  transition: opacity 160ms ease;
+  padding-bottom: 32px;
+  border-radius: 22px;
+  cursor: pointer;
 }
 
-.ss-live-open:hover,
-.ss-live-open:focus-visible {
+.ss-preview-open .ss-btn {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  box-shadow: 0 10px 24px -12px rgba(15, 23, 42, 0.55);
+}
+
+.ss-preview-open:hover .ss-btn,
+.ss-preview-open:focus-visible .ss-btn {
   opacity: 1;
+  transform: none;
+}
+
+@media (hover: none) {
+  .ss-preview-open .ss-btn {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ss-window-root {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+.ss-window-closing {
+  pointer-events: none;
+}
+
+.ss-window-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.36);
+  backdrop-filter: blur(3px);
+}
+
+.ss-window {
+  position: absolute;
+  inset: 5dvh 5vw;
+  display: flex;
+  outline: none;
+}
+
+.ss-window .ss-drawn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ss-window .ss-drawn-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 30px 80px -30px rgba(15, 23, 42, 0.5);
+}
+
+.ss-window .ss-browser {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ss-window-app {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #ffffff;
+}
+
+.ss-fit {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ss-fit-inner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 50% 50%;
+}
+
+.ss-browser-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--graphite);
+  cursor: pointer;
+}
+
+.ss-browser-close:hover {
+  background: var(--stone);
+  color: var(--ink);
 }
 
 .ss-overlay-card {

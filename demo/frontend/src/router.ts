@@ -1,4 +1,7 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
+
+// The notes app lives in the Speak-to-Sign page, under the hash #/notes. The page opens the
+// notes window when the hash starts with #/notes, and closes it when the hash goes.
 
 export type HomeTab = 'for_you' | 'needs_help';
 export type Route = { name: 'home'; tab: HomeTab } | { name: 'post'; postId: number };
@@ -9,24 +12,25 @@ function subscribe(onChange: () => void) {
 }
 
 function parse(hash: string): Route {
-  const post = /^#\/post\/(\d+)/.exec(hash);
+  const post = /^#\/notes\/post\/(\d+)/.exec(hash);
   if (post) return { name: 'post', postId: Number(post[1]) };
-  if (hash.startsWith('#/needs-help')) return { name: 'home', tab: 'needs_help' };
+  if (hash.startsWith('#/notes/needs-help')) return { name: 'home', tab: 'needs_help' };
   return { name: 'home', tab: 'for_you' };
 }
 
 export function useRoute(): Route {
-  const hash = useSyncExternalStore(subscribe, () => window.location.hash);
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [hash]);
-  return parse(hash);
+  return parse(useSyncExternalStore(subscribe, () => window.location.hash));
+}
+
+/** A key that changes when the page changes, to scroll back to the top. */
+export function routeKey(route: Route): string {
+  return route.name === 'post' ? `post:${route.postId}` : `home:${route.tab}`;
 }
 
 export const paths = {
-  home: '#/',
-  needsHelp: '#/needs-help',
-  post: (postId: number) => `#/post/${postId}`,
+  home: '#/notes',
+  needsHelp: '#/notes/needs-help',
+  post: (postId: number) => `#/notes/post/${postId}`,
 };
 
 export function navigate(path: string) {

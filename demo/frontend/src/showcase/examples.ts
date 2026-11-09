@@ -1,6 +1,7 @@
-// The applications on the Speak-to-Sign page. Community Notes is live on NEAR testnet.
-// The pull request and multisig examples are concepts: screens drawn in the style of the real
-// apps, inside a hand-drawn frame, with neutral logos. Not built yet.
+// The applications on the Speak-to-Sign page. A click on one opens it in a window on the page.
+// Community Notes is live on NEAR testnet. The pull request screen works too, but its contract
+// and the Wallet's merge request are not live yet. The multisig screen is a drawing. All copy
+// the style of the real apps, with neutral logos, inside a hand-drawn frame.
 
 export type ExampleId = 'notes' | 'merge' | 'multisig';
 
@@ -17,8 +18,6 @@ export interface VoiceExample {
   target: string;
   status: 'live' | 'concept';
   blurb: string;
-  /** The live demo, for a live example. */
-  href?: string;
   /** The address in the drawn browser bar. */
   url: string;
 }
@@ -33,14 +32,13 @@ export const EXAMPLES: VoiceExample[] = [
     target: 'notes.seams-v1.testnet · 0 NEAR · 30 Tgas',
     status: 'live',
     blurb: 'Rate or post a note by voice, on an X-style page.',
-    href: '/notes/',
     url: 'notes',
   },
   {
     id: 'merge',
     chip: 'Merge a PR',
     title: 'Merge a pull request',
-    say: 'merge pull request four one two into main',
+    say: 'merge pull request four hundred twelve into main',
     signs: 'approve({ pr: 412, head: "9c1e2fa", base: "main" })',
     target: 'a required check verifies it, then the merge runs',
     status: 'concept',

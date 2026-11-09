@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
@@ -12,7 +12,7 @@ import { findPost, POSTS } from './data/posts';
 import { DemoContext, type DemoState } from './demoContext';
 import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
-import { useRoute } from './router';
+import { routeKey, useRoute } from './router';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 
 const POLL_MS = 1500;
@@ -20,7 +20,14 @@ const POLL_MS = 1500;
 export function App({ signer, walletConfigured }: { signer: NotesSigner & SignerSetup; walletConfigured: boolean }) {
   const store = useMemo(() => new RpcNotesStore(config.rpcUrl, config.contract), []);
   const route = useRoute();
-  const wide = useMediaQuery('(min-width: 1080px)');
+  // The app fills a window on the Speak-to-Sign page, so its layout follows its own width,
+  // and a new page scrolls the app, not the window.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const wide = useElementWidth(rootRef) >= 1080;
+  const page = routeKey(route);
+  useLayoutEffect(() => {
+    rootRef.current?.scrollTo(0, 0);
+  }, [page]);
 
   const [status, setStatus] = useState<SignerStatus | null>(null);
   const [notesByPost, setNotesByPost] = useState<Record<number, Note[]>>({});
@@ -185,84 +192,90 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   return (
     <DemoContext.Provider value={state}>
-      <div className="layout">
-        <Rail route={route} />
-        <main className="column">
-          {!wide && <SetupPanel compact />}
-          {route.name === 'home' ? <Timeline tab={route.tab} /> : <PostDetail postId={route.postId} />}
-        </main>
-        {wide && (
-          <StickySide>
-            <SideSearch />
-            <SetupPanel compact={false} />
-            <NotesActivity />
-            <HowItWorks />
-            <p className="side-foot muted">
-              Also on this site:{' '}
-              <a className="lk" href={config.payPath}>
-                Speak to pay
-              </a>
-              , a NEAR payment by voice. Demo for the NEAR Hackathon. The post is a real case that got a Community Note on X in 2026. NEAR testnet only.
-            </p>
-          </StickySide>
-        )}
-      </div>
+      <div className="notes-app" ref={rootRef}>
+        <div className="layout">
+          <Rail route={route} />
+          <main className="column">
+            {!wide && <SetupPanel compact />}
+            {route.name === 'home' ? <Timeline tab={route.tab} /> : <PostDetail postId={route.postId} />}
+          </main>
+          {wide && (
+            <StickySide>
+              <SideSearch />
+              <SetupPanel compact={false} />
+              <NotesActivity />
+              <HowItWorks />
+              <p className="side-foot muted">
+                Also on this site:{' '}
+                <a className="lk" href={config.payPath}>
+                  Speak to pay
+                </a>
+                , a NEAR payment by voice. Demo for the NEAR Hackathon. The post is a real case that got a Community Note on X in 2026. NEAR testnet only.
+              </p>
+            </StickySide>
+          )}
+        </div>
 
-      {writePost && (
-        <WriteNoteModal
-          key={writePost.id}
-          post={writePost}
-          onClose={() => setWriteFor(null)}
-          onSent={(summary, hash) => void onNoteSent(writePost.id, summary, hash)}
-          onDone={() => {
-            setWriteFor(null);
-            showToast('Your note was signed and submitted');
-          }}
-        />
-      )}
-      {rateNote && (
-        <RateNoteModal
-          key={rateNote.id}
-          note={rateNote}
-          onClose={() => setRateFor(null)}
-          onSent={(rating, hash) => void onRatingSent(rateNote, rating, hash)}
-          onDone={() => {
-            setRateFor(null);
-            showToast('Your rating was signed by voice');
-          }}
-        />
-      )}
-      {signingIn && walletConfigured && (
-        <SignInModal
-          onClose={() => setSigningIn(false)}
-          onSignedIn={() => {
-            setSigningIn(false);
-            reload();
-            showToast('You are signed in to Seams Wallet');
-          }}
-        />
-      )}
-      <BottomBar route={route} />
-      <div className="toast-region" role="status" aria-live="polite">
-        {toast && (
-          <div key={toast.id} className="toast">
-            {toast.text}
-          </div>
+        {writePost && (
+          <WriteNoteModal
+            key={writePost.id}
+            post={writePost}
+            onClose={() => setWriteFor(null)}
+            onSent={(summary, hash) => void onNoteSent(writePost.id, summary, hash)}
+            onDone={() => {
+              setWriteFor(null);
+              showToast('Your note was signed and submitted');
+            }}
+          />
         )}
+        {rateNote && (
+          <RateNoteModal
+            key={rateNote.id}
+            note={rateNote}
+            onClose={() => setRateFor(null)}
+            onSent={(rating, hash) => void onRatingSent(rateNote, rating, hash)}
+            onDone={() => {
+              setRateFor(null);
+              showToast('Your rating was signed by voice');
+            }}
+          />
+        )}
+        {signingIn && walletConfigured && (
+          <SignInModal
+            onClose={() => setSigningIn(false)}
+            onSignedIn={() => {
+              setSigningIn(false);
+              reload();
+              showToast('You are signed in to Seams Wallet');
+            }}
+          />
+        )}
+        <BottomBar route={route} />
+        <div className="toast-region" role="status" aria-live="polite">
+          {toast && (
+            <div key={toast.id} className="toast">
+              {toast.text}
+            </div>
+          )}
+        </div>
       </div>
     </DemoContext.Provider>
   );
 }
 
-function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const list = window.matchMedia(query);
-      list.addEventListener('change', onChange);
-      return () => list.removeEventListener('change', onChange);
-    },
-    () => window.matchMedia(query).matches,
-  );
+/** The width of an element, kept current as it resizes. */
+function useElementWidth(ref: RefObject<HTMLElement | null>): number {
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => setWidth(element.clientWidth);
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    update();
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
 }
 
 function sleep(ms: number): Promise<void> {

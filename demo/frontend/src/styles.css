@@ -1,5 +1,6 @@
 /* X light theme, copied by eye. System fonts: X's own font is proprietary. */
-:root {
+:root,
+.notes-app {
   --ink: #0f1419;
   --muted: #536471;
   --line: #eff3f4;
@@ -29,11 +30,27 @@ html,
 body {
   margin: 0;
   background: #fff;
+}
+
+/* The notes app and its dialogs, which open on document.body */
+.notes-app,
+.overlay,
+.wallet-wait {
   color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
+}
+
+/* The app fills a window of the Speak-to-Sign page. It scrolls itself, and its layout follows
+   its own size (container queries and cqh units), not the size of the screen. */
+.notes-app {
+  container: notes / size;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
 }
 
 h1,
@@ -101,7 +118,7 @@ a.lk:hover {
 .layout {
   display: flex;
   justify-content: center;
-  min-height: 100vh;
+  min-height: 100cqh;
 }
 .column {
   width: 600px;
@@ -109,7 +126,7 @@ a.lk:hover {
   min-width: 0;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
-  min-height: 100vh;
+  min-height: 100cqh;
   padding-bottom: 80px;
 }
 .side {
@@ -131,7 +148,7 @@ a.lk:hover {
   flex: none;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100cqh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -259,7 +276,7 @@ a.lk:hover {
   display: none;
   flex: none;
 }
-@media (min-width: 1265px) {
+@container notes (min-width: 1265px) {
   .rail {
     width: 275px;
     align-items: stretch;
@@ -1432,7 +1449,7 @@ fieldset:disabled .choice {
 }
 
 /* Narrow screens */
-@media (max-width: 700px) {
+@container notes (max-width: 700px) {
   .rail {
     width: 68px;
     padding: 2px 6px 12px;
@@ -1444,6 +1461,9 @@ fieldset:disabled .choice {
     width: 48px;
     height: 48px;
   }
+}
+/* The dialogs open on document.body, so they follow the screen. */
+@media (max-width: 700px) {
   .rules {
     grid-template-columns: 1fr;
   }
@@ -1453,7 +1473,7 @@ fieldset:disabled .choice {
 .fab {
   display: none;
 }
-@media (max-width: 500px) {
+@container notes (max-width: 500px) {
   .rail {
     display: none;
   }
@@ -1526,6 +1546,15 @@ fieldset:disabled .choice {
   .toast-region {
     bottom: calc(53px + 16px + env(safe-area-inset-bottom));
   }
+  .toast {
+    white-space: normal;
+  }
+  .write-row {
+    flex-wrap: wrap;
+  }
+}
+/* The dialogs open on document.body, so they follow the screen. */
+@media (max-width: 500px) {
   .overlay {
     padding: 0;
   }
@@ -1547,12 +1576,6 @@ fieldset:disabled .choice {
   }
   .dialog-foot {
     padding: 12px 16px 16px;
-  }
-  .toast {
-    white-space: normal;
-  }
-  .write-row {
-    flex-wrap: wrap;
   }
 }
 

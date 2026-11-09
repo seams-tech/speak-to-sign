@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { IconLock, IconMicrophone, IconPlayerRecordFilled } from '@tabler/icons-react';
+import { IconLock, IconMicrophone, IconPlayerRecordFilled, IconX } from '@tabler/icons-react';
 
 /** A screen drawn at a fixed size and scaled to the width of its box. */
 export function ScaledScreen({ width = 1280, height = 800, children }: { width?: number; height?: number; children: ReactNode }) {
@@ -23,20 +23,47 @@ export function ScaledScreen({ width = 1280, height = 800, children }: { width?:
   );
 }
 
-/** A light browser window: three dots and an address bar. */
-export function BrowserChrome({ url, children }: { url: string; children: ReactNode }) {
+/** A screen drawn at a fixed size, scaled to fit inside its box both ways, and centred. */
+export function FitScreen({ width, height, children }: { width: number; height: number; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    const update = () => setScale(Math.min(box.clientWidth / width, box.clientHeight / height));
+    const observer = new ResizeObserver(update);
+    observer.observe(box);
+    update();
+    return () => observer.disconnect();
+  }, [width, height]);
+  return (
+    <div className="ss-fit" ref={ref}>
+      <div className="ss-fit-inner" style={{ width, height, transform: `translate(-50%, -50%) scale(${scale})` }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** A light browser window: three dots, an address bar and, in the big window, a close button. */
+export function BrowserChrome({ url, onClose, children }: { url: string; onClose?: () => void; children: ReactNode }) {
   return (
     <div className="ss-browser">
-      <div className="ss-browser-bar" aria-hidden="true">
-        <span className="ss-dots">
+      <div className="ss-browser-bar">
+        <span className="ss-dots" aria-hidden="true">
           <i />
           <i />
           <i />
         </span>
-        <span className="ss-url">
+        <span className="ss-url" aria-hidden="true">
           <IconLock size={11} stroke={2} />
           {url}
         </span>
+        {onClose && (
+          <button type="button" className="ss-browser-close" onClick={onClose} aria-label="Close">
+            <IconX size={16} stroke={2.2} aria-hidden="true" />
+          </button>
+        )}
       </div>
       {children}
     </div>

@@ -1,5 +1,5 @@
-// Builds the whole site into dist/: the Speak-to-Sign page at /, Community Notes at
-// /notes/, then the Speak to pay example (../../examples/speak-to-pay) at /pay/.
+// Builds the whole site into dist/: the Speak-to-Sign page at / (with Community Notes and the
+// PR merge in its windows), then the Speak to pay example (../../examples/speak-to-pay) at /pay/.
 // All use one Seams project, so the
 // pay build gets the VITE_SEAMS_* settings of demo/frontend/ (.env.local, .env.production.local, or the
 // environment). Nothing is written into examples/.

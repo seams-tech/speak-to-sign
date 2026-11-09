@@ -60,6 +60,29 @@ export function Modal({
   );
 }
 
+/**
+ * Makes `onEscape` answer Escape while this layer is the newest open dialog. The Speak-to-Sign
+ * page uses it for its app window, so Escape closes a notes dialog first, then the window.
+ */
+export function useEscapeLayer(onEscape: () => void) {
+  const onEscapeRef = useRef(onEscape);
+  useEffect(() => {
+    onEscapeRef.current = onEscape;
+  });
+  useEffect(() => {
+    const token = {};
+    openDialogs.push(token);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && openDialogs[openDialogs.length - 1] === token) onEscapeRef.current();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      openDialogs.splice(openDialogs.indexOf(token), 1);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+}
+
 function keepFocusInside(event: KeyboardEvent, root: HTMLElement | null) {
   if (!root) return;
   const items = Array.from(

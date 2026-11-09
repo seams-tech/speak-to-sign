@@ -51,7 +51,7 @@ mkdir speak-to-sign-check && cd speak-to-sign-check
 ```
 
 ```bash
-git clone --branch speak-to-sign https://github.com/seams-tech/speak-to-sign
+git clone https://github.com/seams-tech/speak-to-sign
 ```
 
 ```bash
@@ -414,8 +414,8 @@ first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'
 
 The diffs:
 
-- This repository: every commit of the `speak-to-sign` branch is in the window
-  (<https://github.com/seams-tech/speak-to-sign/commits/speak-to-sign>). The
+- This repository: every commit of the `dev` branch is in the window
+  (<https://github.com/seams-tech/speak-to-sign/commits/dev>). The
   oldest commit:
 
   ```bash

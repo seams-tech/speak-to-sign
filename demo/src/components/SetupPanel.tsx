@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react';
 import { accountUrl, config, shortAccount } from '../config';
 import { useDemo } from '../demoContext';
@@ -96,6 +97,7 @@ function SetupBody() {
 
   return (
     <>
+      {busy && <WalletWait step={busy} />}
       <p className="side-text">Post and rate notes with your voice. The Wallet signs from your own account, with no confirm tap.</p>
       <ol className="steps">
         <Step index={1} done={signedIn} label="Sign in to Seams Wallet">
@@ -191,6 +193,28 @@ function Step({ index, done, label, children }: { index: number; done: boolean; 
       </span>
       {children}
     </li>
+  );
+}
+
+/**
+ * A page-level card while a Wallet setup step runs. It sits under the Wallet's own windows,
+ * so it shows only in the gaps between them: in SDK 0.58.1 the Wallet closes the VoiceID card
+ * for a few seconds before the signed-message confirm of an enrollment opens.
+ */
+function WalletWait({ step }: { step: 'voice' | 'enroll' }) {
+  return createPortal(
+    <div className="wallet-wait" role="status" aria-live="polite">
+      <div className="wallet-wait-card">
+        <span className="spinner spinner-lg" aria-hidden="true" />
+        <b>{step === 'enroll' ? 'Enrolling your voice' : 'Turning on VoiceID'}</b>
+        <span className="muted small">
+          {step === 'enroll'
+            ? 'Follow the Seams Wallet window. After the three phrases, the Wallet prepares one signed message to confirm.'
+            : 'Follow the Seams Wallet window.'}
+        </span>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

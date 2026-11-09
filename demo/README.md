@@ -165,18 +165,25 @@ Ask the project owner before you deploy or add a domain.
 With wrangler (direct upload), from `demo/`:
 
 ```bash
-pnpm exec wrangler pages project create speak-to-sign-notes --production-branch main
+pnpm exec wrangler pages project create seams-voice-intents --production-branch main
 ```
 
 ```bash
-pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name speak-to-sign-notes
+pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name seams-voice-intents
 ```
 
 ```bash
-pnpm build && pnpm exec wrangler pages deploy dist --project-name speak-to-sign-notes
+pnpm build && pnpm exec wrangler pages deploy dist --project-name seams-voice-intents --branch main
 ```
 
 Run `wrangler pages deploy` from `demo/`, so that it finds `functions/`.
+`--branch main` makes it the production deployment. Without it, wrangler uses
+the git branch, and the page gets a preview origin that staging does not allow.
+
+The live origin is `https://seams-voice-intents.pages.dev`. Seams staging must
+allow it (CORS and the project's allowed origins), and also
+`http://localhost:5173` for local runs. If Cloudflare gives the project another
+`pages.dev` name, staging must allow that name instead.
 
 With the Git integration: root directory `demo`, build command `pnpm build`,
 output directory `dist`. Add `NEAR_AI_API_KEY` as a secret.

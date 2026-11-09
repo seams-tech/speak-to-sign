@@ -50,7 +50,6 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   and the co-signer share. seams-wallet `tests/unit/speakToSignHost.unit.test.ts` checks them
   against the crate's vectors and the verifier's signed verdicts. `tests/flow.test.ts` here
   checks the payment and note flows, against the fake Wallet core in `tests/fakeHost.ts`.
-- [`react.ts`](react.ts) will hold the pay button and the live text component.
 
 Speak-to-Sign is a transaction feature, not an auth method. It never unlocks a wallet or
 opens a session. Wallet and Speak-to-Sign must use the same host API version, which is

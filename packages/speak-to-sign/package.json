@@ -14,10 +14,6 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/esm/index.js"
     },
-    "./react": {
-      "types": "./dist/types/react.d.ts",
-      "import": "./dist/esm/react.js"
-    },
     "./hosting": {
       "types": "./dist/hosting.d.mts",
       "import": "./dist/hosting.mjs"
@@ -42,13 +38,7 @@
   },
   "peerDependencies": {
     "@seams/voiceid": "0.60.0",
-    "@seams/wallet": "0.60.0",
-    "react": ">=19.0.0"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
+    "@seams/wallet": "0.60.0"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

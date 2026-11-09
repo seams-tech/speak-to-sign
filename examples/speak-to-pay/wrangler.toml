@@ -1,0 +1,6 @@
+# Cloudflare Pages project for the Speak to pay example. Static files only.
+# The page settings (VITE_*) are read at build time, so build with your
+# .env.production.local before you deploy.
+name = "speak-to-pay"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-11-01"

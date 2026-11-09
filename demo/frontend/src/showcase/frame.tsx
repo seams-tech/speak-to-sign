@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { IconLock, IconMicrophone } from '@tabler/icons-react';
+import { useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { IconLock, IconMicrophone, IconPlayerRecordFilled } from '@tabler/icons-react';
 
-/** A screen drawn at a fixed size (1280 × 800) and scaled to the width of its box. */
+/** A screen drawn at a fixed size and scaled to the width of its box. */
 export function ScaledScreen({ width = 1280, height = 800, children }: { width?: number; height?: number; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -15,26 +15,26 @@ export function ScaledScreen({ width = 1280, height = 800, children }: { width?:
     return () => observer.disconnect();
   }, [width]);
   return (
-    <div className="sc-scaled" ref={ref} style={{ aspectRatio: `${width} / ${height}` }}>
-      <div className="sc-scaled-inner" style={{ width, height, transform: `scale(${scale})` }}>
+    <div className="ss-scaled" ref={ref} style={{ aspectRatio: `${width} / ${height}` }}>
+      <div className="ss-scaled-inner" style={{ width, height, transform: `scale(${scale})` }}>
         {children}
       </div>
     </div>
   );
 }
 
-/** A browser window around a screen: three dots and an address bar. */
-export function BrowserFrame({ url, children }: { url: string; children: ReactNode }) {
+/** A light browser window: three dots and an address bar. */
+export function BrowserChrome({ url, children }: { url: string; children: ReactNode }) {
   return (
-    <div className="sc-window">
-      <div className="sc-window-bar" aria-hidden="true">
-        <span className="sc-dots">
+    <div className="ss-browser">
+      <div className="ss-browser-bar" aria-hidden="true">
+        <span className="ss-dots">
           <i />
           <i />
           <i />
         </span>
-        <span className="sc-url">
-          <IconLock size={12} stroke={2} />
+        <span className="ss-url">
+          <IconLock size={11} stroke={2} />
           {url}
         </span>
       </div>
@@ -43,35 +43,100 @@ export function BrowserFrame({ url, children }: { url: string; children: ReactNo
   );
 }
 
-const BARS = [6, 10, 16, 22, 14, 26, 32, 20, 12, 24, 30, 18, 10, 16, 28, 34, 22, 14, 8, 18, 26, 20, 12, 6];
+function subscribeMotion(onChange: () => void) {
+  const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+/** True when the reader asks for less motion. */
+export function useReducedMotion(): boolean {
+  return useSyncExternalStore(subscribeMotion, () => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+/**
+ * A hand-drawn border around an example screen, so the screen reads as a sketch of an idea
+ * and not as the real site. Two strokes go through a noise displacement whose seed steps a few
+ * times a second, so the line "boils" like a drawing. Still when the reader asks for less motion.
+ */
+export function DrawnFrame({ tag, tone = 'example', children }: { tag: string; tone?: 'example' | 'live'; children: ReactNode }) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const still = useReducedMotion();
+  return (
+    <figure className={`ss-drawn ss-drawn-${tone}`}>
+      <svg className="ss-drawn-lines" aria-hidden="true" focusable="false">
+        <defs>
+          <Wobble id={`${id}a`} seed={2} scale={4.5} still={still} />
+          <Wobble id={`${id}b`} seed={7} scale={6} still={still} />
+        </defs>
+        <rect className="ss-drawn-stroke" filter={`url(#${id}a)`} />
+        <rect className="ss-drawn-stroke ss-drawn-stroke-2" filter={`url(#${id}b)`} />
+      </svg>
+      <figcaption className="ss-drawn-tag">
+        <svg aria-hidden="true" focusable="false">
+          <defs>
+            <Wobble id={`${id}t`} seed={4} scale={2.5} still={still} />
+          </defs>
+          <rect filter={`url(#${id}t)`} />
+        </svg>
+        {tone === 'live' && <span className="ss-live-dot" aria-hidden="true" />}
+        {tag}
+      </figcaption>
+      <div className="ss-drawn-body">{children}</div>
+    </figure>
+  );
+}
+
+function Wobble({ id, seed, scale, still }: { id: string; seed: number; scale: number; still: boolean }) {
+  const seeds = [seed, seed + 11, seed + 23, seed + 37].join(';');
+  return (
+    <filter id={id} x="-4%" y="-4%" width="108%" height="108%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed={seed}>
+        {!still && <animate attributeName="seed" values={seeds} dur="0.84s" calcMode="discrete" repeatCount="indefinite" />}
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" scale={scale} xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  );
+}
+
+const BARS = [5, 9, 14, 20, 12, 24, 30, 18, 11, 22, 28, 16, 9, 14, 26, 32, 20, 12, 7, 16, 24, 18, 10, 5];
 
 /** Sound bars that move while someone speaks. Still when the reader asks for less motion. */
 export function Waveform({ small = false }: { small?: boolean }) {
   return (
-    <span className={`sc-wave ${small ? 'sc-wave-small' : ''}`} aria-hidden="true">
+    <span className={`ss-wave ${small ? 'ss-wave-small' : ''}`} aria-hidden="true">
       {BARS.map((height, index) => (
-        <i key={index} style={{ height: small ? height * 0.6 : height, animationDelay: `${(index % 8) * 0.09}s` }} />
+        <i key={index} style={{ height: small ? height * 0.55 : height, animationDelay: `${(index % 8) * 0.09}s` }} />
       ))}
     </span>
   );
 }
 
-/** The Seams Wallet voice card, drawn over a concept screen. */
-export function VoiceOverlay({ say }: { say: string }) {
+/** The Seams Wallet voice card, as the Wallet draws it over an app. */
+export function WalletVoiceCard({ say, compact = false }: { say: string; compact?: boolean }) {
   return (
-    <div className="vo">
-      <div className="vo-head">
-        <span className="vo-mic">
-          <IconMicrophone size={18} stroke={2} />
+    <div className={`sw-card ${compact ? 'sw-card-compact' : ''}`}>
+      <div className="sw-origin">
+        <IconLock size={12} stroke={2} aria-hidden="true" />
+        staging.sign.seams.sh
+      </div>
+      <div className="sw-title">
+        <span className="sw-mic" aria-hidden="true">
+          <IconMicrophone size={compact ? 15 : 17} stroke={2} />
         </span>
         <span>
-          <b>Seams Wallet</b>
-          <span className="vo-sub">Read this aloud</span>
+          <b>Say this to sign</b>
+          <span className="sw-sub">Speak-to-Sign · VoiceID</span>
         </span>
       </div>
-      <p className="vo-say">“{say}”</p>
-      <Waveform small />
-      <p className="vo-foot">Same speaker · words match · signs this one request</p>
+      <p className="sw-say">“{say}”</p>
+      <Waveform small={compact} />
+      <span className="sw-btn">
+        <IconPlayerRecordFilled size={compact ? 11 : 13} aria-hidden="true" /> Recording
+      </span>
+      <p className="sw-foot">
+        Secured by <b>seams</b>
+      </p>
     </div>
   );
 }

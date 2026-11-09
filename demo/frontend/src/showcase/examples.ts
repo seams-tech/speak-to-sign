@@ -1,5 +1,6 @@
 // The applications on the Speak-to-Sign page. Community Notes is live on NEAR testnet.
-// The pull request and multisig examples are concepts: drawn screens, not built yet.
+// The pull request and multisig examples are concepts: screens drawn in the style of the real
+// apps, inside a hand-drawn frame, with neutral logos. Not built yet.
 
 export type ExampleId = 'notes' | 'merge' | 'multisig';
 
@@ -46,7 +47,7 @@ export const EXAMPLES: VoiceExample[] = [
     status: 'concept',
     blurb:
       "A required check waits for the maintainer's voice. A leaked token or a stolen laptop cannot merge to main alone, and the approval names one commit.",
-    url: 'code.example/seams-tech/speak-to-sign/pull/412',
+    url: 'github.com/seams-tech/speak-to-sign/pull/412',
   },
   {
     id: 'multisig',
@@ -58,6 +59,6 @@ export const EXAMPLES: VoiceExample[] = [
     status: 'concept',
     blurb:
       'Each owner confirms by voice. The words must match the amount and the receiver, so a swapped address fails before anyone signs blind.',
-    url: 'safe.example/transactions/queue',
+    url: 'app.safe.global/transactions/queue',
   },
 ];

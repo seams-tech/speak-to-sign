@@ -1,233 +1,379 @@
-// Drawn screens for the concept examples. They use neutral names and colours, not the
-// logos of a real code host or multisig wallet. Each fills a 1100 × 688 screen that scales down.
+// Concept screens drawn in the style of the real apps (a code host's pull request page and a
+// multisig wallet's transaction queue), with neutral logo slots. Each fills a fixed screen that
+// ScaledScreen shrinks, and sits inside a DrawnFrame so it reads as an example.
 
 import {
   IconAddressBook,
   IconApps,
+  IconBell,
+  IconBook,
+  IconCaretDownFilled,
+  IconChartLine,
   IconCheck,
-  IconCircleFilled,
+  IconCircleDashed,
+  IconCircleDot,
   IconCode,
   IconCoins,
+  IconCopy,
+  IconDots,
+  IconExternalLink,
   IconGitMerge,
   IconGitPullRequest,
   IconHome,
   IconListDetails,
+  IconMenu2,
+  IconPlayerPlay,
+  IconPlus,
+  IconSearch,
   IconSend,
   IconSettings,
+  IconShield,
+  IconTable,
+  IconUserCircle,
 } from '@tabler/icons-react';
-import { VoiceOverlay } from './frame';
+import { WalletVoiceCard } from './frame';
 
+/** A pull request page in the style of a code host (Primer-like light theme). */
 export function MergeScreen({ say }: { say: string }) {
   return (
     <div className="gh">
-      <div className="gh-top">
-        <IconCode size={22} stroke={1.8} />
-        <span>
-          seams-tech / <b>speak-to-sign</b>
+      <header className="gh-header">
+        <span className="gh-iconbtn">
+          <IconMenu2 size={16} stroke={2} />
         </span>
-        <span className="gh-me">M</span>
-      </div>
-      <nav className="gh-repo-tabs">
-        <span>Code</span>
-        <span>Issues 3</span>
-        <span className="gh-on">Pull requests 1</span>
-        <span>Actions</span>
-        <span>Settings</span>
+        <span className="gh-logo" aria-hidden="true">
+          <IconCircleDashed size={30} stroke={1.6} />
+        </span>
+        <span className="gh-crumbs">
+          <span>seams-tech</span>
+          <span className="gh-slash">/</span>
+          <b>speak-to-sign</b>
+        </span>
+        <span className="gh-search">
+          <IconSearch size={14} stroke={2} />
+          Type <kbd>/</kbd> to search
+        </span>
+        <span className="gh-iconbtn">
+          <IconPlus size={16} stroke={2} />
+          <IconCaretDownFilled size={10} />
+        </span>
+        <span className="gh-iconbtn">
+          <IconCircleDot size={16} stroke={2} />
+        </span>
+        <span className="gh-iconbtn">
+          <IconGitPullRequest size={16} stroke={2} />
+        </span>
+        <span className="gh-iconbtn">
+          <IconBell size={16} stroke={2} />
+        </span>
+        <span className="gh-avatar gh-avatar-sm">m</span>
+      </header>
+      <nav className="gh-reponav">
+        <span>
+          <IconCode size={16} stroke={2} /> Code
+        </span>
+        <span>
+          <IconCircleDot size={16} stroke={2} /> Issues <i className="gh-counter">3</i>
+        </span>
+        <span className="gh-reponav-on">
+          <IconGitPullRequest size={16} stroke={2} /> Pull requests <i className="gh-counter">1</i>
+        </span>
+        <span>
+          <IconPlayerPlay size={16} stroke={2} /> Actions
+        </span>
+        <span>
+          <IconTable size={16} stroke={2} /> Projects
+        </span>
+        <span>
+          <IconShield size={16} stroke={2} /> Security
+        </span>
+        <span>
+          <IconChartLine size={16} stroke={2} /> Insights
+        </span>
+        <span>
+          <IconSettings size={16} stroke={2} /> Settings
+        </span>
       </nav>
-      <div className="gh-body">
-        <h1 className="gh-title">
-          Fix fee rounding in transfer <span className="gh-num">#412</span>
-        </h1>
-        <div className="gh-state">
-          <span className="gh-open">
+      <div className="gh-page">
+        <div className="gh-titlerow">
+          <h1>
+            Fix fee rounding in transfer <span className="gh-num">#412</span>
+          </h1>
+          <span className="gh-btn">Edit</span>
+          <span className="gh-btn gh-btn-primary">
+            <IconCode size={16} stroke={2} /> Code <IconCaretDownFilled size={10} />
+          </span>
+        </div>
+        <div className="gh-meta">
+          <span className="gh-state">
             <IconGitPullRequest size={16} stroke={2} /> Open
           </span>
           <span>
-            <b>alice</b> wants to merge 3 commits into <code>main</code> from <code>fix/fee-rounding</code>
+            <b>alice</b> wants to merge 3 commits into <span className="gh-branch">main</span> from{' '}
+            <span className="gh-branch">alice:fix/fee-rounding</span>
           </span>
         </div>
-        <div className="gh-tabs">
-          <span className="gh-on">Conversation 4</span>
-          <span>Commits 3</span>
-          <span>Checks 3</span>
-          <span>Files changed 5</span>
-          <span className="gh-diff">
+        <div className="gh-tabnav">
+          <span className="gh-tab gh-tab-on">
+            Conversation <i className="gh-counter">4</i>
+          </span>
+          <span className="gh-tab">
+            Commits <i className="gh-counter">3</i>
+          </span>
+          <span className="gh-tab">
+            Checks <i className="gh-counter">4</i>
+          </span>
+          <span className="gh-tab">
+            Files changed <i className="gh-counter">5</i>
+          </span>
+          <span className="gh-diffstat">
             <b className="gh-add">+18</b> <b className="gh-del">−6</b>
+            <i className="gh-blocks">
+              <s className="gh-b-add" />
+              <s className="gh-b-add" />
+              <s className="gh-b-add" />
+              <s className="gh-b-del" />
+              <s />
+            </i>
           </span>
         </div>
-        <div className="gh-grid">
-          <div className="gh-main">
+        <div className="gh-layout">
+          <div className="gh-discussion">
             <div className="gh-comment">
-              <span className="gh-avatar">A</span>
-              <div className="gh-bubble">
-                <div className="gh-bubble-head">
-                  <b>alice</b> commented 2 hours ago
+              <span className="gh-avatar">a</span>
+              <div className="gh-box">
+                <div className="gh-box-head">
+                  <span>
+                    <b>alice</b> commented 2 hours ago
+                  </span>
+                  <span className="gh-label-pill">Author</span>
+                  <IconDots size={16} />
                 </div>
-                <p>Rounds the fee down to the nearest yoctoNEAR, and adds a test for a 1 yocto transfer.</p>
+                <div className="gh-box-body">
+                  <p>Rounds the fee down to the nearest yoctoNEAR, and adds a test for a 1 yocto transfer.</p>
+                </div>
               </div>
             </div>
-            <div className="gh-event">
-              <span className="gh-ok-dot">
+            <div className="gh-item">
+              <span className="gh-badge gh-badge-ok">
                 <IconCheck size={14} stroke={3} />
               </span>
-              <b>bob</b> approved these changes
+              <span className="gh-avatar gh-avatar-xs">b</span>
+              <b>bob</b> approved these changes <span className="gh-muted">1 hour ago</span>
             </div>
-            <div className="gh-merge">
-              <div className="gh-row">
-                <span className="gh-ok-dot">
-                  <IconCheck size={14} stroke={3} />
-                </span>
-                <div>
-                  <b>Changes approved</b>
-                  <span>1 approving review by a maintainer</span>
+            <div className="gh-mergebox">
+              <span className="gh-mergeicon">
+                <IconGitMerge size={20} stroke={2} />
+              </span>
+              <div className="gh-box">
+                <div className="gh-mrow">
+                  <span className="gh-dot gh-dot-ok">
+                    <IconCheck size={14} stroke={3} />
+                  </span>
+                  <div>
+                    <b>Changes approved</b>
+                    <span>1 approving review by reviewers with write access.</span>
+                  </div>
                 </div>
-              </div>
-              <div className="gh-row">
-                <span className="gh-ok-dot">
-                  <IconCheck size={14} stroke={3} />
-                </span>
-                <div>
-                  <b>All checks have passed</b>
-                  <span>build · test · lint</span>
+                <div className="gh-mrow">
+                  <span className="gh-dot gh-dot-ok">
+                    <IconCheck size={14} stroke={3} />
+                  </span>
+                  <div>
+                    <b>All checks have passed</b>
+                    <span>3 successful checks: build, test, lint</span>
+                  </div>
                 </div>
-              </div>
-              <div className="gh-row">
-                <span className="gh-wait-dot">
-                  <IconCircleFilled size={10} />
-                </span>
-                <div>
-                  <b>speak-to-sign / maintainer voice</b>
-                  <span>Required. Waiting for a spoken approval of commit 9c1e2fa.</span>
+                <div className="gh-mrow">
+                  <span className="gh-dot gh-dot-wait" />
+                  <div>
+                    <b>speak-to-sign / maintainer-voice</b>
+                    <span>Expected — Waiting for a spoken approval of 9c1e2fa</span>
+                  </div>
+                  <span className="gh-required">Required</span>
                 </div>
-              </div>
-              <div className="gh-merge-foot">
-                <span className="gh-btn">
-                  <IconGitMerge size={16} stroke={2} /> Merge with voice
-                </span>
-                <span className="gh-hint">The merge runs after the Wallet signs the approval.</span>
+                <div className="gh-mfoot">
+                  <span className="gh-btn gh-btn-primary gh-btn-split">
+                    Merge pull request <i />
+                    <IconCaretDownFilled size={10} />
+                  </span>
+                  <span className="gh-muted">You can also merge this with the command line.</span>
+                </div>
               </div>
             </div>
           </div>
-          <aside className="gh-side">
+          <aside className="gh-sidebar">
             <div>
               <h3>Reviewers</h3>
               <p>
-                bob <IconCheck size={14} stroke={2.5} className="gh-ok" />
+                <span className="gh-avatar gh-avatar-xs">b</span> bob <IconCheck size={14} stroke={2.5} className="gh-ok" />
+              </p>
+            </div>
+            <div>
+              <h3>Assignees</h3>
+              <p className="gh-muted">No one—assign yourself</p>
+            </div>
+            <div>
+              <h3>Labels</h3>
+              <p>
+                <span className="gh-ghlabel gh-ghlabel-bug">bug</span> <span className="gh-ghlabel gh-ghlabel-fees">fees</span>
               </p>
             </div>
             <div>
               <h3>Required approval</h3>
               <p>Maintainer, by voice</p>
             </div>
-            <div>
-              <h3>Labels</h3>
-              <p>
-                <span className="gh-label gh-label-bug">bug</span> <span className="gh-label">fees</span>
-              </p>
-            </div>
           </aside>
         </div>
       </div>
-      <VoiceOverlay say={say} />
+      <div className="ss-overlay-card">
+        <WalletVoiceCard say={say} compact />
+      </div>
     </div>
   );
 }
 
+/** A transaction queue in the style of a multisig wallet app. */
 export function MultisigScreen({ say }: { say: string }) {
   return (
-    <div className="ms">
-      <aside className="ms-side">
-        <div className="ms-acct">
-          <span className="ms-blockie" />
+    <div className="sf">
+      <header className="sf-header">
+        <span className="sf-logo" aria-hidden="true">
+          <IconCircleDashed size={26} stroke={1.6} />
+        </span>
+        <span className="sf-header-gap" />
+        <span className="sf-pill">
+          <IconBook size={16} stroke={1.8} /> Help
+        </span>
+        <span className="sf-pill">
+          <IconBell size={16} stroke={1.8} />
+        </span>
+        <span className="sf-pill sf-wallet">
+          <span className="sf-identicon sf-identicon-c" />
+          <span>
+            <b>bob.eth</b>
+            <i>0x2F9a…41D7</i>
+          </span>
+        </span>
+        <span className="sf-pill sf-network">
+          <i className="sf-netdot" /> Ethereum
+        </span>
+      </header>
+      <aside className="sf-side">
+        <div className="sf-acct">
+          <span className="sf-identicon sf-identicon-a">
+            <i className="sf-threshold">2/3</i>
+          </span>
           <div>
             <b>Grants Treasury</b>
-            <span>0x5aF3…9b21</span>
+            <span>
+              eth:0x5aF3…9b21 <IconCopy size={12} stroke={1.8} />
+            </span>
           </div>
-          <span className="ms-thr">2/3</span>
         </div>
-        <div className="ms-bal">
-          <span>Total value</span>
-          <b>$1,204,880</b>
-        </div>
-        <nav className="ms-nav">
+        <p className="sf-total">$1,204,880.32</p>
+        <span className="sf-new">New transaction</span>
+        <nav className="sf-nav">
           <span>
-            <IconHome size={20} stroke={1.8} /> Home
+            <IconHome size={20} stroke={1.6} /> Home
           </span>
           <span>
-            <IconCoins size={20} stroke={1.8} /> Assets
+            <IconCoins size={20} stroke={1.6} /> Assets
           </span>
-          <span className="ms-on">
-            <IconListDetails size={20} stroke={1.8} /> Transactions
-          </span>
-          <span>
-            <IconAddressBook size={20} stroke={1.8} /> Address book
+          <span className="sf-nav-on">
+            <IconListDetails size={20} stroke={1.6} /> Transactions <i className="sf-count">1</i>
           </span>
           <span>
-            <IconApps size={20} stroke={1.8} /> Apps
+            <IconAddressBook size={20} stroke={1.6} /> Address book
           </span>
           <span>
-            <IconSettings size={20} stroke={1.8} /> Settings
+            <IconApps size={20} stroke={1.6} /> Apps
+          </span>
+          <span>
+            <IconSettings size={20} stroke={1.6} /> Settings
           </span>
         </nav>
       </aside>
-      <main className="ms-main">
+      <main className="sf-main">
         <h1>Transactions</h1>
-        <div className="ms-tabs">
-          <span className="ms-on">
-            Queue <i>1</i>
-          </span>
+        <div className="sf-tabs">
+          <span className="sf-tab-on">Queue</span>
           <span>History</span>
+          <span>Messages</span>
         </div>
-        <div className="ms-tx">
-          <div className="ms-tx-head">
-            <span className="ms-nonce">7</span>
-            <span className="ms-kind">
+        <p className="sf-label">Next transaction</p>
+        <div className="sf-tx">
+          <div className="sf-txrow">
+            <span className="sf-nonce">7</span>
+            <span className="sf-kind">
               <IconSend size={18} stroke={1.8} /> Send
             </span>
-            <b className="ms-amount">−25,000 USDC</b>
-            <span className="ms-time">2 hours ago</span>
-            <span className="ms-chip">1 out of 2</span>
+            <span className="sf-amount">
+              <i className="sf-token">$</i> −25,000 USDC
+            </span>
+            <span className="sf-time">2:15 PM</span>
+            <span className="sf-confs">
+              <IconUserCircle size={16} stroke={1.8} /> 1 out of 2
+            </span>
+            <span className="sf-status">Needs confirmation</span>
           </div>
-          <div className="ms-tx-body">
-            <div className="ms-detail">
+          <div className="sf-txbody">
+            <div className="sf-details">
               <p>
                 Send <b>25,000 USDC</b> to:
               </p>
-              <div className="ms-addr">
-                <span className="ms-blockie ms-blockie-2" />
+              <div className="sf-addr">
+                <span className="sf-identicon sf-identicon-b" />
                 <div>
                   <b>grants.eth</b>
-                  <span>0x8B1d…C3e0</span>
+                  <span>
+                    eth:0x8B1d…C3e0 <IconCopy size={12} stroke={1.8} /> <IconExternalLink size={12} stroke={1.8} />
+                  </span>
                 </div>
               </div>
               <dl>
                 <dt>Nonce</dt>
                 <dd>7</dd>
-                <dt>Transaction hash</dt>
+                <dt>safeTxHash</dt>
                 <dd>0x4f2a…91bd</dd>
+                <dt>Created</dt>
+                <dd>Nov 9, 2026 · 2:15 PM</dd>
               </dl>
             </div>
-            <div className="ms-confirm">
-              <p className="ms-step ms-step-done">
-                <IconCheck size={16} stroke={3} /> Created
+            <div className="sf-steps">
+              <p className="sf-step sf-step-done">
+                <span className="sf-stepdot">
+                  <IconCheck size={12} stroke={3} />
+                </span>
+                Created
               </p>
-              <p className="ms-step ms-step-done">
-                <IconCheck size={16} stroke={3} /> Confirmations (1 of 2)
+              <p className="sf-step sf-step-done">
+                <span className="sf-stepdot">
+                  <IconCheck size={12} stroke={3} />
+                </span>
+                Confirmations <span className="sf-muted">(1 of 2)</span>
               </p>
-              <p className="ms-owner">
-                <IconCheck size={14} stroke={3} /> alice.eth
+              <p className="sf-owner">
+                <span className="sf-identicon sf-identicon-a sf-identicon-xs" /> alice.eth
               </p>
-              <p className="ms-owner ms-owner-wait">bob.eth (you)</p>
-              <p className="ms-step">Can be executed</p>
-              <div className="ms-btns">
-                <span className="ms-btn">Confirm with voice</span>
-                <span className="ms-btn ms-btn-ghost">Reject</span>
+              <p className="sf-owner sf-owner-wait">
+                <span className="sf-identicon sf-identicon-c sf-identicon-xs" /> bob.eth <span className="sf-muted">(you)</span>
+              </p>
+              <p className="sf-step">
+                <span className="sf-stepdot sf-stepdot-wait" />
+                Can be executed once the threshold is reached
+              </p>
+              <div className="sf-btns">
+                <span className="sf-btn">Confirm</span>
+                <span className="sf-btn sf-btn-ghost">Reject</span>
               </div>
             </div>
           </div>
         </div>
       </main>
-      <VoiceOverlay say={say} />
+      <div className="ss-overlay-card">
+        <WalletVoiceCard say={say} compact />
+      </div>
     </div>
   );
 }

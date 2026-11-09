@@ -1,137 +1,154 @@
 import { useState } from 'react';
-import { IconArrowUpRight, IconCheck } from '@tabler/icons-react';
+import { IconArrowUpRight, IconCheck, IconChevronRight } from '@tabler/icons-react';
 import { BrandMark } from '../components/BrandMark';
 import { config } from '../config';
 import { EXAMPLES, type ExampleId, type VoiceExample } from './examples';
-import { BrowserFrame, ScaledScreen, Waveform } from './frame';
+import { BrowserChrome, DrawnFrame, ScaledScreen, WalletVoiceCard } from './frame';
 import { MergeScreen, MultisigScreen } from './screens';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
 const NOTES_PATH = '/notes/';
 
+/** The Speak-to-Sign page, in the style of the Seams Wallet site. */
 export function Showcase() {
   return (
-    <>
-      <header className="sc-header">
-        <a className="sc-brand" href="/">
-          <BrandMark size={28} />
-          Speak-to-Sign
-        </a>
-        <nav className="sc-nav" aria-label="Page">
-          <a href="#apps">Applications</a>
-          <a href="#how">How it works</a>
-          <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
-            Source
+    <div className="ss-page">
+      <header className="ss-nav">
+        <div className="ss-nav-inner">
+          <a className="ss-brand" href="/">
+            <BrandMark size={24} />
+            Speak-to-Sign
           </a>
-          <a className="sc-btn sc-btn-dark sc-btn-sm" href={NOTES_PATH}>
-            Open the demo
+          <nav className="ss-nav-links" aria-label="Page">
+            <a href="#apps">Applications</a>
+            <a href="#how">How it works</a>
+            <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
+              Source
+            </a>
+          </nav>
+          <a className="ss-btn ss-btn-primary ss-btn-sm" href={NOTES_PATH}>
+            Open the demo <IconChevronRight size={15} stroke={2.4} aria-hidden="true" />
           </a>
-        </nav>
+        </div>
       </header>
-      <main>
+      <main className="ss-col">
         <Hero />
         <Apps />
         <How />
+        <Limits />
       </main>
-      <footer className="sc-footer">
-        <p>
-          Speak-to-Sign by Seams. A demo for the NEAR Hackathon on NEAR testnet. Also on this site:{' '}
-          <a href={NOTES_PATH}>Community Notes</a> and <a href={config.payPath}>Speak to pay</a>.
-        </p>
-        <p>
-          <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
-            github.com/seams-tech/speak-to-sign
-          </a>
-        </p>
+      <footer className="ss-footer">
+        <div className="ss-footer-inner">
+          <span className="ss-brand ss-brand-sm">
+            <BrandMark size={18} />
+            Speak-to-Sign by Seams
+          </span>
+          <span>A demo for the NEAR Hackathon, on NEAR testnet.</span>
+          <span className="ss-footer-links">
+            <a href={NOTES_PATH}>Community Notes</a>
+            <a href={config.payPath}>Speak to pay</a>
+            <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
+          </span>
+        </div>
       </footer>
-    </>
+    </div>
   );
 }
 
 function Hero() {
-  return (
-    <section className="sc-hero">
-      <div className="sc-hero-text">
-        <p className="sc-eyebrow">VoiceID · Seams Wallet · NEAR testnet</p>
-        <h1>
-          <span className="sc-h1-mark">
-            <BrandMark size={40} />
-          </span>
-          Speak-to-Sign
-        </h1>
-        <p className="sc-lede">
-          Say what you approve. An attested verifier checks that it is your voice and your words. Then your wallet signs that
-          one request, with no confirm tap.
-        </p>
-        <div className="sc-actions">
-          <a className="sc-btn sc-btn-dark" href={NOTES_PATH}>
-            Try Community Notes →
-          </a>
-          <a className="sc-btn" href="#how">
-            How a voice signs ↓
-          </a>
-        </div>
-        <p className="sc-fine">Testnet only. You need a Seams Wallet with VoiceID and a microphone.</p>
-      </div>
-      <VoiceCard />
-    </section>
-  );
-}
-
-/** The hero figure: the Wallet's voice card for one example, with chips that switch the example. */
-function VoiceCard() {
   const [id, setId] = useState<ExampleId>('notes');
   const example = EXAMPLES.find((candidate) => candidate.id === id) ?? EXAMPLES[0];
   if (!example) return null;
   return (
-    <div className="sc-card sc-voice">
-      <div className="sc-chips" role="group" aria-label="Example">
-        {EXAMPLES.map((candidate) => (
-          <button
-            key={candidate.id}
-            type="button"
-            className={`sc-chip ${candidate.id === id ? 'sc-chip-on' : ''}`}
-            aria-pressed={candidate.id === id}
-            onClick={() => setId(candidate.id)}
-          >
-            {candidate.chip}
-          </button>
-        ))}
+    <section className="ss-hero" aria-labelledby="hero-title">
+      <div className="ss-hero-main">
+        <p className="ss-kicker">Seams · Speak-to-Sign</p>
+        <h1 id="hero-title" className="ss-display">
+          Say what you approve.
+          <br />
+          Your wallet signs it.
+        </h1>
+        <p className="ss-sub">
+          An attested verifier checks that it is your voice and your words. Then your Seams Wallet signs that one request from
+          your own account, with no confirm tap.
+        </p>
+        <div className="ss-ctas">
+          <a className="ss-btn ss-btn-primary ss-btn-lg" href={NOTES_PATH}>
+            Try Community Notes <IconChevronRight size={16} stroke={2.4} aria-hidden="true" />
+          </a>
+          <a className="ss-btn ss-btn-outline ss-btn-lg" href="#how">
+            How a voice signs <IconChevronRight size={16} stroke={2.4} aria-hidden="true" />
+          </a>
+        </div>
+        <div className="ss-forks">
+          <a href="#app-notes">
+            <i className="ss-fork-dot ss-fork-live" /> Community Notes
+          </a>
+          <a href="#app-merge">
+            <i className="ss-fork-dot" /> Pull requests
+          </a>
+          <a href="#app-multisig">
+            <i className="ss-fork-dot" /> Multisig
+          </a>
+        </div>
+        <p className="ss-note">Testnet only. You need a Seams Wallet with VoiceID and a microphone.</p>
       </div>
-      <div className="sc-voice-body" key={example.id}>
-        <p className="sc-label">The Wallet asks you to say</p>
-        <p className="sc-voice-say">“{example.say}”</p>
-        <Waveform />
-        <ul className="sc-checks">
-          <li style={{ animationDelay: '0.5s' }}>
-            <IconCheck size={16} stroke={3} /> Same speaker as your VoiceID
-          </li>
-          <li style={{ animationDelay: '1s' }}>
-            <IconCheck size={16} stroke={3} /> The words match the request
-          </li>
-          <li style={{ animationDelay: '1.5s' }}>
-            <IconCheck size={16} stroke={3} /> Verdict signed in the TEE, valid for 120 s
-          </li>
-        </ul>
-        <div className="sc-signs" style={{ animationDelay: '2s' }}>
-          <p className="sc-label">Then the Wallet signs</p>
-          <code>{example.signs}</code>
-          <span className="sc-target">{example.target}</span>
+      <div className="ss-hero-demo">
+        <div className="ss-grain" aria-hidden="true" />
+        <div className="ss-hero-stage" key={example.id}>
+          <WalletVoiceCard say={example.say} />
+          <div className="ss-hero-result">
+            <ul className="ss-checks">
+              <li>
+                <IconCheck size={14} stroke={3} /> Same speaker as your VoiceID
+              </li>
+              <li>
+                <IconCheck size={14} stroke={3} /> The words match the request
+              </li>
+              <li>
+                <IconCheck size={14} stroke={3} /> Verdict signed in the TEE, valid for 120 s
+              </li>
+            </ul>
+            <p className="ss-mini-label">Then the Wallet signs</p>
+            <code>{example.signs}</code>
+          </div>
+        </div>
+        <div className="ss-switch" role="group" aria-label="Example">
+          {EXAMPLES.map((candidate) => (
+            <button
+              key={candidate.id}
+              type="button"
+              className={`ss-switch-chip ${candidate.id === id ? 'ss-switch-on' : ''}`}
+              aria-pressed={candidate.id === id}
+              onClick={() => setId(candidate.id)}
+            >
+              <i className={`ss-fork-dot ${candidate.status === 'live' ? 'ss-fork-live' : ''}`} />
+              {candidate.chip}
+            </button>
+          ))}
         </div>
       </div>
-      <span className={`sc-status sc-status-${example.status}`}>{example.status === 'live' ? 'Live on testnet' : 'Concept'}</span>
-    </div>
+    </section>
   );
 }
 
 function Apps() {
   return (
-    <section className="sc-section" id="apps" aria-labelledby="apps-title">
-      <h2 id="apps-title">One sentence spoken, one call signed</h2>
-      <p className="sc-section-lede">
-        Each app shows one typed request. You read it aloud. The Wallet signs only that request, and only for two minutes.
-      </p>
-      <div className="sc-apps">
+    <section className="ss-section ss-rule" id="apps" aria-labelledby="apps-title">
+      <div className="ss-section-head">
+        <p className="ss-kicker">Applications</p>
+        <h2 id="apps-title" className="ss-display">
+          One sentence spoken,
+          <br />
+          one call signed.
+        </h2>
+        <p className="ss-sub">
+          Each app shows one typed request. You read it aloud. The Wallet signs only that request, and only for two minutes.
+        </p>
+      </div>
+      <div className="ss-apps">
         {EXAMPLES.map((example, index) => (
           <AppRow key={example.id} example={example} flip={index % 2 === 1} />
         ))}
@@ -143,103 +160,121 @@ function Apps() {
 function AppRow({ example, flip }: { example: VoiceExample; flip: boolean }) {
   const live = example.status === 'live';
   return (
-    <article className={`sc-app ${flip ? 'sc-app-flip' : ''}`} aria-labelledby={`app-${example.id}`}>
-      <div className="sc-app-text">
-        <div className="sc-app-title">
-          <h3 id={`app-${example.id}`}>{example.title}</h3>
-          <span className={`sc-status sc-status-${example.status}`}>{live ? 'Live on testnet' : 'Concept'}</span>
+    <article className={`ss-app ${flip ? 'ss-app-flip' : ''}`} id={`app-${example.id}`} aria-labelledby={`app-${example.id}-title`}>
+      <div className="ss-app-text">
+        <p className={`ss-tag ${live ? 'ss-tag-live' : ''}`}>{live ? 'Live on NEAR testnet' : 'Concept'}</p>
+        <h3 id={`app-${example.id}-title`}>{example.title}</h3>
+        <p className="ss-app-blurb">{example.blurb}</p>
+        <div className="ss-flow">
+          <div className="ss-flow-step">
+            <p className="ss-mini-label">You say</p>
+            <p className="ss-flow-say">“{example.say}”</p>
+          </div>
+          <div className="ss-flow-step">
+            <p className="ss-mini-label">The Wallet signs</p>
+            <code>{example.signs}</code>
+            <span className="ss-flow-target">{example.target}</span>
+          </div>
         </div>
-        <div className="sc-card sc-prompt">
-          <p className="sc-label">You say</p>
-          <p className="sc-prompt-say">{example.say}</p>
-        </div>
-        <p className="sc-arrow" aria-hidden="true">
-          ↓
-        </p>
-        <div className="sc-card sc-result">
-          <p className="sc-label">The Wallet signs</p>
-          <code>{example.signs}</code>
-          <span className="sc-target">{example.target}</span>
-        </div>
-        <p className="sc-app-blurb">{example.blurb}</p>
         {live && example.href ? (
-          <a className="sc-btn sc-btn-dark" href={example.href}>
-            Open the live demo <IconArrowUpRight size={16} stroke={2} aria-hidden="true" />
+          <a className="ss-btn ss-btn-primary" href={example.href}>
+            Open the live demo <IconArrowUpRight size={15} stroke={2.2} aria-hidden="true" />
           </a>
         ) : (
-          <p className="sc-fine">A drawn screen. Not built yet.</p>
+          <p className="ss-note">A drawn example. Not built yet.</p>
         )}
       </div>
-      <div className="sc-app-screen">
-        <BrowserFrame url={live ? `${window.location.host}${example.href ?? ''}` : example.url}>
-          {example.id === 'notes' && <LiveNotesScreen />}
-          {example.id === 'merge' && (
-            <ScaledScreen width={1100} height={688}>
-              <MergeScreen say={example.say} />
-            </ScaledScreen>
-          )}
-          {example.id === 'multisig' && (
-            <ScaledScreen width={1100} height={688}>
-              <MultisigScreen say={example.say} />
-            </ScaledScreen>
-          )}
-        </BrowserFrame>
+      <div className="ss-app-screen">
+        <DrawnFrame tag={live ? 'Live demo · NEAR testnet' : 'Example · drawn screen'} tone={live ? 'live' : 'example'}>
+          <BrowserChrome url={live ? `${window.location.host}${example.href ?? ''}` : example.url}>
+            {example.id === 'notes' && <LiveNotesScreen />}
+            {example.id === 'merge' && (
+              <ScaledScreen width={1120} height={700}>
+                <MergeScreen say={example.say} />
+              </ScaledScreen>
+            )}
+            {example.id === 'multisig' && (
+              <ScaledScreen width={1120} height={700}>
+                <MultisigScreen say={example.say} />
+              </ScaledScreen>
+            )}
+          </BrowserChrome>
+        </DrawnFrame>
       </div>
     </article>
   );
 }
 
-/** The real Community Notes app in a small window. A click opens it full size. */
+/** The real Community Notes app (an X-style page) in a small window. A click opens it full size. */
 function LiveNotesScreen() {
   return (
-    <div className="sc-live">
-      <ScaledScreen>
-        <iframe className="sc-live-frame" src={`${NOTES_PATH}#/`} title="Community Notes demo, live preview" loading="lazy" tabIndex={-1} />
+    <div className="ss-live">
+      <ScaledScreen width={1280} height={800}>
+        <iframe className="ss-live-frame" src={`${NOTES_PATH}#/`} title="Community Notes demo, live preview" loading="lazy" tabIndex={-1} />
       </ScaledScreen>
-      <a className="sc-live-open" href={NOTES_PATH}>
-        <span className="sc-btn sc-btn-dark sc-btn-sm">
-          Open the demo <IconArrowUpRight size={14} stroke={2} aria-hidden="true" />
+      <a className="ss-live-open" href={NOTES_PATH} aria-label="Open the Community Notes demo">
+        <span className="ss-btn ss-btn-primary ss-btn-sm">
+          Open the demo <IconArrowUpRight size={14} stroke={2.2} aria-hidden="true" />
         </span>
       </a>
     </div>
   );
 }
 
+const STEPS = [
+  {
+    title: 'Speak',
+    pitch: null,
+    text: 'The Wallet turns one typed request into a short sentence. You read it aloud, and the Wallet records the clip with that request.',
+  },
+  {
+    title: 'Verify',
+    pitch: 'Biometric CAPTCHA',
+    text: 'An attested verifier in a TEE compares your voice with your enrolled VoiceID, and the words with the request. It signs a verdict that expires after 120 seconds.',
+  },
+  {
+    title: 'Sign',
+    pitch: 'Spoken Lease',
+    text: 'Wallet core checks the verdict against the key that it pins. Then it signs that one call from your own account. The lease covers nothing else.',
+  },
+];
+
 function How() {
   return (
-    <section className="sc-section" id="how" aria-labelledby="how-title">
-      <h2 id="how-title">How a voice signs</h2>
-      <p className="sc-section-lede">Three steps, a few seconds. You see one sentence and you say it.</p>
-      <ol className="sc-steps">
-        <li className="sc-card sc-step">
-          <span className="sc-step-num">1</span>
-          <h3>Speak</h3>
-          <p>
-            The Wallet turns one typed request into a short sentence. You read it aloud. The Wallet records the clip with that
-            request.
-          </p>
-        </li>
-        <li className="sc-card sc-step">
-          <span className="sc-step-num">2</span>
-          <h3>Verify · Biometric CAPTCHA</h3>
-          <p>
-            An attested verifier in a TEE compares your voice with your enrolled VoiceID and the words with the request. It signs
-            a verdict that expires after 120 seconds.
-          </p>
-        </li>
-        <li className="sc-card sc-step">
-          <span className="sc-step-num">3</span>
-          <h3>Sign · Spoken Lease</h3>
-          <p>
-            Wallet core checks the verdict against the key that it pins. Then it signs that one call from your own account. The
-            lease covers nothing else.
-          </p>
-        </li>
+    <section className="ss-section ss-rule" id="how" aria-labelledby="how-title">
+      <div className="ss-section-head">
+        <p className="ss-kicker">How it works</p>
+        <h2 id="how-title" className="ss-display">
+          How a voice signs
+        </h2>
+        <p className="ss-sub">Three steps, a few seconds. You see one sentence, and you say it.</p>
+      </div>
+      <ol className="ss-pillars">
+        {STEPS.map((step, index) => (
+          <li key={step.title} className="ss-pillar">
+            <span className="ss-pillar-num">0{index + 1}</span>
+            <h3>{step.title}</h3>
+            {step.pitch && <p className="ss-pitch">{step.pitch}</p>}
+            <p>{step.text}</p>
+          </li>
+        ))}
       </ol>
-      <p className="sc-limits">
-        Limits: testnet only. A good voice clone on a compromised device can pass, because this build has no liveness check.
-        A policy rule can still ask for a passkey.
-      </p>
+    </section>
+  );
+}
+
+function Limits() {
+  return (
+    <section className="ss-section ss-section-tight ss-rule" aria-labelledby="limits-title">
+      <div className="ss-limits">
+        <p className="ss-kicker" id="limits-title">
+          Limits
+        </p>
+        <p>
+          Testnet only. A good voice clone on a compromised device can pass, because this build has no liveness check. A policy
+          rule can still ask for a passkey.
+        </p>
+      </div>
     </section>
   );
 }

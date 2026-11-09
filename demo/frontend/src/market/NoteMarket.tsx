@@ -58,10 +58,11 @@ export function NoteMarketStrip({
    */
   context?: string;
   /**
-   * With it, "Bet yes" and "Bet no" place one bet of the sheet's default stake (the middle chip)
-   * at once: the Wallet's own confirm is the only step, with no bet sheet on top.
+   * With it, "Bet yes" and "Bet no" place one bet at once: the Wallet's own confirm is the only
+   * step, with no bet sheet on top. `true` bets the sheet's default stake (the middle chip); an
+   * amount (base units) bets that.
    */
-  directBet?: boolean;
+  directBet?: boolean | bigint;
   /**
    * While the market is read the first time, show the strip's shapes (the odds bar, the odds line
    * and the two bet buttons) grey and pulsing, in place of nothing. For a place where the market
@@ -183,7 +184,7 @@ export function NoteMarketStrip({
   }
 
   const placeNow = async (side: Side) => {
-    const amount = currency.chips[1] ?? currency.chips[0] ?? 0n;
+    const amount = typeof directBet === 'bigint' ? directBet : (currency.chips[1] ?? currency.chips[0] ?? 0n);
     setPlacing(side);
     const result = await source.bet({ marketId: market.id, side, amount });
     setPlacing(null);

@@ -1,7 +1,8 @@
-// Build-time settings. The defaults are the Seams staging testnet lane, the only lane whose
-// Seams server runs the Speak-to-Sign verifier.
+// Build-time settings. The Seams defaults are the staging deployment, the only one whose
+// Seams server runs the Speak-to-Sign verifier. The same Seams project and key serve the
+// Speak to pay page at /pay/ (examples/seams-voice-intents), so one wallet works on both.
 
-function env(value: string | undefined, fallback: string): string {
+function env(value: string | undefined, fallback = ''): string {
   const trimmed = (value ?? '').trim();
   return trimmed === '' ? fallback : trimmed;
 }
@@ -14,13 +15,14 @@ export const config = {
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),
   faucetUrl: 'https://docs.near.org/getting-started/faucet',
+  /** The Speak to pay page on the same site. */
+  payPath: '/pay/',
   seams: {
+    /** The publishable key of the Seams project environment. It allows only the project's origins. */
+    publishableKey: env(e.VITE_SEAMS_PUBLISHABLE_KEY),
+    projectEnvironmentId: env(e.VITE_SEAMS_PROJECT_ENVIRONMENT_ID),
     walletOrigin: env(e.VITE_SEAMS_WALLET_ORIGIN, 'https://staging.sign.seams.sh'),
     relayerUrl: env(e.VITE_SEAMS_RELAYER_URL, 'https://staging.api.wallet.seams.sh'),
-    rpId: env(e.VITE_SEAMS_RP_ID, 'staging.sign.seams.sh'),
-    signingWorkerId: env(e.VITE_SEAMS_SIGNING_WORKER_ID, 'router-ab-signing-worker-staging'),
-    walletServicePath: '/wallet-service',
-    sdkBasePath: '/sdk',
   },
 };
 

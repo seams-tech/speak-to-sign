@@ -1,7 +1,7 @@
 // The real signer: Seams Wallet Speak-to-Sign.
 //
 // requestNote and requestRating come with Seams Wallet SDK 0.59.0. This page calls them through
-// a structural check, so it builds with SDK 0.58.0 too and then answers `unavailable` until the
+// a structural check, so it builds with SDK 0.58.1 too and then answers `unavailable` until the
 // SDK and the Wallet host at `walletOrigin` have spoken notes.
 
 import type { useSeams } from '@seams/wallet/react';
@@ -40,8 +40,21 @@ export interface SeamsOwner {
   contract: string;
 }
 
+const NO_KEY = 'This build has no Seams publishable key (VITE_SEAMS_PUBLISHABLE_KEY), so it cannot reach the Wallet.';
+
+/** The signer of a build without a Seams publishable key. */
+export function createMissingKeySigner(): NotesSigner & SignerSetup {
+  return {
+    status: async () => ({ signedIn: false, voiceReady: false }),
+    requestNote: async () => ({ kind: 'unavailable', reason: NO_KEY }),
+    requestRating: async () => ({ kind: 'unavailable', reason: NO_KEY }),
+    enableVoice: async () => ({ kind: 'failed', message: NO_KEY }),
+    enroll: async () => ({ kind: 'failed', message: NO_KEY }),
+  };
+}
+
 const NO_NOTES_IN_SDK =
-  'This page runs Seams Wallet SDK 0.58.0, which has no spoken notes. Spoken notes need SDK 0.59.0.';
+  'This page runs Seams Wallet SDK 0.58.1, which has no spoken notes. Spoken notes need SDK 0.59.0.';
 
 export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup {
   const { seams, walletId, nearAccountId, contract } = owner;

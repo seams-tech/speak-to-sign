@@ -4,6 +4,8 @@ import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/no
 
 export interface DemoState {
   signer: NotesSigner & SignerSetup;
+  /** False when the build has no Seams publishable key. */
+  walletConfigured: boolean;
   store: NotesStore;
   status: SignerStatus | null;
   /** The signed-in NEAR account, if any. */

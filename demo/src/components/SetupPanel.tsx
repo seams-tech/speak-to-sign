@@ -55,7 +55,7 @@ function readEnrolled(account: string | undefined): boolean {
 }
 
 function SetupBody() {
-  const { status, account, signer, reload, openSignIn } = useDemo();
+  const { status, account, signer, reload, openSignIn, walletConfigured } = useDemo();
   const [busy, setBusy] = useState<'voice' | 'enroll' | null>(null);
   const [outcome, setOutcome] = useState<SetupOutcome | null>(null);
   const [enrolled, setEnrolled] = useState(() => readEnrolled(account));
@@ -104,7 +104,7 @@ function SetupBody() {
               {shortAccount(account)}
             </a>
           ) : (
-            <button type="button" className="btn btn-dark btn-xs" onClick={openSignIn}>
+            <button type="button" className="btn btn-dark btn-xs" onClick={openSignIn} disabled={!walletConfigured}>
               Sign in
             </button>
           )}
@@ -140,6 +140,11 @@ function SetupBody() {
           )}
         </Step>
       </ol>
+      {!walletConfigured && (
+        <p className="side-note side-error" role="alert">
+          This build has no Seams publishable key. Set <code>VITE_SEAMS_PUBLISHABLE_KEY</code> and build again.
+        </p>
+      )}
       {signedIn && !gasReady && balance.kind !== 'loading' && (
         <p className="side-note">
           Each note or rating pays a little gas.{' '}

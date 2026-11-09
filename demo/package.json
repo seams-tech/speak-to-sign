@@ -9,12 +9,13 @@
     "dev:api": "wrangler pages dev public --port 8788",
     "build": "vite build",
     "preview": "wrangler pages dev dist --port 8788",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p functions/tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p functions/tsconfig.json --noEmit",
+    "build:site": "vite build && pnpm --dir ../examples/seams-voice-intents exec vite build --base /pay/ --outDir ../../demo/dist/pay --emptyOutDir"
   },
   "dependencies": {
-    "@seams/speak-to-sign": "0.58.0",
-    "@seams/voiceid": "0.58.0",
-    "@seams/wallet": "0.58.0",
+    "@seams/speak-to-sign": "0.58.1",
+    "@seams/voiceid": "0.58.1",
+    "@seams/wallet": "0.58.1",
     "@tabler/icons-react": "^3.51.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

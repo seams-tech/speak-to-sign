@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { useSeams } from '@seams/wallet/react';
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { Rail } from './components/Rail';
@@ -13,19 +12,11 @@ import { DemoContext, type DemoState } from './demoContext';
 import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { useRoute } from './router';
-import type { Rating, SignerStatus } from './signer/notesSigner';
-import { createSeamsSigner } from './signer/seamsSigner';
+import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 
 const POLL_MS = 1500;
 
-export function App() {
-  const { seams, loginState } = useSeams();
-  const walletId = loginState.isLoggedIn && loginState.access === 'wallet' ? loginState.walletId : null;
-  const nearAccountId = walletId ? loginState.nearAccountId : null;
-  const signer = useMemo(
-    () => createSeamsSigner({ seams, walletId, nearAccountId, contract: config.contract }),
-    [seams, walletId, nearAccountId],
-  );
+export function App({ signer, walletConfigured }: { signer: NotesSigner & SignerSetup; walletConfigured: boolean }) {
   const store = useMemo(() => new RpcNotesStore(config.rpcUrl, config.contract), []);
   const route = useRoute();
   const wide = useMediaQuery('(min-width: 1080px)');
@@ -48,9 +39,9 @@ export function App() {
     try {
       setStatus(await signer.status());
     } catch {
-      setStatus({ signedIn: walletId !== null, accountId: nearAccountId ?? undefined, voiceReady: false });
+      setStatus({ signedIn: false, voiceReady: false });
     }
-  }, [signer, walletId, nearAccountId]);
+  }, [signer]);
 
   const loadPost = useCallback(
     async (postId: number) => {
@@ -171,6 +162,7 @@ export function App() {
 
   const state: DemoState = {
     signer,
+    walletConfigured,
     store,
     status,
     account,
@@ -182,7 +174,8 @@ export function App() {
     ratingTx,
     openWrite: setWriteFor,
     openRate: setRateFor,
-    openSignIn: () => setSigningIn(true),
+    openSignIn: () =>
+      walletConfigured ? setSigningIn(true) : showToast('This build has no Seams publishable key, so it cannot sign in'),
     reload,
   };
 
@@ -201,7 +194,13 @@ export function App() {
           <aside className="side">
             <SetupPanel compact={false} />
             <HowItWorks />
-            <p className="side-foot muted">Demo for the NEAR Hackathon. The posts are fictional. NEAR testnet only.</p>
+            <p className="side-foot muted">
+              Also on this site:{' '}
+              <a className="lk" href={config.payPath}>
+                Speak to pay
+              </a>
+              , a NEAR payment by voice. Demo for the NEAR Hackathon. The posts are fictional. NEAR testnet only.
+            </p>
           </aside>
         )}
       </div>
@@ -230,7 +229,7 @@ export function App() {
           }}
         />
       )}
-      {signingIn && (
+      {signingIn && walletConfigured && (
         <SignInModal
           onClose={() => setSigningIn(false)}
           onSignedIn={() => {

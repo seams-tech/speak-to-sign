@@ -14,6 +14,9 @@ pub const CHALLENGE_WORDS: [&str; 64] = [
     "orchard",
 ];
 
+/// The number of challenge words at the end of a multisig approval.
+pub(crate) const CHALLENGE_LEN: usize = 2;
+
 /// One word of [`CHALLENGE_WORDS`], held as its index.
 ///
 /// Borsh writes it as one `u8` index, and decoding refuses an index of 64 or

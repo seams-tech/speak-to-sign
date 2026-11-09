@@ -6,9 +6,10 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use crate::account::MAX_ACCOUNT_ID_LEN;
 use crate::numbers::{digit_word, is_number_word};
 use crate::phonetic::words_key;
-use crate::render::SpokenToken;
+use crate::token::{token_words, SpokenToken};
 use crate::{normalize, phonetic_key, SpokenAccount};
 
 /// Whole-word aliases: a word that Whisper writes for a grammar word. No
@@ -77,9 +78,13 @@ const SEPARATOR_WORDS: [&str; 3] = ["dot", "dash", "underscore"];
 /// The network suffixes that a recipient can end with.
 const NETWORK_WORDS: [&str; 2] = ["testnet", "near"];
 
-/// Punctuation that is removed from the edges of a word before the alias and
-/// account checks.
-const EDGE: [char; 7] = [',', '.', '!', '?', ';', ':', '"'];
+/// Punctuation that is removed from the edges of a word before the alias,
+/// check digit and account id checks.
+const CHECK_EDGE_PUNCTUATION: [char; 7] = [',', '.', '!', '?', ';', ':', '"'];
+
+/// Punctuation that the text step removes from the end of the transcript and
+/// from the end of each word.
+const FINAL_PUNCTUATION: [char; 4] = ['.', ',', '!', '?'];
 
 /// Why [`normalize_punctuated`] refuses a transcript.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -158,13 +163,13 @@ pub fn normalize_punctuated(
     let Some(to) = tokens.iter().position(|token| token.as_str() == "to") else {
         return Ok(joined_by_sound(&tokens, contacts).unwrap_or(tokens));
     };
-    let recipient: Vec<&str> = tokens[to + 1..].iter().map(SpokenToken::as_str).collect();
+    let recipient = token_words(&tokens[to + 1..]);
     // A spoken account word may be one letter: "v1" is spoken "v one". The
     // contacts hold no two keys that are equal or one edit apart, so short
     // words do not make two contacts confusable.
     if recipient
         .iter()
-        .any(|word| word.is_empty() || word.len() > 64)
+        .any(|word| word.is_empty() || word.len() > MAX_ACCOUNT_ID_LEN)
     {
         return Err(PunctuatedRefusal::RecipientUnkeyable);
     }
@@ -266,9 +271,7 @@ fn loose_words<'a>(words: &[&'a str]) -> Vec<&'a str> {
 
 /// The [`phonetic_key`] of the loose words of an account.
 fn loose_key(account: &SpokenAccount) -> crate::PhoneticKey {
-    let spoken = account.spoken_tokens();
-    let words: Vec<&str> = spoken.iter().map(SpokenToken::as_str).collect();
-    words_key(&loose_words(&words))
+    words_key(&loose_words(&token_words(&account.spoken_tokens())))
 }
 
 /// The one contact whose [`phonetic_key`] equals the key of `words`, or,
@@ -398,16 +401,12 @@ fn joined_by_sound(tokens: &[SpokenToken], contacts: &[SpokenAccount]) -> Option
     if !amount.iter().any(|token| amount_number(token.as_str())) {
         return None;
     }
-    let tail: Vec<&str> = tokens[1 + amount_len..]
-        .iter()
-        .map(SpokenToken::as_str)
-        .collect();
+    let tail = token_words(&tokens[1 + amount_len..]);
     let heard = words_key(&loose_words(&tail));
     let mut matches = contacts.iter().filter(|contact| {
         let spoken = contact.spoken_tokens();
         let mut words: Vec<&str> = Vec::from(["near", "to"]);
-        let account: Vec<&str> = spoken.iter().map(SpokenToken::as_str).collect();
-        words.extend(loose_words(&account));
+        words.extend(loose_words(&token_words(&spoken)));
         words_key(&words) == heard
     });
     let contact = matches.next()?;
@@ -497,7 +496,7 @@ fn clean_punctuated(transcript: &str) -> String {
     let text = strip_final_punctuation(transcript.trim()).to_ascii_lowercase();
     let mut out: Vec<String> = Vec::new();
     for word in text.split_ascii_whitespace() {
-        let core = word.trim_matches(&EDGE[..]);
+        let core = word.trim_matches(&CHECK_EDGE_PUNCTUATION[..]);
         let after_version = out.last().is_some_and(|last| last == "version");
         let spelled =
             if let Some((_, to)) = PUNCTUATED_ALIASES.iter().find(|(from, _)| *from == core) {
@@ -515,7 +514,7 @@ fn clean_punctuated(transcript: &str) -> String {
 }
 
 fn strip_final_punctuation(mut text: &str) -> &str {
-    while let Some(rest) = text.strip_suffix(['.', ',', '!', '?']) {
+    while let Some(rest) = text.strip_suffix(FINAL_PUNCTUATION) {
         text = rest.trim_end();
     }
     text

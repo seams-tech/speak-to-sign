@@ -3,7 +3,8 @@ use alloc::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{normalize_punctuated, SpokenToken};
+use crate::normalize_punctuated;
+use crate::token::SpokenToken;
 
 /// The most words of a [`SpokenSummary`]. Twelve plain words fit in one
 /// 8 s clip.
@@ -15,6 +16,9 @@ pub const MAX_SUMMARY_BYTES: usize = 120;
 /// The first words that start the transfer grammar of
 /// [`normalize_punctuated`]. A summary cannot start with one of them.
 const TRANSFER_VERBS: [&str; 3] = ["send", "sent", "sends"];
+
+/// The marks that can end a summary.
+const END_PUNCTUATION: [char; 3] = ['.', '!', '?'];
 
 /// Why a text is not a [`SpokenSummary`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -56,7 +60,7 @@ impl SpokenSummary {
         if text.len() > MAX_SUMMARY_BYTES {
             return Err(InvalidSummary::TooLong);
         }
-        let body = text.strip_suffix(['.', '!', '?']).unwrap_or(text);
+        let body = text.strip_suffix(END_PUNCTUATION).unwrap_or(text);
         let mut words = 0usize;
         for word in body.split(' ') {
             let letters = word.strip_suffix(',').unwrap_or(word);
@@ -106,7 +110,7 @@ mod tests {
 
     fn spoken(text: &str) -> String {
         let tokens = SpokenSummary::new(text).expect("summary").spoken_tokens();
-        crate::render::join_tokens(&tokens)
+        crate::token::spoken_text(&tokens)
     }
 
     #[test]

@@ -10,9 +10,9 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
-    request_digest, spoken_text_digest, ChallengeWord, NearAccount, NearAmount, Network,
-    NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
-    SpokenSummary, SpokenToken, CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
+    request_digest, spoken_text, spoken_text_digest, ChallengeWord, NearAccount, NearAmount,
+    Network, NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+    SpokenSummary, CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -42,14 +42,6 @@ fn word(word: &str) -> ChallengeWord {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-fn text(tokens: &[SpokenToken]) -> String {
-    tokens
-        .iter()
-        .map(SpokenToken::as_str)
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 fn near_account(id: &str) -> NearAccount {
@@ -316,7 +308,7 @@ fn request_vectors() -> Value {
             let rendered = render(&request);
             let confusions: Vec<String> = confusion_set(&request, &contacts)
                 .iter()
-                .map(|tokens| text(tokens))
+                .map(|tokens| spoken_text(tokens))
                 .collect();
             assert!(!confusions.contains(&rendered.spoken_text), "{name}");
             json!({
@@ -566,7 +558,7 @@ fn normalize_vectors() -> Value {
         NORMALIZE_CASES
             .iter()
             .map(|transcript| {
-                let tokens = normalize(transcript).map(|tokens| text(&tokens));
+                let tokens = normalize(transcript).map(|tokens| spoken_text(&tokens));
                 json!({ "transcript": transcript, "tokens": tokens })
             })
             .collect(),
@@ -670,7 +662,7 @@ fn punctuated_vectors() -> Value {
             .iter()
             .map(|transcript| {
                 let result = match normalize_punctuated(transcript, &contacts) {
-                    Ok(tokens) => json!({ "tokens": text(&tokens) }),
+                    Ok(tokens) => json!({ "tokens": spoken_text(&tokens) }),
                     Err(reason) => json!({ "refused": format!("{reason:?}") }),
                 };
                 json!({ "transcript": transcript, "result": result })

@@ -3,8 +3,10 @@ use alloc::format;
 use alloc::vec;
 use alloc::vec::Vec;
 
+use crate::challenge::CHALLENGE_LEN;
 use crate::numbers::{digit_value, digit_word, push_integer_words};
-use crate::render::{SpokenToken, VERSION_CHECK_DIGITS};
+use crate::render::VERSION_CHECK_DIGITS;
+use crate::token::SpokenToken;
 use crate::{
     render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
 };
@@ -242,10 +244,10 @@ fn clauses(
                         challenge: *challenge,
                     })
                     .spoken;
-                    spoken[start..spoken.len() - 2].to_vec()
+                    spoken[start..spoken.len() - CHALLENGE_LEN].to_vec()
                 })
                 .collect();
-            (start, expected.len() - 2, clauses)
+            (start, expected.len() - CHALLENGE_LEN, clauses)
         }
         // `note_changes` and `merge_changes` give the near misses of these
         // kinds.
@@ -301,9 +303,10 @@ fn sentence_changes(
         let len = expected.len();
         set.insert(spliced(expected, 1, clause_start, &[]));
         set.insert(spliced(expected, clause_start, clause_end, &[]));
-        set.insert(expected[..len - 2].to_vec());
-        set.insert(spliced(expected, len - 2, len - 1, &[]));
-        set.insert(expected[..len - 1].to_vec());
+        set.insert(expected[..len - CHALLENGE_LEN].to_vec());
+        for position in len - CHALLENGE_LEN..len {
+            set.insert(spliced(expected, position, position + 1, &[]));
+        }
     }
 
     // An added clause after the sentence.
@@ -360,17 +363,15 @@ fn field_changes(
             for id in neighbour_ids.into_iter().flatten() {
                 set.insert(approval(id, proposal.clone(), *challenge));
             }
-            set.insert(approval(
-                *proposal_id,
-                proposal.clone(),
-                [challenge[1], challenge[0]],
-            ));
+            let mut swapped = *challenge;
+            swapped.reverse();
+            set.insert(approval(*proposal_id, proposal.clone(), swapped));
             for variant in proposal_variants(proposal, contacts) {
                 set.insert(approval(*proposal_id, variant, *challenge));
             }
             if let ProposalV1::SetVerifierVersion { .. } = proposal {
-                // The digits sit just before the two challenge words.
-                let first_digit = expected.len() - 2 - VERSION_CHECK_DIGITS;
+                // The digits sit just before the challenge words.
+                let first_digit = expected.len() - CHALLENGE_LEN - VERSION_CHECK_DIGITS;
                 for position in first_digit..first_digit + VERSION_CHECK_DIGITS {
                     let current = digit_value(expected[position].as_str());
                     for digit in (0..10u8).filter(|digit| Some(*digit) != current) {

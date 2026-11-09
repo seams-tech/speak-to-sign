@@ -4,8 +4,17 @@ use alloc::vec::Vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::numbers::digit_word;
-use crate::render::SpokenToken;
+use crate::token::SpokenToken;
 use crate::UnsupportedReason;
+
+/// The fewest bytes of a NEAR account id.
+const MIN_ACCOUNT_ID_LEN: usize = 2;
+
+/// The most bytes of a NEAR account id.
+pub(crate) const MAX_ACCOUNT_ID_LEN: usize = 64;
+
+/// The length of an implicit account id: the 32-byte public key in hex.
+const IMPLICIT_ACCOUNT_LEN: usize = 64;
 
 /// A named NEAR account that the grammar can speak.
 ///
@@ -113,12 +122,13 @@ impl BorshDeserialize for NearAccount {
 
 fn is_valid_account_id(account_id: &str) -> bool {
     let length = account_id.len();
-    (2..=64).contains(&length) && account_id.split('.').all(is_valid_part)
+    (MIN_ACCOUNT_ID_LEN..=MAX_ACCOUNT_ID_LEN).contains(&length)
+        && account_id.split('.').all(is_valid_part)
 }
 
 fn is_speakable(account_id: &str) -> bool {
     let bytes = account_id.as_bytes();
-    if bytes.len() == 64 && bytes.iter().all(|byte| byte.is_ascii_hexdigit()) {
+    if bytes.len() == IMPLICIT_ACCOUNT_LEN && bytes.iter().all(|byte| byte.is_ascii_hexdigit()) {
         return false;
     }
     if account_id.starts_with("0x") {

@@ -121,22 +121,7 @@ export async function runSpokenNote(input: NoteInput): Promise<SpeakToSignNoteRe
       surfaceMeasurementBinding: note.surfaceMeasurementBinding,
       sentence: rendered.displayText,
       verifyRequest,
-      card:
-        action.kind === 'community_note'
-          ? {
-              network: input.network,
-              noun: 'note',
-              doneHeadline: 'Note posted',
-              doneCaption: `“${action.summary}”`,
-              spokenText: rendered.spokenText,
-            }
-          : {
-              network: input.network,
-              noun: 'rating',
-              doneHeadline: 'Rating saved',
-              doneCaption: rendered.displayText,
-              spokenText: rendered.spokenText,
-            },
+      card: noteCard(input.network, action, rendered),
       sign: (output, signal, hooks) =>
         note.operations.signNoteWithVerdict(action, output, signal, hooks),
     },
@@ -312,4 +297,33 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
     };
   }
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
+}
+
+/** The card copy of a spoken note, rating or merge approval. */
+function noteCard(
+  network: NoteInput['network'],
+  action: NoteInput['note']['action'],
+  rendered: Readonly<{ displayText: string; spokenText: string }>,
+): CardInput {
+  const { spokenText } = rendered;
+  switch (action.kind) {
+    case 'community_note':
+      return {
+        network,
+        noun: 'note',
+        doneHeadline: 'Note posted',
+        doneCaption: `“${action.summary}”`,
+        spokenText,
+      };
+    case 'note_rating':
+      return { network, noun: 'rating', doneHeadline: 'Rating saved', doneCaption: rendered.displayText, spokenText };
+    case 'merge_approval':
+      return {
+        network,
+        noun: 'approval',
+        doneHeadline: 'Merge approved',
+        doneCaption: rendered.displayText,
+        spokenText,
+      };
+  }
 }

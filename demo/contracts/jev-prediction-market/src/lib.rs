@@ -6,7 +6,7 @@
 //! - **Create:** anyone opens a yes-or-no market about a note ("Will this note hold up?") with
 //!   context text for the AI and a close time. The USDC sent (at least 1) is the creator's seed,
 //!   split 50/50 into a YES stake and a NO stake.
-//! - **Bet:** anyone puts USDC (at least 1) into the YES pool or the NO pool until the close.
+//! - **Bet:** anyone puts USDC (at least 0.1) into the YES pool or the NO pool until the close.
 //!   The odds are the pool split.
 //! - **Resolve:** after the close, any account calls `request_resolution`. The contract calls
 //!   the OutLayer resolver worker, which asks JEV (Typesafe) or NEAR AI for the probability
@@ -35,8 +35,8 @@ pub const DEFAULT_TOKEN: &str = "3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c
 pub const ONE_USDC: u128 = 1_000_000;
 /// The smallest seed of a new market: 1 USDC.
 pub const MIN_SEED: u128 = ONE_USDC;
-/// The smallest bet: 1 USDC.
-pub const MIN_BET: u128 = ONE_USDC;
+/// The smallest bet: 0.1 USDC.
+pub const MIN_BET: u128 = ONE_USDC / 10;
 /// The largest total pool of one market: 1,000,000 USDC. It keeps every product in a u128.
 pub const MAX_POOL: u128 = 1_000_000 * ONE_USDC;
 /// The gas for the token's `ft_transfer` of a claim, and for the callback after it.
@@ -387,7 +387,7 @@ impl PredictionMarkets {
     /// The token calls this for `ft_transfer_call` (NEP-141). `msg` says what the USDC is for:
     /// - `{"action": "create_market", "question", "context"?, "note_id"?, "closes_at_ms"}`: the
     ///   USDC is the seed of a new market (at least 1 USDC).
-    /// - `{"action": "bet", "market_id", "outcome": "yes" | "no"}`: a bet (at least 1 USDC).
+    /// - `{"action": "bet", "market_id", "outcome": "yes" | "no"}`: a bet (at least 0.1 USDC).
     ///
     /// It uses all of the USDC and returns 0. A refused transfer fails, and the token then
     /// sends the USDC back.
@@ -689,7 +689,7 @@ impl PredictionMarkets {
     }
 
     /// What a bet of `amount` USDC (base units) on `outcome` would do now, or null when the
-    /// market is not open or the amount is below 1 USDC.
+    /// market is not open or the amount is below 0.1 USDC.
     pub fn quote_bet(&self, market_id: u64, outcome: Outcome, amount: U128) -> Option<BetQuote> {
         let market = self.markets.get(&market_id)?;
         let units = amount.0;
@@ -812,7 +812,7 @@ impl PredictionMarkets {
     /// A bet of `amount` USDC on `outcome`. Returns the account's stake on that outcome.
     fn bet(&mut self, account: AccountId, amount: u128, market_id: u64, outcome: Outcome) -> u128 {
         if amount < MIN_BET {
-            env::panic_str("bet at least 1 USDC");
+            env::panic_str("bet at least 0.1 USDC");
         }
         let mut market = self.open_market(market_id);
         if market.total() + amount > MAX_POOL {

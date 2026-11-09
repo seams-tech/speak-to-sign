@@ -331,11 +331,11 @@ fn the_odds_history_keeps_the_last_50_points() {
 }
 
 #[test]
-#[should_panic(expected = "bet at least 1 USDC")]
-fn a_bet_needs_one_usdc() {
+#[should_panic(expected = "bet at least 0.1 USDC")]
+fn a_bet_needs_a_tenth_of_a_usdc() {
     let mut contract = setup();
     open_market(&mut contract);
-    bet(&mut contract, "kenji", Outcome::Yes, USDC - 1);
+    bet(&mut contract, "kenji", Outcome::Yes, USDC / 10 - 1);
 }
 
 #[test]
@@ -375,7 +375,8 @@ fn quote_bet_shows_the_payout_if_right() {
     assert_eq!(quote.amount, U128(TEN / 2));
     assert_eq!(quote.payout_if_right, U128(3 * TEN / 4), "0.5 of 1 NO pays half of T = 1.5");
     assert_eq!(quote.yes_share_bps, 3_333);
-    assert_eq!(contract.quote_bet(1, Outcome::No, U128(USDC - 1)), None);
+    assert_eq!(contract.quote_bet(1, Outcome::No, U128(USDC / 10 - 1)), None);
+    assert!(contract.quote_bet(1, Outcome::No, U128(USDC / 10)).is_some(), "0.1 USDC is the smallest bet");
     assert_eq!(contract.quote_bet(9, Outcome::No, U128(TEN)), None);
     call("kenji", T0 + HOUR, 0);
     assert_eq!(contract.quote_bet(1, Outcome::No, U128(TEN)), None, "closed");
@@ -1028,7 +1029,7 @@ fn get_config_shows_the_rules() {
             snap_high_bps: 9_000,
             snap_low_bps: 1_000,
             min_seed: U128(USDC),
-            min_bet: U128(USDC),
+            min_bet: U128(USDC / 10),
             min_resolution_deposit: U128(50 * MILLI),
             max_open_ms: 30 * 24 * HOUR,
         }

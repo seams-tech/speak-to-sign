@@ -169,8 +169,8 @@ async fn a_usdc_market_from_create_to_claim_in_the_sandbox() -> anyhow::Result<(
     check_success("bet (same stake)", &result, Gas::from_tgas(20));
     let result = send_usdc(&ana, &usdc, &market, 5 * USDC, bet(1, "no")).await?;
     check_success("bet NO", &result, Gas::from_tgas(20));
-    let result = send_usdc(&ana, &usdc, &market, USDC / 2, bet(1, "no")).await?;
-    check_failure("bet below 1 USDC", &result, "bet at least 1 USDC");
+    let result = send_usdc(&ana, &usdc, &market, USDC / 20, bet(1, "no")).await?;
+    check_failure("bet below 0.1 USDC", &result, "bet at least 0.1 USDC");
     assert_eq!(usdc_of(&usdc, &ana).await?, 95 * USDC, "the token gave the refused bet back");
     let result = call(&kenji, &market, "ft_on_transfer", json!({ "sender_id": kenji.id(), "amount": "1000000", "msg": bet(1, "yes").to_string() }), 0, CALL_GAS).await?;
     check_failure("ft_on_transfer from an account", &result, "only the market token can send to this contract");
@@ -320,6 +320,6 @@ async fn a_usdc_market_from_create_to_claim_in_the_sandbox() -> anyhow::Result<(
     assert_eq!(view(&market, "get_market_for_note", json!({ "note_id": 4 })).await?, Value::Null);
     let config = view(&market, "get_config", json!({})).await?;
     assert_eq!(config["token"], json!(usdc.id()));
-    assert_eq!(config["min_bet"], USDC.to_string());
+    assert_eq!(config["min_bet"], (USDC / 10).to_string());
     Ok(())
 }

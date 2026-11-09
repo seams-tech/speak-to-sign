@@ -32,4 +32,4 @@ run('pnpm', ['exec', 'vite', 'build', '--base', '/pay/', '--outDir', resolve(dem
   ...process.env,
   ...seamsEnv,
 });
-console.log('Site built: dist/ (Speak-to-Sign at /, Community Notes at /notes/) and dist/pay/ (Speak to pay at /pay/).');
+console.log('Site built: dist/ (Speak-to-Sign at /, with Community Notes and the PR merge in its windows) and dist/pay/ (Speak to pay at /pay/).');

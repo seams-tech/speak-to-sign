@@ -998,26 +998,43 @@ a.lk:hover {
 }
 .pc-bet .nm-bet:first-child:not(:last-child),
 .pc-bet .nm-bet:last-child:not(:first-child) {
-  height: 46px;
+  height: 48px;
   border: 0;
   color: #fff;
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 700;
-  transition:
-    transform 120ms ease,
-    filter 120ms ease;
+  transition: filter 120ms ease;
+}
+/* Blue for yes and red for no, even to the eye: both are OKLCH lightness 0.57 and chroma 0.16
+   (the strongest blue that sRGB holds at that lightness), with hues 250 and 15. White text on
+   both is above 4.4:1, and the labels are large text (19 px bold). The small yes and no shares
+   use a darker shade of each color. */
+.pc-bet {
+  --bet-yes: #037ad1;
+  --bet-no: #c34659;
 }
 .pc-bet .nm-bet:first-child:not(:last-child) {
-  background: var(--green);
-  box-shadow: 0 8px 18px -8px rgba(0, 186, 124, 0.7);
+  background: var(--bet-yes);
+  box-shadow: 0 6px 14px -8px rgba(3, 122, 209, 0.55);
 }
 .pc-bet .nm-bet:last-child:not(:first-child) {
-  background: var(--red);
-  box-shadow: 0 8px 18px -8px rgba(244, 33, 46, 0.6);
+  background: var(--bet-no);
+  box-shadow: 0 6px 14px -8px rgba(195, 70, 89, 0.55);
 }
 .pc-bet .nm-bet:not(:disabled):hover {
-  filter: brightness(0.94);
-  transform: translateY(-1px);
+  filter: brightness(0.93);
+}
+.pc-bet .nm-bar-yes {
+  background: var(--bet-yes);
+}
+.pc-bet .nm-bar-no {
+  background: var(--bet-no);
+}
+.pc-bet .nm-yes {
+  color: color-mix(in srgb, var(--bet-yes) 80%, #000);
+}
+.pc-bet .nm-no {
+  color: color-mix(in srgb, var(--bet-no) 80%, #000);
 }
 .pc-practice {
   padding: 0 16px 8px;

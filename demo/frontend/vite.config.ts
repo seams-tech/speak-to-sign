@@ -2,8 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Three pages: the Speak-to-Sign page at /, the Community Notes demo at /notes/ and the
-// spoken PR merge demo at /merge/.
+// Two pages: the Speak-to-Sign page at / and the Community Notes demo at /notes/.
 // `pnpm dev` serves them with hot reload. `/api/*` goes to the Pages
 // Function that `pnpm dev:api` runs with wrangler on port 8788.
 export default defineConfig({
@@ -15,7 +14,6 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         notes: fileURLToPath(new URL('./notes/index.html', import.meta.url)),
-        merge: fileURLToPath(new URL('./merge/index.html', import.meta.url)),
       },
     },
   },

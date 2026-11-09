@@ -22,6 +22,9 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   receiver_missing: 'The receiver account does not exist on NEAR testnet.',
   verdict_mismatch: 'The signed verdict did not match this payment, or it expired.',
   transaction_failed: 'NEAR ran the transfer, and it failed.',
+  // SDK 0.60.0: the Seams co-signer refused the verdict.
+  voice_limit: 'This payment is over the voice limit: 10 NEAR per payment, 20 NEAR in 24 hours.',
+  cosigner_refused: 'Seams did not accept the verdict, so nothing was signed.',
 };
 
 const ENROLLMENT_REFUSALS: Record<EnrollmentRefusal, string> = {

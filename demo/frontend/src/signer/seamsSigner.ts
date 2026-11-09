@@ -1,4 +1,4 @@
-// The real signer: Seams Wallet Speak-to-Sign (SDK 0.59.0).
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.60.0).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe: the owner says the
 // summary or the rating sentence, the verifier checks the voice and the words, and the Wallet

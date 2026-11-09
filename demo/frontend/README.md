@@ -40,14 +40,10 @@ one wallet works on all of them. The Speak-to-Sign page shows a live preview of
 | Part                     | Where                                                        | Status on 9 Nov 2026                                   |
 | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
 | Notes contract           | `notes.seams-v1.testnet` (`../contracts/community-notes/`)             | Deployed.                                              |
-| Seams Wallet host        | `https://staging.sign.seams.sh`                              | 0.59.0: Speak-to-Sign host API 6 with spoken notes.    |
-| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.4.0 (`8a0b7ba0…29ef`): community notes and ratings. |
-| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.59.0.                                 |
+| Seams Wallet host        | `https://staging.sign.seams.sh`                              | 0.60.0: Speak-to-Sign host API 7 with spoken notes.    |
+| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.4.1 (staging deploy b77bf2cf): community notes and ratings. |
+| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.60.0.                                 |
 | Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin, `https://localhost:5443` and `https://localhost:8443`. |
-
-SDK 0.60.0 sets the passkey RP ID and the Router A/B signing worker itself. When
-the page moves to 0.60.0, delete `rpIdOverride` and `routerAb` in
-`src/seams/seamsConfig.ts`.
 
 ## Run it locally
 
@@ -145,8 +141,6 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | none: optional cross-check            |
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
-| `VITE_SEAMS_RP_ID`                  | `staging.sign.seams.sh`               |
-| `VITE_SEAMS_SIGNING_WORKER_ID`      | `router-ab-signing-worker-staging`    |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
@@ -167,12 +161,10 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 
 - `src/main.tsx` wraps the app in `SeamsWebProvider` with the configuration
   from `src/seams/seamsConfig.ts`: `seamsTestnetConfig` with the publishable
-  key, VoiceID, and Speak-to-Sign on testnet. It also sets the passkey RP ID to
-  the Wallet host (`seamsTestnetConfig` keeps the SDK default
-  `example.localhost`, and then "Create wallet with passkey" fails) and turns on
-  Router A/B normal signing, which managed registration needs.
+  key, VoiceID, and Speak-to-Sign on testnet. SDK 0.60.0 derives the passkey
+  RP ID (the Wallet host) and the Router A/B signing worker from the Wallet origin.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
-- `src/signer/seamsSigner.ts` fills it with the typed SDK 0.59.0 calls:
+- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.60.0):
   - `requestNote` → `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`
   - `requestRating` → `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.activateAuthMethod` (or `setAuthMethodEnabled`)

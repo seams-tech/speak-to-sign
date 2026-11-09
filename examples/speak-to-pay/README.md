@@ -65,16 +65,12 @@ new origin to the Seams project.
 | `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | empty                                 | Optional cross-check of the key's environment.          |
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       | The hosted Seams Wallet.                                |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` | The Seams Gateway, which also serves the verify route.  |
-| `VITE_SEAMS_RP_ID`                  | `staging.sign.seams.sh`               | The passkey RP ID: the Wallet host or a parent domain.  |
-| `VITE_SEAMS_SIGNING_WORKER_ID`      | `router-ab-signing-worker-staging`    | The Router A/B signing worker that registration needs.  |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       | NEAR testnet RPC for the balance check.                 |
 
 Only the Seams staging deployment serves the Speak-to-Sign verify route.
 
-`seamsTestnetConfig` keeps the SDK's default passkey RP ID, `example.localhost`,
-and the default turns Router A/B normal signing off. Then "Create wallet with
-passkey" fails with "Something went wrong.". So `src/config.ts` sets both, as the
-staging console does.
+SDK 0.60.0 derives the passkey RP ID and the Router A/B signing worker from the
+Wallet origin, so `src/config.ts` sets neither.
 
 ## How the code works
 

@@ -23,10 +23,6 @@ export const config = {
     projectEnvironmentId: env(e.VITE_SEAMS_PROJECT_ENVIRONMENT_ID),
     walletOrigin: env(e.VITE_SEAMS_WALLET_ORIGIN, 'https://staging.sign.seams.sh'),
     relayerUrl: env(e.VITE_SEAMS_RELAYER_URL, 'https://staging.api.wallet.seams.sh'),
-    /** The passkey RP ID. It must be the Wallet host or a parent domain of it. */
-    rpId: env(e.VITE_SEAMS_RP_ID, 'staging.sign.seams.sh'),
-    /** The Router A/B signing worker. Managed registration (a publishable key) needs it. */
-    signingWorkerId: env(e.VITE_SEAMS_SIGNING_WORKER_ID, 'router-ab-signing-worker-staging'),
   },
 };
 

@@ -1,11 +1,11 @@
 // The rules for the spoken summary of a note.
 //
 // A port of `summaryRefusal` in the Seams Wallet SDK
-// (packages/wallet/src/core/transactionFeatures/spokenNote.ts, SDK 0.59.0), which ports
+// (packages/wallet/src/core/transactionFeatures/spokenNote.ts), which ports
 // `spoken_intent::InvalidSummary`. The Wallet refuses a summary that breaks a rule with
-// `summary_not_speakable`. The page and the Pages Function (functions/api/summary.ts) both use
-// this file, because the Function cannot load the SDK. When the page moves to SDK 0.59.0, it
-// can call the SDK's own `summaryRefusal` and keep this file for the Function only.
+// `summary_not_speakable`. The page shows this file's rule list and also gates with the SDK's
+// own `summaryRefusal`. The Pages Function (functions/api/summary.ts) uses this file, because
+// it cannot load the SDK.
 
 export const SUMMARY_MAX_WORDS = 12;
 export const SUMMARY_MAX_BYTES = 120;

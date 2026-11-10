@@ -113,6 +113,7 @@ Created on 2026-11-10. `seams-v1.testnet` paid for them from the NEAR of four fa
 | Cap | 0.05 NEAR for each proposal |
 | Default receiver | `seams-grants.testnet`, a Seams account made with the testnet faucet (tx `9BsVsGvPeyhVzrKPVCQ6CGrx4pZk8H3EyAekBfuP71Ue`). We move its NEAR back from time to time. |
 | Pages secrets | `MULTISIG_ADMIN_A_KEY`, `MULTISIG_ADMIN_B_KEY` and the 6 `VOICE_OUTLAYER_*` secrets, all set in production |
+| Pages deploy | Production deployment `8cae765b` of commit `5fd7cc7`, built from a clean `git archive` of the commit. Both routes answer with their secrets, and the window reads the contract. |
 
 ## Limits
 

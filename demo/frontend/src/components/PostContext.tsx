@@ -11,6 +11,7 @@ import { useFunds } from '../faucet/funds';
 import { useMarketSource } from '../market/contractSource';
 import { amountText } from '../market/math';
 import { NoteMarketStrip } from '../market/NoteMarket';
+import { useBetVoice } from '../market/SayBet';
 import { NEAR_CURRENCY } from '../market/types';
 import { MediaThumb } from './Media';
 import { Modal, type ModalHandle } from './Modal';
@@ -34,6 +35,7 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
   const { account, prepare, preparing, signingIn, hostSignIn, endSignIn } = useDemo();
   useEffect(() => hostSignIn(), [hostSignIn]);
   const source = useMarketSource();
+  const betVoice = useBetVoice(source);
   const funds = useFunds(account, false);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
@@ -66,7 +68,8 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
   const [problem, setProblem] = useState<string | null>(null);
   const readyToBet = async () => {
     setProblem(null);
-    const ready = await prepare({ funds: 'bet' });
+    // A spoken bet also needs the bettor's voice set up.
+    const ready = await prepare({ funds: 'bet', voice: betVoice !== null });
     if (!ready.ok && ready.reason) setProblem(ready.reason);
     return ready.ok;
   };

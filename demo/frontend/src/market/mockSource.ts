@@ -12,6 +12,7 @@ import {
   type OddsPoint,
   type SignProgress,
 } from './types';
+import { spokenBetSentence } from './spokenBet';
 
 export interface MockMarketSource extends MarketSource {
   /** Ends betting, as the close time would. */
@@ -24,6 +25,8 @@ interface MockOptions {
   /** The notes that have a market. Default: every note. */
   noteIds?: number[];
   signsByVoice?: boolean;
+  /** True: a bet needs a spoken sentence, as on the contract. The mock accepts every recording. */
+  spokenBets?: boolean;
   /** The time that a bet or a claim takes. A JEV request takes twice as long. */
   delayMs?: number;
   /** JEV's answer to "Ask JEV now". Default: 93%, which snaps to a full YES. */
@@ -87,6 +90,16 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
 
   return {
     signsByVoice: options.signsByVoice ?? true,
+    voice: options.spokenBets
+      ? {
+          required: async () => true,
+          sentence: spokenBetSentence,
+          async check() {
+            await delay();
+            return { kind: 'accepted', verdictJson: '{"mock":true}', signatureB64: '' };
+          },
+        }
+      : undefined,
     currency,
     async getBalance() {
       return 20n * tenth;

@@ -92,8 +92,11 @@ export interface MarketSource {
   getPosition(marketId: number, accountId: string): Promise<MarketPosition>;
   /** The newest points of the odds chart, oldest first (the contract keeps about 50). */
   getOddsHistory(marketId: number): Promise<OddsPoint[]>;
-  /** Puts `amount` on `side`. The Wallet signs; a spoken bet when `signsByVoice`. */
-  bet(input: { marketId: number; side: Side; amount: bigint }, progress?: SignProgress): Promise<SignResult>;
+  /**
+   * Puts `amount` on `side`. The Wallet signs the transaction. `verdict` is the verdict of the
+   * spoken bet (`voice.check`), which the contract needs when `voice.required()`.
+   */
+  bet(input: { marketId: number; side: Side; amount: bigint; verdict?: BetVerdict }, progress?: SignProgress): Promise<SignResult>;
   /** Takes the account's payout of a resolved market. */
   claim(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /**
@@ -108,6 +111,12 @@ export interface MarketSource {
   closeAndRequestResolution?(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /** True when the Wallet signs a bet by voice: the sheet then shows the sentence to say. */
   signsByVoice: boolean;
+  /**
+   * The spoken bet. With it, a bettor says the bet, a voice verifier checks the voice and the
+   * words, and the contract takes the bet only with that verdict. Leave it out for a source
+   * whose bets need no voice.
+   */
+  voice?: BetVoice;
   /**
    * Opens a market on a note (the contract's `create_market`). `seed` goes half on yes and half
    * on no. Leave it out to hide "Open a market".
@@ -124,6 +133,28 @@ export interface MarketSource {
   currency?: Currency;
   /** The account's balance of the currency, for the bet sheet. */
   getBalance?(accountId: string): Promise<bigint>;
+}
+
+/** The verdict of one spoken bet, as the voice verifier signed it. */
+export interface BetVerdict {
+  /** The signed bytes, unchanged. */
+  verdictJson: string;
+  signatureB64: string;
+}
+
+/** `refused`: the verifier heard the recording and said no. `heard`: its words, on a words refusal. */
+export type BetVoiceCheck =
+  | ({ kind: 'accepted' } & BetVerdict)
+  | { kind: 'refused'; reason: string; heard?: string }
+  | { kind: 'unavailable'; reason: string };
+
+export interface BetVoice {
+  /** True when the contract takes a bet only with a verdict. */
+  required(): Promise<boolean>;
+  /** The sentence that the bettor says, for example "Bet 0.5 USDC yes on market 9". */
+  sentence(bet: { marketId: number; side: Side; amount: bigint }): string;
+  /** Sends one recording (16 kHz mono PCM16 WAV) of the sentence to the verifier. */
+  check(accountId: string, bet: { marketId: number; side: Side; amount: bigint }, wav: Uint8Array): Promise<BetVoiceCheck>;
 }
 
 /** The question of a new market. */

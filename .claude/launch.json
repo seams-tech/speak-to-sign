@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "timeline-mock", "runtimeExecutable": "pnpm", "runtimeArgs": ["-C", "demo/frontend", "exec", "vite", "--port", "5179", "--strictPort"], "port": 5179 }
+  ]
+}

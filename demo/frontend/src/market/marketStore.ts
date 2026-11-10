@@ -32,6 +32,11 @@ export class MarketStore {
     return BigInt(await this.viewOn<string>(tokenId, 'ft_balance_of', { account_id: accountId }));
   }
 
+  /** True when the contract takes a bet only with the verdict of the spoken bet. */
+  async voiceRequired(): Promise<boolean> {
+    return (await this.view<{ required?: boolean }>('get_voice_config', {})).required === true;
+  }
+
   /** True when the contract answers its views (it is on the network). */
   async deployed(): Promise<boolean> {
     try {

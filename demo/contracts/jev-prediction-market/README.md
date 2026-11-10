@@ -22,6 +22,37 @@ Demo only, testnet only. The plan is in `PLAN.md`.
 - Worker: Rust 1.97.1 with `wasm32-wasip2` (`resolver/rust-toolchain.toml`),
   `wasi-http-client` 0.2.1, serde_json.
 
+## A bet is spoken
+
+A bet needs the verdict of its own spoken sentence. The bettor says, for
+example, "Bet 0.5 USDC yes on market 9". The Seams voice verifier
+(`../../../crates/voice-verifier/`, request kind `market_bet`, 0.8.0 or later)
+checks that the voice is the account owner's and that the words are this bet,
+and signs a verdict. The bet's `msg` carries `verdict_json` and
+`signature_b64`. The contract (`check_spoken_bet`) takes the bet only if:
+
+- the verifier's key signed the verdict (ed25519 over
+  `SHA-256("seams:outlayer:voice-verdict:v2" || verdict_json)`);
+- the verdict accepts, and has not expired;
+- its request digest is the digest of this bet: the network, the bettor, this
+  contract, the token, the market id, the outcome and the amount
+  (`SpokenRequestV1::MarketBet` in `../../../crates/spoken-intent/`);
+- the verdict was not used before (a marker under `voice:used:<SHA-256>`).
+
+A refused bet fails, and the token sends the USDC back. A spoken amount is a
+whole number of cents. A new market and a claim need no voice.
+
+The admin can set another verifier key (`set_voice_verifier_key`) and can
+turn the rule off (`set_voice_required(false)`), for example if the verifier
+is down. `get_voice_config` gives `{ required, verifier_public_key }`. The
+default key is the Seams testnet verifier's,
+`ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. These settings are
+under raw storage keys (`voice:*`), so the upgrade needs no state migration.
+
+Tests: 10 unit tests in `src/tests.rs`, and `sandbox/tests/spoken_bet.rs`
+against the release WASM in the nearcore sandbox (a spoken bet burns about
+2.9 Tgas in this contract). This build is not on testnet yet.
+
 ## The currency: NEAR testnet USDC
 
 The money is Circle's USDC on NEAR testnet, a NEP-141 token with 6 decimals:

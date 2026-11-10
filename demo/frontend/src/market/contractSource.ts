@@ -6,6 +6,7 @@ import { config } from '../config';
 import type { MarketView } from './contractTypes';
 import { type MarketSigner, missingKeyMarketSigner } from './marketSigner';
 import { MarketNotDeployed, MarketStore } from './marketStore';
+import { checkSpokenBet, spokenBetSentence } from './spokenBet';
 import { USDC_CURRENCY, type MarketSource, type NoteMarket } from './types';
 
 export function createContractMarketSource(signer: MarketSigner, store = new MarketStore(config.marketRpcUrl, config.marketContract)): MarketSource {
@@ -50,8 +51,15 @@ export function createContractMarketSource(signer: MarketSigner, store = new Mar
     canOpenMarkets: isDeployed,
     currency: USDC_CURRENCY,
     getBalance: (accountId) => store.balance(config.marketToken, accountId),
-    // A spoken bet needs a new spoken request kind in the Wallet. Until then: passkey.
+    // The Wallet has no spoken request kind for a bet, so it signs a bet as a plain transaction.
+    // The voice is checked by the page's verifier route and by the contract (`voice`).
     signsByVoice: false,
+    voice: {
+      // A contract from before the voice rule has no such view: its bets need no voice.
+      required: () => store.voiceRequired().catch(() => false),
+      sentence: spokenBetSentence,
+      check: (accountId, bet, wav) => checkSpokenBet(accountId, { ...bet, market: config.marketContract, token: config.marketToken }, wav),
+    },
   };
 }
 

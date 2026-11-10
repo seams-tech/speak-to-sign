@@ -46,9 +46,10 @@ active version since 2026-11-11 (`set_active_version` tx
 `69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`), so a call with no `version_key` runs it.
 Before, 0.5.2 was active. Every known caller (the Wallet server, the demo
 routes) sends its own `version_key`, so none of them changed. The staging
-Wallet server moves from 0.9.0 to 0.11.0 with
+Wallet server runs 0.11.0 (before: 0.9.0) since 2026-11-11:
 [seams-monorepo#72](https://github.com/seams-tech/seams-monorepo/pull/72)
-and the next staging deploy.
+and the staging deploy run 42877155349. Its route
+`POST /speak-to-sign/v1/verify` is on (401 with no session).
 
 | Build | Version key | Has |
 | --- | --- | --- |

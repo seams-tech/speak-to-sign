@@ -382,24 +382,27 @@ Deployed on 10 Nov 2026 from this branch (commit `33a2dfa` and its parents).
 | USDC registration | `pm-notes.seams-v1.testnet`: transaction `B5EAbZHXDb2qXmCBnXFcxCeCQxWdTaF6tKPGSmPMEjpj`; `seams-v1.testnet`: transaction `6vdntmaFRLHc1h61gPAF2a133dswbAUxcWHtif3Ks1p` |
 | Worker upload | FastFS transaction `BHYUcVBUby77RkacXUkGzCEwjFmaxcd1MN6bV8m4aCPY` (it fails with `MethodNotFound` by design: FastFS reads the arguments), URL `https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2.wasm` |
 | OutLayer project | `seams-v1.testnet/pm-notes-resolver`, `create_project` transaction `DZM1ogMNDQ5ErcjmC1shRaYHFRyL4jpRFbxqHfgqkHZy` (0.03 NEAR) with version `74dfc1f9…37b2`. Active version `360beda4…223a` (JEV on NEAR AI first): FastFS transaction `DQm7sdhvKZtaHXkJKtxj86huoz7k7GBkPSgQtkFTAS2p`, `add_version` transaction `B7aiWF1QvReAssRgAmepDxrWmuBPufcvsT1FiqfwTCzU` |
-| Secrets | `NEAR_AI_API_KEY`, stored by the user for the project, profile `main`, owner `cyan-loong.testnet`, whitelist `pm-notes.seams-v1.testnet`. `set_resolver_config` transaction `CHQwMo4QzejReMNGUM7jJYU4fhGkWaSMD98Sy7t1x6DE` names it. OutLayer checks a plain whitelist against the signer of the transaction, so the rule needs "Direct calls only" (the contract calls OutLayer), or allow-all. |
-| Markets | 1: a smoke test without a note (2 USDC seed, 1 USDC bet; an OutLayer run refused by the secret's rule, `2AJa14zS6W8qFhXG3SARxefA2WQ21RhsRSr6E59gjLzL`; admin resolve at 60%, `2HoS6vUx4okHA1ruJ299qtDC8p8Se4uMs1g3kiP151fE`; claim of 3 USDC, `4fypN2aCNB1QXVTrfUqdNnodWb5eWzUvjYt7SzfL456c`). 2: note 0, the post's context box, "Is this note true?", 10 USDC seed, closes 14 Nov 2026 23:59 UTC (transaction `4veiVAoxTFhxS3CagM9AYDRCMvPzmA9p6Ui5mhsmQmWB`). |
+| Secrets | `NEAR_AI_API_KEY`, stored by the user for the project, profile `main`, owner `cyan-loong.testnet`, `set_resolver_config` transaction `CHQwMo4QzejReMNGUM7jJYU4fhGkWaSMD98Sy7t1x6DE` names it. OutLayer judges each access rule against the signer of the transaction, so a plain whitelist of the contract refuses every user. The rule must be `{"Predecessor":{"condition":{"Whitelist":{"accounts":["pm-notes.seams-v1.testnet"]}}}}` ("Calling account must…" in the dashboard), which judges the contract that calls OutLayer. The dashboard's "Direct calls only" is wrong here: it also requires the signer to be the contract. Stored on 10 Nov 2026 at 03:04 UTC as an AND with this one condition. |
+| Markets | 1: a smoke test without a note (2 USDC seed, 1 USDC bet; an OutLayer run refused by the secret's rule, `2AJa14zS6W8qFhXG3SARxefA2WQ21RhsRSr6E59gjLzL`; admin resolve at 60%, `2HoS6vUx4okHA1ruJ299qtDC8p8Se4uMs1g3kiP151fE`; claim of 3 USDC, `4fypN2aCNB1QXVTrfUqdNnodWb5eWzUvjYt7SzfL456c`). 2: note 0, the post's context box, "Is this note true?", 10 USDC seed, closes 14 Nov 2026 23:59 UTC (transaction `4veiVAoxTFhxS3CagM9AYDRCMvPzmA9p6Ui5mhsmQmWB`). 3: a smoke test of JEV without a note (1 USDC seed, `37qakdLQR6jNaPZ7GWUKNPwrPK6Yf4RhMSVsPsHkFiRV`; closed, `7QLhZchgVyjRrB5U3EXg4ubxPyEH3yqHcs3rp35aJxv8`; Ask JEV, `2wryCU3a8hng5mWZXJR5GmLdtgJhNRdi8vjSCP7UP9NB`: OutLayer ran the worker in 1.5 s for 0.00126 NEAR, and JEV `typesafe/jev-1.13-20260917` on NEAR AI gave 27% yes, `market_resolved` with source `ai` and provider `jev`; claim of 1 USDC, `Cidc9HPHoGDXvYjD3zrma15MYL2Kc8k3Aj6n11yANbwk`). |
 
-Not done yet:
+For a new deployment, and what is left:
 
-1. **OutLayer secrets** (stored; the access rule needs "Direct calls only").
-   For a new secret: store `NEAR_AI_API_KEY` and, if you have it,
+1. **OutLayer secrets** (stored for this deployment on 10 Nov 2026). For a
+   new secret: store `NEAR_AI_API_KEY` and, if you have it,
    `TYPESAFE_API_KEY` for the project `seams-v1.testnet/pm-notes-resolver`,
-   with a whitelist `pm-notes.seams-v1.testnet` and "Direct calls only". Then
+   with the rule "Calling account must…" and, inside it, a whitelist
+   `pm-notes.seams-v1.testnet` (not "Direct calls only"). Then
    the admin names the secrets:
 
    ```bash
    near contract call-function as-transaction pm-notes.seams-v1.testnet set_resolver_config json-args '{"resolver":{"outlayer_account":"outlayer.testnet","project_id":"seams-v1.testnet/pm-notes-resolver","secrets_ref":{"profile":"main","account_id":"cyan-loong.testnet"}}}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-   Until then, "Ask JEV now" ends with `resolution_failed` and the reason
-   `the resolver failed: JEV: no TYPESAFE_API_KEY; NEAR AI: no
-   NEAR_AI_API_KEY`, and the admin can `resolve`.
+   Without the secret, "Ask JEV now" ends with `resolution_failed` and the
+   reason `the resolver failed: ...` with each route's error. With a plain
+   whitelist, OutLayer refuses the run ("Access denied by access condition")
+   and the reason is `the resolver returned no answer`. In both cases the
+   admin can `resolve`.
 2. **USDC for demo markets.** Send USDC from `cyan-loong.testnet` (for
    example to `seams-v1.testnet`, which is registered), then open a market
    with `ft_transfer_call`:
@@ -408,8 +411,8 @@ Not done yet:
    near contract call-function as-transaction 3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af ft_transfer_call json-args '{"receiver_id":"pm-notes.seams-v1.testnet","amount":"10000000","msg":"{\"action\":\"create_market\",\"question\":\"Will this note hold up?\",\"context\":\"...\",\"note_id\":2,\"closes_at_ms\":1794500000000}"}' prepaid-gas '100 Tgas' attached-deposit '1 yoctoNEAR' sign-as cyan-loong.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. **NEAR.** `seams-v1.testnet` has about 0.15 NEAR free, and
-   `pm-notes.seams-v1.testnet` about 0.25 NEAR above its code (about 10
+3. **NEAR.** On 10 Nov 2026, `seams-v1.testnet` has about 0.5 NEAR free, and
+   `pm-notes.seams-v1.testnet` about 0.3 NEAR above its storage (about 10
    markets). Add NEAR from `cyan-loong.testnet` before a busy demo.
 
 Checks:
@@ -444,11 +447,11 @@ What a judge can do on the demo page (`#/notes/post/1`):
    note holds up", how the pool is split, and "Why JEV decided this".
 5. **Claim.** **Claim** sends the account's USDC payout.
 
-Checked on testnet on 10 Nov 2026: create, bet, close, the OutLayer run with
-its callback, the admin resolve and the claim (3 USDC back through
-`ft_transfer`). Not yet checked: an answer from JEV through OutLayer (it needs
-"Direct calls only" on the OutLayer secret), and a bet signed with the Seams
-Wallet (it needs a person with a passkey).
+Checked on testnet on 10 Nov 2026: create, bet, close, the admin resolve, Ask
+JEV (OutLayer ran the worker, and JEV on NEAR AI answered 27% for market 3),
+and the claims (3 USDC and 1 USDC back through `ft_transfer`). Not yet
+checked: a bet signed with the Seams Wallet (it needs a person with a
+passkey).
 
 ## Credits
 

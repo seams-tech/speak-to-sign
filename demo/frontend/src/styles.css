@@ -1487,10 +1487,12 @@ a.lk:hover {
   overflow-y: auto;
 }
 .dialog {
+  /* The corner radius, also for the voice button that fills the dialog's foot (--foot-r). */
+  --foot-r: 2rem;
   width: 100%;
   max-width: 560px;
   background: #fff;
-  border-radius: 2rem;
+  border-radius: var(--foot-r);
   display: flex;
   flex-direction: column;
   max-height: 90vh;
@@ -1831,7 +1833,7 @@ fieldset:disabled .choice {
   margin: calc(-1 * var(--foot-top)) calc(-1 * var(--foot-x)) calc(-1 * var(--foot-bottom));
   padding: var(--foot-top) var(--foot-x) var(--foot-bottom);
   /* The dialog's own bottom corners. */
-  border-radius: 0 0 var(--foot-r, 16px) var(--foot-r, 16px);
+  border-radius: 0 0 var(--foot-r, 2rem) var(--foot-r, 2rem);
   transition:
     background-color 0.16s,
     color 0.16s;

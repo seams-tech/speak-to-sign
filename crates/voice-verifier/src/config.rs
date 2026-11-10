@@ -54,14 +54,16 @@ pub const SPEAKER_PINNED_KEY_HEX: &str = "1f704027a643874bc8f4d9391065881cf66c9c
 /// The prefix of the preimage that the speaker service signs.
 pub const SPEAKER_EMBED_DOMAIN: &[u8] = b"seams:speaker-embedding:v1";
 
-/// The host of the model file for the `local-speaker` build, which fetches
-/// the model on each run. The worker refuses the bytes unless their SHA-256
-/// is the pinned digest, so the host is not trusted for the model. To move
+/// The host of the model file for the `local-speaker` build: FastFS, the
+/// file store on NEAR. The worker downloads the file only if its storage
+/// does not hold the model (`model_cache`). It refuses the bytes unless
+/// their SHA-256 is the pinned digest, so the host is not trusted for the
+/// model. To move
 /// the file, change this name and the same `host` in
 /// `manifest/outlayer-local-speaker.json` (a test checks that the two agree).
 macro_rules! model_host {
     () => {
-        "test.sign.seams.sh"
+        "test.fastfs.io"
     };
 }
 
@@ -93,7 +95,13 @@ pub struct SpeakerModel {
 pub const REDIMNET_B1: SpeakerModel = SpeakerModel {
     name: "redimnet-b1",
     sha256_hex: "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269",
-    url: concat!("https://", model_host!(), "/sdk/voiceid/redimnet-b1.onnx"),
+    // Uploaded from `seams-v1.testnet` on 2026-11-10 (9 transactions to
+    // `outlayer.testnet`; the first is HVcxZzvRH2ne3uq4cELgmHEBkhmf96nxM5uiFFztVvbw).
+    url: concat!(
+        "https://",
+        model_host!(),
+        "/seams-v1.testnet/outlayer.testnet/e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269.onnx"
+    ),
     bytes: 8_859_593,
     embedding_dim: 192,
     cutoff_milli: 450,

@@ -64,13 +64,28 @@ impl Host for WasmHost {
         use seams_voice_verifier::local_model::Model;
         use std::time::Instant;
 
-        let fetched = Instant::now();
-        let (status, bytes) = http_batch::get(REDIMNET_URL, REDIMNET_TIMEOUT_SECS, REDIMNET_BYTES)
-            .map_err(|error| format!("model fetch: {error}"))?;
-        if status != 200 {
-            return Err(format!("model fetch: status_{status}"));
+        /// The worker storage of the project, in plaintext: the model is
+        /// public, and a plaintext record needs no keystore call.
+        struct WorkerStore;
+        impl seams_voice_verifier::model_cache::ModelStore for WorkerStore {
+            fn get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
+                storage::get_worker(key).map_err(|error| error.to_string())
+            }
+            fn set(&mut self, key: &str, value: &[u8]) -> Result<(), String> {
+                storage::set_worker_with_options(key, value, Some(false)).map_err(|error| error.to_string())
+            }
         }
-        let model = Model::check(bytes)?;
+
+        let fetched = Instant::now();
+        let (pinned, model_cached) = seams_voice_verifier::model_cache::load(&mut WorkerStore, || {
+            let (status, bytes) = http_batch::get(REDIMNET_URL, REDIMNET_TIMEOUT_SECS, REDIMNET_BYTES)
+                .map_err(|error| format!("model fetch: {error}"))?;
+            if status != 200 {
+                return Err(format!("model fetch: status_{status}"));
+            }
+            Ok(bytes)
+        })?;
+        let model = Model::new(pinned);
         let fetch_ms = fetched.elapsed().as_millis() as u64;
         let ran = Instant::now();
         let mut embeddings = Vec::with_capacity(clips.len());
@@ -80,7 +95,12 @@ impl Host for WasmHost {
             // times do not include the next model run.
             self.post_poll();
         }
-        Ok(seams_voice_verifier::host::LocalEmbeddings { embeddings, fetch_ms, run_ms: ran.elapsed().as_millis() as u64 })
+        Ok(seams_voice_verifier::host::LocalEmbeddings {
+            embeddings,
+            fetch_ms,
+            model_cached,
+            run_ms: ran.elapsed().as_millis() as u64,
+        })
     }
 
     fn random32(&mut self) -> Result<[u8; 32], String> {

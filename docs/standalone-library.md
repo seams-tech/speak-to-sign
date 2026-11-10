@@ -523,14 +523,17 @@ Consequences:
 
 | | Default | `local-speaker` |
 | --- | --- | --- |
-| Outside NEAR | Phala (speaker) | The host of the model file |
+| Outside NEAR | Phala (speaker) | Nothing |
 | Trust in that host | Its key and its quote | None: the worker pins the SHA-256 of the file |
 | WASM | about 0.45 MB | about 8.3 MB |
 | Speed | Fast | Slower: Gate 0 measured 8 to 13 s of fixed time for a worker of this size |
 
-The model file is on `test.sign.seams.sh` today. To be only on NEAR
-infrastructure, put the file on FastFS and change `config::REDIMNET_B1.url`
-and the manifest. That is an upload, so it is not done.
+The model file is on FastFS since 2026-11-10 (decision of the owner):
+`https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/e04dd7a6…4269.onnx`.
+The worker keeps the model in its OutLayer storage and downloads it only if
+the storage does not hold it (`crates/voice-verifier/src/model_cache.rs`).
+So the `local-speaker` variant uses only NEAR infrastructure: OutLayer,
+FastFS and NEAR AI. The storage path did not run on OutLayer yet.
 
 ### 4.5 Not done, and why
 
@@ -669,7 +672,10 @@ built yet.
 
 ### 5.5 Open questions
 
-1. **The name `speak-to-sign`.** The Wallet plugin has this name and needs
+1. **The name `speak-to-sign`.** Answered by the owner: the top layer takes
+   the name `@seams/speak-to-sign`, and the Wallet plugin moves to a second
+   package. The text below is the question as it was.
+   The Wallet plugin has this name and needs
    `@seams/wallet` and `@seams/voiceid` as peers. The standalone top layer
    must install with no wallet. Options:
    - the top layer takes the name `@seams/speak-to-sign`, and the plugin
@@ -678,7 +684,8 @@ built yet.
    The first option keeps the installs clean. It changes the import of the
    Wallet host.
 2. May verifier 0.8.0 go to OutLayer testnet, in both variants?
-3. May the model file of `local-speaker` go to FastFS?
+3. Answered: the model file is on FastFS, and the worker keeps it in its
+   storage.
 4. Is a second OutLayer account available, to measure a call with another
    payment key?
 5. Which other speaker models do you want first?

@@ -43,7 +43,8 @@ pub(super) struct Flight<T> {
 ///
 /// With `local` clips (the `local-speaker` build), the model inside the
 /// worker runs on them after the storage step, while the requests are still
-/// in flight. It records the stages `model_fetch` and `redimnet`.
+/// in flight. It records the stages `model_fetch`, `model_cached` (1 or 0)
+/// and `redimnet`.
 pub(super) fn in_flight<T>(
     host: &mut dyn Host,
     ms: &mut Stages,
@@ -68,6 +69,7 @@ pub(super) fn in_flight<T>(
         let embedded = host.embed_local(&pcm);
         if let Ok(done) = &embedded {
             ms.record("model_fetch", done.fetch_ms);
+            ms.record("model_cached", u64::from(done.model_cached));
             ms.record("redimnet", done.run_ms);
         }
         embedded

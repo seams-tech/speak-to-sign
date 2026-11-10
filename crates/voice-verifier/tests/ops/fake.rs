@@ -225,7 +225,7 @@ impl Host for Fake {
                 self.voices.get(&digest).cloned().unwrap_or_else(|| embedding(0, 0.0))
             })
             .collect();
-        Ok(LocalEmbeddings { embeddings, fetch_ms: 300, run_ms: 1_500 })
+        Ok(LocalEmbeddings { embeddings, fetch_ms: 300, model_cached: true, run_ms: 1_500 })
     }
     fn random32(&mut self) -> Result<[u8; 32], String> {
         Ok([0x5a; 32])

@@ -28,6 +28,7 @@ pub mod host;
 pub mod input;
 #[cfg(feature = "local-speaker")]
 pub mod local_model;
+pub mod model_cache;
 pub mod ops;
 pub mod output;
 pub mod policy;

@@ -3,7 +3,7 @@
   "operations": ["enroll", "verify", "select", "transcribe"],
   "capabilities": {
     "network": [
-      { "host": "test.sign.seams.sh", "timeout_secs": 30 },
+      { "host": "test.fastfs.io", "timeout_secs": 30 },
       { "host": "cloud-api.near.ai", "timeout_secs": 30 },
       { "host": "test.rpc.fastnear.com", "timeout_secs": 10 }
     ]

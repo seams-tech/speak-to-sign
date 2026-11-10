@@ -29,6 +29,7 @@ fn enroll_runs_the_model_in_the_worker() {
     assert_eq!(fake.events[..6], ["start", "get", "marker_get", "marker_get", "marker_get", "embed_local"]);
     assert_eq!(fake.events[6], "wait");
     assert_eq!(out["ms"]["model_fetch"], 300);
+    assert_eq!(out["ms"]["model_cached"], 1);
     assert_eq!(out["ms"]["redimnet"], 1_500);
     assert_eq!(out["ms"]["speaker"], Value::Null);
 }

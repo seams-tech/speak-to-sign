@@ -129,7 +129,7 @@ payment key).
 | Build | `./build.sh` | `./build.sh --local-speaker` |
 | Speaker model | In the speaker service (Phala), signed embeddings | Inside the worker, in `tract` (`src/local_model.rs`) |
 | Manifest | `manifest/outlayer.json` | `manifest/outlayer-local-speaker.json` |
-| Hosts | Phala, NEAR AI, NEAR RPC | the model host, NEAR AI, NEAR RPC |
+| Hosts | Phala, NEAR AI, NEAR RPC | FastFS (first run only), NEAR AI, NEAR RPC |
 | WASM (macOS arm64 build) | about 0.45 MB | about 8.3 MB |
 | Trust for the speaker | The Phala app and its pinned key | Only the worker and the pinned model digest |
 | Cost | A second service to operate and pay | More worker time for each call |
@@ -137,22 +137,63 @@ payment key).
 How the `local-speaker` variant works:
 
 - The model is 8,859,593 bytes, and OutLayer refuses a WASM of 10 MB or
-  more. So the model is not in the WASM. The worker fetches it on each run
-  from `config::REDIMNET_URL` and refuses bytes with another SHA-256 than
-  `config::SPEAKER_MODEL.sha256_hex`. The host of the file is not trusted.
+  more. So the model is not in the WASM.
+- The worker keeps the model in its OutLayer storage (`src/model_cache.rs`):
+  9 plaintext records of at most 1 MiB in the worker storage of the project,
+  with the keys `model:v1:<sha256>:<index>`. A run reads them and downloads
+  nothing.
+- If the storage does not hold the whole model, the worker downloads the
+  file from FastFS (`config::REDIMNET_URL`, host `test.fastfs.io`) and
+  writes the records for the next run. So the first run downloads, and the
+  later runs do not. A failed write does not fail the run.
+- Every run checks the SHA-256 of the bytes against
+  `config::SPEAKER_MODEL.sha256_hex`, from the storage and from a download.
+  Other bytes count as "not stored". So neither the storage nor the host of
+  the file is trusted.
+- The device of the user downloads nothing in either variant. Only the
+  worker reads the model.
 - `verify` sends only the NEAR AI request. After the storage calls, it runs
   the model while that request is in flight (`Host::embed_local`). `enroll`
   runs the model three times while the access-key request is in flight.
 - A failure of the download or of the model refuses with
   `speaker_unavailable`.
-- The stage times have `model_fetch` and `redimnet` (the model runs), and no
-  `speaker`.
+- The stage times have `model_fetch` (the read of the storage, or the
+  download), `model_cached` (1 if no download was necessary) and `redimnet`
+  (the model runs), and no `speaker`.
 
-Not measured yet: this variant did not run on OutLayer. The Gate 0 probe of
-the same design (`research/gate0/voice-probe`, same `tract` version, same
-model) measured on OutLayer testnet: 0.26 to 0.83 s for the download, 1.1 to
-1.7 s for the model on 8 s of audio, and 8 to 13 s of fixed time for a worker
-of 8 MB, against about 0.7 s for a small worker. Expect the same order here.
+The model file on FastFS (uploaded from `seams-v1.testnet` on 2026-11-10,
+9 transactions to `outlayer.testnet`, the first is
+`HVcxZzvRH2ne3uq4cELgmHEBkhmf96nxM5uiFFztVvbw`):
+
+```sh
+curl -s https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269.onnx | shasum -a 256
+```
+
+To upload a model file again, or another model:
+
+```sh
+python3 -I scripts/fastfs_chunks.py redimnet-b1.onnx chunks onnx application/octet-stream
+```
+
+Then send each chunk file as the arguments of `__fastdata_fastfs` on
+`outlayer.testnet` (`near contract call-function as-transaction ... file-args
+chunks/chunk-000.bin`). Each transaction fails with `MethodNotFound` by
+design: FastFS reads the arguments.
+
+Not measured yet: this variant did not run on OutLayer. Three points need a
+run there:
+
+- the size of one record that the worker storage accepts (the code uses
+  1 MiB; if the storage refuses it, each run downloads);
+- the time to read the 9 records, against the download. A download of the
+  file from FastFS took 3.3 to 4.7 s from a desktop computer;
+- if the worker storage is one for the project or one for each caller. With
+  one for each caller, the first run of each developer downloads.
+
+The Gate 0 probe of the same design (`research/gate0/voice-probe`, same
+`tract` version, same model) measured on OutLayer testnet: 1.1 to 1.7 s for
+the model on 8 s of audio, and 8 to 13 s of fixed time for a worker of 8 MB,
+against about 0.7 s for a small worker. Expect the same order here.
 
 Both variants declare the same signing key (`verdict`, `bind: "project"`).
 As two versions of one project, they sign with the same key. A verdict does
@@ -180,8 +221,9 @@ To use another model (for example another ReDimNet size):
 3. For the default variant, build the speaker service with the same file
    (`MODEL_SHA256` and `EMBEDDING_DIM` in `crates/speaker-service/src/lib.rs`)
    and pin its new key.
-4. For the `local-speaker` variant, serve the file at the URL and put its
-   host in `manifest/outlayer-local-speaker.json`. Check that `tract` loads
+4. For the `local-speaker` variant, upload the file to FastFS (see "Two
+   variants") and set its URL. The storage keys name the digest, so the new
+   model has its own records. Check that `tract` loads
    the model: ReDimNet B1 needs the typed plan with no declutter pass.
 5. Build. The WASM hash changes.
 

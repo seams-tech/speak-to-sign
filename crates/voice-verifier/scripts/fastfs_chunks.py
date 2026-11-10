@@ -1,8 +1,10 @@
 """Write FastFS upload payloads for one file, in the Borsh layout that
 outlayer-cli 0.2.1 (src/commands/upload.rs) sends to `__fastdata_fastfs`.
 
-Usage: python3 -I fastfs_chunks.py <file> <out-dir>
-Prints the relative path (<sha256>.wasm) and one payload file per line.
+Usage: python3 -I fastfs_chunks.py <file> <out-dir> [extension] [mime-type]
+Prints the relative path (<sha256>.<extension>) and one payload file per line.
+The default is a WASM (`wasm`, `application/wasm`). For the speaker model of
+the `local-speaker` worker: `onnx application/octet-stream`.
 """
 import hashlib
 import os
@@ -26,8 +28,9 @@ def main() -> None:
     path, out_dir = sys.argv[1], sys.argv[2]
     content = open(path, "rb").read()
     digest = hashlib.sha256(content).hexdigest()
-    relative = f"{digest}.wasm"
-    mime = "application/wasm"
+    extension = sys.argv[3] if len(sys.argv) > 3 else "wasm"
+    mime = sys.argv[4] if len(sys.argv) > 4 else "application/wasm"
+    relative = f"{digest}.{extension}"
     os.makedirs(out_dir, exist_ok=True)
     payloads = []
     if len(content) <= CHUNK:

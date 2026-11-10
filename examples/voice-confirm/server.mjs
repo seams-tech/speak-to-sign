@@ -8,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 
 import {
+  audioDigest,
   callVerifier,
   checkVerdict,
   confirmationRequest,
@@ -92,6 +93,13 @@ async function enroll(body) {
 async function confirm(body) {
   const owner = ownerOf(body.user);
   if (owner === null || typeof body.audio !== 'string') return [400, { error: 'bad_input' }];
+  // The verdict names the digest of the canonical WAV, not of the bytes that the page sent.
+  let recording;
+  try {
+    recording = await audioDigest(new Uint8Array(Buffer.from(body.audio, 'base64')));
+  } catch {
+    return [400, { error: 'bad_audio' }];
+  }
   const requests = await candidates(owner);
   const input = {
     op: 'select',
@@ -104,14 +112,13 @@ async function confirm(body) {
 
   // The output is not proof. The signed verdict is.
   const selected = Number.isInteger(output.selected) ? requests[output.selected] : undefined;
-  const audioDigest = createHash('sha256').update(Buffer.from(body.audio, 'base64')).digest();
   const result = await checkVerdict({
     verdictJson: output.verdict_json,
     signatureB64: output.signature_b64 ?? '',
     publicKey: fake ? fake.publicKey : config.publicKey,
     // With no selected request, no digest can match: a zero digest refuses an accept.
     requestDigest: selected?.digest ?? new Uint8Array(32),
-    audioDigest,
+    audioDigest: recording,
   });
   if (!result.ok) {
     const { code } = result.refusal;
@@ -153,7 +160,7 @@ function fakeVerifier() {
       const index = Number.isInteger(said) && said >= 0 && said < input.requests.length ? said : null;
       const owner = input.owner;
       const digest = index === null ? null : (await candidates(owner))[index].digest;
-      const audio = createHash('sha256').update(Buffer.from(input.audio_wav_b64, 'base64')).digest('base64url');
+      const audio = Buffer.from(await audioDigest(new Uint8Array(Buffer.from(input.audio_wav_b64, 'base64')))).toString('base64url');
       return signed(
         {
           kind: 'seams_voice_signed_verdict_v2',

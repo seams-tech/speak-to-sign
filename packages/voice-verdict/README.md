@@ -169,6 +169,11 @@ an action with value, show the sentence and use `verify` or `select`.
 
 ## Audio
 
+`audioDigest(wav)` gives the audio digest of a verdict for a WAV that you
+sent. The verifier writes the WAV again with a plain 44-byte header before
+it hashes it, so the digest is not the SHA-256 of your bytes. `audioDigest`
+does the same. Pass its result to `checkVerdict` as `audioDigest`.
+
 This package records no audio. Record the sentence with
 `@seams/voice-capture` (`recordVoice`, then `pcm16Wav`), and send the WAV to
 your server as standard base64. The verifier takes a 16 kHz mono PCM16 WAV of

@@ -2035,6 +2035,18 @@ h1.ss-display {
   border-right: 1px solid var(--line);
 }
 
+/* No scrollbars at the side of the screen: the page and the app scroll, and the sheet over the
+   hero shows where the visitor is. */
+.ss-spa,
+.ss-sheet .notes-app {
+  scrollbar-width: none;
+}
+
+.ss-spa::-webkit-scrollbar,
+.ss-sheet .notes-app::-webkit-scrollbar {
+  display: none;
+}
+
 /* Until the sheet is at the nav, a scroll over the app moves the page, not the app. At the top
    of the app, a scroll up goes on to the page and brings the hero back. */
 .ss-sheet .notes-app {

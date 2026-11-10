@@ -1,6 +1,8 @@
 import type {
   SpeakToSignMessageResult,
   SpeakToSignMessageSigning,
+  SpeakToSignNoteActionResult,
+  SpeakToSignNoteSigning,
   SpeakToSignPayment,
   SpeakToSignTransferResult,
   VerifierRefusal,
@@ -58,6 +60,23 @@ export function stageTimes(marks: StageMarks): SentResult['times'] {
     transactionMs: Math.round(marks.receiptAt - marks.verifiedAt),
     endOfSpeechToReceiptMs: Math.round(marks.receiptAt - marks.endOfSpeechAt),
   };
+}
+
+/** A transaction or a delegate action that core signed and did not send. */
+export type SignedNoteResult = Extract<
+  SpeakToSignNoteActionResult,
+  { kind: 'signed_transaction' | 'signed_delegate' }
+>;
+
+/** The result of a note action: a payment result, or a signature with its times. */
+export function mapNoteSigning(
+  signing: SpeakToSignNoteSigning,
+  times: SentResult['times'],
+): SpokenResult | SignedNoteResult {
+  if (signing.kind === 'signed_transaction' || signing.kind === 'signed_delegate') {
+    return { ...signing, times };
+  }
+  return mapPayment(signing, times);
 }
 
 /** A failure of a spoken message after the card opened. Core signs a message or signs nothing. */

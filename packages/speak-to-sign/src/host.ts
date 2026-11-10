@@ -4,7 +4,7 @@ import type {
   SpeakToSignHostEnrollment,
   SpeakToSignHostPlugin,
   SpeakToSignMessageResult,
-  SpeakToSignNoteResult,
+  SpeakToSignNoteActionResult,
   SpeakToSignTransferResult,
 } from '@seams/wallet/speak-to-sign-host';
 
@@ -28,7 +28,7 @@ async function requestTransfer(input: TransferInput): Promise<SpeakToSignTransfe
   return await runSpokenTransfer({ ...input, transfer: input.transfer });
 }
 
-async function requestNoteAction(input: NoteInput): Promise<SpeakToSignNoteResult> {
+async function requestNoteAction(input: NoteInput): Promise<SpeakToSignNoteActionResult> {
   input.signal.throwIfAborted();
   const { runSpokenNote } = await import('./host/flow');
   input.signal.throwIfAborted();

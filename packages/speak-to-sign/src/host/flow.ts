@@ -11,7 +11,7 @@ import {
   type SpeakToSignHostOperations,
   type SpeakToSignHostPlugin,
   type SpeakToSignMessageResult,
-  type SpeakToSignNoteResult,
+  type SpeakToSignNoteActionResult,
   type SpeakToSignPayment,
   type SpeakToSignPaymentHooks,
   type SpeakToSignPrompt,
@@ -29,12 +29,14 @@ import {
 import { recordClip, withPrompt } from './prompt';
 import {
   mapMessage,
+  mapNoteSigning,
   mapPayment,
   shortDetail,
   stageTimes,
   verifierUnavailable,
   type FailedResult,
   type MessageFailedResult,
+  type SignedNoteResult,
   type SpokenResult,
 } from './result';
 import { verifyInput } from './verifier';
@@ -150,7 +152,7 @@ export async function runSpokenTransfer(
  */
 export async function runSpokenNote(
   input: Pick<NoteInput, 'network' | 'signal' | 'note'>,
-): Promise<SpeakToSignNoteResult> {
+): Promise<SpeakToSignNoteActionResult> {
   const { note, signal } = input;
   const { action } = note;
   const refusal = noteActionRefusal(input.network, action);
@@ -170,12 +172,20 @@ export async function runSpokenNote(
         ...noteCopy(action, rendered.displayText),
         spokenText: rendered.spokenText,
       },
-      sign: async (output, signal, hooks, times) =>
-        settlePayment(
+      sign: async (output, signal, hooks, times) => {
+        const result = mapNoteSigning(
           await note.operations.signNoteWithVerdict(action, output, signal, hooks),
           times(),
-        ),
-      showDone: showPaid,
+        );
+        return result.kind === 'sent' ||
+          result.kind === 'signed_transaction' ||
+          result.kind === 'signed_delegate'
+          ? { kind: 'done', done: result }
+          : result;
+      },
+      // A signature that core did not send has no transaction to show.
+      showDone: (done: SentResult | SignedNoteResult, onCard) =>
+        done.kind === 'sent' ? onCard.paid(done.transactionHash) : onCard.signed(),
     },
     signal,
   );
@@ -386,11 +396,16 @@ function noteCopy(
       return { noun: 'approval', doneHeadline: 'Merge approved', doneCaption: displayText };
     case 'market_bet':
       return { noun: 'bet', doneHeadline: 'Bet placed', doneCaption: displayText };
-    case 'transaction':
+    case 'transaction': {
+      const receiver = action.transaction.receiverId;
+      if (action.delivery === 'send') {
+        return { noun: 'transaction', doneHeadline: 'Transaction sent', doneCaption: `To ${receiver}` };
+      }
       return {
-        noun: 'transaction',
-        doneHeadline: 'Transaction sent',
-        doneCaption: `To ${action.transaction.receiverId}`,
+        noun: 'signature',
+        doneHeadline: action.delivery === 'sign' ? 'Transaction signed' : 'Delegate action signed',
+        doneCaption: `For ${receiver}`,
       };
+    }
   }
 }

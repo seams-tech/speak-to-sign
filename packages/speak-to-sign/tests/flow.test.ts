@@ -357,3 +357,29 @@ test('a spoken message verifies the summary and lets core sign the message', asy
     }),
   ).toEqual({ kind: 'refused', reason: 'summary_not_speakable' });
 });
+
+test('a general transaction that core signs and does not send ends with the signature', async () => {
+  const action: SpokenNoteAction = {
+    kind: 'transaction',
+    transaction: { receiverId: 'guest-book.testnet', actions: [{ type: 'CreateAccount' } as never] },
+    actionsSha256: new Uint8Array(32).fill(3),
+    summary: 'Sign the guest book.',
+    delivery: 'sign',
+  };
+  const signed = { signedTransaction: {}, nearAccountId: 'owner.testnet' } as never;
+  const host = fakeHost({
+    signatures: [{ kind: 'signed_transaction', signed, approval: 'voice' }],
+  });
+  expect(await runSpokenNote(noteInput(host, action))).toMatchObject({
+    kind: 'signed_transaction',
+    signed,
+    approval: 'voice',
+  });
+  expect(host.verifyInputs[0]?.request).toEqual({
+    kind: 'transaction',
+    receiver: 'guest-book.testnet',
+    actions_sha256_hex: '03'.repeat(32),
+    summary: 'Sign the guest book.',
+  });
+  expect(host.views.at(-1)).toBe('result::Transaction signed:Done');
+});

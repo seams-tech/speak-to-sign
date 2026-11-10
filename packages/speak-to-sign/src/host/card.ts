@@ -51,6 +51,7 @@ export type CardNoun =
   | 'approval'
   | 'bet'
   | 'transaction'
+  | 'signature'
   | 'message';
 
 export type CardInput = Readonly<{
@@ -105,6 +106,12 @@ const NOUN_COPY: Readonly<
     failedDetail: 'Check the transaction and your balance, then try again.',
     unknownLabel: 'Check before you send again',
   },
+  signature: {
+    done: 'signed',
+    failedLabel: 'Not signed',
+    failedDetail: 'Nothing was signed. Try again.',
+    unknownLabel: 'Check before you sign again',
+  },
   message: {
     done: 'signed',
     failedLabel: 'Not signed',
@@ -152,7 +159,10 @@ export function sendingView(
   return {
     kind: 'check',
     label: 'Checking',
-    caption: input.noun === 'message' ? 'Signing with your account' : 'Sending from your account',
+    caption:
+      input.noun === 'message' || input.noun === 'signature'
+        ? 'Signing with your account'
+        : 'Sending from your account',
     details: [
       `${approval === 'voice' ? 'Signed by your Seams Wallet' : 'Approved with your passkey'} · ${NETWORKS[input.network].name}`,
     ],

@@ -231,6 +231,32 @@ const sent = await seams.speakToSign.requestTransaction({
   `transaction_failed`.
 - It needs verifier 0.8.0 or later, and Wallet host API 10.
 
+### Sign only, and delegate actions
+
+`requestSignedTransaction` takes the same request and returns the signed
+transaction without sending it, as `near.signTransaction` does.
+`near.sendTransaction` sends it later.
+
+`requestDelegateAction` signs a NEP-366 delegate action, as
+`near.signDelegateAction` does. A relayer sends its actions for the owner.
+
+```ts
+const signed = await seams.speakToSign.requestSignedTransaction({ walletId, transaction, summary });
+// signed.kind === 'signed_transaction': signed.signed is the result of near.signTransaction
+
+const delegated = await seams.speakToSign.requestDelegateAction({
+  walletId,
+  delegate: { receiverId, actions, nonce, maxBlockHeight, publicKey },
+  summary,
+});
+// delegated.kind === 'signed_delegate': delegated.signed is the result of near.signDelegateAction
+```
+
+- The verdict binds the receiver and the actions in each of the three calls.
+  One verdict signs once: as a sent transaction, a signed transaction or a
+  delegate action.
+- The Wallet sets the sender of a delegate action to the owner's account.
+
 ## Any NEP-413 message
 
 `requestMessage` signs a NEP-413 message by voice, as `near.signMessage` does

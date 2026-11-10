@@ -4,6 +4,7 @@
 
 import type {
   SpeakToSignHostOperations,
+  SpeakToSignNoteSigning,
   SpeakToSignPayment,
   SpeakToSignPrompt,
   SpokenNoteAction,
@@ -45,6 +46,8 @@ export type FakeHostOptions = {
   reply?: VerifyReply;
   /** Core's outcome of each payment or note, in order. The default sends it on the voice alone. */
   outcomes?: readonly SpeakToSignPayment[];
+  /** Core's outcome of each note action that is not a payment: a signature that it did not send. */
+  signatures?: readonly SpeakToSignNoteSigning[];
   /** The accounts that do not exist on the network. */
   missing?: readonly string[];
   /** Core's enrollment authorization. A flow that asks for one without it fails. */
@@ -79,6 +82,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
   const clips = [...(options.clips ?? [])];
   const choices = [...(options.choices ?? [])];
   const outcomes = [...(options.outcomes ?? [])];
+  const signatures = [...(options.signatures ?? [])];
   let recordings = 0;
   const host: FakeHost = {
     sentences: [],
@@ -152,9 +156,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
         host.events.push('sign note');
         host.notes.push({ action, output });
         const payment =
+          signatures.shift() ??
           outcomes.shift() ??
           ({ kind: 'executed', transactionHash: 'tx-note', approval: 'voice' } as const);
-        if (payment.kind === 'executed') hooks.accepted();
+        if (payment.kind !== 'refused' && payment.kind !== 'unavailable') hooks.accepted();
         return payment;
       },
       async signMessageWithVerdict(action, output, _signal, hooks) {

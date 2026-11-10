@@ -2189,10 +2189,14 @@ h1.ss-display {
    on the dark ground. The strip moves back and blurs with the rest of the hero. */
 .ss-setup-strip {
   max-width: var(--col);
-  margin: -52px auto 0;
-  padding: 0 24px 50px;
+  /* The pills are in the middle of the page, with the same space above them (to the text) and
+     below them (to the sheet's edge): 47px each. The hero's text has 124px of padding under it,
+     and the sheet covers the last 28px of the hero. */
+  margin: -77px auto 0;
+  padding: 0 24px 75px;
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 10px 12px;
   font-size: 13.5px;
@@ -2438,9 +2442,11 @@ h1.ss-display {
   .ss-spa {
     --sheet-r: 22px;
   }
+  /* On a phone the pills are a list at the left, under the text: 25px above and below. */
   .ss-setup-strip {
-    margin-top: -36px;
-    padding: 0 16px 44px;
+    justify-content: flex-start;
+    margin-top: -39px;
+    padding: 0 16px 47px;
   }
   /* A phone has room for one step in the nav: the first that is not done. */
   .ss-nav-setup .step-done,

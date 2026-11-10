@@ -52,9 +52,9 @@ const REASONS: { icon: ReactNode; kicker: string; title: string; text: string }[
   },
   {
     icon: <IconHandOff size={20} stroke={1.8} />,
-    kicker: 'No confirm tap',
+    kicker: 'One breath',
     title: 'Your voice is the approval',
-    text: 'The wallet signs that one call. The permission ends after two minutes.',
+    text: 'Speech biometrics, cryptographically bound to the signature. One breath proves who you are and what you meant.',
   },
 ];
 

@@ -444,8 +444,10 @@ goes on down the feed: on this page the notes app does not scroll itself
 (`.ss-sheet .notes-app` in `showcase.css`), so one gesture is enough. The
 app's sticky parts (the tabs, the navigation, the right column) stick under
 the nav, and the phone's bottom bar sticks to the bottom of the screen. The
-part of the sheet above the nav's lower edge is cut off (`clip-path`, set in
-the scroll handler), so the hero's gradient stays behind the nav. A post
+scroll area (`.ss-scroll`) starts under the nav, and the field is a layer of
+its own behind the nav and the hero (`.ss-ground`). So nothing that scrolls
+can come behind the nav, with no script: the nav always shows the field, and
+the scroll area's round top corners are the sheet's corners at the nav. A post
 that opens starts at the top of the sheet.
 
 The app opens on the timeline. Its right column, "Signed by voice"

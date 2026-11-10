@@ -6,9 +6,11 @@
 // The hero has a moving grain field of the Seams site (./grain, the GrainField of seams-monorepo).
 // The nav's picker (FieldPicker) chooses one of its 14 gradients; the default is the field of the
 // Seams home hero.
-// The page is the one scroll area. The nav stays in place. The hero stays too, and the sheet
-// moves up over it like a sheet of paper, while the hero goes back a little, blurs and dims.
-// The same scroll then goes on down the feed: the notes app does not scroll itself here.
+// The page has three layers: the ground (the field, behind the nav and the hero), the nav, and
+// one scroll area that starts under the nav. In the scroll area, the hero's text stays in place
+// and the sheet moves up over it like a sheet of paper, while the hero goes back a little, blurs
+// and dims. The same scroll then goes on down the feed: the notes app does not scroll itself
+// here. Nothing that scrolls can come behind the nav, so the nav always shows the field.
 
 import { useEffect, useRef, useState } from 'react';
 import { IconBrandGithub } from '@tabler/icons-react';
@@ -34,6 +36,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
   // The sheet covers most of the hero: the setup steps show in the nav.
   const [covered, setCovered] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   // The sheet is at the nav or past it: only the nav's strip of the field shows.
@@ -41,56 +44,53 @@ export function NotesPage({ seams }: { seams: boolean }) {
   const field = useHeroField();
   const fieldStyle = { '--field-base': grainFieldSource(field).base, '--field-scrim': fieldScrim(field) } as CSSProperties;
 
-  /** How far the page scrolls until the sheet is at the nav. */
-  const coverDistance = () => {
-    const page = pageRef.current;
-    const sheet = sheetRef.current;
-    if (!page || !sheet) return 0;
-    const nav = page.querySelector<HTMLElement>('.ss-nav');
-    return Math.max(0, sheet.offsetTop - (nav?.offsetHeight ?? 0));
-  };
+  /** How far the scroll area scrolls until the sheet is at the nav. */
+  const coverDistance = () => sheetRef.current?.offsetTop ?? 0;
 
-  // The page's scroll position drives the hero (--cover: 0 = open, 1 = covered).
+  // The scroll position drives the hero (--cover: 0 = open, 1 = covered).
   useEffect(() => {
-    const page = pageRef.current;
+    const scroller = scrollRef.current;
     const hero = heroRef.current;
-    if (!page || !hero) return;
+    if (!scroller || !hero) return;
     // The work is one style write, so it runs in the scroll event itself. A frame callback does
     // not run while the tab is in the background.
     const update = () => {
       const distance = coverDistance();
-      const cover = distance > 0 ? Math.min(1, Math.max(0, page.scrollTop / distance)) : 1;
+      const cover = distance > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / distance)) : 1;
       hero.style.setProperty('--cover', cover.toFixed(3));
       setCovered(cover >= COVERED_AT);
       setDocked(cover >= 0.999);
-      // The nav has no ground of its own: the top of the hero shows behind it. When the feed
-      // scrolls on, the sheet would go up behind the nav and hide that strip. So the part of
-      // the sheet above the nav's lower edge is cut off, with the sheet's round corners.
-      const sheet = sheetRef.current;
-      const nav = page.querySelector<HTMLElement>('.ss-nav');
-      if (sheet && nav) {
-        const above = nav.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top;
-        sheet.style.clipPath = above > 0 ? `inset(${above.toFixed(1)}px 0 0 0 round var(--sheet-r) var(--sheet-r) 0 0)` : '';
-      }
     };
     update();
-    page.addEventListener('scroll', update, { passive: true });
+    scroller.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
     return () => {
-      page.removeEventListener('scroll', update);
+      scroller.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
+  }, []);
+
+  // The ground is as high as the nav and the hero. The hero's height follows its content.
+  useEffect(() => {
+    const page = pageRef.current;
+    const hero = heroRef.current;
+    if (!page || !hero) return;
+    const measure = () => page.style.setProperty('--hero-h', `${hero.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(hero);
+    return () => observer.disconnect();
   }, []);
 
   // A new page of the app (a post, or back to the timeline) starts at the top of the sheet. A
   // post that opens while the hero shows moves the sheet up, so the post has the whole screen.
   useEffect(() => {
     const onHash = () => {
-      const page = pageRef.current;
-      if (!page) return;
+      const scroller = scrollRef.current;
+      if (!scroller) return;
       const top = coverDistance();
-      if (page.scrollTop > top) page.scrollTo({ top });
-      else if (/^#\/notes\/post\//.test(window.location.hash)) page.scrollTo({ top, behavior: 'smooth' });
+      if (scroller.scrollTop > top) scroller.scrollTo({ top });
+      else if (/^#\/notes\/post\//.test(window.location.hash)) scroller.scrollTo({ top, behavior: 'smooth' });
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -99,6 +99,10 @@ export function NotesPage({ seams }: { seams: boolean }) {
   return (
     <>
       <div className="ss-page ss-spa" ref={pageRef} style={fieldStyle}>
+        <div className="ss-ground" aria-hidden="true">
+          {/* While the sheet is at the nav, only the nav's strip of the field shows: it holds still. */}
+          <GrainField field={field} pace={HERO_FIELD_PACE} playing={!docked} />
+        </div>
         <header className="ss-nav">
           <div className="ss-nav-inner">
             <a className="ss-brand" href="/">
@@ -118,9 +122,8 @@ export function NotesPage({ seams }: { seams: boolean }) {
           </div>
         </header>
 
+        <div className="ss-scroll" ref={scrollRef}>
         <section className="ss-hero" ref={heroRef} aria-labelledby="hero-title">
-          {/* While the sheet is at the nav, only the nav's strip of the field shows: it holds still. */}
-          <GrainField field={field} pace={HERO_FIELD_PACE} playing={!docked} />
           <div className="ss-hero-inner">
             <div className="ss-hero-text">
               <p className="ss-hero-kicker">Seams voice signatures</p>
@@ -148,6 +151,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
             <LiveSlot id="notes" />
           </div>
         </main>
+        </div>
       </div>
 
       <LiveApps page="notes" seams={seams} onMultisigSignIn={() => setSignIn(true)} />

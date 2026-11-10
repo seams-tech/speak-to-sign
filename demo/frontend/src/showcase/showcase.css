@@ -1480,21 +1480,63 @@ h1.ss-display {
 
 .ss-spa {
   --nav-h: 44px;
+  --sheet-r: 28px;
+  position: relative;
   height: 100dvh;
   min-height: 0;
-  overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: none;
+  overflow: hidden;
   /* The mean colour of the hero's field (NotesPage sets it). */
   background: var(--field-base, #0f7fa9);
 }
 
-/* The nav has no ground of its own. It lies over the top of the hero, which goes on behind it.
-   When the sheet covers the hero, that top strip of the hero stays in sight, so the nav has the
-   hero's gradient then too. All parts of the nav are made for that ground. */
+/* The page has three layers. The ground is the field: it lies behind the nav and the hero, and
+   it does not scroll. The nav is over everything. The scroll area starts under the nav, so
+   nothing that scrolls can come behind the nav: the nav always shows the field. Its round top
+   corners are the corners of the sheet when the sheet is at the nav. */
+.ss-ground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* The nav and the hero (--hero-h, measured in NotesPage). */
+  height: calc(var(--nav-h) + var(--hero-h, 60dvh));
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+  /* The grainy field of the Seams Wallet site (wallet.seams.sh), as CSS. It shows only until
+     the first frame of the moving field, or without WebGL. */
+  background:
+    radial-gradient(55% 80% at 100% 100%, #e0b2b2 0%, rgba(224, 178, 178, 0) 70%),
+    radial-gradient(40% 70% at 92% 0%, #b79bb3 0%, rgba(183, 155, 179, 0) 72%),
+    radial-gradient(34% 60% at 40% -20%, #319dbd 0%, rgba(49, 157, 189, 0) 70%),
+    radial-gradient(55% 100% at 0% 55%, #02729c 0%, rgba(2, 114, 156, 0) 75%),
+    linear-gradient(100deg, #067aa5 0%, #1c84ad 36%, #5e8fad 62%, #a6a0bd 84%, #cfafbb 100%);
+}
+
+.ss-scroll {
+  position: absolute;
+  inset: var(--nav-h) 0 0 0;
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  border-radius: var(--sheet-r) var(--sheet-r) 0 0;
+  /* No scrollbar at the side of the screen: the sheet over the hero shows where the visitor is. */
+  scrollbar-width: none;
+}
+
+.ss-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* The nav has no ground of its own: the field of the ground shows behind it at all times. All
+   parts of the nav are made for that ground. */
 .ss-spa .ss-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   height: var(--nav-h);
-  /* Over the sheet (2) and the hero (1). */
   z-index: 20;
   background: none;
   backdrop-filter: none;
@@ -1804,34 +1846,19 @@ h1.ss-display {
   --cover: 0;
   position: sticky;
   top: 0;
-  /* The hero starts behind the nav. */
-  margin-top: calc(-1 * var(--nav-h));
-  padding-top: var(--nav-h);
   z-index: 1;
   overflow: hidden;
-  isolation: isolate;
   color: #ffffff;
-  /* The grainy field of the Seams Wallet site (wallet.seams.sh): a deep cyan blue on the left
-     that goes through a grey blue to a soft rose at the right. The colours are samples of that
-     site's field. The text is on the blue side. */
-  background:
-    radial-gradient(55% 80% at 100% 100%, #e0b2b2 0%, rgba(224, 178, 178, 0) 70%),
-    radial-gradient(40% 70% at 92% 0%, #b79bb3 0%, rgba(183, 155, 179, 0) 72%),
-    radial-gradient(34% 60% at 40% -20%, #319dbd 0%, rgba(49, 157, 189, 0) 70%),
-    radial-gradient(55% 100% at 0% 55%, #02729c 0%, rgba(2, 114, 156, 0) 75%),
-    linear-gradient(100deg, #067aa5 0%, #1c84ad 36%, #5e8fad 62%, #a6a0bd 84%, #cfafbb 100%);
 }
 
-/* The moving grain field (GrainField, a canvas) lies under everything in the hero. Its shader
-   draws the grain. The CSS gradient of .ss-hero shows only until its first frame, or without
-   WebGL. */
-.ss-hero > .grain-field {
+/* The moving grain field (GrainField, a canvas) fills the ground. Its shader draws the grain. */
+.ss-ground > .grain-field {
   z-index: -2;
 }
 
-/* A soft shade over the left of the hero, where the text is. A light field gets more of it
+/* A soft shade over the left of the ground, where the text is. A light field gets more of it
    (--field-scrim, 0 to 0.34), so the white text and the nav stay readable on every field. */
-.ss-hero::before {
+.ss-ground::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -2024,7 +2051,6 @@ h1.ss-display {
 .ss-sheet {
   position: relative;
   z-index: 2;
-  --sheet-r: 28px;
   min-height: calc(100dvh - var(--nav-h));
   margin-top: calc(-1 * var(--sheet-r));
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
@@ -2166,21 +2192,22 @@ h1.ss-display {
   overflow: visible;
 }
 
-/* What the app measured from its own scroll box, it now measures from the screen under the nav. */
+/* What the app measured from its own scroll box, it now measures from the page's scroll area,
+   which is the screen under the nav. So its sticky parts stick at the top of that area. */
 .ss-sheet .layout,
 .ss-sheet .column {
   min-height: calc(100dvh - var(--nav-h));
 }
 
 .ss-sheet .rail {
-  top: var(--nav-h);
+  top: 0;
   height: calc(100dvh - var(--nav-h));
 }
 
 .ss-sheet .side,
 .ss-sheet .page-head,
 .ss-sheet .tabs {
-  top: var(--nav-h);
+  top: 0;
 }
 
 /* The app's width container is the containing block of its fixed parts, and it is as long as
@@ -2200,18 +2227,9 @@ h1.ss-display {
   align-items: flex-end;
 }
 
-/* No scrollbar at the side of the screen: the sheet over the hero shows where the visitor is. */
-.ss-spa {
-  scrollbar-width: none;
-}
-
-.ss-spa::-webkit-scrollbar {
-  display: none;
-}
-
 @media (max-width: 860px) {
   /* One column: the text is across the whole width, so the rose stays in the lower right corner. */
-  .ss-hero {
+  .ss-ground {
     background:
       radial-gradient(70% 45% at 100% 100%, #e0b2b2 0%, rgba(224, 178, 178, 0) 70%),
       radial-gradient(60% 30% at 80% -5%, #319dbd 0%, rgba(49, 157, 189, 0) 70%),
@@ -2238,7 +2256,7 @@ h1.ss-display {
   .ss-sig-call {
     display: none;
   }
-  .ss-sheet {
+  .ss-spa {
     --sheet-r: 22px;
   }
   .ss-setup-strip {

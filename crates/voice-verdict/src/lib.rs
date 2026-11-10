@@ -118,6 +118,29 @@ pub enum Refusal {
     AudioMismatch(Box<Verdict>),
 }
 
+/// The text of a refusal, for a log or a contract panic. The demo contracts
+/// panic with it, so their tests name these texts.
+impl core::fmt::Display for Refusal {
+    fn fmt(&self, out: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::BadSignatureEncoding => {
+                out.write_str("signature_b64 must be standard base64 of 64 bytes")
+            }
+            Self::BadSignature => {
+                out.write_str("the verdict signature does not match the verifier key")
+            }
+            Self::Malformed(error) => write!(out, "verdict_json is not a verdict: {error}"),
+            Self::WrongKind(_) => write!(out, "the verdict kind must be {VERDICT_KIND}"),
+            Self::Refused(_) | Self::StepUp(_) => {
+                out.write_str("the verdict outcome must be accept")
+            }
+            Self::Expired(_) => out.write_str("the verdict has expired"),
+            Self::RequestMismatch(_) => out.write_str("the verdict is for another request"),
+            Self::AudioMismatch(_) => out.write_str("the verdict is for another recording"),
+        }
+    }
+}
+
 /// What the checker expects.
 #[derive(Clone, Copy, Debug)]
 pub struct Check<'a> {

@@ -42,6 +42,11 @@ let verdict = voice_verdict::check_verdict_with(
 );
 ```
 
+The two demo contracts do this (`demo/contracts/voice-multisig/src/verdict.rs`
+and `demo/contracts/jev-prediction-market/src/verdict.rs`). They panic with
+the text of the `Refusal` (its `Display`), for example "the verdict has
+expired".
+
 A contract needs:
 
 - the 32-byte verifier key in its state, and a guarded method to change it;

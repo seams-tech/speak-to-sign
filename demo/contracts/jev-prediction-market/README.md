@@ -39,6 +39,10 @@ and signs a verdict. The bet's `msg` carries `verdict_json` and
   (`SpokenRequestV1::MarketBet` in `../../../crates/spoken-intent/`);
 - the verdict was not used before (a marker under `voice:used:<SHA-256>`).
 
+The verdict check is `check_verdict_with` of `seams-voice-verdict`
+(`../../../crates/voice-verdict/`) with the host's `ed25519_verify`, the
+same check as in the voice multisig contract.
+
 A refused bet fails, and the token sends the USDC back. A spoken amount is a
 whole number of cents. A new market and a claim need no voice.
 

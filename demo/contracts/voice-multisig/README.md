@@ -88,13 +88,17 @@ Rules:
   migration. The sandbox test checks this upgrade from the code that is
   deployed on testnet.
 
-A verdict is valid when all of these are true, in this order:
+A verdict is valid when all of these are true, in this order. The check is
+`check_verdict_with` of `seams-voice-verdict` (`crates/voice-verdict`), with
+the host's `ed25519_verify`; a failed check panics with the text of its
+`Refusal`.
 
 1. `signature_b64` is standard base64 of 64 bytes, and it is the ed25519
    signature of `SHA-256("seams:outlayer:voice-verdict:v2" || verdict_json
    bytes)` by the pinned verifier key.
-2. `verdict_json` is a JSON object with exactly the 13 verdict fields.
-3. `kind` is `seams_voice_signed_verdict_v2`.
+2. `verdict_json` is a JSON object, and its `kind` is
+   `seams_voice_signed_verdict_v2`.
+3. `verdict_json` has exactly the 13 verdict fields.
 4. `outcome` is `accept`. A `step_up` or `refuse` verdict fails.
 5. `expires_at_ms` is not before the block time.
 6. `request_digest` is the base64url (no padding) text of

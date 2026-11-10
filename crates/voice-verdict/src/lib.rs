@@ -297,3 +297,166 @@ pub fn parse_ed25519_key(text: &str) -> Option<[u8; 32]> {
     key.extend_from_slice(&bytes);
     key.try_into().ok()
 }
+
+// ---------------------------------------------------------------------------
+// The request of an application with no NEAR account.
+
+/// The Borsh tag of `SpokenRequestV1::Confirmation`.
+const CONFIRMATION_TAG: u8 = 10;
+
+/// The Borsh bytes of `SpokenRequestV1::Confirmation` of `spoken-intent`:
+/// an owner that the application names (`app:<id>`), a context, the SHA-256
+/// of any payload, and the summary that the owner says. Pass the bytes to
+/// [`request_digest`].
+///
+/// `None` for an owner or a context that the verifier refuses. The summary
+/// is not checked here: the verifier refuses one that it cannot speak.
+pub fn confirmation_borsh(
+    owner: &str,
+    context: &str,
+    payload_sha256: &[u8; 32],
+    summary: &str,
+) -> Option<Vec<u8>> {
+    let id = owner.strip_prefix("app:")?;
+    let owner_byte =
+        |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-:".contains(&byte);
+    let context_byte = |byte: u8| owner_byte(byte) || byte == b'/';
+    if id.is_empty() || owner.len() > 100 || !id.bytes().all(owner_byte) {
+        return None;
+    }
+    if context.is_empty() || context.len() > 64 || !context.bytes().all(context_byte) {
+        return None;
+    }
+    let mut bytes = alloc::vec![CONFIRMATION_TAG];
+    let mut string = |text: &str| {
+        bytes.extend_from_slice(&(text.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(text.as_bytes());
+    };
+    string(owner);
+    string(context);
+    bytes.extend_from_slice(payload_sha256);
+    let mut string = |text: &str| {
+        bytes.extend_from_slice(&(text.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(text.as_bytes());
+    };
+    string(summary);
+    Some(bytes)
+}
+
+// ---------------------------------------------------------------------------
+// Signed transcripts (the operation `transcribe`).
+
+/// The prefix of the signed message of a transcript. It is not the prefix
+/// of a verdict.
+pub const TRANSCRIPT_DOMAIN: &[u8] = b"seams:outlayer:voice-transcript:v1";
+/// The kind of a signed transcript.
+pub const TRANSCRIPT_KIND: &str = "seams_voice_signed_transcript_v1";
+
+/// The 9 signed fields of a transcript: the voice of `owner` passed the
+/// speaker check on this audio, and the speech-to-text model heard `text`.
+/// A transcript approves no request.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Transcript {
+    pub kind: String,
+    pub verifier: String,
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub owner: Option<String>,
+    /// base64url with no padding.
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub audio_digest: Option<String>,
+    pub outcome: Outcome,
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub reason: Option<String>,
+    pub expires_at_ms: u64,
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub speaker_score_milli: Option<i32>,
+    /// Lowercase words, digits and apostrophes. Set only on `accept`.
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub text: Option<String>,
+}
+
+/// Why a transcript does not pass.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TranscriptRefusal {
+    BadSignatureEncoding,
+    BadSignature,
+    Malformed(String),
+    WrongKind(String),
+    /// The verifier refused. The transcript holds the reason.
+    Refused(Box<Transcript>),
+    Expired(Box<Transcript>),
+    /// The transcript is of another owner.
+    OwnerMismatch(Box<Transcript>),
+    AudioMismatch(Box<Transcript>),
+}
+
+/// `SHA-256(TRANSCRIPT_DOMAIN || transcript JSON bytes)`.
+pub fn transcript_message(transcript_json: &str) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(TRANSCRIPT_DOMAIN);
+    hasher.update(transcript_json.as_bytes());
+    hasher.finalize().into()
+}
+
+/// Checks a signed transcript with `ed25519-dalek`: signature, shape, kind,
+/// outcome, expiry, owner, audio digest. `owner` of `None` lets a transcript
+/// of any owner pass.
+///
+/// A transcript is weaker than a verdict: the verifier expected no sentence
+/// and made no word check. Do not let it approve an action with value.
+#[cfg(feature = "dalek")]
+pub fn check_transcript(
+    transcript_json: &str,
+    signature_b64: &str,
+    verifier_key: &[u8; 32],
+    now_ms: u64,
+    owner: Option<&str>,
+    audio_digest: Option<&[u8; 32]>,
+) -> Result<Transcript, TranscriptRefusal> {
+    let signature: [u8; 64] = STANDARD
+        .decode(signature_b64)
+        .ok()
+        .and_then(|bytes| bytes.try_into().ok())
+        .ok_or(TranscriptRefusal::BadSignatureEncoding)?;
+    let signed = ed25519_dalek::VerifyingKey::from_bytes(verifier_key)
+        .and_then(|key| {
+            key.verify_strict(
+                &transcript_message(transcript_json),
+                &ed25519_dalek::Signature::from_bytes(&signature),
+            )
+        })
+        .is_ok();
+    if !signed {
+        return Err(TranscriptRefusal::BadSignature);
+    }
+    use alloc::string::ToString;
+    #[derive(Deserialize)]
+    struct Kind {
+        kind: String,
+    }
+    let malformed = |error: serde_json::Error| TranscriptRefusal::Malformed(error.to_string());
+    let kind: Kind = serde_json::from_str(transcript_json).map_err(malformed)?;
+    if kind.kind != TRANSCRIPT_KIND {
+        return Err(TranscriptRefusal::WrongKind(kind.kind));
+    }
+    let transcript: Transcript = serde_json::from_str(transcript_json).map_err(malformed)?;
+    if transcript.outcome != Outcome::Accept {
+        return Err(TranscriptRefusal::Refused(Box::new(transcript)));
+    }
+    if transcript.owner.is_none() || transcript.text.is_none() {
+        return Err(TranscriptRefusal::Malformed(
+            "an accept with no owner or no text".to_string(),
+        ));
+    }
+    if transcript.expires_at_ms < now_ms {
+        return Err(TranscriptRefusal::Expired(Box::new(transcript)));
+    }
+    if owner.is_some_and(|owner| transcript.owner.as_deref() != Some(owner)) {
+        return Err(TranscriptRefusal::OwnerMismatch(Box::new(transcript)));
+    }
+    if audio_digest.is_some_and(|digest| !same_digest(transcript.audio_digest.as_deref(), digest)) {
+        return Err(TranscriptRefusal::AudioMismatch(Box::new(transcript)));
+    }
+    Ok(transcript)
+}

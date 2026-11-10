@@ -50,6 +50,16 @@ A contract needs:
 - its own guard against a second use of one verdict, if the action is not
   idempotent. A verdict has no nonce and passes again until it expires.
 
+## Other functions
+
+- `confirmation_borsh(owner, context, payload_sha256, summary)`: the Borsh
+  bytes of a request for an application owner (`app:<id>`). Pass them to
+  `request_digest`.
+- `check_transcript(...)`: the check of a signed transcript of the operation
+  `transcribe`. A transcript approves no request.
+
+The check of the TDX quote of a call is only in the TypeScript package.
+
 ## Test
 
 ```sh

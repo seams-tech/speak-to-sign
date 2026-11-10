@@ -294,3 +294,148 @@ fn the_request_digest_of_every_spoken_intent_vector() {
     assert!(plain >= 27 && multisig >= 7, "{plain} {multisig}");
     assert_eq!(request_digest(&[]), None);
 }
+
+const TRANSCRIPTS: &str = include_str!("../../voice-verifier/testdata/signed_transcript_v1.json");
+
+#[test]
+fn a_confirmation_has_the_bytes_and_the_digest_of_the_golden_vectors() {
+    use voice_verdict::confirmation_borsh;
+    let file: Value = serde_json::from_str(REQUESTS).unwrap();
+    // The fields of the `confirmation_*` cases of `spoken-intent/tests/vectors.rs`.
+    for (name, owner, context, summary) in [
+        (
+            "confirmation_login",
+            "app:user-42",
+            "shop.example/login",
+            "Log in to the example shop",
+        ),
+        (
+            "confirmation_order",
+            "app:shop.example:42",
+            "shop.example/checkout",
+            "Pay forty dollars for two books.",
+        ),
+        (
+            "confirmation_other_chain",
+            "app:u",
+            "eip155:1/transfer",
+            "Approve",
+        ),
+    ] {
+        let case = file["requests"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["name"] == name)
+            .unwrap();
+        let borsh = confirmation_borsh(owner, context, &[0x42; 32], summary).unwrap();
+        assert_eq!(hex(&borsh), case["borsh_hex"].as_str().unwrap(), "{name}");
+        assert_eq!(
+            hex(&request_digest(&borsh).unwrap()),
+            case["request_digest_hex"].as_str().unwrap(),
+            "{name}"
+        );
+    }
+    let long = format!("app:{}", "a".repeat(97));
+    for (owner, context) in [
+        ("alice.testnet", "login"),
+        ("app:", "login"),
+        ("app:User", "login"),
+        (long.as_str(), "login"),
+        ("app:u", ""),
+        ("app:u", "Shop"),
+    ] {
+        assert_eq!(
+            confirmation_borsh(owner, context, &[0; 32], "Log in"),
+            None,
+            "{owner} {context}"
+        );
+    }
+}
+
+#[test]
+fn the_signed_transcripts() {
+    use voice_verdict::{check_transcript, TranscriptRefusal};
+    let file: Value = serde_json::from_str(TRANSCRIPTS).unwrap();
+    let key = parse_ed25519_key(file["public_key"].as_str().unwrap()).unwrap();
+    let now = file["expires_at_ms"].as_u64().unwrap();
+    let case = |name: &str| {
+        let case = file["transcripts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["name"] == name)
+            .unwrap()
+            .clone();
+        (
+            case["transcript_json"].as_str().unwrap().to_string(),
+            case["signature_b64"].as_str().unwrap().to_string(),
+        )
+    };
+    let (json, signature) = case("accept");
+    let audio = [7u8; 32];
+    let transcript = check_transcript(
+        &json,
+        &signature,
+        &key,
+        now,
+        Some("app:user-42"),
+        Some(&audio),
+    )
+    .unwrap();
+    assert_eq!(
+        transcript.text.as_deref(),
+        Some("book a table for two at 8 o'clock please")
+    );
+    assert!(matches!(
+        check_transcript(&json, &signature, &key, now, Some("app:user-43"), None),
+        Err(TranscriptRefusal::OwnerMismatch(_))
+    ));
+    assert!(matches!(
+        check_transcript(&json, &signature, &key, now, None, Some(&[0; 32])),
+        Err(TranscriptRefusal::AudioMismatch(_))
+    ));
+    assert!(matches!(
+        check_transcript(&json, &signature, &key, now + 1, None, None),
+        Err(TranscriptRefusal::Expired(_))
+    ));
+    assert_eq!(
+        check_transcript(
+            &json.replace("two", "ten"),
+            &signature,
+            &key,
+            now,
+            None,
+            None
+        ),
+        Err(TranscriptRefusal::BadSignature)
+    );
+    let (refused, refused_signature) = case("refuse_speaker");
+    let Err(TranscriptRefusal::Refused(transcript)) =
+        check_transcript(&refused, &refused_signature, &key, now, None, None)
+    else {
+        panic!()
+    };
+    assert_eq!(transcript.reason.as_deref(), Some("speaker"));
+    // A transcript is not a verdict, and a verdict is not a transcript: one key, two prefixes.
+    assert_eq!(
+        check_verdict(&json, &signature, &key, &Check::at(0)),
+        Err(Refusal::BadSignature)
+    );
+    let verdict = super_case();
+    assert_eq!(
+        check_transcript(
+            &verdict.verdict_json,
+            &verdict.signature_b64,
+            &key,
+            0,
+            None,
+            None
+        ),
+        Err(TranscriptRefusal::BadSignature)
+    );
+}
+
+fn super_case() -> Case {
+    case("accept")
+}

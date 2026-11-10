@@ -814,3 +814,26 @@ For the Wallet repository: at the next release, the host must install
 `@seams/speak-to-sign-wallet` in place of `@seams/speak-to-sign`. The served
 paths (`/sdk/speak-to-sign/host.js`) and the command
 `seams-speak-to-sign-host` did not change.
+
+### 7.1 Still open after this round
+
+1. **A real voice.** Every testnet run used a synthetic voice. The example
+   page loads the capture library and asks for the microphone; no test
+   recorded a person through it.
+2. **A second payment key.** No call used a payment key of another account
+   than the Seams staging account.
+3. **Verifier 0.10.0 is not on OutLayer.** The builds on OutLayer do not
+   have the two number fixes of section 6.3.
+4. **`detect`** is not built.
+5. **The demo contracts keep their own `verdict.rs`.** A change of their
+   dependencies changes their code hash, and the root README pins the hash
+   of each deployed contract. So this needs a new deploy of each contract.
+6. **The check of the quote's signature chain to Intel** is not in the
+   package. `outlayer-verify` does it.
+7. **npm.** No package of this work is on npm. `@seams/speak-to-sign` is
+   `private` in its `package.json`, so that no release can publish the
+   library under the name of the plugin by accident.
+8. **The Wallet's TypeScript port** needs request tag 10 and the new rule
+   for `$` and `%` in a transcript. The golden file has vectors for both.
+9. **The plugin's own tests** fail against the published Wallet 0.65.0
+   (missing exports of Wallet 0.66.0). This was so before the move.

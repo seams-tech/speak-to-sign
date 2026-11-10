@@ -460,9 +460,12 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   one of the site's gradients: Light mode (Apricot Beam, the default) and
   Dark mode (Onyx Black, with X's black, Lights out). The theme picker
   (`ThemePicker.tsx`, `theme.ts`), in the nav's brand pill, is a round button with a picture of the field. It opens a menu of
-  the two, each with a picture; the arrow keys change the theme as they move.
-  The choice stays in this browser (`localStorage`), and `?theme=light` or
-  `?theme=dark` picks one for a link. The page puts it on the root element as `data-theme`. The
+  three choices, each with a picture: the two themes, and System, which follows the
+  system's light or dark setting (`prefers-color-scheme`) and changes when it changes.
+  The arrow keys change the theme as they move.
+  The choice stays in this browser (`localStorage`), and `?theme=light`,
+  `?theme=dark` or `?theme=system` picks one for a link. The page puts the theme (light or dark)
+  on the root element as `data-theme`. The
   dark colours are tokens in `src/styles.css`, for the notes app, its dialogs
   and the sheet; the hero and the nav do not change. A light field gets a soft dark shade
   on the left (`--field-scrim`), so the white text stays readable. NEAR's N

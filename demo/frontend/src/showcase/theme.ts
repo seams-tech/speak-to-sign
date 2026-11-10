@@ -1,14 +1,16 @@
 // The theme of the Community Notes page: light, or dark as on X. Each theme has one of the Seams
 // site's grain fields (./grain) for the hero, and colours for the notes app.
-// The nav has a picker for the themes (ThemePicker). The choice is a per-visitor convenience: it
-// stays in this browser's localStorage, and `?theme=<name>` in the address picks one for a shared
-// link. The page puts the theme on the root element as `data-theme`, so the notes app's dialogs,
-// which open on document.body, follow it too. The hero and the nav keep their own colours.
+// The nav has a picker (ThemePicker) with three choices: Light mode, Dark mode, and System, which
+// follows the light or dark setting of the visitor's system and changes when that setting changes.
+// The choice is a per-visitor convenience: it stays in this browser's localStorage, and
+// `?theme=<choice>` in the address picks one for a shared link. The page puts the theme (light or
+// dark, never "system") on the root element as `data-theme`, so the notes app's dialogs, which
+// open on document.body, follow it too. The hero and the nav keep their own colours.
 
 import { useSyncExternalStore } from 'react';
 import { grainFieldSource, type GrainFieldName } from './grain/fields';
 
-/** The themes, in the picker's order. "Dark mode" is X's black (Lights out). */
+/** The themes. "Dark mode" is X's black (Lights out). */
 export const THEMES = {
   light: { label: 'Light mode', field: 'apricot-beam' },
   dark: { label: 'Dark mode', field: 'onyx-black' },
@@ -16,55 +18,81 @@ export const THEMES = {
 
 export type ThemeName = keyof typeof THEMES;
 
-export const THEME_NAMES = Object.keys(THEMES) as ThemeName[];
+/** The picker's choices, in its order: a theme, or the system's setting. */
+export const THEME_CHOICES = ['light', 'dark', 'system'] as const;
 
-/** The theme of the page until the visitor picks another. */
-const DEFAULT_THEME: ThemeName = 'light';
+export type ThemeChoice = (typeof THEME_CHOICES)[number];
+
+export function choiceLabel(choice: ThemeChoice): string {
+  return choice === 'system' ? 'System' : THEMES[choice].label;
+}
+
+/** The choice of the page until the visitor picks another. */
+const DEFAULT_CHOICE: ThemeChoice = 'light';
 
 const STORAGE_KEY = 'speak-to-sign:theme';
 
-function isThemeName(value: string | null): value is ThemeName {
-  return value !== null && Object.hasOwn(THEMES, value);
+const SYSTEM_DARK = '(prefers-color-scheme: dark)';
+
+function isThemeChoice(value: string | null): value is ThemeChoice {
+  return THEME_CHOICES.some((choice) => choice === value);
 }
 
-function firstTheme(): ThemeName {
+function firstChoice(): ThemeChoice {
   const asked = new URLSearchParams(window.location.search).get('theme');
-  if (isThemeName(asked)) return asked;
+  if (isThemeChoice(asked)) return asked;
   try {
     const kept = localStorage.getItem(STORAGE_KEY);
-    if (isThemeName(kept)) return kept;
+    if (isThemeChoice(kept)) return kept;
   } catch {
     // No storage (a private window, or storage turned off).
   }
-  return DEFAULT_THEME;
+  return DEFAULT_CHOICE;
 }
 
-let current: ThemeName | null = null;
+let current: ThemeChoice | null = null;
 const listeners = new Set<() => void>();
 
-function read(): ThemeName {
-  current ??= firstTheme();
+function readChoice(): ThemeChoice {
+  current ??= firstChoice();
   return current;
 }
 
-export function setTheme(theme: ThemeName): void {
-  current = theme;
+function readTheme(): ThemeName {
+  const choice = readChoice();
+  if (choice !== 'system') return choice;
+  return window.matchMedia(SYSTEM_DARK).matches ? 'dark' : 'light';
+}
+
+/** Calls `onChange` when the choice changes, and when the system's setting changes. */
+function subscribe(onChange: () => void): () => void {
+  const system = window.matchMedia(SYSTEM_DARK);
+  listeners.add(onChange);
+  system.addEventListener('change', onChange);
+  return () => {
+    listeners.delete(onChange);
+    system.removeEventListener('change', onChange);
+  };
+}
+
+export function setTheme(choice: ThemeChoice): void {
+  current = choice;
   try {
-    localStorage.setItem(STORAGE_KEY, theme);
+    localStorage.setItem(STORAGE_KEY, choice);
   } catch {
     // The choice holds until the page closes.
   }
   for (const listener of listeners) listener();
 }
 
+/** The visitor's choice in the picker. */
+export function useThemeChoice(): ThemeChoice {
+  return useSyncExternalStore(subscribe, readChoice);
+}
+
+/** The theme that the page shows: for "System", the system's light or dark setting. */
 export function useTheme(): ThemeName {
-  return useSyncExternalStore(
-    (onChange) => {
-      listeners.add(onChange);
-      return () => listeners.delete(onChange);
-    },
-    read,
-  );
+  return useSyncExternalStore(subscribe, readTheme);
 }
 
 /**

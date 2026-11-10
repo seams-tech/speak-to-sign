@@ -5,7 +5,8 @@
 //
 // The hero has a moving grain field of the Seams site (./grain, the GrainField of seams-monorepo).
 // The nav's brand pill holds the name and the theme picker (ThemePicker): Light mode (the
-// default) and Dark mode. A theme sets the hero's field and the notes app's colours.
+// default), Dark mode, and System (the system's light or dark setting). A theme sets the hero's
+// field and the notes app's colours.
 // The page has three layers: the ground (the field, behind the nav and the hero), the nav, and
 // one scroll area that starts under the nav. In the scroll area, the hero's text stays in place
 // and the sheet moves up over it like a sheet of paper, while the hero goes back a little, blurs

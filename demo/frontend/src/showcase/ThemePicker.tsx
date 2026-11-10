@@ -1,28 +1,24 @@
-// The theme picker, in the nav's brand pill: a small round button with a picture of the hero's
-// grain field, which opens a menu of the page's themes, each with a picture of its field.
+// The theme picker, in the nav's brand pill: a small round button with a picture of the chosen
+// theme, which opens a menu of the page's choices: Light mode and Dark mode, each with a picture
+// of its grain field, and System, whose picture is half of each field.
 // The menu is a listbox: the arrow keys move through it and change the theme at once, Enter or
 // Escape closes it, and a click outside closes it too.
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { IconCheck } from '@tabler/icons-react';
 import { grainFieldSource, type GrainFieldName } from './grain/fields';
-import { setTheme, THEME_NAMES, THEMES, useTheme, type ThemeName } from './theme';
+import { choiceLabel, setTheme, THEME_CHOICES, THEMES, useThemeChoice, type ThemeChoice } from './theme';
 
-const thumbs = new Map<GrainFieldName, string>();
+const thumbs = new Map<ThemeChoice, string>();
 
-/**
- * A picture of a field: its 12 x 12 colour grid as a PNG. The browser smooths it when it scales
- * it up, so a small swatch shows the field's soft gradient.
- */
-function fieldThumb(field: GrainFieldName): string {
-  const kept = thumbs.get(field);
-  if (kept) return kept;
+/** A field's 12 x 12 colour grid on a canvas of 12 x 12 pixels. */
+function fieldCanvas(field: GrainFieldName): HTMLCanvasElement | null {
   const { grid } = grainFieldSource(field);
   const canvas = document.createElement('canvas');
   canvas.width = 12;
   canvas.height = 12;
   const context = canvas.getContext('2d');
-  if (!context) return '';
+  if (!context) return null;
   const image = context.createImageData(12, 12);
   for (let cell = 0; cell < 144; cell += 1) {
     image.data[cell * 4] = grid[cell * 3] ?? 0;
@@ -31,38 +27,82 @@ function fieldThumb(field: GrainFieldName): string {
     image.data[cell * 4 + 3] = 255;
   }
   context.putImageData(image, 0, 0);
+  return canvas;
+}
+
+/**
+ * The size of the System picture. It is larger than a field's grid, so the line between the two
+ * halves stays sharp when the browser scales the picture.
+ */
+const SPLIT_SIZE = 48;
+
+/**
+ * The System picture: the light field at the top left and the dark field at the bottom right,
+ * each smoothed to the picture's size.
+ */
+function splitCanvas(): HTMLCanvasElement | null {
+  const light = fieldCanvas(THEMES.light.field);
+  const dark = fieldCanvas(THEMES.dark.field);
+  const canvas = document.createElement('canvas');
+  canvas.width = SPLIT_SIZE;
+  canvas.height = SPLIT_SIZE;
+  const context = canvas.getContext('2d');
+  if (!light || !dark || !context) return null;
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(light, 0, 0, SPLIT_SIZE, SPLIT_SIZE);
+  context.beginPath();
+  context.moveTo(SPLIT_SIZE, 0);
+  context.lineTo(SPLIT_SIZE, SPLIT_SIZE);
+  context.lineTo(0, SPLIT_SIZE);
+  context.closePath();
+  context.clip();
+  context.drawImage(dark, 0, 0, SPLIT_SIZE, SPLIT_SIZE);
+  return canvas;
+}
+
+/**
+ * A picture of a choice as a PNG. A field's picture is its colour grid: the browser smooths it
+ * when it scales it up, so a small swatch shows the field's soft gradient.
+ */
+function choiceThumb(choice: ThemeChoice): string {
+  const kept = thumbs.get(choice);
+  if (kept) return kept;
+  const canvas = choice === 'system' ? splitCanvas() : fieldCanvas(THEMES[choice].field);
+  if (!canvas) return '';
   const url = canvas.toDataURL();
-  thumbs.set(field, url);
+  thumbs.set(choice, url);
   return url;
 }
 
-function Swatch({ field, className }: { field: GrainFieldName; className: string }) {
-  const thumb = fieldThumb(field);
+function Swatch({ choice, className }: { choice: ThemeChoice; className: string }) {
+  const thumb = choiceThumb(choice);
+  const base = grainFieldSource(THEMES[choice === 'system' ? 'light' : choice].field).base;
   return (
     <span
       className={className}
-      style={{ backgroundColor: grainFieldSource(field).base, backgroundImage: thumb ? `url(${thumb})` : undefined }}
+      style={{ backgroundColor: base, backgroundImage: thumb ? `url(${thumb})` : undefined }}
       aria-hidden="true"
     />
   );
 }
 
 export function ThemePicker() {
-  const theme = useTheme();
+  const choice = useThemeChoice();
   const [open, setOpen] = useState(false);
   // The option that the keyboard or the pointer is on.
-  const [active, setActive] = useState<ThemeName>(theme);
+  const [active, setActive] = useState<ThemeChoice>(choice);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const baseId = useId();
   const listId = `${baseId}-list`;
-  const optionId = (name: ThemeName) => `${baseId}-${name}`;
+  const optionId = (name: ThemeChoice) => `${baseId}-${name}`;
 
   // Opening puts the keyboard in the list, on the chosen theme.
   useEffect(() => {
     if (!open) return;
-    setActive(theme);
+    setActive(choice);
     listRef.current?.focus({ preventScroll: true });
     // Only when the menu opens: the chosen theme changes while it is open.
   }, [open]);
@@ -94,27 +134,27 @@ export function ThemePicker() {
   };
 
   // The arrow keys choose as they move, so the page shows each theme in turn.
-  const move = (to: ThemeName | undefined) => {
+  const move = (to: ThemeChoice | undefined) => {
     if (!to) return;
     setActive(to);
     setTheme(to);
   };
 
   const onListKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    const index = THEME_NAMES.indexOf(active);
-    const last = THEME_NAMES.length - 1;
+    const index = THEME_CHOICES.indexOf(active);
+    const last = THEME_CHOICES.length - 1;
     switch (event.key) {
       case 'ArrowDown':
-        move(THEME_NAMES[Math.min(last, index + 1)]);
+        move(THEME_CHOICES[Math.min(last, index + 1)]);
         break;
       case 'ArrowUp':
-        move(THEME_NAMES[Math.max(0, index - 1)]);
+        move(THEME_CHOICES[Math.max(0, index - 1)]);
         break;
       case 'Home':
-        move(THEME_NAMES[0]);
+        move(THEME_CHOICES[0]);
         break;
       case 'End':
-        move(THEME_NAMES[last]);
+        move(THEME_CHOICES[last]);
         break;
       case 'Enter':
       case ' ':
@@ -150,12 +190,12 @@ export function ThemePicker() {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={`Theme: ${THEMES[theme].label}`}
-        title={THEMES[theme].label}
+        aria-label={`Theme: ${choiceLabel(choice)}`}
+        title={choiceLabel(choice)}
         onClick={() => setOpen((value) => !value)}
         onKeyDown={onButtonKey}
       >
-        <Swatch field={THEMES[theme].field} className="ss-field-swatch" />
+        <Swatch choice={choice} className="ss-field-swatch" />
       </button>
       {open && (
         <div className="ss-field-menu">
@@ -172,12 +212,12 @@ export function ThemePicker() {
             aria-activedescendant={optionId(active)}
             onKeyDown={onListKey}
           >
-            {THEME_NAMES.map((name) => (
+            {THEME_CHOICES.map((name) => (
               <div
                 key={name}
                 id={optionId(name)}
                 role="option"
-                aria-selected={name === theme}
+                aria-selected={name === choice}
                 className={`ss-field-option ${name === active ? 'ss-field-option-active' : ''}`}
                 onPointerEnter={() => setActive(name)}
                 onClick={() => {
@@ -185,9 +225,9 @@ export function ThemePicker() {
                   close(true);
                 }}
               >
-                <Swatch field={THEMES[name].field} className="ss-field-thumb" />
-                <span className="ss-field-option-name">{THEMES[name].label}</span>
-                {name === theme && <IconCheck className="ss-field-check" size={15} stroke={2.4} aria-hidden="true" />}
+                <Swatch choice={name} className="ss-field-thumb" />
+                <span className="ss-field-option-name">{choiceLabel(name)}</span>
+                {name === choice && <IconCheck className="ss-field-check" size={15} stroke={2.4} aria-hidden="true" />}
               </div>
             ))}
           </div>

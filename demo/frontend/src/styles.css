@@ -426,6 +426,38 @@ code {
   border-radius: 9999px;
   background: var(--accent);
 }
+/* Tabs with one underline of their own (TabBar in Timeline.tsx): the underline slides from the
+   label of one tab to the next, and takes its width. .tabs-bar is as wide as one tab and moves
+   by whole tabs (--i of --n); its ::before is the underline, as wide as the label (--w), in
+   the middle. */
+.tabs-slide .tab-on span::after {
+  display: none;
+}
+.tabs-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: calc(100% / var(--n));
+  height: 4px;
+  display: flex;
+  justify-content: center;
+  transform: translateX(calc(100% * var(--i)));
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tabs-bar::before {
+  content: '';
+  width: var(--w);
+  border-radius: 9999px;
+  background: var(--accent);
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabs-bar,
+  .tabs-bar::before {
+    transition: none;
+  }
+}
 
 /* Buttons */
 .btn {

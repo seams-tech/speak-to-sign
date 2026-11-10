@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { FundsNeed } from './faucet/funds';
+import type { Post } from './data/posts';
 import type { Note, NotesStore } from './notes/types';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 
@@ -30,6 +31,10 @@ export interface DemoState {
   /** The signed-in NEAR account, if any. */
   account: string | undefined;
   notesByPost: Record<number, Note[]>;
+  /** The posts from X that can get a note (src/x/xPosts.ts), newest first. */
+  xPosts: Post[];
+  /** `error`: the posts service gave no posts. The timeline then shows the demo post only. */
+  xPostsState: 'loading' | 'ready' | 'error';
   loading: boolean;
   loadError: string | null;
   /** The ratings of the signed-in account, by note id. */

@@ -6,12 +6,14 @@ import { SetupPanel, WalletWait } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
 import { WriteNoteModal } from './components/WriteNoteModal';
 import { config } from './config';
-import { findPost, POSTS } from './data/posts';
+import { findPost, POSTS, registerPosts, type Post } from './data/posts';
 import { DemoContext, type DemoState, type PrepareNeeds, type Prepared, type PrepareStep } from './demoContext';
 import { covers, ensureFunds, fundsProblem, peekFunds, readFunds } from './faucet/funds';
 import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { routeKey, START_POST_ID, useRoute } from './router';
+import { Timeline } from './x/Timeline';
+import { loadXPosts } from './x/xPosts';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 import { SETUP_CHANGED, setUpVoice, voiceIsSetUp, type VoicePhase } from './signer/voiceSetup';
 
@@ -34,6 +36,10 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   const [status, setStatus] = useState<SignerStatus | null>(null);
   const [notesByPost, setNotesByPost] = useState<Record<number, Note[]>>({});
+  const [xPosts, setXPosts] = useState<Post[]>([]);
+  const [xPostsState, setXPostsState] = useState<DemoState['xPostsState']>('loading');
+  // The newest list, for `loadAll`: it also runs from `reload`, long after the posts arrived.
+  const xPostsRef = useRef<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [myRatings, setMyRatings] = useState<Record<number, Rating>>({});
@@ -97,8 +103,9 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   const loadAll = useCallback(async () => {
     try {
-      const entries = await Promise.all(POSTS.map(async (post) => [post.id, await store.getNotes(post.id)] as const));
-      setNotesByPost(Object.fromEntries(entries));
+      const posts = [...POSTS, ...xPostsRef.current];
+      const entries = await Promise.all(posts.map(async (post) => [post.id, await store.getNotes(post.id)] as const));
+      setNotesByPost((current) => ({ ...current, ...Object.fromEntries(entries) }));
       setLoadError(null);
     } catch (cause) {
       setLoadError(cause instanceof Error ? cause.message : 'unknown error');
@@ -115,6 +122,27 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
+
+  // The posts from X. They are registered before the first render that shows them, and their
+  // notes load with the notes of the demo post.
+  useEffect(() => {
+    let cancelled = false;
+    void loadXPosts().then((posts) => {
+      if (cancelled) return;
+      if (!posts) {
+        setXPostsState('error');
+        return;
+      }
+      registerPosts(posts);
+      xPostsRef.current = posts;
+      setXPosts(posts);
+      setXPostsState('ready');
+      void loadAll();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAll]);
 
   useEffect(() => {
     void loadAll();
@@ -307,6 +335,8 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     status,
     account,
     notesByPost,
+    xPosts,
+    xPostsState,
     loading,
     loadError,
     myRatings,
@@ -334,7 +364,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
           <Rail />
           <main className="column">
             <SetupPanel />
-            <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />
+            {route.name === 'timeline' ? <Timeline /> : <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />}
           </main>
         </div>
 

@@ -113,3 +113,29 @@ button.tab {
 button.tab.tab-on {
   font-weight: 700;
 }
+/* A post from X keeps its line breaks on the post page. */
+.pd-text-lines {
+  white-space: pre-wrap;
+}
+.xt-state {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+.xt-age {
+  flex: none;
+  white-space: nowrap;
+}
+/* A narrow card has no room for all six actions with counts: the bookmark goes. */
+@container notes (max-width: 500px) {
+  .tl-post .act-end {
+    gap: 0;
+  }
+  .tl-post .act-end .act:first-child {
+    display: none;
+  }
+}
+/* The last icon has a negative margin, which reaches past the card without this. */
+.tl-post .actions {
+  padding-right: 4px;
+}

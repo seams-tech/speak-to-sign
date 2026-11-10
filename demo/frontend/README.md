@@ -379,6 +379,32 @@ X took the `tweet.fields` name. Of 20 posts, 5 passed the default filter (2
 sport, 1 science, 1 technology, 1 entertainment). The model put the posts on
 Gaza, vaccines, politicians and crime numbers in their own subjects.
 
+## The timeline: `#/notes/timeline`
+
+`src/x/Timeline.tsx` lists the demo post and the posts from
+`/api/x/eligible-posts`. The back arrow of a post page opens it. `#/notes`
+still opens the demo post.
+
+- **A card** shows the post, its note and the state of the note's market:
+  no note, a note without a market, open bets, closed bets, or JEV's answer.
+  A card opens the post page. Notes, ratings and bets happen there, with the
+  same parts as the demo post.
+- **Tabs.** "Fresh" shows all posts. "Open markets" and "Decided" show the
+  posts with a market in that state.
+- **Post ids.** An X post id has 64 bits, and the Seams Wallet refuses a post
+  id above 2^53 - 1. `notePostId` in `src/x/xPosts.ts` drops the lowest 10
+  bits of the X id. That number is the `post_id` in the notes contract and in
+  the hash `#/notes/post/<id>`.
+- **Lookup.** `toPost` turns an X post into a `Post` of the app, and
+  `registerPosts` in `src/data/posts.ts` adds it to `findPost`. The post page,
+  the write dialog and the text that JEV reads (`marketContext`) then work
+  for it without a change.
+- **Without the route.** `pnpm dev` without the function server shows the
+  five example posts of `src/x/fixture.ts`. A build shows the demo post and
+  the line "The posts from X are not available now."
+- `/timeline-preview.html` is the first design mock, with example notes and
+  markets. It is dev only.
+
 ## Summary rules and `/api/summary`
 
 `src/summaryRules.ts` ports `summaryRefusal` from the SDK. The Wallet refuses a

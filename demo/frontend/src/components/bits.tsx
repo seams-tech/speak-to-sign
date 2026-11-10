@@ -20,6 +20,17 @@ export { Media } from './Media';
 
 export function Avatar({ author, size = 40 }: { author: PostAuthor; size?: number }) {
   const square = author.kind === 'organization';
+  if (author.avatarUrl) {
+    return (
+      <img
+        className={`avatar ${square ? 'avatar-square' : 'avatar-round'}`}
+        style={{ width: size, height: size, objectFit: 'cover' }}
+        src={author.avatarUrl}
+        alt=""
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
   return (
     <div
       className={`avatar ${square ? 'avatar-square' : 'avatar-round'}`}
@@ -94,7 +105,7 @@ export function Linkified({ text }: { text: string }) {
 export function PostText({ post }: { post: Post }) {
   return (
     <>
-      {post.text}
+      {post.linkify ? <Linkified text={post.text} /> : post.text}
       {post.link && (
         <>
           {' '}

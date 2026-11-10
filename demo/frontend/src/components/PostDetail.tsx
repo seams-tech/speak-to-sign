@@ -1,13 +1,14 @@
 import { IconArrowLeft, IconDots, IconHandFingerRight, IconUsers } from '@tabler/icons-react';
 import { findPost } from '../data/posts';
 import { useDemo, useWriteCue } from '../demoContext';
+import { paths } from '../router';
 import { ActionRow, AuthorBadge, Avatar, Media, PostHistoryLine, PostText } from './bits';
 import { LoadState } from './LoadState';
 import { PostNotes } from './NotesBox';
 import { PostContextBox } from './PostContext';
 
 export function PostDetail({ postId }: { postId: number }) {
-  const { notesByPost, openWrite } = useDemo();
+  const { notesByPost, openWrite, xPostsState } = useDemo();
   const post = findPost(postId);
   const notes = notesByPost[postId] ?? [];
   // Until the visitor has a note on this post, the write row is the next step: it is
@@ -17,15 +18,14 @@ export function PostDetail({ postId }: { postId: number }) {
   return (
     <>
       <header className="page-head">
-        <span className="icon-btn" aria-hidden="true">
+        <a className="icon-btn" href={paths.timeline} aria-label="All posts" title="All posts">
           <IconArrowLeft size={20} />
-        </span>
+        </a>
         <h1>Post</h1>
       </header>
       {!post ? (
-        <div className="empty">
-          <b>This post does not exist</b>
-        </div>
+        // A post from X is not known until the posts arrive.
+        <div className="empty">{xPostsState === 'loading' ? <span className="muted">Loading the post…</span> : <b>This post does not exist</b>}</div>
       ) : (
         <article className="pd">
           <div className="pd-head">
@@ -38,10 +38,11 @@ export function PostDetail({ postId }: { postId: number }) {
             </div>
             <IconDots size={18} className="muted" aria-hidden="true" />
           </div>
-          <div className="pd-text">
+          <div className={post.linkify ? 'pd-text pd-text-lines' : 'pd-text'}>
             <PostText post={post} />
           </div>
           {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
+          {post.image && <img className="xt-media" src={post.image.url} alt={post.image.alt} referrerPolicy="no-referrer" />}
           {post.context ? <PostContextBox post={post} /> : <PostHistoryLine post={post} full />}
           <LoadState />
           <PostNotes notes={notes} />

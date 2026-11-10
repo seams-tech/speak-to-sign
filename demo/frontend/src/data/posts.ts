@@ -18,6 +18,8 @@ export interface PostAuthor {
   badge?: 'gold' | 'gray' | 'blue';
   /** An icon in place of the initials. */
   logo?: 'government' | 'unknown';
+  /** The profile picture of a post from X. It replaces the initials. */
+  avatarUrl?: string;
 }
 
 export interface PostHistory {
@@ -71,6 +73,10 @@ export interface Post {
   history: PostHistory;
   context?: PostContext;
   noteDraft?: NoteDraft;
+  /** A post from X (src/x/xPosts.ts): its photo, its subject, and links in its text. */
+  image?: { url: string; alt: string };
+  topic?: string;
+  linkify?: boolean;
 }
 
 export const POSTS: Post[] = [
@@ -116,6 +122,17 @@ export const POSTS: Post[] = [
   },
 ];
 
+// The posts from X arrive at run time (src/x/xPosts.ts). The app registers them here, so that
+// every lookup by id finds them: the post page, the write dialog and the text that JEV reads.
+const registered = new Map<number, Post>();
+
+/** Adds posts that arrived at run time. A post of POSTS keeps its id. */
+export function registerPosts(posts: Post[]): void {
+  for (const post of posts) {
+    if (!POSTS.some((fixed) => fixed.id === post.id)) registered.set(post.id, post);
+  }
+}
+
 export function findPost(id: number): Post | undefined {
-  return POSTS.find((post) => post.id === id);
+  return POSTS.find((post) => post.id === id) ?? registered.get(id);
 }

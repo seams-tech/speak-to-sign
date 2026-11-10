@@ -5,7 +5,7 @@ small screens in hand-drawn frames. A click on a screen grows it into a window
 of about 90% of the screen, and the app in it works. Community Notes is live
 (`#/notes`); the
 voice multisig (`#/multisig`) works against its testnet contract, and shows
-example data until the contract is deployed. The page style follows the
+example data if the contract account has no code. The page style follows the
 Seams Wallet site. Its code is in `src/showcase/`.
 
 Each live app renders once (`src/showcase/live.tsx`), and its element moves
@@ -100,8 +100,8 @@ Each deploy is the project owner's decision.
 | Contract | `multisig.seams-v1.testnet`, built from `../contracts/voice-multisig/` | Deployed on 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). If the account has no code, the window shows example data. It was deployed with `new(admins, verifier_public_key)`: the two admins and the verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. Fund it with a plain transfer. It replaces `team.seams-v1.testnet` (deployed on 2026-11-10 with a cap of 0.05 NEAR), which stays on chain. The page refuses the config of that first deploy, so the window shows "The multisig contract answered in an unexpected form." for it. |
 | Admins | `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` | Each has NEAR for gas and a function-call key for `approve` and `execute` on the contract. The keys are the Pages secrets `MULTISIG_ADMIN_A_KEY` and `MULTISIG_ADMIN_B_KEY`. A function-call key names one contract, so the new contract needs new keys in these secrets. |
 | Receiver | `seams-grants.testnet` | A Seams account, the default receiver. |
-| Verifier | An OutLayer verifier version with `multisig_propose` (0.6.0 or later) | 0.6.0, `566e8cbc…`. Its WASM hash goes in `VOICE_OUTLAYER_VERSION_KEY`. |
-| Pages secrets | The six `VOICE_OUTLAYER_*` variables and the two admin keys (see Settings) | The `VOICE_OUTLAYER_*` values are the payment key, project and secrets profile (`main`, `cyan-loong.testnet`) of the Seams staging verify route, with the 0.6.0 version key. They take effect at the next Pages deploy. |
+| Verifier | An OutLayer verifier version with `multisig_propose` that reads "point" and a left-out "dash" (0.6.1 or later) | 0.6.1, `f56ba0e8…`. Its WASM hash goes in `VOICE_OUTLAYER_VERSION_KEY`. |
+| Pages secrets | The six `VOICE_OUTLAYER_*` variables and the two admin keys (see Settings) | The `VOICE_OUTLAYER_*` values are the payment key, project and secrets profile (`main`, `cyan-loong.testnet`) of the Seams staging verify route, with the 0.6.1 version key. They take effect at the next Pages deploy. |
 
 **Why the same OutLayer payment key.** Over HTTPS, OutLayer derives the
 verifier's storage cell and its verdict signing key from the owner of the
@@ -285,7 +285,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet` and `/api/multisig/approve`. Default `https://test.rpc.fastnear.com`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://api.outlayer.fastnear.com`. |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
-| `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `multisig_propose` (0.6.0 or later). |
+| `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `multisig_propose` (0.6.1 or later). The page hint says that "point" and a left-out "dash" match, which needs 0.6.1. |
 | `VOICE_OUTLAYER_PAYMENT_KEY` | Secret. The OutLayer payment key of the Seams staging verify route. Another key finds no voice templates. |
 | `VOICE_OUTLAYER_SECRETS_PROFILE` | The secrets profile of the Seams staging verify route. |
 | `VOICE_OUTLAYER_SECRETS_ACCOUNT_ID` | The secrets account of the Seams staging verify route. |

@@ -14,7 +14,7 @@ with one spoken approval:
 1. The visitor types a transfer, for example "0.01 NEAR to
    `seams-grants.testnet`", and reads it aloud: "approve proposal twelve,
    send zero point zero one NEAR to seams dash grants dot testnet".
-2. Verifier 0.6.0 checks the voice and the words. It keeps the transfer in
+2. Verifier 0.6.1 checks the voice and the words. It keeps the transfer in
    OutLayer storage and returns the commitment and the salt to the page.
 3. The visitor's Seams Wallet signs `propose`. The chain holds only the
    commitment.
@@ -29,8 +29,10 @@ signers. For the demo, the page shows them as signers like the visitor,
 "Admin A" and "Admin B", with no key icon and no words about keys. This
 document keeps the true design for maintainers.
 
-The verifier does not change. The route uses 0.6.0, which is on OutLayer
-with the version key in the Pages secrets.
+The route uses verifier 0.6.1. It is on OutLayer but not active, and its
+version key is in the Pages secrets. 0.6.1 reads the send part of a spoken
+proposal with the rules of a send sentence: "point" for "dot", and "dash"
+can be left out.
 
 ## Contract (`demo/contracts/voice-multisig`)
 
@@ -97,8 +99,8 @@ with the version key in the Pages secrets.
 - The window opens on the **New proposal** tab: receiver, amount (default
   0.01 NEAR, no cap), record, verify, and the Wallet `propose`. The hint
   under the sentence says: "You can say “dot” or “point”, and you can
-  leave out “dash”." The verifier change that makes these forms match is
-  separate work in `crates/`.
+  leave out “dash”." Verifier 0.6.1 makes these forms
+  match.
 - After `propose`, call the approve route. Show three ticks: your
   approval, Admin A and Admin B. Then show the receipt.
 - Keep the opening in `localStorage` until the transfer is executed. If the
@@ -158,7 +160,7 @@ Created on 2026-11-10. `seams-v1.testnet` paid for them from the NEAR of four fa
 ## Later: admins that confirm by voice
 
 Give each admin a synthetic voice, and let it confirm with
-`multisig_confirm` of verifier 0.6.0, from memory. The verifier needs no
+`multisig_confirm` of verifier 0.6.1, from memory. The verifier needs no
 change; the contract gets `confirm` back. Workers AI lists
 `@cf/deepgram/aura-1` with 12 voices and `linear16` / `wav` output. First
 measure the 16 kHz output, the speaker score of each voice against its own

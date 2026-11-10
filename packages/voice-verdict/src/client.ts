@@ -37,7 +37,8 @@ export type VerifierInput =
       authorization?: { public_key: string; signature_b64: string; nonce_b64: string };
     }
   | { op: 'verify'; owner: string; request: VerifierRequest; contacts: string[]; audio_wav_b64: string }
-  | { op: 'select'; owner: string; requests: VerifierRequest[]; contacts: string[]; audio_wav_b64: string };
+  | { op: 'select'; owner: string; requests: VerifierRequest[]; contacts: string[]; audio_wav_b64: string }
+  | { op: 'transcribe'; owner: string; audio_wav_b64: string };
 
 /** The output of `verify` and `select`. Check it with `checkVerdict`: this object is not proof. */
 export interface VerifyOutput {
@@ -51,6 +52,16 @@ export interface VerifyOutput {
   detail: string | null;
   /** `select` only: the index of the request that the owner said. */
   selected?: number;
+}
+
+/** The output of `transcribe`. Check it with `checkTranscript`. */
+export interface TranscribeOutput {
+  kind: 'seams_voice_transcript_output_v1';
+  transcript_json: string;
+  signature_b64: string | null;
+  public_key: string | null;
+  ms: Record<string, number>;
+  detail: string | null;
 }
 
 /** The output of `enroll`. */
@@ -100,7 +111,14 @@ export async function callVerifier(
   config: VerifierConfig,
   input: Extract<VerifierInput, { op: 'verify' | 'select' }>,
 ): Promise<VerifyOutput>;
-export async function callVerifier(config: VerifierConfig, input: VerifierInput): Promise<EnrollOutput | VerifyOutput> {
+export async function callVerifier(
+  config: VerifierConfig,
+  input: Extract<VerifierInput, { op: 'transcribe' }>,
+): Promise<TranscribeOutput>;
+export async function callVerifier(
+  config: VerifierConfig,
+  input: VerifierInput,
+): Promise<EnrollOutput | VerifyOutput | TranscribeOutput> {
   return (await callVerifierWithAttestation(config, input as Extract<VerifierInput, { op: 'enroll' }>)).output;
 }
 
@@ -115,8 +133,12 @@ export async function callVerifierWithAttestation(
 ): Promise<VerifierCall<VerifyOutput>>;
 export async function callVerifierWithAttestation(
   config: VerifierConfig,
+  input: Extract<VerifierInput, { op: 'transcribe' }>,
+): Promise<VerifierCall<TranscribeOutput>>;
+export async function callVerifierWithAttestation(
+  config: VerifierConfig,
   input: VerifierInput,
-): Promise<VerifierCall<EnrollOutput | VerifyOutput>> {
+): Promise<VerifierCall<EnrollOutput | VerifyOutput | TranscribeOutput>> {
   if (!/^[a-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(config.project)) throw new RangeError('project must be owner/project');
   const base = new URL(config.baseUrl);
   if (base.protocol !== 'https:') throw new RangeError('baseUrl must be an HTTPS URL');
@@ -153,12 +175,13 @@ export async function callVerifierWithAttestation(
     throw new VerifierCallError('output', 'the verifier run did not complete');
   }
   const kind = (output as { kind?: unknown }).kind;
-  if (kind !== 'seams_voice_verify_output_v2' && kind !== 'seams_voice_enrollment_v3') {
+  const kinds = ['seams_voice_verify_output_v2', 'seams_voice_enrollment_v3', 'seams_voice_transcript_output_v1'];
+  if (typeof kind !== 'string' || !kinds.includes(kind)) {
     // An input without a known operation gives `seams_voice_error_v1`.
     throw new VerifierCallError('output', `the verifier gave the output kind ${String(kind)}`);
   }
   return {
-    output: output as EnrollOutput | VerifyOutput,
+    output: output as EnrollOutput | VerifyOutput | TranscribeOutput,
     callId: typeof reply.call_id === 'string' ? reply.call_id : null,
     attestationUrl: typeof reply.attestation_url === 'string' ? reply.attestation_url : null,
   };

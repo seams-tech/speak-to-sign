@@ -306,3 +306,124 @@ function fromBase58(text: string): Uint8Array<ArrayBuffer> | null {
   }
   return Uint8Array.from(bytes);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Signed transcripts (the operation `transcribe`).
+
+/** The prefix of the signed message of a transcript. It is not the prefix of a verdict. */
+export const TRANSCRIPT_DOMAIN = 'seams:outlayer:voice-transcript:v1';
+/** The kind of a signed transcript. */
+export const TRANSCRIPT_KIND = 'seams_voice_signed_transcript_v1';
+
+/**
+ * The 9 signed fields of a transcript. A transcript says: the voice of `owner` passed the speaker
+ * check on this audio, and the speech-to-text model heard `text`. It approves no request.
+ */
+export interface VoiceTranscript {
+  kind: typeof TRANSCRIPT_KIND;
+  verifier: string;
+  owner: string | null;
+  /** base64url, no padding: SHA-256 of the canonical WAV. */
+  audio_digest: string | null;
+  outcome: 'accept' | 'refuse';
+  reason: string | null;
+  expires_at_ms: number;
+  speaker_score_milli: number | null;
+  /** Lowercase words, digits and apostrophes. Set only on `accept`. */
+  text: string | null;
+}
+
+export type TranscriptRefusal =
+  | { code: 'bad_public_key' }
+  | { code: 'bad_signature_encoding' }
+  | { code: 'bad_signature' }
+  | { code: 'malformed'; detail: string }
+  | { code: 'wrong_kind'; kind: string }
+  /** The verifier refused, for example with the reason `speaker`. */
+  | { code: 'refused'; reason: string | null; transcript: VoiceTranscript }
+  | { code: 'expired'; expiresAtMs: number; transcript: VoiceTranscript }
+  /** The transcript is of another owner. */
+  | { code: 'owner_mismatch'; transcript: VoiceTranscript }
+  | { code: 'audio_mismatch'; transcript: VoiceTranscript };
+
+export type TranscriptCheck =
+  | { ok: true; transcript: VoiceTranscript & { owner: string; text: string } }
+  | { ok: false; refusal: TranscriptRefusal };
+
+export interface CheckTranscriptInput {
+  /** `transcript_json` of the transcribe output, exactly as the verifier gave it. */
+  transcriptJson: string;
+  signatureB64: string;
+  /** The verifier key that you pin. */
+  publicKey: string | Uint8Array;
+  /** The owner that you asked for. Without it, a transcript of any owner passes. */
+  owner?: string;
+  audioDigest?: Digest;
+  /** Default: `Date.now()`. */
+  nowMs?: number;
+}
+
+const TRANSCRIPT_FIELDS = [
+  'kind',
+  'verifier',
+  'owner',
+  'audio_digest',
+  'outcome',
+  'reason',
+  'expires_at_ms',
+  'speaker_score_milli',
+  'text',
+] as const;
+
+/**
+ * Checks a signed transcript: key, signature, shape, kind, outcome, expiry, owner, audio digest.
+ *
+ * A transcript is weaker than a verdict. The verifier expected no sentence, so it made no word
+ * check: a wrong word of the speech-to-text model is a wrong word of `text`. Do not let a
+ * transcript approve an action with value. Use `verify` or `select` for that.
+ */
+export async function checkTranscript(input: CheckTranscriptInput): Promise<TranscriptCheck> {
+  const refuse = (refusal: TranscriptRefusal): TranscriptCheck => ({ ok: false, refusal });
+  const key = parsePublicKey(input.publicKey);
+  if (key === null) return refuse({ code: 'bad_public_key' });
+  const signature = fromBase64(input.signatureB64);
+  if (signature === null || signature.length !== 64) return refuse({ code: 'bad_signature_encoding' });
+  const message = await sha256(concat(utf8.encode(TRANSCRIPT_DOMAIN), utf8.encode(input.transcriptJson)));
+  if (!(await verifyEd25519(key, signature, message))) return refuse({ code: 'bad_signature' });
+
+  let value: unknown;
+  try {
+    value = JSON.parse(input.transcriptJson);
+  } catch {
+    return refuse({ code: 'malformed', detail: 'not JSON' });
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return refuse({ code: 'malformed', detail: 'not an object' });
+  const record = value as Record<string, unknown>;
+  const bad = (detail: string) => refuse({ code: 'malformed', detail });
+  for (const name of TRANSCRIPT_FIELDS) if (!Object.hasOwn(record, name)) return bad(`no field ${name}`);
+  if (Object.keys(record).length !== TRANSCRIPT_FIELDS.length) return bad('unknown field');
+  if (typeof record.kind !== 'string') return bad('kind');
+  if (record.kind !== TRANSCRIPT_KIND) return refuse({ code: 'wrong_kind', kind: record.kind });
+  if (typeof record.verifier !== 'string') return bad('verifier');
+  for (const name of ['owner', 'reason', 'text'] as const) {
+    if (record[name] !== null && typeof record[name] !== 'string') return bad(name);
+  }
+  const digest = record.audio_digest;
+  if (digest !== null && (typeof digest !== 'string' || fromBase64Url(digest)?.length !== 32)) return bad('audio_digest');
+  if (record.outcome !== 'accept' && record.outcome !== 'refuse') return bad('outcome');
+  const expires = record.expires_at_ms;
+  if (typeof expires !== 'number' || !Number.isSafeInteger(expires) || expires < 0) return bad('expires_at_ms');
+  if (record.speaker_score_milli !== null && !Number.isSafeInteger(record.speaker_score_milli)) return bad('speaker_score_milli');
+  const transcript = record as unknown as VoiceTranscript;
+
+  if (transcript.outcome === 'refuse') return refuse({ code: 'refused', reason: transcript.reason, transcript });
+  if (transcript.owner === null || transcript.text === null) return bad('an accept with no owner or no text');
+  if (transcript.expires_at_ms < (input.nowMs ?? Date.now())) {
+    return refuse({ code: 'expired', expiresAtMs: transcript.expires_at_ms, transcript });
+  }
+  if (input.owner !== undefined && transcript.owner !== input.owner) return refuse({ code: 'owner_mismatch', transcript });
+  if (input.audioDigest !== undefined && !sameDigest(transcript.audio_digest, input.audioDigest)) {
+    return refuse({ code: 'audio_mismatch', transcript });
+  }
+  return { ok: true, transcript: transcript as VoiceTranscript & { owner: string; text: string } };
+}

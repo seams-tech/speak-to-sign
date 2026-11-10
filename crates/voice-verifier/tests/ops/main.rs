@@ -9,6 +9,7 @@ mod local_speaker;
 mod merges;
 mod multisig;
 mod notes;
+mod transcribe;
 mod verify;
 mod web2;
 

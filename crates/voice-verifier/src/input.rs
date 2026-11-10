@@ -60,6 +60,17 @@ pub struct SelectInput {
     pub audio_wav_b64: String,
 }
 
+/// `transcribe`: the owner and one WAV. No request: the output is a signed
+/// transcript of what the owner said.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TranscribeInput {
+    pub op: String,
+    pub owner: String,
+    /// One 16 kHz mono PCM16 WAV, standard base64.
+    pub audio_wav_b64: String,
+}
+
 /// The typed request, by `kind`.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

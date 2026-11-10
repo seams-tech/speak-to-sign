@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::{MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
+use crate::config::{MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, TRANSCRIPT_DOMAIN, VERDICT_DOMAIN, VERIFIER_VERSION};
 use crate::digest::{b64, near_ed25519_key, sha256};
 use crate::host::Host;
 use crate::words::cut_at;
@@ -296,6 +296,100 @@ pub fn sign_verdict(host: &mut dyn Host, verdict_json: &str) -> Result<(String, 
         return Err("length".to_string());
     }
     Ok((b64(&signature), near_ed25519_key(&public_key)))
+}
+
+/// The transcript kind. It is not a verdict: it approves no request.
+const TRANSCRIPT_KIND: &str = "seams_voice_signed_transcript_v1";
+const TRANSCRIPT_OUTPUT_KIND: &str = "seams_voice_transcript_output_v1";
+
+/// The signed transcript: 9 fields, always all present, in this order. It
+/// says that the voice of `owner` passed the speaker check on this audio,
+/// and what the speech-to-text model heard. It binds no request, so a
+/// checker of verdicts must not accept it; its `kind` and its signing
+/// prefix ([`crate::config::TRANSCRIPT_DOMAIN`]) are not those of a verdict.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Transcript {
+    pub kind: String,
+    pub verifier: String,
+    /// The owner whose template the voice was compared with.
+    pub owner: Option<String>,
+    /// base64url SHA-256 of the canonical WAV.
+    pub audio_digest: Option<String>,
+    /// `accept` or `refuse`.
+    pub outcome: Outcome,
+    /// Set only on `refuse`.
+    pub reason: Option<Reason>,
+    pub expires_at_ms: u64,
+    pub speaker_score_milli: Option<i32>,
+    /// The heard words: lowercase ASCII letters, digits and apostrophes,
+    /// with single spaces. Set only on `accept`. The speech-to-text model
+    /// gives it with no signature of its own.
+    pub text: Option<String>,
+}
+
+impl Transcript {
+    /// An empty transcript that refuses as `unsupported` until filled.
+    pub fn new() -> Self {
+        Self {
+            kind: TRANSCRIPT_KIND.to_string(),
+            verifier: VERIFIER_VERSION.to_string(),
+            owner: None,
+            audio_digest: None,
+            outcome: Outcome::Refuse,
+            reason: Some(Reason::Unsupported),
+            expires_at_ms: 0,
+            speaker_score_milli: None,
+            text: None,
+        }
+    }
+}
+
+impl Default for Transcript {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The 32-byte message that the signing key signs for a transcript.
+pub fn transcript_message(transcript_json: &[u8]) -> [u8; 32] {
+    let mut preimage = Vec::with_capacity(TRANSCRIPT_DOMAIN.len() + transcript_json.len());
+    preimage.extend_from_slice(TRANSCRIPT_DOMAIN);
+    preimage.extend_from_slice(transcript_json);
+    sha256(&preimage)
+}
+
+/// The `transcribe` output. `transcript_json` is the only signed object.
+#[derive(Clone, Debug, Serialize)]
+pub struct TranscribeOutput {
+    pub kind: &'static str,
+    pub transcript_json: String,
+    /// Standard base64 of the 64-byte ed25519 signature.
+    pub signature_b64: Option<String>,
+    /// `ed25519:<base58>`.
+    pub public_key: Option<String>,
+    pub ms: Stages,
+    pub detail: Option<String>,
+}
+
+impl TranscribeOutput {
+    /// Signs the transcript with the manifest signing key.
+    pub fn signed(host: &mut dyn Host, transcript: &Transcript, mut ms: Stages, detail: Option<String>) -> Self {
+        let transcript_json = serde_json::to_string(transcript).expect("transcript serializes");
+        let message = transcript_message(transcript_json.as_bytes());
+        let signed = ms.time("sign", || match (host.sign(&message), host.public_key()) {
+            (Ok(signature), Ok(key)) if signature.len() == 64 && key.len() == 32 => {
+                Ok((b64(&signature), near_ed25519_key(&key)))
+            }
+            (Err(error), _) | (_, Err(error)) => Err(error),
+            _ => Err("length".to_string()),
+        });
+        let (signature_b64, public_key, detail) = match signed {
+            Ok((signature, key)) => (Some(signature), Some(key), detail),
+            Err(error) => (None, None, Some(short(&format!("sign: {error}")))),
+        };
+        Self { kind: TRANSCRIPT_OUTPUT_KIND, transcript_json, signature_b64, public_key, ms, detail }
+    }
 }
 
 /// The `enroll` output.

@@ -100,7 +100,7 @@ fn edit_distance(left: &[&str], right: &[&str]) -> usize {
 
 /// Keeps `a-z`, digits, apostrophes and spaces, so the public `heard` field
 /// holds no other characters.
-fn printable(text: &str) -> String {
+pub(crate) fn printable(text: &str) -> String {
     text.chars()
         .map(|c| if c.is_ascii_alphanumeric() || c == '\'' { c.to_ascii_lowercase() } else { ' ' })
         .collect::<String>()

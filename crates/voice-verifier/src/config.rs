@@ -18,6 +18,17 @@ pub const SIGNING_KEY_PATH: &str = "verdict";
 /// `signed message = SHA-256(VERDICT_DOMAIN || verdict JSON bytes)`.
 pub const VERDICT_DOMAIN: &[u8] = b"seams:outlayer:voice-verdict:v2";
 
+/// The prefix of the signed preimage of a transcript:
+/// `signed message = SHA-256(TRANSCRIPT_DOMAIN || transcript JSON bytes)`.
+/// It is not the verdict prefix, so no signature of a transcript is a
+/// signature of a verdict.
+pub const TRANSCRIPT_DOMAIN: &[u8] = b"seams:outlayer:voice-transcript:v1";
+
+/// The text of a signed transcript is cut to this many bytes (8 s of speech
+/// are about 20 words), so that the output stays below [`MAX_OUTPUT_BYTES`]
+/// with the longest owner and stage times.
+pub const MAX_TRANSCRIPT_BYTES: usize = 200;
+
 /// A verdict expires this long after the worker clock read before signing.
 pub const VERDICT_TTL_MS: u64 = 120_000;
 
@@ -214,7 +225,7 @@ mod tests {
     #[test]
     fn manifest_matches_the_constants() {
         let manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
-        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select"]));
+        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select", "transcribe"]));
         // HTTPS calls: no callers block, and the default storage cell (the
         // payment-key owner).
         assert!(manifest.get("callers").is_none());

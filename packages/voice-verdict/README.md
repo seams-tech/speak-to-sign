@@ -147,6 +147,27 @@ const result = await checkVerdict({
   The reply has `verifier_public_key`, the key that you pin.
 - `config` has your OutLayer payment key. Call the verifier from a server.
 
+## A signed transcript
+
+`op: 'transcribe'` takes `{ owner, audio_wav_b64 }` and no request. The
+verifier checks the speaker and signs what the speech-to-text model heard.
+
+```ts
+const output = await callVerifier(config, { op: 'transcribe', owner: 'app:user-42', audio_wav_b64: audio });
+const result = await checkTranscript({
+  transcriptJson: output.transcript_json,
+  signatureB64: output.signature_b64 ?? '',
+  publicKey: PINNED_VERIFIER_KEY,
+  owner: 'app:user-42',
+});
+if (result.ok) console.log(result.transcript.text); // "book a table for two at 8 o'clock please"
+```
+
+A transcript is weaker than a verdict. The verifier expected no sentence, so
+it made no word check. A wrong word of the model is a wrong word of the
+text. Use a transcript for a search, a note or a command with no value. For
+an action with value, show the sentence and use `verify` or `select`.
+
 ## Audio in a browser
 
 ```ts

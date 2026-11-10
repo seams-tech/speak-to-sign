@@ -1,4 +1,4 @@
-//! The operations `enroll`, `verify` and `select`.
+//! The operations `enroll`, `verify`, `select` and `transcribe`.
 //!
 //! `verify` sends the canonical WAV to the speaker service and to NEAR AI at
 //! the same time, reads the template and the used-audio marker while those
@@ -20,6 +20,7 @@ mod multisig;
 mod request;
 mod select;
 mod steps;
+mod transcribe;
 mod verify;
 
 use serde_json::Value;
@@ -65,6 +66,7 @@ pub fn run_with(input: &[u8], host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
         Some("enroll") => json_bytes(&enroll::enroll(value, host, pins)),
         Some("verify") => json_bytes(&verify::verify(value, host, pins)),
         Some("select") => json_bytes(&select::select(value, host, pins)),
+        Some("transcribe") => json_bytes(&transcribe::transcribe(value, host, pins)),
         _ => json_bytes(&UnknownOp {
             kind: ERROR_OUTPUT_KIND,
             verifier: VERIFIER_VERSION,

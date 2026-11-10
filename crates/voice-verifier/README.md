@@ -27,7 +27,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
 | 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route selects it by `version_key`. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
 | 0.7.0   | not built for OutLayer yet | The source on this branch. It adds `multisig_hide_note` for the voice multisig page ("hide note N"). The other kinds are unchanged, except the version in the verdict. Build it with `build.sh --docker`, add it to the OutLayer project, and set its hash as `VOICE_OUTLAYER_VERSION_KEY` of the demo site. |
-| 0.8.0   | not built for OutLayer yet | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operation `select`, and the variant `local-speaker`. Not on OutLayer yet. |
+| 0.8.0   | not built for OutLayer yet | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Not on OutLayer yet. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -130,7 +130,7 @@ payment key).
 | Speaker model | In the speaker service (Phala), signed embeddings | Inside the worker, in `tract` (`src/local_model.rs`) |
 | Manifest | `manifest/outlayer.json` | `manifest/outlayer-local-speaker.json` |
 | Hosts | Phala, NEAR AI, NEAR RPC | the model host, NEAR AI, NEAR RPC |
-| WASM (macOS arm64 build of this commit) | 434,778 bytes | 8,242,295 bytes |
+| WASM (macOS arm64 build) | about 0.45 MB | about 8.3 MB |
 | Trust for the speaker | The Phala app and its pinned key | Only the worker and the pinned model digest |
 | Cost | A second service to operate and pay | More worker time for each call |
 
@@ -326,6 +326,28 @@ Stage times (`ms`, not signed), in ms:
   - Two candidates with one sentence, fewer than 2 or more than 16
     candidates, or a multisig kind refuse with `unsupported`.
   - The policy step runs for the selected request.
+- `transcribe`: `{"op":"transcribe","owner","audio_wav_b64"}`. No request.
+  - The output is
+    `{"kind":"seams_voice_transcript_output_v1","transcript_json","signature_b64","public_key","ms","detail"}`.
+  - `transcript_json` is the only signed object: compact JSON with 9
+    fields, in this order: `kind` (`seams_voice_signed_transcript_v1`),
+    `verifier`, `owner`, `audio_digest`, `outcome` (`accept` or `refuse`),
+    `reason`, `expires_at_ms`, `speaker_score_milli`, `text`.
+  - `text` is the heard words: lowercase ASCII letters, digits and
+    apostrophes with single spaces, cut to 200 bytes. It is set only on
+    `accept`.
+  - The signed message is
+    `SHA-256("seams:outlayer:voice-transcript:v1" || transcript_json bytes)`,
+    by the same key as a verdict. The prefix and the kind are not those of a
+    verdict, so no checker of verdicts accepts a transcript.
+  - The speaker check, the energy gate and the used-audio mark are those of
+    `verify`. No words refuse with `words`.
+  - A transcript is weaker than a verdict. No sentence is expected, so the
+    worker makes no word check and no near-miss check. NEAR AI gives the
+    text with no signature. Do not let a transcript approve an action with
+    value.
+  - Shared vectors: `testdata/signed_transcript_v1.json`
+    (`tests/signed_transcript_vector.rs`).
 - Unknown fields are refused at every level.
 - WAV: 16 kHz mono PCM16, at most 8 s, standard base64. The worker writes it
   again with a 44-byte header (the canonical WAV); the audio digest is the

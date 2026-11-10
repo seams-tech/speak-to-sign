@@ -161,8 +161,10 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         <ActionRow post={post} showViews />
       </div>
       {betting && post.context && (
-        // A dialog is a child of the card in React, so its clicks must not open the post.
-        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+        // A dialog is a child of the card in React, so its clicks must not open the post. The
+        // wrapper makes no box (display: contents): as a box it was a third column of the card,
+        // and the card's text moved 12 px to the left while the dialog was open.
+        <div style={{ display: 'contents' }} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <NoteDialog post={post} context={post.context} onClose={() => setBetting(false)} />
         </div>
       )}

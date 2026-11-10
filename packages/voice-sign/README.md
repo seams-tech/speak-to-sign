@@ -1,4 +1,4 @@
-# @seams/speak-to-sign
+# @seams/voice-sign
 
 Speak-to-Sign for an application with no wallet and no chain. A user
 confirms an action with the voice, and your server gets a signed verdict
@@ -15,12 +15,11 @@ It has two entry points:
 
 | Import | Where | Job |
 | --- | --- | --- |
-| `@seams/speak-to-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
-| `@seams/speak-to-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
+| `@seams/voice-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
+| `@seams/voice-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
 
-The npm name `@seams/speak-to-sign` stays with the host plugin for Seams
-Wallet (`packages/speak-to-sign-wallet`), also in 0.66.0. This library is not
-released yet: it needs an npm name of its own before its first release.
+The Seams Wallet host plugin is a separate package, `@seams/speak-to-sign`
+(`packages/speak-to-sign-wallet`). This library needs no wallet.
 
 A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).
@@ -38,7 +37,7 @@ Each developer has its own accounts. The verifier is an OutLayer worker.
 ## The browser
 
 ```ts
-import { configureSpeakToSign, recordSentence } from '@seams/speak-to-sign/browser';
+import { configureSpeakToSign, recordSentence } from '@seams/voice-sign/browser';
 
 // The folder with the asset files of @seams/voice-capture (see its README).
 configureSpeakToSign({ assetBase: '/voice-capture/' });
@@ -59,7 +58,7 @@ stays in the page until you send it.
 ## The server
 
 ```ts
-import { createSpeakToSign } from '@seams/speak-to-sign/server';
+import { createSpeakToSign } from '@seams/voice-sign/server';
 
 const speakToSign = createSpeakToSign({
   verifier: {

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Sets the GitHub workflow release-standalone.yml of seams-tech/speak-to-sign as the trusted
-# publisher of @seams/voice-verdict and @seams/voice-capture on npm, so that the workflow can
+# publisher of @seams/voice-verdict, @seams/voice-capture and @seams/voice-sign on npm, so that the workflow can
 # publish them with no npm token. It never touches @seams/speak-to-sign: that name belongs to the
 # Seams Wallet plugin and its own workflow (release-speak-to-sign.yml).
 #
@@ -16,7 +16,7 @@ set -eu
 REPO=seams-tech/speak-to-sign
 FILE=release-standalone.yml
 
-for package in @seams/voice-verdict @seams/voice-capture; do
+for package in @seams/voice-verdict @seams/voice-capture @seams/voice-sign; do
   echo "== $package"
   existing=$(npm trust list "$package" --json 2>/dev/null || echo '[]')
   # The ids of the relationships that are not this workflow, and "same" if this workflow is
@@ -54,7 +54,7 @@ for package in @seams/voice-verdict @seams/voice-capture; do
 done
 
 echo "== the trusted publishers now"
-for package in @seams/voice-verdict @seams/voice-capture; do
+for package in @seams/voice-verdict @seams/voice-capture @seams/voice-sign; do
   echo "$package:"
   npm trust list "$package"
 done

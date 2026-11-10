@@ -870,3 +870,14 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
   exception is a merge commit on `spoken-general`, whose only difference is
   an old row of the verifier README.
 - The release of the three libraries is prepared: `docs/release-0.66.0.md`.
+
+## 9. Names on npm (2026-11-11)
+
+The owner's decisions:
+
+| npm name | Folder | Job |
+| --- | --- | --- |
+| `@seams/speak-to-sign` | `packages/speak-to-sign-wallet` | The Seams Wallet host plugin (it keeps its name) |
+| `@seams/voice-sign` | `packages/voice-sign` | The library for an application with no wallet (sections 5 to 8 call it "the top layer" and `@seams/speak-to-sign`) |
+| `@seams/voice-capture` | `packages/voice-capture` | Records one sentence |
+| `@seams/voice-verdict` | `packages/voice-verdict` | Checks what the verifier signed |

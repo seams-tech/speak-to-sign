@@ -1,8 +1,8 @@
 # @seams/speak-to-sign
 
 The Speak-to-Sign host plugin for Seams Wallet. It lives in
-`packages/speak-to-sign-wallet`. The library for an application with no wallet
-(`packages/speak-to-sign`) is not released yet and needs an npm name of its own.
+`packages/speak-to-sign-wallet`. The library for an application with no wallet is a
+separate package, `@seams/voice-sign` (`packages/voice-sign`).
 
 > **Experimental. NEAR testnet only.** First released in 0.54.0. `enroll` is new in 0.56.0.
 

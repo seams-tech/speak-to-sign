@@ -2,7 +2,7 @@
  * The browser side of Speak-to-Sign for an application with no wallet: record one sentence and
  * get the WAV that the verifier takes. The recording is `@seams/voice-capture`.
  *
- * Send the WAV to your own server. The server calls the verifier (`@seams/speak-to-sign/server`):
+ * Send the WAV to your own server. The server calls the verifier (`@seams/voice-sign/server`):
  * the payment key must not reach the browser.
  */
 import {

@@ -1,7 +1,6 @@
 {
   "name": "@seams/speak-to-sign",
-  "version": "0.66.0-alpha.0",
-  "private": true,
+  "version": "0.66.0",
   "type": "module",
   "description": "Speak-to-Sign for an application with no wallet: record a sentence, enroll a voice, get a verdict and check it",
   "license": "Apache-2.0",
@@ -23,23 +22,30 @@
   },
   "files": [
     "dist/",
-    "README.md"
+    "README.md",
+    "LICENSE.md"
   ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "type-check": "tsc --noEmit",
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test tests/client.test.ts tests/server.test.ts",
+    "test:browser": "playwright test"
   },
   "dependencies": {
-    "@seams/voice-capture": "link:../voice-capture",
-    "@seams/voice-verdict": "link:../voice-verdict"
+    "@seams/voice-capture": "0.66.0",
+    "@seams/voice-verdict": "0.66.0"
   },
   "devDependencies": {
     "@types/node": "24.2.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@playwright/test": "1.56.1"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882"
 }

@@ -1,0 +1,104 @@
+name: Release the standalone libraries
+
+# Publishes the three libraries for an application with no Seams Wallet, with one version and in
+# this order:
+#   1. @seams/voice-verdict   checks what the verifier signed
+#   2. @seams/voice-capture   records one sentence in the browser
+#   3. @seams/speak-to-sign   joins both; it depends on the exact versions of 1 and 2
+#
+# They need no Seams Wallet package. The Wallet plugin (@seams/speak-to-sign-wallet) has its own
+# workflow and is released with the Wallet.
+#
+# A package whose version is on npm already is not published again, so a failed run can be run
+# again. npm trusted publishing must be set up for each package name on npmjs.com (repository
+# seams-tech/speak-to-sign, workflow release-standalone.yml).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact version of the three packages, as in their package.json files
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      # A pre-release version must not become the default install.
+      NPM_DIST_TAG: ${{ contains(inputs.version, '-') && 'next' || 'latest' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.11.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Validate the versions
+        run: |
+          set -euo pipefail
+          for package in voice-verdict voice-capture speak-to-sign; do
+            test "$(node -p "require('./packages/$package/package.json').version")" = "$RELEASE_VERSION"
+            test "$(node -p "require('./packages/$package/package.json').private === true")" = "false"
+          done
+          for name in @seams/voice-verdict @seams/voice-capture; do
+            test "$(node -p "require('./packages/speak-to-sign/package.json').dependencies['$name']")" = "$RELEASE_VERSION"
+          done
+
+      - name: Build and test @seams/voice-verdict
+        working-directory: packages/voice-verdict
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm type-check
+          pnpm build
+          pnpm test
+      - name: Build and test @seams/voice-capture
+        working-directory: packages/voice-capture
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm type-check
+          pnpm build
+          pnpm test
+      - name: Build and test @seams/speak-to-sign
+        working-directory: packages/speak-to-sign
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm type-check
+          pnpm build
+          pnpm test
+          pnpm test:browser
+
+      - name: Use npm trusted publishing
+        run: npm install --global npm@latest
+      - name: Retain the release packages
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/npm
+          for package in voice-verdict voice-capture speak-to-sign; do
+            (cd "packages/$package" && npm pack --pack-destination ../../.artifacts/npm)
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: standalone-${{ inputs.version }}-${{ github.sha }}
+          path: .artifacts/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish, in dependency order
+        run: |
+          set -euo pipefail
+          for package in voice-verdict voice-capture speak-to-sign; do
+            name=$(node -p "require('./packages/$package/package.json').name")
+            if npm view "$name@$RELEASE_VERSION" version > /dev/null 2>&1; then
+              echo "$name@$RELEASE_VERSION is on npm already"
+              continue
+            fi
+            (cd "packages/$package" && npm publish --access public --provenance --tag "$NPM_DIST_TAG")
+          done

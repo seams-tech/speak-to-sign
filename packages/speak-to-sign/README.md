@@ -20,7 +20,8 @@ It has two entry points:
 
 Until version 0.65.0, the npm name `@seams/speak-to-sign` was the host
 plugin for Seams Wallet. The plugin is now `@seams/speak-to-sign-wallet`
-(`packages/speak-to-sign-wallet`). This library is not on npm yet.
+(`packages/speak-to-sign-wallet`). From version 0.66.0, this name is this
+library.
 
 A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).
@@ -163,9 +164,12 @@ so set `verifier.timeoutMs` and `verifier.resourceLimits` for it.
 (cd ../voice-verdict && pnpm install && pnpm build)
 (cd ../voice-capture && pnpm install && pnpm build)
 pnpm install
+pnpm build
 pnpm test
+pnpm test:browser
 ```
 
-The server tests use a fake verifier that signs with a test key. The
-browser entry point has no test here: `@seams/voice-capture` tests the
-recording.
+`pnpm test` runs the server side against a fake verifier that signs with a
+test key. `pnpm test:browser` opens `examples/voice-confirm` in Chromium with
+a fake microphone: it enrolls a voice and confirms an action, from the
+recording to the checked verdict.

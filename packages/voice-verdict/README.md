@@ -19,7 +19,7 @@ the enrolled owner say the sentence of this request? The verifier signs the
 verdict with ed25519. This package checks the signature and reads the
 verdict.
 
-The package is not on npm yet. Build it from this folder:
+Build and test it from this folder:
 
 ```sh
 pnpm install

@@ -1,0 +1,5 @@
+# In this repository the two sibling packages come from their folders, not from npm. A release
+# publishes the three packages with one version (see .github/workflows/release-standalone.yml).
+overrides:
+  '@seams/voice-capture': link:../voice-capture
+  '@seams/voice-verdict': link:../voice-verdict

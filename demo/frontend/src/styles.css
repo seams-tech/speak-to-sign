@@ -1808,6 +1808,48 @@ fieldset:disabled .choice {
 .speak-btn:disabled .mic {
   opacity: 0.4;
 }
+/* In a dialog's foot, the whole foot is the voice button: the button reaches the foot's edges,
+   and a pointer over any part of it turns the whole foot black, with a white microphone. */
+.dialog-foot {
+  --foot-x: 20px;
+  --foot-top: 12px;
+  --foot-bottom: 16px;
+}
+.dialog-foot .speak-btn {
+  width: calc(100% + 2 * var(--foot-x));
+  margin: calc(-1 * var(--foot-top)) calc(-1 * var(--foot-x)) calc(-1 * var(--foot-bottom));
+  padding: var(--foot-top) var(--foot-x) var(--foot-bottom);
+  /* The dialog's own bottom corners. */
+  border-radius: 0 0 var(--foot-r, 16px) var(--foot-r, 16px);
+  transition:
+    background-color 0.16s,
+    color 0.16s;
+}
+.dialog-foot .speak-btn .mic,
+.dialog-foot .speak-btn .muted {
+  transition:
+    background-color 0.16s,
+    color 0.16s;
+}
+.dialog-foot .speak-btn:not(:disabled):hover,
+.dialog-foot .speak-btn:not(:disabled):focus-visible {
+  background: var(--ink);
+  color: #fff;
+  outline: none;
+}
+.dialog-foot .speak-btn:not(:disabled):hover .mic,
+.dialog-foot .speak-btn:not(:disabled):focus-visible .mic {
+  background: #fff;
+  color: var(--ink);
+}
+.dialog-foot .speak-btn:not(:disabled):hover .muted,
+.dialog-foot .speak-btn:not(:disabled):focus-visible .muted {
+  color: rgba(255, 255, 255, 0.72);
+}
+.dialog-foot .speak-btn:not(:disabled):active {
+  background: #272c30;
+}
+/* Outside a dialog's foot, only the microphone answers the pointer. */
 .speak-btn:not(:disabled):hover .mic {
   background: #272c30;
 }
@@ -2067,6 +2109,7 @@ fieldset:disabled .choice {
     min-height: 100vh;
     max-height: 100vh;
     border-radius: 0;
+    --foot-r: 0px;
   }
   .dialog-head {
     gap: 12px;
@@ -2079,6 +2122,7 @@ fieldset:disabled .choice {
     padding: 0 16px 12px;
   }
   .dialog-foot {
+    --foot-x: 16px;
     padding: 12px 16px 16px;
   }
 }

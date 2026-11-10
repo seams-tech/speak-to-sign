@@ -10,11 +10,13 @@ import '@fontsource/dm-sans/700.css';
 import '@seams/wallet/react/styles';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider } from '@seams/wallet/react';
+import type { SeamsConfigsInput } from '@seams/wallet';
 import { buildSeamsConfig } from '../seams/seamsConfig';
+import { ThemedSeamsProvider } from '../seams/walletTheme';
 import { PAGE_PATH, type ExampleId } from './examples';
 import { NotesPage } from './NotesPage';
 import { Showcase } from './Showcase';
+import { useTheme } from './theme';
 // The notes app and its dialogs, then the page.
 import '../styles.css';
 import './showcase.css';
@@ -38,12 +40,21 @@ if (page === 'notes' && /^#\/multisig(?:\/|$)/.test(window.location.hash)) {
   // small screen that opens in a window (Showcase).
   const site = (seams: boolean) => (page === 'notes' ? <NotesPage seams={seams} /> : <Showcase seams={seams} page={page} />);
 
+  // The Wallet follows the theme of the Community Notes page (Lights out on dark). The multisig
+  // page has the light theme only.
+  function WithWallet({ config }: { config: SeamsConfigsInput }) {
+    const pageTheme = useTheme();
+    return (
+      <ThemedSeamsProvider config={config} theme={page === 'notes' ? pageTheme : 'light'}>
+        {site(true)}
+      </ThemedSeamsProvider>
+    );
+  }
+
   createRoot(root).render(
     <StrictMode>
       {seamsConfig ? (
-        <SeamsWebProvider config={seamsConfig} theme={{ theme: 'light' }}>
-          {site(true)}
-        </SeamsWebProvider>
+        <WithWallet config={seamsConfig} />
       ) : (
         site(false)
       )}

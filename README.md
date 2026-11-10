@@ -503,7 +503,7 @@ The code is under the Apache License 2.0 (`LICENSE`).
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |
-| Note market         | `pm-notes.seams-v1.testnet`, code `077f554e7ae3d20b91b24df73969e0475bf7c2ac8818581b8c68615a10b255be`. Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 2 is the demo post's context box (note 0). |
+| Note market         | `pm-notes.seams-v1.testnet`, code `c75495af180ef0cfaea4084640db101a235e4bf59401b552f8f05ddd3a21b271`. Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 2 is the demo post's context box (note 0). |
 | Market resolver     | OutLayer project `seams-v1.testnet/pm-notes-resolver`, version `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`: JEV (`typesafe/jev-1.13`) on NEAR AI, then a NEAR AI chat model. |
 
 ## Trust limits

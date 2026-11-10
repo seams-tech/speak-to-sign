@@ -1026,6 +1026,105 @@ code {
 .pc-bet .nm-no {
   color: color-mix(in srgb, var(--bet-no) 80%, var(--contrast));
 }
+/* The bet slider over the two buttons, in X's blue as X's own sliders: a thin pale blue track
+   that fills in --accent up to a round --accent thumb. A pointer over the thumb gives it a pale
+   blue halo. --p (0 to 1) is the thumb's place; the fill ends at the thumb's middle, which moves
+   over the track less the thumb's width. */
+.pc-stake {
+  margin-top: 14px;
+}
+.pc-stake-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+.pc-stake-row label {
+  color: var(--muted);
+}
+.pc-stake-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pc-stake-range {
+  --thumb: 20px;
+  --fill: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p, 0));
+  --stake-track: color-mix(in srgb, var(--accent) 22%, transparent);
+  --stake-halo: 0 0 0 7px color-mix(in srgb, var(--accent) 18%, transparent);
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 2px 0 0;
+  padding: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.pc-stake-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--stake-track) var(--fill));
+}
+.pc-stake-range::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc(2px - var(--thumb) / 2);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    box-shadow 150ms ease,
+    scale 150ms ease-out;
+}
+.pc-stake-range::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--stake-track);
+}
+.pc-stake-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+.pc-stake-range::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+  transition:
+    box-shadow 150ms ease,
+    scale 150ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pc-stake-range:hover::-webkit-slider-thumb {
+    box-shadow: var(--stake-halo);
+  }
+  .pc-stake-range:hover::-moz-range-thumb {
+    box-shadow: var(--stake-halo);
+  }
+}
+.pc-stake-range:active::-webkit-slider-thumb {
+  box-shadow: var(--stake-halo);
+}
+.pc-stake-range:active::-moz-range-thumb {
+  box-shadow: var(--stake-halo);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pc-stake-range:active::-webkit-slider-thumb {
+    scale: 1.1;
+  }
+  .pc-stake-range:active::-moz-range-thumb {
+    scale: 1.1;
+  }
+}
+.pc-bet .pc-stake + .nm-buttons {
+  margin-top: 10px;
+}
 .pc-practice {
   padding: 0 16px 8px;
   font-size: 12px;

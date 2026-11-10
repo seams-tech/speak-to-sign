@@ -98,6 +98,7 @@ export function NoteMarketStrip({
   onSignIn,
   context,
   directBet = false,
+  stakeControl,
   placeholder = false,
   openBet = 0,
 }: {
@@ -123,6 +124,11 @@ export function NoteMarketStrip({
    * amount (base units) bets that.
    */
   directBet?: boolean | bigint;
+  /**
+   * A control for the amount of a direct bet (for example, a slider), shown just above "Bet yes"
+   * and "Bet no" while the market is open, and while it is read the first time.
+   */
+  stakeControl?: ReactNode;
   /**
    * While the market is read the first time, show the strip's shapes (the odds bar, the odds line
    * and the two bet buttons) grey and pulsing, in place of nothing. For a place where the market
@@ -341,6 +347,7 @@ export function NoteMarketStrip({
             {'\u200b'}
           </span>
         </div>
+        {stakeControl}
         <div className="nm-buttons">
           <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
             Bet yes
@@ -491,6 +498,7 @@ export function NoteMarketStrip({
           )}
           {status === 'open' && !asking && !(saying && voice && account) && (
             <>
+              {stakeControl}
               <div className="nm-buttons">
                 {(['yes', 'no'] as const).map((side) => (
                   <button

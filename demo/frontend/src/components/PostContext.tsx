@@ -2,7 +2,7 @@
 // market with two bet buttons. The timeline opens it from the post's card (its Bet button, or a
 // click on the card).
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { IconCircleCheckFilled, IconExternalLink, IconX } from '@tabler/icons-react';
 import { config } from '../config';
 import type { Post, PostContext as Context } from '../data/posts';
@@ -12,7 +12,7 @@ import { useMarketSource } from '../market/contractSource';
 import { amountText } from '../market/math';
 import { NoteMarketStrip } from '../market/NoteMarket';
 import { useBetVoice } from '../market/SayBet';
-import { NEAR_CURRENCY } from '../market/types';
+import { NEAR_CURRENCY, type Currency } from '../market/types';
 import { MediaThumb } from './Media';
 import { Modal, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
@@ -27,7 +27,8 @@ import { SignInStep } from './SignInModal';
 export const CONTEXT_MARKET_NOTE_ID = 0;
 
 /**
- * The note view, kept short: the quoted post, the note, then the bet with two colored buttons.
+ * The note view, kept short: the quoted post, the note, then the bet: a slider for its amount
+ * and two colored buttons.
  * A visitor who is not signed in taps a bet button too: the dialog turns into the sign-in, then
  * back, the faucet sends testnet USDC, and the strip places the bet. One dialog all the way.
  */
@@ -41,9 +42,10 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
   const titleId = useId();
   const signInTitleId = useId();
   const currency = source.currency ?? NEAR_CURRENCY;
-  // A tap bets the middle chip: 0.5 USDC (the market takes 0.1 USDC or more), so the faucet's
-  // 2 USDC give four bets. The line under the buttons says how much.
-  const stake = currency.chips[1] ?? currency.chips[0] ?? 0n;
+  // A tap bets the slider's amount: 0.1 to 1 USDC (the market takes 0.1 USDC or more), 0.1 at
+  // first, so the faucet's 2 USDC give twenty bets.
+  const [stakeTenths, setStakeTenths] = useState(1);
+  const stake = tenthOf(currency) * BigInt(stakeTenths);
   const [balance, setBalance] = useState<bigint | null>(null);
   useEffect(() => {
     if (!account || !source.getBalance) {
@@ -74,7 +76,8 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
     return ready.ok;
   };
   const short = balance !== null && balance < stake;
-  const line = preparing === 'funds' ? 'funds' : problem ? 'problem' : 'stake';
+  // Under the buttons: the faucet at work, a problem, or the link to more USDC. Else nothing.
+  const line = preparing === 'funds' ? 'funds' : problem ? 'problem' : short ? 'short' : 'none';
 
   return (
     <Modal
@@ -122,6 +125,7 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
                   account={account}
                   onSignIn={readyToBet}
                   directBet={stake}
+                  stakeControl={<StakeSlider tenths={stakeTenths} currency={currency} onChange={setStakeTenths} />}
                   placeholder
                 />
                 <Morph view={line}>
@@ -133,18 +137,11 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
                     <p className="pc-practice pc-problem" role="alert">
                       {problem} <UsdcLink />
                     </p>
-                  ) : (
+                  ) : line === 'short' ? (
                     <p className="pc-practice">
-                      One tap bets {amountText(stake, currency)}. Your Seams Wallet asks you to confirm.
-                      {balance !== null && <> You have {amountText(balance, currency)}.</>}
-                      {short && (
-                        <>
-                          {' '}
-                          <UsdcLink />
-                        </>
-                      )}
+                      <UsdcLink />
                     </p>
-                  )}
+                  ) : null}
                 </Morph>
               </div>
             </div>
@@ -157,6 +154,42 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
         )}
       </Morph>
     </Modal>
+  );
+}
+
+/** The most tenths that the bet slider goes to: 1 USDC. */
+const MAX_STAKE_TENTHS = 10;
+
+/** A tenth of one unit of the currency (0.1 USDC), in base units. */
+function tenthOf(currency: Currency): bigint {
+  return 10n ** BigInt(currency.decimals) / 10n;
+}
+
+/** The amount of one bet: a slider from 0.1 to 1, in steps of 0.1, with the amount at its right. */
+function StakeSlider({ tenths, currency, onChange }: { tenths: number; currency: Currency; onChange: (tenths: number) => void }) {
+  const id = useId();
+  const text = amountText(tenthOf(currency) * BigInt(tenths), currency);
+  return (
+    <div className="pc-stake">
+      <div className="pc-stake-row">
+        <label htmlFor={id}>Your bet</label>
+        <output htmlFor={id} className="pc-stake-value">
+          {text}
+        </output>
+      </div>
+      <input
+        id={id}
+        type="range"
+        className="pc-stake-range"
+        min={1}
+        max={MAX_STAKE_TENTHS}
+        step={1}
+        value={tenths}
+        aria-valuetext={text}
+        style={{ '--p': (tenths - 1) / (MAX_STAKE_TENTHS - 1) } as CSSProperties}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
   );
 }
 

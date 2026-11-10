@@ -1,7 +1,11 @@
 /* X light theme, copied by eye. System fonts: X's own font is proprietary. */
 :root,
 .notes-app {
+  --bg: #fff;
   --ink: #0f1419;
+  /* Text and icons on an --ink surface (the dark buttons, the microphone). */
+  --on-ink: #fff;
+  --ink-hover: #272c30;
   --muted: #536471;
   --line: #eff3f4;
   --line-strong: #cfd9de;
@@ -16,8 +20,67 @@
   --gold: #e2b719;
   --media: #e8edf0;
   --overlay: rgba(91, 112, 131, 0.4);
+  /* The menu items that only copy X's look: a dim grey that does not invite a click. */
+  --faint: #aab4bc;
+  /* What small coloured text mixes in, for more contrast with --bg: black here, white on dark. */
+  --contrast: #000;
+  /* The yellow of the "mock" labels. */
+  --warn-bg: #fff8e1;
+  --warn-line: #f0e2b0;
+  --warn-ink: #6b5300;
+  /* The diagonal stripes at the sides of the app on the Community Notes page. */
+  --stripe: #ebebeb;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
+}
+
+/* The two dark themes of the Community Notes page (its theme picker sets data-theme on the
+   root). "dark" is the dark blue of Twitter's dark mode, now X's Dim. "onyx" is X's black,
+   Lights out. Blue, green, red and gold stay as in the light theme, as on X. They apply to the
+   notes app, its dialogs on document.body and the page's sheet, but not to the hero and the
+   nav: those keep the light colours on the hero's field, also where they use the app's
+   classes (the setup steps). */
+:root[data-theme='dark'] :is(.notes-app, .overlay, .wallet-wait, .ss-sheet) {
+  --bg: #15202b;
+  --ink: #f7f9f9;
+  --on-ink: #0f1419;
+  --ink-hover: #d7dbdc;
+  --muted: #8b98a5;
+  --line: #38444d;
+  --line-strong: #425364;
+  --accent-bg: #162f43;
+  --panel: #1e2732;
+  --hover: rgba(247, 249, 249, 0.1);
+  --hover-soft: rgba(255, 255, 255, 0.03);
+  --media: #273340;
+  --faint: #536471;
+  --contrast: #fff;
+  --warn-bg: #2b2b1f;
+  --warn-line: #4d4526;
+  --warn-ink: #f0d175;
+  --stripe: #1c2a37;
+  color-scheme: dark;
+}
+:root[data-theme='onyx'] :is(.notes-app, .overlay, .wallet-wait, .ss-sheet) {
+  --bg: #000;
+  --ink: #e7e9ea;
+  --on-ink: #0f1419;
+  --ink-hover: #d7dbdc;
+  --muted: #71767b;
+  --line: #2f3336;
+  --line-strong: #3e4246;
+  --accent-bg: #031018;
+  --panel: #16181c;
+  --hover: rgba(231, 233, 234, 0.1);
+  --hover-soft: rgba(255, 255, 255, 0.03);
+  --media: #202327;
+  --faint: #464a4f;
+  --contrast: #fff;
+  --warn-bg: #1a1708;
+  --warn-line: #3a3315;
+  --warn-ink: #f0d175;
+  --stripe: #121416;
+  color-scheme: dark;
 }
 
 *,
@@ -29,7 +92,7 @@
 html,
 body {
   margin: 0;
-  background: #fff;
+  background: var(--bg);
 }
 
 /* The notes app and its dialogs, which open on document.body */
@@ -50,7 +113,7 @@ body {
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: #fff;
+  background: var(--bg);
 }
 
 h1,
@@ -186,7 +249,7 @@ code {
 .rail-item {
   display: flex;
   padding: 2px 0;
-  color: #aab4bc;
+  color: var(--faint);
 }
 .rail-item-pill {
   display: flex;
@@ -217,7 +280,7 @@ code {
   border: 0;
   border-radius: 9999px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,7 +301,7 @@ code {
 }
 @media (hover: hover) and (pointer: fine) {
   .rail-cta:hover {
-    background: #272c30;
+    background: var(--ink-hover);
   }
   .rail-cta.rail-cta-blue:hover {
     background: var(--accent-ink);
@@ -276,7 +339,7 @@ code {
   height: 40px;
   flex: none;
   border-radius: 9999px;
-  background: #cfd9de;
+  background: var(--line-strong);
   color: #fff;
   font-weight: 700;
   display: flex;
@@ -339,7 +402,7 @@ code {
   align-items: center;
   gap: 24px;
   padding: 0 16px;
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(12px);
 }
 .page-head h1 {
@@ -353,7 +416,7 @@ code {
   display: flex;
   height: 53px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(12px);
 }
 .tab {
@@ -431,16 +494,16 @@ code {
 .btn-dark {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .btn-outline {
-  background: #fff;
+  background: var(--bg);
   border-color: var(--line-strong);
   color: var(--ink);
 }
 @media (hover: hover) and (pointer: fine) {
   .btn-dark:not(:disabled):hover {
-    background: #272c30;
+    background: var(--ink-hover);
   }
   .btn-outline:not(:disabled):hover {
     background: var(--hover);
@@ -954,7 +1017,7 @@ code {
 /* Blue for yes and red for no, even to the eye: both are OKLCH lightness 0.57 and chroma 0.16
    (the strongest blue that sRGB holds at that lightness), with hues 250 and 15. White text on
    both is above 4.4:1, and the labels are large text (19 px bold). The small yes and no shares
-   use a darker shade of each color. */
+   mix in --contrast: darker on the light theme, lighter on a dark one. */
 .pc-bet {
   --bet-yes: #037ad1;
   --bet-no: #c34659;
@@ -983,10 +1046,10 @@ code {
   background: var(--bet-no);
 }
 .pc-bet .nm-yes {
-  color: color-mix(in srgb, var(--bet-yes) 80%, #000);
+  color: color-mix(in srgb, var(--bet-yes) 80%, var(--contrast));
 }
 .pc-bet .nm-no {
-  color: color-mix(in srgb, var(--bet-no) 80%, #000);
+  color: color-mix(in srgb, var(--bet-no) 80%, var(--contrast));
 }
 .pc-practice {
   padding: 0 16px 8px;
@@ -1049,7 +1112,7 @@ code {
   padding: 0 16px;
   border: 1px solid var(--line-strong);
   border-radius: 9999px;
-  background: #fff;
+  background: var(--bg);
   color: var(--muted);
   font-size: 15px;
 }
@@ -1057,7 +1120,7 @@ code {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 12px 16px 16px;
-  background: #fff;
+  background: var(--bg);
 }
 .trend-list {
   list-style: none;
@@ -1147,8 +1210,8 @@ code {
   white-space: nowrap;
 }
 .chip-mock {
-  background: #fff4d6;
-  color: #8a5a00;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
 }
 .steps {
   list-style: none;
@@ -1176,7 +1239,7 @@ code {
   font-size: 12px;
   font-weight: 700;
   color: var(--muted);
-  background: #fff;
+  background: var(--bg);
 }
 .step-done .step-mark {
   background: var(--green);
@@ -1223,7 +1286,7 @@ code {
   border: 1px solid var(--line-strong);
   border-radius: 9999px;
   overflow: hidden;
-  background: #fff;
+  background: var(--bg);
 }
 .seg-btn {
   border: 0;
@@ -1250,7 +1313,7 @@ code {
   border: 1px solid var(--line-strong);
   border-radius: 9999px;
   padding: 4px 10px;
-  background: #fff;
+  background: var(--bg);
   font-size: 13px;
 }
 .how {
@@ -1399,7 +1462,7 @@ code {
 }
 .signin-step .field-error {
   padding: 8px 12px;
-  background: #fff;
+  background: var(--bg);
   border-radius: 12px;
 }
 /* Close on the card's corner: above the Wallet's iframe (z-index 60). */
@@ -1425,7 +1488,7 @@ code {
   --foot-r: 2rem;
   width: 100%;
   max-width: 560px;
-  background: #fff;
+  background: var(--bg);
   border-radius: var(--foot-r);
   display: flex;
   flex-direction: column;
@@ -1508,7 +1571,7 @@ code {
 .dialog-bare .field-error {
   padding: 8px 12px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--bg);
 }
 .post-quote,
 .note-preview {
@@ -1626,7 +1689,7 @@ fieldset:disabled .choice {
   padding: 10px 12px;
   font-size: 15px;
   resize: vertical;
-  background: #fff;
+  background: var(--bg);
 }
 .input:focus {
   outline: none;
@@ -1658,7 +1721,7 @@ fieldset:disabled .choice {
 .wn-note:focus {
   outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
-  background: #fff;
+  background: var(--bg);
 }
 .wn-note ~ .q-block {
   margin-top: 16px;
@@ -1761,7 +1824,7 @@ fieldset:disabled .choice {
   opacity: 0.4;
 }
 /* In a dialog's foot, the whole foot is the voice button: the button reaches the foot's edges,
-   and a pointer over any part of it turns the whole foot black, with a white microphone. */
+   and a pointer over any part of it turns the whole foot --ink, with an --on-ink microphone. */
 .dialog-foot {
   --foot-x: 20px;
   --foot-top: 12px;
@@ -1783,35 +1846,35 @@ fieldset:disabled .choice {
 /* Keyboard focus lights the foot as a pointer does. */
 .dialog-foot .speak-btn:not(:disabled):focus-visible {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   outline: none;
 }
 .dialog-foot .speak-btn:not(:disabled):focus-visible .mic {
-  background: #fff;
+  background: var(--on-ink);
   color: var(--ink);
 }
 .dialog-foot .speak-btn:not(:disabled):focus-visible .muted {
-  color: rgba(255, 255, 255, 0.72);
+  color: color-mix(in srgb, var(--on-ink) 72%, transparent);
 }
 @media (hover: hover) and (pointer: fine) {
   .dialog-foot .speak-btn:not(:disabled):hover {
     background: var(--ink);
-    color: #fff;
+    color: var(--on-ink);
   }
   .dialog-foot .speak-btn:not(:disabled):hover .mic {
-    background: #fff;
+    background: var(--on-ink);
     color: var(--ink);
   }
   .dialog-foot .speak-btn:not(:disabled):hover .muted {
-    color: rgba(255, 255, 255, 0.72);
+    color: color-mix(in srgb, var(--on-ink) 72%, transparent);
   }
   /* Outside a dialog's foot, only the microphone answers the pointer. */
   .speak-btn:not(:disabled):hover .mic {
-    background: #272c30;
+    background: var(--ink-hover);
   }
 }
 .dialog-foot .speak-btn:not(:disabled):active {
-  background: #272c30;
+  background: var(--ink-hover);
 }
 /* A press shrinks the microphone: the foot itself keeps the dialog's edges. */
 @media (prefers-reduced-motion: no-preference) {
@@ -1834,7 +1897,7 @@ fieldset:disabled .choice {
   flex: none;
   border-radius: 9999px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1861,7 +1924,7 @@ fieldset:disabled .choice {
   padding: 10px 12px;
 }
 .seams-card-bad {
-  border-color: #fecdd3;
+  border-color: color-mix(in srgb, var(--red) 25%, var(--bg));
 }
 .seams-card-head {
   display: flex;
@@ -2016,7 +2079,7 @@ fieldset:disabled .choice {
     height: calc(53px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.92);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
     backdrop-filter: blur(12px);
   }
   .bottom-item {
@@ -2028,7 +2091,7 @@ fieldset:disabled .choice {
     border: 0;
     border-radius: 9999px;
     background: transparent;
-    color: #aab4bc;
+    color: var(--faint);
   }
   a.bottom-item:active,
   .bottom-btn:active {
@@ -2041,7 +2104,7 @@ fieldset:disabled .choice {
     width: 28px;
     height: 28px;
     border-radius: 9999px;
-    background: #cfd9de;
+    background: var(--line-strong);
     color: #fff;
     font-size: 13px;
     font-weight: 700;
@@ -2121,7 +2184,7 @@ fieldset:disabled .choice {
   padding: 16px;
 }
 .wallet-wait-card {
-  background: #fff;
+  background: var(--bg);
   border-radius: 16px;
   padding: 24px 28px;
   max-width: 340px;

@@ -1,6 +1,6 @@
 /* Yes is blue and no is red, in every part of a market: the bar, the shares, the odds chart and
    the bet buttons. Both are OKLCH lightness 0.57 and chroma 0.16, with hues 250 and 15, so the
-   two sides look equal. Small text uses a darker shade of each. Green stays for "done" marks. */
+   two sides look equal. Small text mixes in --contrast (black, or white on a dark theme). Green stays for "done" marks. */
 :root {
   --bet-yes: #037ad1;
   --bet-no: #c34659;
@@ -36,10 +36,10 @@
   margin: 4px 0 0;
 }
 .nm-yes {
-  color: color-mix(in srgb, var(--bet-yes) 80%, #000);
+  color: color-mix(in srgb, var(--bet-yes) 80%, var(--contrast));
 }
 .nm-no {
-  color: color-mix(in srgb, var(--bet-no) 80%, #000);
+  color: color-mix(in srgb, var(--bet-no) 80%, var(--contrast));
 }
 .nm-bar {
   display: flex;
@@ -148,19 +148,19 @@
 .nm-side.nm-side-on.nm-side-yes:not(:disabled):hover {
   border-color: var(--bet-yes);
   background: color-mix(in srgb, var(--bet-yes) 10%, transparent);
-  color: color-mix(in srgb, var(--bet-yes) 80%, #000);
+  color: color-mix(in srgb, var(--bet-yes) 80%, var(--contrast));
 }
 .nm-side.nm-side-on.nm-side-no,
 .nm-side.nm-side-on.nm-side-no:not(:disabled):hover {
   border-color: var(--bet-no);
   background: color-mix(in srgb, var(--bet-no) 9%, transparent);
-  color: color-mix(in srgb, var(--bet-no) 80%, #000);
+  color: color-mix(in srgb, var(--bet-no) 80%, var(--contrast));
 }
 .nm-pill {
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(0, 186, 124, 0.12);
-  color: #00704a;
+  color: color-mix(in srgb, var(--green) 60%, var(--contrast));
   font-size: 12px;
   font-weight: 700;
 }
@@ -212,7 +212,7 @@
 }
 .nm-done {
   margin: 8px 0 0;
-  color: #00704a;
+  color: color-mix(in srgb, var(--green) 60%, var(--contrast));
   font-size: 13px;
 }
 .nm-error {

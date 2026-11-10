@@ -458,18 +458,23 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   steps as one strip (`#setup`). The field is the `GrainField` of
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
-  grid, flows it and adds grain. The site keeps three of its gradients:
-  Apricot Beam (the default), Aqua Evergreen and Onyx Black. The picker
-  (`FieldPicker.tsx`), in the nav's brand pill, is a round button with a
-  picture of the field. It opens a menu of the three, each with a picture;
-  the arrow keys change the hero as they move. The choice stays in this browser
-  (`localStorage`), and `?field=<name>` picks one for a link. A light field gets a soft dark shade
+  grid, flows it and adds grain. The page has three themes, and each has
+  one of the site's gradients: Light mode (Apricot Beam, the default), Dark
+  mode (Aqua Evergreen, with the dark blue of Twitter's dark mode, X's Dim)
+  and Onyx Black (Onyx Black, with X's black, Lights out). The theme picker
+  (`ThemePicker.tsx`, `theme.ts`), in the nav's brand pill, is a round button
+  with a picture of the field. It opens a menu of the three, each with a
+  picture; the arrow keys change the theme as they move. The choice stays in
+  this browser (`localStorage`), and `?theme=light`, `dark` or `onyx` picks
+  one for a link. The page puts it on the root element as `data-theme`. The
+  dark colours are tokens in `src/styles.css`, for the notes app, its dialogs
+  and the sheet; the hero and the nav do not change. A light field gets a soft dark shade
   on the left (`--field-scrim`), so the white text stays readable. NEAR's N
   mark (`nearMarks.tsx`, as on tatchi.xyz) lies big and faint over the field
   at the right, turned 30 degrees, behind the signature card.
 - **The sheet**, with the notes app in the page itself, not in a window. The
-  app's layout is white, and the empty space at its sides has light grey
-  diagonal stripes.
+  app's layout has the theme's ground (white in Light mode), and the empty
+  space at its sides has faint diagonal stripes.
 
 The page is the one scroll area. The hero stays in place, and the sheet moves
 up over it like paper. While the sheet covers it, the hero goes back a little,

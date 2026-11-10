@@ -37,106 +37,60 @@ function stepStatus<T extends Readonly<{ kind: string }>>(
   return outcome.value.kind === 'cancelled' ? 'todo' : 'failed';
 }
 
-function VoiceIdStep(props: {
+/**
+ * One step and one set of recordings: the Wallet turns on VoiceID if this wallet has none, and
+ * the same three recordings enroll the verifier. A VoiceID that the owner turned off comes back
+ * on first.
+ */
+function VoiceStep(props: {
   owner: Owner;
   availability: Loaded<Availability>;
   onChanged: () => void;
 }): React.JSX.Element {
   const { owner, availability, onChanged } = props;
-  const [outcome, start] = useOutcome<string>();
-  const turnOn = React.useCallback(async () => {
-    const current = availability.kind === 'ready' ? availability.value.kind : 'not_enrolled';
+  const [outcome, start] = useOutcome<SpeakToSignEnrollmentResult>();
+  const turnedOff = availability.kind === 'ready' && availability.value.kind === 'disabled';
+  const setUp = React.useCallback(async () => {
     await start(async () => {
-      if (current === 'disabled') {
+      const speakToSign = owner.seams.speakToSign;
+      if (!speakToSign) throw new Error('Speak-to-Sign is not configured.');
+      if (turnedOff) {
         await owner.seams.registration.setAuthMethodEnabled({
           walletId: owner.walletId,
           method: 'voiceid',
           enabled: true,
         });
-        return 'VoiceID is on again.';
       }
-      const result = await owner.seams.registration.activateAuthMethod({
-        walletId: owner.walletId,
-        method: 'voiceid',
-      });
-      return result.kind === 'activated'
-        ? 'VoiceID is on.'
-        : 'You closed the VoiceID window. Nothing changed.';
-    });
-    onChanged();
-  }, [availability, onChanged, owner, start]);
-
-  const status: StepStatus =
-    outcome.kind === 'working'
-      ? 'working'
-      : loadedStatus(availability, (value) => value.kind === 'enabled');
-
-  return (
-    <StepCard index={1} title="Turn on VoiceID" status={status}>
-      {availability.kind === 'failed' ? <Notice tone="error">{availability.message}</Notice> : null}
-      {status === 'done' ? (
-        <p>VoiceID is on for this wallet. The Wallet uses it to record your spoken payments.</p>
-      ) : (
-        <>
-          <p>
-            A spoken payment records your voice in the VoiceID window of the Wallet. Turn on VoiceID
-            first. The Wallet asks you to read a few short phrases.
-          </p>
-          <p className="svi-hint">
-            You must be unlocked with your passkey. You can also turn on VoiceID in the account
-            settings of the Wallet.
-          </p>
-          <LoadingButton
-            onClick={turnOn}
-            loading={outcome.kind === 'working'}
-            loadingText="Waiting for VoiceID..."
-            disabled={availability.kind !== 'ready'}
-            style={{ width: '100%' }}
-          >
-            {availability.kind === 'ready' && availability.value.kind === 'disabled'
-              ? 'Turn VoiceID on again'
-              : 'Turn on VoiceID'}
-          </LoadingButton>
-        </>
-      )}
-      {outcome.kind === 'result' ? <Notice tone="info">{outcome.value}</Notice> : null}
-      {outcome.kind === 'failed' ? <Notice tone="error">{outcome.message}</Notice> : null}
-    </StepCard>
-  );
-}
-
-function EnrollStep(props: { owner: Owner; ready: boolean }): React.JSX.Element {
-  const { owner, ready } = props;
-  const [outcome, start] = useOutcome<SpeakToSignEnrollmentResult>();
-  const enroll = React.useCallback(async () => {
-    await start(async () => {
-      const speakToSign = owner.seams.speakToSign;
-      if (!speakToSign) throw new Error('Speak-to-Sign is not configured.');
       return await speakToSign.enroll({ walletId: owner.walletId });
     });
-  }, [owner, start]);
-  const status = stepStatus(outcome, ready, (result) => result.kind === 'enrolled');
+    onChanged();
+  }, [onChanged, owner, start, turnedOff]);
+  const status = stepStatus(
+    outcome,
+    availability.kind === 'ready',
+    (result) => result.kind === 'enrolled',
+  );
 
   return (
-    <StepCard index={2} title="Enroll your voice" status={status}>
+    <StepCard index={1} title="Set up your voice" status={status}>
+      {availability.kind === 'failed' ? <Notice tone="error">{availability.message}</Notice> : null}
       <p>
-        The verifier compares each payment with a template of your voice. The Wallet shows three
-        short phrases, one at a time. Read each one aloud. Then confirm one signed message that
-        names exactly these recordings.
+        The Wallet shows three short phrases, one at a time. Read each one aloud. The same
+        recordings turn on VoiceID on this device and give the verifier a template of your voice.
+        Then confirm one signed message that names exactly these recordings.
       </p>
       <p className="svi-hint">
-        If you enrolled this wallet with this version before, you can skip this step. A new
-        enrollment replaces the template.
+        You must be unlocked with your passkey. If you set up your voice with this version before,
+        you can skip this step. A new enrollment replaces the template.
       </p>
-      {!ready ? <Notice tone="info">Turn on VoiceID first.</Notice> : null}
       <LoadingButton
-        onClick={enroll}
+        onClick={setUp}
         loading={outcome.kind === 'working'}
-        loadingText="Enrolling..."
-        disabled={!ready}
+        loadingText="Setting up..."
+        disabled={availability.kind !== 'ready'}
         style={{ width: '100%' }}
       >
-        Enroll my voice
+        {turnedOff ? 'Turn VoiceID on again and set up' : 'Set up my voice'}
       </LoadingButton>
       {outcome.kind === 'result' ? <EnrollmentResult result={outcome.value} /> : null}
       {outcome.kind === 'failed' ? <Notice tone="error">{outcome.message}</Notice> : null}
@@ -154,7 +108,7 @@ function BalanceStep(props: {
   const status = loadedStatus(balance, (value) => value !== null && value >= PAYMENT_NEED_YOCTO);
 
   return (
-    <StepCard index={3} title="Check your balance" status={status}>
+    <StepCard index={2} title="Check your balance" status={status}>
       <dl className="svi-facts">
         <Fact label="NEAR account">
           <span className="svi-account">
@@ -218,8 +172,8 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
   const status = stepStatus(outcome, ready, (result) => result.kind === 'sent');
 
   return (
-    <StepCard index={4} title="Pay by voice" status={status}>
-      {!ready ? <Notice tone="info">Turn on VoiceID first.</Notice> : null}
+    <StepCard index={3} title="Pay by voice" status={status}>
+      {!ready ? <Notice tone="info">Set up your voice first.</Notice> : null}
       <div className="svi-row">
         <label className="svi-field">
           <span>Amount in NEAR</span>
@@ -285,8 +239,7 @@ function OwnerSteps({ owner }: { owner: Owner }): React.JSX.Element {
 
   return (
     <>
-      <VoiceIdStep owner={owner} availability={availability} onChanged={reloadAvailability} />
-      <EnrollStep owner={owner} ready={voiceIdOn} />
+      <VoiceStep owner={owner} availability={availability} onChanged={reloadAvailability} />
       <BalanceStep owner={owner} balance={balance} onRefresh={reloadBalance} />
       <PayStep owner={owner} ready={voiceIdOn} onPaid={reloadBalance} />
     </>

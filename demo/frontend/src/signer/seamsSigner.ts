@@ -66,15 +66,13 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
       const id = walletId;
       return await withFreshUnlock(seams, id, async () => {
         const availability = await seams.registration.getAuthMethodAvailability({ walletId: id, method: 'voiceid' });
-        if (availability.kind === 'enabled') return { kind: 'done', message: 'VoiceID is on.' };
         if (availability.kind === 'disabled') {
           await seams.registration.setAuthMethodEnabled({ walletId: id, method: 'voiceid', enabled: true });
           return { kind: 'done', message: 'VoiceID is on again.' };
         }
-        const result = await seams.registration.activateAuthMethod({ walletId: id, method: 'voiceid' });
-        return result.kind === 'activated'
-          ? { kind: 'done', message: 'VoiceID is on.' }
-          : { kind: 'cancelled', message: 'You closed the VoiceID window. Nothing changed.' };
+        // A wallet without VoiceID gets it in the enrollment: the Wallet turns it on and enrolls
+        // the verifier from the same three recordings.
+        return { kind: 'done', message: availability.kind === 'enabled' ? 'VoiceID is on.' : 'The enrollment turns on VoiceID.' };
       });
     },
 

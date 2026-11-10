@@ -202,15 +202,13 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
 
 1. **Sign in to Seams Wallet.** The Wallet's own menu opens: unlock with a
    passkey, or create a wallet. The account is a NEAR testnet account.
-2. **Set up your voice.** One button does two Wallet steps:
-   - If VoiceID is off, the Wallet turns it on. It may ask for your passkey
-     first, then you read a few phrases. This template stays on your device.
-   - Then the Wallet enrolls your voice with the verifier. You read three
-     phrases and confirm one signed message (NEP-413) that names exactly these
-     recordings. The verifier stores this template in its TEE.
-   So the first setup records twice. One recording for both needs a change in
-   the Seams Wallet SDK. The page remembers the enrollment in your browser only,
-   because the verifier has no status call.
+2. **Set up your voice.** One button, one set of recordings. The Wallet may
+   ask for your passkey first. Then you read three phrases. If the wallet has
+   no VoiceID yet, these recordings turn it on: that template stays on your
+   device. The same recordings enroll your voice with the verifier after you
+   confirm one signed message (NEP-413) that names exactly them. The verifier
+   stores this template in its TEE. The page remembers the enrollment in your
+   browser only, because the verifier has no status call.
 3. **Testnet NEAR and USDC.** Each note or rating pays a little gas, and a bet
    on the note market pays USDC (1 USDC or more). **Get** asks the demo's faucet
    (`/api/faucet`): in one transaction it sends 0.2 NEAR and 2 USDC, once per
@@ -287,8 +285,8 @@ the names of the missing variables, and the multisig screen shows that text.
 - `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.60.0):
   - `requestNote` → `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`
   - `requestRating` → `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`
-  - `enableVoice` → `seams.registration.activateAuthMethod` (or `setAuthMethodEnabled`)
-  - `enroll` → `seams.speakToSign.enroll({ walletId })`
+  - `enableVoice` → `seams.registration.setAuthMethodEnabled` when the owner turned VoiceID off
+  - `enroll` → `seams.speakToSign.enroll({ walletId })`, which also turns on VoiceID for a new wallet
   - Each SDK refusal (`speaker`, `words`, `summary_not_speakable`, …) becomes a
     reason in plain words.
 - `src/components/SignInModal.tsx` shows the SDK's `HostedSeamsAuthMenu`. The

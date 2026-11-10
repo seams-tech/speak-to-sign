@@ -38,9 +38,12 @@ export type SetupOutcome = { kind: 'done' | 'cancelled' | 'failed'; message: str
 
 /** The Wallet setup steps after sign-in. Sign-in itself is the Wallet's own menu. */
 export interface SignerSetup {
-  /** Turns on VoiceID in the Wallet. */
+  /** Turns VoiceID on again if the owner turned it off. A new wallet gets VoiceID in `enroll`. */
   enableVoice(): Promise<SetupOutcome>;
-  /** Records three phrases and stores the owner's voice template at the verifier. */
+  /**
+   * Records three phrases and stores the owner's voice template at the verifier. A wallet
+   * without VoiceID gets it here from the same three recordings.
+   */
   enroll(): Promise<SetupOutcome>;
 }
 

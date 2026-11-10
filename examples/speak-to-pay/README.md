@@ -6,13 +6,13 @@ seams-v1.testnet." An attested verifier checks your voice and your words. Then
 your Seams Wallet pays from your own account, with no confirm. Testnet only. Do
 not use real funds.
 
-The page has five steps:
+The page has four steps:
 
 0. Sign in to your Seams Wallet with a passkey, or create a wallet.
-1. Turn on VoiceID for the wallet.
-2. Enroll your voice with the verifier (three short phrases and one signed message).
-3. Check that your NEAR account has testnet NEAR.
-4. Type an amount and a receiver, then click **Pay by voice** and read the sentence.
+1. Set up your voice: read three short phrases and confirm one signed message. The same
+   recordings turn on VoiceID on this device and enroll your voice with the verifier.
+2. Check that your NEAR account has testnet NEAR.
+3. Type an amount and a receiver, then click **Pay by voice** and read the sentence.
 
 ## 1. Set up a Seams project
 

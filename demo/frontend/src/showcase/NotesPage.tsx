@@ -46,6 +46,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
   const pageRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const groundRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   // The sheet is at the nav or past it: only the nav's strip of the field shows.
   const [docked, setDocked] = useState(false);
@@ -66,17 +67,20 @@ export function NotesPage({ seams }: { seams: boolean }) {
   /** How far the scroll area scrolls until the sheet is at the nav. */
   const coverDistance = () => sheetRef.current?.offsetTop ?? 0;
 
-  // The scroll position drives the hero (--cover: 0 = open, 1 = covered).
+  // The scroll position drives the hero and the ground's NEAR mark (--cover: 0 = open,
+  // 1 = covered).
   useEffect(() => {
     const scroller = scrollRef.current;
     const hero = heroRef.current;
+    const ground = groundRef.current;
     if (!scroller || !hero) return;
-    // The work is one style write, so it runs in the scroll event itself. A frame callback does
+    // The work is two style writes, so it runs in the scroll event itself. A frame callback does
     // not run while the tab is in the background.
     const update = () => {
       const distance = coverDistance();
       const cover = distance > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / distance)) : 1;
       hero.style.setProperty('--cover', cover.toFixed(3));
+      ground?.style.setProperty('--cover', cover.toFixed(3));
       setCovered(cover >= COVERED_AT);
       setDocked(cover >= 0.999);
     };
@@ -117,7 +121,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
   return (
     <>
       <div className="ss-page ss-spa" ref={pageRef} style={fieldStyle}>
-        <div className="ss-ground" aria-hidden="true">
+        <div className="ss-ground" aria-hidden="true" ref={groundRef}>
           {/* While the sheet is at the nav, only the nav's strip of the field shows: it holds still. */}
           <GrainField field={field} pace={HERO_FIELD_PACE} playing={!docked} />
           {/* NEAR's N, big and faint, behind the right side of the hero. */}

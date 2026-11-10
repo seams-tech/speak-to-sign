@@ -2230,7 +2230,10 @@ h1.ss-display {
 }
 
 /* NEAR's N, big and faint, behind the right side of the hero: turned 30 degrees as on
-   tatchi.xyz. Its centre is right of the middle, near the signature card; the ground crops it. */
+   tatchi.xyz. Its centre is right of the middle, near the signature card; the ground crops it.
+   As the sheet covers the hero, it blurs and fades with the hero's text (--cover, set on the
+   ground: 0 open, 1 covered), so behind the nav it is only a soft tint. It also drifts a little:
+   up 48px, and 4 degrees more of turn. */
 .ss-ground-near {
   position: absolute;
   z-index: -1;
@@ -2238,10 +2241,18 @@ h1.ss-display {
   left: calc(50% + min(26vw, 360px));
   width: clamp(560px, 68vw, 980px);
   height: auto;
-  transform: translate(-50%, -50%) rotate(30deg);
+  transform: translate(-50%, calc(-50% - var(--cover, 0) * 48px)) rotate(calc(30deg + var(--cover, 0) * 4deg));
   color: #ffffff;
-  opacity: 0.1;
+  filter: blur(calc(var(--cover, 0) * 10px));
+  opacity: calc(0.1 * (1 - var(--cover, 0) * 0.8));
+  will-change: transform, filter, opacity;
   pointer-events: none;
+}
+/* With reduced motion it stays in place, and only blurs and fades. */
+@media (prefers-reduced-motion: reduce) {
+  .ss-ground-near {
+    transform: translate(-50%, -50%) rotate(30deg);
+  }
 }
 
 /* A soft shade over the left of the ground, where the text is. A light field gets more of it

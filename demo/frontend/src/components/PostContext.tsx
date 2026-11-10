@@ -38,7 +38,7 @@ export function PostContextBox({ post }: { post: Post }) {
           <b>Readers added context they thought people might want to know</b>
         </header>
         <div className="note-body">
-          <ContextText context={context} source={post.history.source} />
+          <ContextText context={context} />
         </div>
         <div className="note-foot note-rate">
           <span>Do you bet this is true or false?</span>
@@ -52,7 +52,7 @@ export function PostContextBox({ post }: { post: Post }) {
   );
 }
 
-function ContextText({ context, source }: { context: Context; source: Post['history']['source'] }) {
+function ContextText({ context }: { context: Context }) {
   return (
     <>
       <p>{context.text}</p>
@@ -61,10 +61,6 @@ function ContextText({ context, source }: { context: Context; source: Post['hist
           <li key={example}>{example}</li>
         ))}
       </ol>
-      <a className="lk pc-source" href={source.url} target="_blank" rel="noopener noreferrer" title={source.title}>
-        Source
-        <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
-      </a>
     </>
   );
 }
@@ -153,13 +149,7 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
                   <IconCircleCheckFilled size={18} className="pc-ok" aria-hidden="true" />
                   <b>Rated helpful on X</b>
                 </p>
-                <p className="pc-note-text">
-                  {context.text}{' '}
-                  <a className="lk pc-source" href={post.history.source.url} target="_blank" rel="noopener noreferrer" title={post.history.source.title}>
-                    Source
-                    <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
-                  </a>
-                </p>
+                <p className="pc-note-text">{context.text}</p>
               </div>
               <div className="pc-bet">
                 <b className="pc-bet-title">Is this note true?</b>

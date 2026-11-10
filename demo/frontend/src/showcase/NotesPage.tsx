@@ -1,7 +1,8 @@
-// The Community Notes page of the Speak-to-Sign site, as one single-page app: a dark hero about
+// The Community Notes page of the Speak-to-Sign site, as one single-page app: a hero about
 // voice signatures (with the setup steps), and the live notes app on a white sheet under it.
 // The page has one bar, the nav: the notes app's own top line is hidden here.
 //
+// The hero has the grainy blue and rose field of the Seams Wallet site.
 // The page scrolls by the height of the hero. The nav stays in place. The hero stays too, and the
 // sheet moves up over it like a sheet of paper, while the hero goes back a little, blurs and
 // dims. When the sheet is at the nav ("docked"), the notes app scrolls inside the sheet.

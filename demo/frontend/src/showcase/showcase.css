@@ -1474,7 +1474,7 @@ h1.ss-display {
 }
 
 /* ---------- Community Notes as a single-page app (NotesPage.tsx) ----------
-   The page scrolls by the height of the hero. The nav stays at the top. The dark hero stays
+   The page scrolls by the height of the hero. The nav stays at the top. The hero stays
    under it, and the white sheet with the notes app moves up over the hero, like paper. While
    the sheet covers it, the hero goes back, blurs and dims (--cover: 0 open, 1 covered). */
 
@@ -1485,7 +1485,7 @@ h1.ss-display {
   overflow-x: clip;
   overflow-y: auto;
   overscroll-behavior: none;
-  background: #0b0b0c;
+  background: #0f7fa9;
 }
 
 .ss-spa .ss-nav {
@@ -1516,11 +1516,31 @@ h1.ss-display {
   top: var(--nav-h);
   z-index: 1;
   overflow: hidden;
+  isolation: isolate;
   color: #ffffff;
+  /* The grainy field of the Seams Wallet site (wallet.seams.sh): a deep cyan blue on the left
+     that goes through a grey blue to a soft rose at the right. The colours are samples of that
+     site's field. The text is on the blue side. */
   background:
-    radial-gradient(60% 90% at 78% 40%, rgba(61, 122, 99, 0.3), transparent 70%),
-    radial-gradient(50% 80% at 10% 0%, rgba(96, 84, 150, 0.22), transparent 70%),
-    #0b0b0c;
+    radial-gradient(55% 80% at 100% 100%, #e0b2b2 0%, rgba(224, 178, 178, 0) 70%),
+    radial-gradient(40% 70% at 92% 0%, #b79bb3 0%, rgba(183, 155, 179, 0) 72%),
+    radial-gradient(34% 60% at 40% -20%, #319dbd 0%, rgba(49, 157, 189, 0) 70%),
+    radial-gradient(55% 100% at 0% 55%, #02729c 0%, rgba(2, 114, 156, 0) 75%),
+    linear-gradient(100deg, #067aa5 0%, #1c84ad 36%, #5e8fad 62%, #a6a0bd 84%, #cfafbb 100%);
+}
+
+/* The grain: fine noise over the field, as on the Seams Wallet site. */
+.ss-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0' intercept='1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+  /* Grey noise with overlay: it makes light and dark grains, and does not change the colour. */
+  mix-blend-mode: overlay;
+  opacity: 0.38;
 }
 
 .ss-hero-inner {
@@ -1547,7 +1567,7 @@ h1.ss-display {
   font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #8fd3b6;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .ss-hero-title {
@@ -1561,18 +1581,19 @@ h1.ss-display {
   max-width: 50ch;
   font-size: 17px;
   line-height: 1.5;
-  color: #b9b4ad;
+  color: rgba(255, 255, 255, 0.92);
 }
 
-/* The signature card on the dark hero: one voice signature as it happens. */
+/* The signature card on the hero, white like the wallet card on the Seams Wallet site: one voice signature as it happens. */
 .ss-sig {
   display: grid;
   gap: 14px;
   padding: 20px 22px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: var(--radius-card);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 30px 60px -28px rgba(8, 48, 66, 0.55);
 }
 
 .ss-sig-say {
@@ -1590,16 +1611,16 @@ h1.ss-display {
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #9d978f;
+  background: var(--taupe);
+  color: var(--smoke);
   transition:
     background-color 0.25s,
     color 0.25s;
 }
 
 .ss-sig-mic-on {
-  background: #ffffff;
-  color: #0b0b0c;
+  background: var(--ink);
+  color: #ffffff;
 }
 
 .ss-sig-words {
@@ -1607,7 +1628,7 @@ h1.ss-display {
   font-size: 19px;
   line-height: 1.3;
   letter-spacing: -0.01em;
-  color: #ffffff;
+  color: var(--ink);
   animation: ss-sig-in 0.4s ease-out;
 }
 
@@ -1629,13 +1650,13 @@ h1.ss-display {
 .ss-sig-wave span {
   width: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--stone);
   transform-origin: center;
   transition: background-color 0.25s;
 }
 
 .ss-sig-wave-on span {
-  background: #8fd3b6;
+  background: #1583ad;
   animation: ss-sig-wave 0.7s ease-in-out infinite alternate;
 }
 
@@ -1660,8 +1681,8 @@ h1.ss-display {
   gap: 4px;
   padding: 4px 10px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.07);
-  color: #7d7870;
+  background: var(--taupe);
+  color: var(--ash);
   font-size: 12.5px;
   white-space: nowrap;
   transition:
@@ -1670,13 +1691,13 @@ h1.ss-display {
 }
 
 .ss-sig-chip-ok {
-  background: rgba(88, 190, 152, 0.2);
-  color: #8fd3b6;
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .ss-sig-chip-signed {
-  background: #ffffff;
-  color: #0b0b0c;
+  background: var(--ink);
+  color: #ffffff;
 }
 
 .ss-sig-call {
@@ -1686,7 +1707,7 @@ h1.ss-display {
   white-space: nowrap;
   font-family: var(--mono);
   font-size: 12px;
-  color: #9d978f;
+  color: var(--smoke);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -1708,8 +1729,8 @@ h1.ss-display {
   border-radius: 28px 28px 0 0;
   background: #ffffff;
   box-shadow:
-    0 -1px 0 rgba(255, 255, 255, 0.5),
-    0 -24px 60px -12px rgba(0, 0, 0, 0.55);
+    0 -1px 0 rgba(255, 255, 255, 0.6),
+    0 -22px 50px -14px rgba(8, 48, 66, 0.5);
   overflow: hidden;
   transition: border-radius 0.25s;
 }
@@ -1743,7 +1764,7 @@ h1.ss-display {
 .ss-setup-strip-sub {
   margin-left: 4px;
   font-weight: 400;
-  color: #9d978f;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .ss-setup-strip > div,
@@ -1764,12 +1785,12 @@ h1.ss-display {
 .ss-setup-strip .side-note {
   flex-basis: 100%;
   margin: 0;
-  color: #d6d0c8;
+  color: #ffffff;
 }
 
 .ss-setup-strip .side-note code {
   color: inherit;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* One bar on this page: the nav. The notes app's own top line ("Speak-to-Sign · not signed
@@ -1810,6 +1831,13 @@ h1.ss-display {
 }
 
 @media (max-width: 860px) {
+  /* One column: the text is across the whole width, so the rose stays in the lower right corner. */
+  .ss-hero {
+    background:
+      radial-gradient(70% 45% at 100% 100%, #e0b2b2 0%, rgba(224, 178, 178, 0) 70%),
+      radial-gradient(60% 30% at 80% -5%, #319dbd 0%, rgba(49, 157, 189, 0) 70%),
+      linear-gradient(160deg, #067aa5 0%, #1c84ad 55%, #5e8fad 85%, #a6a0bd 100%);
+  }
   .ss-hero-inner {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;

@@ -396,7 +396,8 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 - **The nav**, the one bar of the page. It stays at the top. It has both
   examples, a "Testnet" chip, Speak to pay and GitHub. The notes app's own top
   line is hidden on this page.
-- **The hero**, dark, about voice signatures: the title, one sentence, the
+- **The hero**, about voice signatures, on the grainy blue and rose field of
+  the Seams Wallet site (wallet.seams.sh; CSS gradients and SVG noise): the title, one sentence, the
   signature card (`SignatureCard.tsx`: a spoken sentence, the two checks and
   "Signed", as a loop) and the setup steps as one strip (`#setup`).
 - **The sheet**, white, with the notes app in the page itself, not in a

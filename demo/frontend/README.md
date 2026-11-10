@@ -428,10 +428,12 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   steps as one strip (`#setup`). The field is the `GrainField` of
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
-  grid, flows it and adds grain. The nav's picker (`FieldPicker.tsx`) shows
-  its 14 gradients; the default is `teal-peach-wisp`, the field of the Seams
-  home hero. The choice stays in this browser (`localStorage`), and
-  `?field=<name>` picks one for a link. A light field gets a soft dark shade
+  grid, flows it and adds grain. The nav's picker (`FieldPicker.tsx`) is a
+  round button with a picture of the field. It opens a menu of the 14
+  gradients, each with a picture; the arrow keys change the hero as they
+  move. The default is `apricot-beam`; the menu tags `teal-peach-wisp`, the
+  field of the Seams home hero. The choice stays in this browser
+  (`localStorage`), and `?field=<name>` picks one for a link. A light field gets a soft dark shade
   on the left (`--field-scrim`), so the white text stays readable.
 - **The sheet**, with the notes app in the page itself, not in a window. The
   app's layout is white, and the empty space at its sides has light grey

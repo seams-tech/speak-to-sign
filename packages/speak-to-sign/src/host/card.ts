@@ -202,11 +202,18 @@ export function enrolledView(templateEpoch: number, agreementMilli: number): Phr
   };
 }
 
+/** Refusals that say a service of the verifier failed, not that the recordings were wrong. */
+const SERVICE_REFUSALS: ReadonlySet<string> = new Set([
+  'speaker_unavailable',
+  'authorization_unavailable',
+  'storage',
+]);
+
 /** The verifier refused the recordings, or did not answer. Nothing was stored. */
 export function notEnrolledView(
   result: Readonly<{ kind: 'refused' | 'unavailable'; reason: string }>,
 ): PhraseResultView {
-  const refused = result.kind === 'refused';
+  const refused = result.kind === 'refused' && !SERVICE_REFUSALS.has(result.reason);
   return {
     kind: 'result',
     label: 'Not enrolled',

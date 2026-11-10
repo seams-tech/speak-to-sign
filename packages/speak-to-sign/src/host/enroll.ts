@@ -21,12 +21,16 @@ export const ENROLLMENT_PHRASES = [
  * template. The verifier checks that a full-access key of the owner signed the message.
  *
  * The card of the third phrase stays open until the end, so no gap shows while core prepares
- * the message: it shows the wait, the Wallet confirm opens over it (a modal dialog), and then it
+ * the message: it shows the wait, steps aside while the Wallet confirm is open, and then it
  * shows the verifier's work and the result.
+ *
+ * When VoiceID was turned on in the same flow, its three samples are the recordings, so the
+ * owner records one set for both.
  */
 export async function runEnrollment(
   input: SpeakToSignHostEnrollment,
 ): Promise<SpeakToSignEnrollmentResult> {
+  if (input.recordings) return await enrollRecordings(input, input.recordings);
   const clips: Uint8Array<ArrayBuffer>[] = [];
   for (const sentence of ENROLLMENT_PHRASES.slice(0, -1)) {
     const clip = await withPrompt(input.operations, promptRequest(input, sentence), recordClip);
@@ -39,6 +43,19 @@ export async function runEnrollment(
     if (clip.kind !== 'captured') return clip;
     return await enrollOnCard(input, [...clips, clip.wav], prompt);
   });
+}
+
+/** The card opens on the last sentence that the owner read for VoiceID, then shows the check. */
+async function enrollRecordings(
+  input: SpeakToSignHostEnrollment,
+  recordings: NonNullable<SpeakToSignHostEnrollment['recordings']>,
+): Promise<SpeakToSignEnrollmentResult> {
+  const last = recordings[recordings.length - 1];
+  const sentence = last?.sentence || ENROLLMENT_PHRASES[ENROLLMENT_PHRASES.length - 1];
+  const clips = recordings.map((recording) => recording.wav);
+  return await withPrompt(input.operations, promptRequest(input, sentence), (prompt) =>
+    enrollOnCard(input, clips, prompt),
+  );
 }
 
 function promptRequest(input: SpeakToSignHostEnrollment, sentence: string) {

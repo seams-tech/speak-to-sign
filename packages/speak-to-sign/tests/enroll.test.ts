@@ -46,7 +46,10 @@ function enrollmentHost(options: FakeHostOptions = {}): FakeHost {
   });
 }
 
-function enrollmentInput(host: FakeHost): SpeakToSignHostEnrollment {
+function enrollmentInput(
+  host: FakeHost,
+  recordings: SpeakToSignHostEnrollment['recordings'] = null,
+): SpeakToSignHostEnrollment {
   return {
     walletId: 'wallet:owner' as never,
     network: 'testnet',
@@ -54,6 +57,7 @@ function enrollmentInput(host: FakeHost): SpeakToSignHostEnrollment {
     ownerAccountId: 'owner.testnet',
     surfaceMeasurementBinding: { kind: 'disabled' },
     operations: host.operations,
+    recordings,
   };
 }
 
@@ -86,7 +90,7 @@ test('the card of the third phrase stays open from the recording to the result',
     'close 2',
     'open 3',
     'record 3',
-    // No gap: the card waits while core prepares the message, and the confirm opens over it.
+    // No gap: the card waits while core prepares the message and steps aside for the confirm.
     'show 3: Preparing your signed enrollment',
     'authorize',
     'show 3: Storing your voice template',
@@ -94,6 +98,36 @@ test('the card of the third phrase stays open from the recording to the result',
     'show 3: Voice enrolled',
     'close 3',
   ]);
+});
+
+test('the samples of a VoiceID enrollment in the same flow are enrolled without a recording', async () => {
+  const host = enrollmentHost();
+  const recordings = [clip(7), clip(8), clip(9)].map((captured, index) => ({
+    wav: captured.wav,
+    sentence: `VoiceID phrase ${index + 1}.`,
+  }));
+  const result = await runEnrollment(enrollmentInput(host, recordings));
+  expect(result).toEqual({ kind: 'enrolled', templateEpoch: 1, agreementMilli: 812 });
+  // One card, on the last sentence that the owner read for VoiceID.
+  expect(host.sentences).toEqual(['VoiceID phrase 3.']);
+  expect(host.events).toEqual([
+    'open 1',
+    'show 1: Preparing your signed enrollment',
+    'authorize',
+    'show 1: Storing your voice template',
+    'verify',
+    'show 1: Voice enrolled',
+    'close 1',
+  ]);
+  expect(host.authorized).toEqual([recordings.map((recording) => recording.wav)]);
+});
+
+test('a verifier service that did not answer is not a refusal of the recordings', async () => {
+  const host = enrollmentHost({
+    reply: verifierOutput({ ...REFUSED_OUTPUT, reason: 'speaker_unavailable', detail: null }),
+  });
+  await runEnrollment(enrollmentInput(host));
+  expect(host.events.slice(-2)).toEqual(['show 3: The check is not available', 'close 3']);
 });
 
 test('a verifier refusal shows on the card of the third phrase, then the card closes', async () => {

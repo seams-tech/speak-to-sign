@@ -70,20 +70,20 @@ The descriptor is a few bytes of data and loads no code.
 
 ## Owner setup
 
-Before the first spoken payment, the owner needs two things:
-
-1. VoiceID is on for the wallet
-   (`seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`).
-2. A voice template at the verifier:
+Before the first spoken payment, the owner needs a voice template at the
+verifier:
 
 ```ts
 const enrollment = await seams.speakToSign.enroll({ walletId });
 ```
 
-`enroll` shows three short phrases on the VoiceID surface, one at a time. Then
-the owner approves one signed message (NEP-413) on the wallet confirm, which
-opens over the VoiceID card. The card stays open from the last phrase to the
-result. The message names the digest of exactly these three recordings. The Wallet sends
+`enroll` shows three short phrases on the VoiceID surface, one at a time. If
+the wallet has no VoiceID yet, the Wallet turns it on first, and the three
+samples of that VoiceID enrollment are the verifier's recordings too, so the
+owner reads one set for both (Wallet 0.64.0, host API 9). Then the owner
+approves one signed message (NEP-413) on the wallet confirm. The VoiceID card
+steps aside while the confirm is open, and stays open from the last phrase to
+the result. The message names the digest of exactly these three recordings. The Wallet sends
 the recordings and the signature to the verifier. The verifier checks that a
 full-access key of the owner signed the message, and stores the template. A new
 enrollment replaces the template.

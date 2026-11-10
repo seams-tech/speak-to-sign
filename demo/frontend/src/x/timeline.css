@@ -153,9 +153,41 @@ button.tab.tab-on {
   align-items: center;
   gap: 4px;
 }
-.xt-side-foot {
-  margin-top: 12px;
-  font-size: 13px;
+/* The search box is for the look only. */
+.xt-search {
+  flex: none;
+  background: var(--bg);
+  cursor: default;
+  user-select: none;
+}
+/* "Why sign by voice?": rows in the look of X's news box, with an icon at the left. */
+.xt-why {
+  margin-bottom: -4px;
+}
+.xt-why-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px;
+}
+.xt-why-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.xt-why-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.xt-why-title {
+  font-weight: 700;
+  line-height: 20px;
 }
 /* "Home" in the navigation is a real link now. */
 a.rail-item {

@@ -1,7 +1,11 @@
-// The right column of the notes app: the newest notes, each with the sentence that its author
-// said to post it. It shows what a voice signature leaves on chain.
+// The right column of the notes app, in the order of X's own right column:
+// - a search box, for the look only: it takes no click and no key;
+// - "Why sign by voice?": three short reasons, in the place of X's news box;
+// - "Signed by voice": the newest notes, each with the sentence that its author said to post it.
+//   It shows only when there is a note.
 
-import { IconMicrophone } from '@tabler/icons-react';
+import type { ReactNode } from 'react';
+import { IconEyeCheck, IconHandOff, IconMicrophone, IconRobotOff, IconSearch } from '@tabler/icons-react';
 import { shortAccount } from '../config';
 import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
@@ -29,18 +33,65 @@ export function newestNotes(notesByPost: Record<number, Note[]>, limit = MAX_ROW
     .slice(0, limit);
 }
 
+/**
+ * Why a voice signature, in three rows. Each row says only what the demo does: notes and
+ * ratings are signed by voice. A bet is signed with a Wallet confirm, so no row is about bets.
+ */
+const REASONS: { icon: ReactNode; kicker: string; title: string; text: string }[] = [
+  {
+    icon: <IconRobotOff size={20} stroke={1.8} />,
+    kicker: 'Community Notes',
+    title: 'Hard for bots to fake',
+    text: 'You read each note aloud. A verifier checks that the voice is yours.',
+  },
+  {
+    icon: <IconEyeCheck size={20} stroke={1.8} />,
+    kicker: 'No blind signing',
+    title: 'You say what you sign',
+    text: 'The wallet signs only when your words match the request. A phishing request does not match.',
+  },
+  {
+    icon: <IconHandOff size={20} stroke={1.8} />,
+    kicker: 'No confirm tap',
+    title: 'Your voice is the approval',
+    text: 'The wallet signs that one call. The permission ends after two minutes.',
+  },
+];
+
 export function VoiceFeed() {
-  const { notesByPost, loading } = useDemo();
+  const { notesByPost } = useDemo();
   const notes = newestNotes(notesByPost);
   return (
-    <aside className="side xt-side" aria-labelledby="voice-feed-title">
-      <section className="side-box">
-        <h2 id="voice-feed-title" className="side-title">
-          Signed by voice
+    <aside className="side xt-side" aria-label="About voice signatures">
+      {/* For the look only, as on X. Screen readers and the keyboard pass over it. */}
+      <div className="side-search xt-search" aria-hidden="true">
+        <IconSearch size={18} stroke={1.8} />
+        <span>Search</span>
+      </div>
+      <section className="side-box" aria-labelledby="why-voice-title">
+        <h2 id="why-voice-title" className="side-title">
+          Why sign by voice?
         </h2>
-        {notes.length === 0 ? (
-          <p className="side-empty muted">{loading ? 'Reading notes from testnet…' : 'No notes yet. Click a post and write the first one with your voice.'}</p>
-        ) : (
+        <ul className="trend-list xt-why">
+          {REASONS.map((reason) => (
+            <li key={reason.title} className="xt-why-row">
+              <span className="xt-why-icon" aria-hidden="true">
+                {reason.icon}
+              </span>
+              <span className="xt-why-text">
+                <span className="trend-kicker">{reason.kicker}</span>
+                <span className="xt-why-title">{reason.title}</span>
+                <span className="trend-meta muted">{reason.text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {notes.length > 0 && (
+        <section className="side-box" aria-labelledby="voice-feed-title">
+          <h2 id="voice-feed-title" className="side-title">
+            Signed by voice
+          </h2>
           <ul className="trend-list">
             {notes.map((note) => (
               <li key={note.id}>
@@ -62,9 +113,8 @@ export function VoiceFeed() {
               </li>
             ))}
           </ul>
-        )}
-        <p className="side-text muted xt-side-foot">Each note was posted with a spoken sentence. The Wallet signed only that one call.</p>
-      </section>
+        </section>
+      )}
     </aside>
   );
 }

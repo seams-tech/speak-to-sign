@@ -95,9 +95,9 @@ page with `useMarketSource()`.
 | `getMarketForNote(noteId)` | view `get_market_for_note({note_id})` | `null` before the deploy too. |
 | `getPosition(marketId, accountId)` | view `get_position({market_id, account_id})` | `payout` (null before the resolution) and `claimed`. |
 | `getOddsHistory(marketId)` | view `get_odds_history({market_id})` | The last 50 points, oldest first. |
-| `bet({marketId, side, amount})` | USDC `ft_transfer_call` to the market, `msg` `{"action":"bet","market_id","outcome"}`, 1 yoctoNEAR, 100 Tgas | At least 1 USDC. A refused bet comes back, and the signer reports it from the missing `bet` event. |
+| `bet({marketId, side, amount})` | USDC `ft_transfer_call` to the market, `msg` `{"action":"bet","market_id","outcome"}`, 1 yoctoNEAR, 100 Tgas | At least 0.1 USDC. A refused bet comes back, and the signer reports it from the missing `bet` event. |
 | `claim(marketId)` | `claim({market_id})`, 50 Tgas | The market sends the USDC with `ft_transfer`. A `claim_failed` event becomes a `refused` result. |
-| `requestResolution(marketId)` | `request_resolution({market_id})`, 0.05 NEAR, 300 Tgas | A `resolution_failed` event becomes a `refused` result with its reason. |
+| `requestResolution(marketId)` | `request_resolution({market_id})`, 0.01 NEAR (OutLayer refunds the unused part), 300 Tgas | A `resolution_failed` event becomes a `refused` result with its reason. |
 | `createMarket(input)` | USDC `ft_transfer_call`, `msg` `{"action":"create_market","question","context","note_id","closes_at_ms"}`, amount `seed` | Optional in the interface. The strip then shows "Open a market" on a note without a market. |
 | `closeMarket(marketId)` | `close_market({market_id})` | Optional. The creator sees "Close betting now". |
 | `canOpenMarkets()` | view `get_config` | False before the deploy: "Open a market" stays hidden. |

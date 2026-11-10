@@ -249,12 +249,13 @@ async fn a_usdc_market_from_create_to_claim_in_the_sandbox() -> anyhow::Result<(
         .transact()
         .await?
         .into_result()?;
-    let result = call(&kenji, &market, "request_resolution", json!({ "market_id": 1 }), NEAR / 20, REQUEST_GAS).await?;
+    let result = call(&kenji, &market, "request_resolution", json!({ "market_id": 1 }), NEAR / 100, REQUEST_GAS).await?;
     check_success("request_resolution (answer)", &result, REQUEST_GAS);
     assert!(result.clone().json::<bool>()?);
     assert_eq!(events(&result)[1].0, "market_resolved");
     let request = view(&outlayer, "get_last_request", json!({})).await?;
-    assert_eq!(amount(&request["deposit"]), NEAR / 20, "the NEAR fee goes to OutLayer");
+    assert_eq!(amount(&request["deposit"]), NEAR / 100, "the NEAR fee goes to OutLayer");
+    assert_eq!(request["payer_account_id"], kenji.id().as_str(), "OutLayer refunds the asker");
     assert_eq!(request["input"]["question"], QUESTION);
     let result = call(&kenji, &market, "on_resolution", json!({ "market_id": 1, "request_id": 4 }), 0, CALL_GAS).await?;
     check_failure("on_resolution from outside", &result, "Method on_resolution is private");

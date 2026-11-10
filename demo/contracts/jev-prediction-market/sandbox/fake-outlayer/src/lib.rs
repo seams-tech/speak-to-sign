@@ -49,6 +49,7 @@ impl FakeOutlayer {
         resource_limits: Value,
         response_format: String,
         secrets_ref: Option<Value>,
+        payer_account_id: Option<String>,
     ) -> Value {
         self.calls += 1;
         self.last_request = json!({
@@ -59,6 +60,7 @@ impl FakeOutlayer {
             "resource_limits": resource_limits,
             "response_format": response_format,
             "secrets_ref": secrets_ref,
+            "payer_account_id": payer_account_id,
         })
         .to_string();
         if self.mode == Mode::Fail {

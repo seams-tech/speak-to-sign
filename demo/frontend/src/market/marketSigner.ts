@@ -19,8 +19,8 @@ const CLAIM_GAS = (50n * TGAS).toString();
 const FT_CALL_GAS = (100n * TGAS).toString();
 /** `request_resolution` calls OutLayer and waits for the AI answer. */
 const REQUEST_GAS = (300n * TGAS).toString();
-/** The OutLayer fee that `request_resolution` attaches: 0.05 NEAR. */
-export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 20n;
+/** The OutLayer fee that `request_resolution` attaches: 0.01 NEAR. OutLayer refunds the unused part. */
+export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 100n;
 
 export interface MarketSigner {
   createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }): Promise<SignResult>;

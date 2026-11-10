@@ -123,7 +123,7 @@ fn answer(value: Value) -> PromiseResult {
 
 /// Closes market 1, requests a resolution as `who` and returns the request id.
 fn request(contract: &mut PredictionMarkets, who: &str, at_ms: u64) -> u64 {
-    call(who, at_ms, 50 * MILLI);
+    call(who, at_ms, 10 * MILLI);
     let _ = contract.request_resolution(1);
     contract.markets.get(&1).unwrap().pending.as_ref().unwrap().request_id
 }
@@ -443,7 +443,7 @@ fn request_resolution_calls_outlayer_and_the_callback() {
             "market_id": 1,
             "request_id": 1,
             "requested_by": "kenji.testnet",
-            "deposit": (50 * MILLI).to_string(),
+            "deposit": (10 * MILLI).to_string(),
         })
     );
 
@@ -456,7 +456,7 @@ fn request_resolution_calls_outlayer_and_the_callback() {
         panic!("a function call");
     };
     assert_eq!(method_name, b"request_execution");
-    assert_eq!(*attached_deposit, NearToken::from_yoctonear(50 * MILLI));
+    assert_eq!(*attached_deposit, NearToken::from_yoctonear(10 * MILLI));
     assert_eq!(*prepaid_gas, OUTLAYER_GAS);
     let args: Value = serde_json::from_slice(args).unwrap();
     let input: Value = serde_json::from_str(args["input_data"].as_str().unwrap()).unwrap();
@@ -481,6 +481,7 @@ fn request_resolution_calls_outlayer_and_the_callback() {
                 "max_execution_seconds": 60,
             },
             "response_format": "Json",
+            "payer_account_id": "kenji.testnet",
         })
     );
 
@@ -535,11 +536,11 @@ fn request_resolution_waits_for_the_close() {
 }
 
 #[test]
-#[should_panic(expected = "attach at least 0.05 NEAR for the OutLayer run")]
+#[should_panic(expected = "attach at least 0.01 NEAR for the OutLayer run")]
 fn request_resolution_needs_the_fee() {
     let mut contract = setup();
     open_market(&mut contract);
-    call("kenji", T0 + HOUR, 50 * MILLI - 1);
+    call("kenji", T0 + HOUR, 10 * MILLI - 1);
     let _ = contract.request_resolution(1);
 }
 
@@ -548,7 +549,7 @@ fn request_resolution_needs_the_fee() {
 fn request_resolution_needs_the_gas() {
     let mut contract = setup();
     open_market(&mut contract);
-    testing_env!(context(&account("kenji"), T0 + HOUR, 50 * MILLI, 249));
+    testing_env!(context(&account("kenji"), T0 + HOUR, 10 * MILLI, 249));
     let _ = contract.request_resolution(1);
 }
 
@@ -1030,7 +1031,7 @@ fn get_config_shows_the_rules() {
             snap_low_bps: 1_000,
             min_seed: U128(USDC),
             min_bet: U128(USDC / 10),
-            min_resolution_deposit: U128(50 * MILLI),
+            min_resolution_deposit: U128(10 * MILLI),
             max_open_ms: 30 * 24 * HOUR,
         }
     );

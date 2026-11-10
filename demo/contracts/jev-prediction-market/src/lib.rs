@@ -60,8 +60,10 @@ pub const BPS: u16 = 10_000;
 pub const SNAP_HIGH_BPS: u16 = 9_000;
 /// A probability at or below this pays the NO bets in full (`w` = 0).
 pub const SNAP_LOW_BPS: u16 = 1_000;
-/// The smallest deposit for `request_resolution`. It pays the OutLayer run.
-pub const MIN_RESOLUTION_DEPOSIT: NearToken = NearToken::from_millinear(50);
+/// The smallest deposit for `request_resolution`. It pays the OutLayer run: OutLayer's estimate
+/// for the resource limits below is 0.007 NEAR (10 Nov 2026), and it refunds the unused part to
+/// the account that asked.
+pub const MIN_RESOLUTION_DEPOSIT: NearToken = NearToken::from_millinear(10);
 /// The gas for OutLayer `request_execution`.
 pub const OUTLAYER_GAS: Gas = Gas::from_tgas(200);
 /// The gas for the `on_resolution` callback.
@@ -424,13 +426,14 @@ impl PredictionMarkets {
     }
 
     /// Asks the OutLayer resolver worker for the probability of YES. Any account can call it
-    /// after the close. Attach at least 0.05 NEAR (the OutLayer fee) and 300 Tgas. The result
-    /// of the transaction is the result of `on_resolution`: true if the market resolved.
+    /// after the close. Attach at least 0.01 NEAR (the OutLayer fee) and 300 Tgas. OutLayer
+    /// refunds the unused part of the fee to the caller (`payer_account_id`). The result of the
+    /// transaction is the result of `on_resolution`: true if the market resolved.
     #[payable]
     pub fn request_resolution(&mut self, market_id: u64) -> Promise {
         let deposit = env::attached_deposit();
         if deposit < MIN_RESOLUTION_DEPOSIT {
-            env::panic_str("attach at least 0.05 NEAR for the OutLayer run");
+            env::panic_str("attach at least 0.01 NEAR for the OutLayer run");
         }
         if env::prepaid_gas() < MIN_REQUEST_GAS {
             env::panic_str("attach 300 Tgas to request a resolution");
@@ -470,7 +473,7 @@ impl PredictionMarkets {
             },
         );
 
-        let args = outlayer_args(&self.resolver, input);
+        let args = outlayer_args(&self.resolver, input, &requested_by);
         Promise::new(self.resolver.outlayer_account.clone())
             .function_call("request_execution".to_owned(), args, deposit, OUTLAYER_GAS)
             .then(Promise::new(env::current_account_id()).function_call(
@@ -1008,7 +1011,8 @@ fn is_label(text: &str) -> bool {
 }
 
 /// The arguments of OutLayer `request_execution`.
-fn outlayer_args(config: &ResolverConfig, input_data: String) -> Vec<u8> {
+/// `payer` gets OutLayer's refund of the unused fee.
+fn outlayer_args(config: &ResolverConfig, input_data: String, payer: &AccountId) -> Vec<u8> {
     to_json_bytes(&ExecutionArgs {
         source: Source {
             project: ProjectSource {
@@ -1024,6 +1028,7 @@ fn outlayer_args(config: &ResolverConfig, input_data: String) -> Vec<u8> {
         },
         secrets_ref: config.secrets_ref.as_ref(),
         response_format: "Json",
+        payer_account_id: payer,
     })
 }
 
@@ -1141,6 +1146,7 @@ struct ExecutionArgs<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     secrets_ref: Option<&'a SecretsRef>,
     response_format: &'static str,
+    payer_account_id: &'a AccountId,
 }
 
 #[derive(Serialize)]

@@ -133,6 +133,10 @@ export function NotesPage({ seams }: { seams: boolean }) {
             <div className="ss-nav-setup" data-shown={covered || undefined} inert={!covered} aria-label="Set up">
               {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
             </div>
+            <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+              <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
+              <span>GitHub</span>
+            </a>
             <a className="ss-near" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
               <span className="ss-near-words">Built on</span>
               <NearWordmark />
@@ -140,10 +144,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
             <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
               <SeamsWordmark className="ss-seams-wordmark" />
               <SeamsMark className="ss-seams-mark" />
-            </a>
-            <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-              <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
-              <span>GitHub</span>
             </a>
           </div>
         </header>

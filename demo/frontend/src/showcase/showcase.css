@@ -1851,11 +1851,9 @@ h1.ss-display {
   transition: background-color 150ms ease;
 }
 
+/* GitHub is the first of the three pills at the right: it has the push to the right
+   (margin-left: auto, in its own rule). */
 .ss-spa .ss-near {
-  margin-left: auto;
-}
-
-.ss-spa .ss-near ~ .ss-nav-source {
   margin-left: 0;
 }
 

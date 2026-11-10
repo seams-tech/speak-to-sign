@@ -1,6 +1,6 @@
 {
   "display": { "name": "Seams voice verifier (speaker model in the worker)" },
-  "operations": ["enroll", "verify", "select", "transcribe", "detect"],
+  "operations": ["enroll", "verify", "select", "transcribe", "detect", "audio_key"],
   "capabilities": {
     "network": [
       { "host": "test.fastfs.io", "timeout_secs": 30 },

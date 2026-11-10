@@ -92,7 +92,7 @@ fn verify_steps(
     let contacts = known_accounts(&input.contacts, &request, recalled)?;
 
     // 2. The audio.
-    let clip = decode_clip(&input.audio_wav_b64)?;
+    let clip = decode_clip(host, "verify", &input.owner, &input.audio_wav_b64, &input.audio_sealed_b64)?;
     let digest_b64u = b64u(&clip.digest);
     verdict.audio_digest = Some(digest_b64u.clone());
     if !energy_gate(&clip.pcm).passes() {

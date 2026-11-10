@@ -297,6 +297,19 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_MULTISIG_CONTRACT`            | `multisig.seams-v1.testnet`           |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
+| `VITE_VOICE_AUDIO_KEY`              | none: recordings go as plain WAVs     |
+
+With `VITE_VOICE_AUDIO_KEY` (standard base64 of the verifier's 32-byte audio
+key), the multisig screen and the note market seal each recording to the
+verifier before it leaves the browser (`src/voiceRoute.ts`). The verify route
+and OutLayer's coordinator then carry only ciphertext. This needs verifier
+0.12.0 or later and the OutLayer secret `PROTECTED_AUDIO_KEY`. To print the
+value, after a check of its signature against the verdict key that the
+contract pins:
+
+```bash
+node --env-file=.dev.vars scripts/audio-key.mjs ed25519:<verdict key>
+```
 
 The publishable key belongs to a Seams project environment in the staging Seams
 Console. The Wallet accepts sign-in only from the origins of that project. A

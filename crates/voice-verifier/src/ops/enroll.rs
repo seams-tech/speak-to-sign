@@ -5,7 +5,7 @@ use std::time::Instant;
 use serde_json::Value;
 
 use super::request::{unsupported, Owner};
-use super::steps::{consume, decode_clip, in_flight, local_embedding, reply, speaker_reply};
+use super::steps::{consume, decode_clips, in_flight, local_embedding, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
 use crate::authorization::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
@@ -53,10 +53,11 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
         return Err(Reason::Unsupported.into());
     }
     output.owner = Some(owner.as_str().to_string());
-    if input.audio_wav_b64.len() != ENROLL_RECORDINGS {
+    let (plain, sealed) = (input.audio_wav_b64.as_deref(), input.audio_sealed_b64.as_deref());
+    if plain.or(sealed).is_some_and(|clips| clips.len() != ENROLL_RECORDINGS) {
         return Err(Reason::Unsupported.into());
     }
-    let clips = input.audio_wav_b64.iter().map(|text| decode_clip(text)).collect::<Result<Vec<_>, _>>()?;
+    let clips = decode_clips(host, "enroll", owner.as_str(), plain, sealed)?;
     output.audio_digests = clips.iter().map(|clip| b64u(&clip.digest)).collect();
     for (index, clip) in clips.iter().enumerate() {
         if clips[..index].iter().any(|other| other.digest == clip.digest) {

@@ -74,7 +74,7 @@ fn detect_steps(
     result.intents_digest = Some(b64u(&intents_digest(&input.intents)));
 
     // The audio.
-    let clip = decode_clip(&input.audio_wav_b64)?;
+    let clip = decode_clip(host, "detect", &input.owner, &input.audio_wav_b64, &input.audio_sealed_b64)?;
     let digest_b64u = b64u(&clip.digest);
     result.audio_digest = Some(digest_b64u.clone());
     if !energy_gate(&clip.pcm).passes() {

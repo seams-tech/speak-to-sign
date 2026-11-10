@@ -113,6 +113,40 @@ generates.
   refuses with `audio_reused`. A refusal after the mark also uses up the
   recording, so the Wallet records new audio for each try.
 
+### 5.1 Sealed audio
+
+A Wallet can seal each recording to the verifier, so that the Seams server
+and OutLayer's coordinator carry only ciphertext. The verifier opens the
+recording inside its TEE. Verifier 0.12.0 and later.
+
+- **Key.** The audio key is an X25519 key pair. The private key is the
+  OutLayer secret `PROTECTED_AUDIO_KEY`: 32 bytes that the keystore made
+  inside its TEE (type `hex32`). The keystore refuses a manual value with the
+  `PROTECTED_` prefix, so nobody saw the private key.
+- **Envelope.** HPKE base mode (RFC 9180) with DHKEM(X25519, HKDF-SHA256),
+  HKDF-SHA256 and AES-256-GCM. `info` is `seams:voice-audio:v1`. The `aad` is
+  `op || 0x00 || owner`, with `op` the name of the operation (`verify`,
+  `enroll`, `select`, `transcribe` or `detect`).
+- **Wire.** A sealed clip is `enc || ciphertext || tag` (32 bytes, the WAV,
+  16 bytes) in standard base64. It goes in `audio_sealed_b64` and takes the
+  place of `audio_wav_b64`. An input has one of the two fields.
+- **Key answer.** The operation `{"op":"audio_key"}` returns
+  `audio_public_key_b64`, `signature_b64` and `public_key`. The verdict key
+  signs `SHA-256("seams:outlayer:voice-audio-key:v1" || audio public key)`.
+  A Wallet takes the audio key only if the verdict key that it pins made the
+  signature. So a server between them cannot put its own key there.
+- **Refusals.** A clip that does not open refuses with `audio_invalid`: it
+  was sealed to another key, for another owner or operation, or it was
+  changed. Sealed audio on a project without the secret refuses with
+  `unsupported`.
+- **Unchanged.** The audio digest, the used-audio mark and the enrollment
+  digest are over the canonical WAV of the opened clip. A sealed clip and a
+  plain clip of the same WAV are the same audio.
+
+Sealed audio hides the recording on the path. It does not hide the request:
+the Wallet sends `request` in plain text, and the verdict names what was
+heard.
+
 ## 6. Enrollment (`enroll`)
 
 Input: `{"op":"enroll","owner","audio_wav_b64":[3 WAVs],"authorization":{"public_key","signature_b64","nonce_b64"}}`.
@@ -340,7 +374,13 @@ has the interface.
   and the NEAR AI secret. If the TEE or its governance fails, a verdict means
   nothing.
 - **Project owner.** The owner of the OutLayer project can deploy a version
-  that signs with the same key. The Wallet pins the key, not the code.
+  that signs with the same key. The Wallet pins the key, not the code. Such a
+  version also reads the audio key and can open sealed audio. The OutLayer
+  access rule "One build only" on the secrets profile limits this to one
+  WASM hash, until the owner moves the lock.
+- **Sealed audio after the verifier.** The verifier sends the opened WAV to
+  the speaker service (Phala) and to NEAR AI over HTTPS. Those two services
+  see the recording.
 - **NEAR AI.** The transcript has no signature. A false transcript can pass
   the word check.
 - **Phala.** The owner of the Phala app can change the service code and keep

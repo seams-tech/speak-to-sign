@@ -1,4 +1,9 @@
-//! The operations `enroll`, `verify`, `select`, `transcribe` and `detect`.
+//! The operations `enroll`, `verify`, `select`, `transcribe`, `detect` and
+//! `audio_key`.
+//!
+//! Each operation with a recording takes it as a plain WAV or sealed to the
+//! audio key (see [`crate::envelope`]); `audio_key` gives that key, signed
+//! by the verdict key.
 //!
 //! `verify` sends the canonical WAV to the speaker service and to NEAR AI at
 //! the same time, reads the template and the used-audio marker while those
@@ -15,6 +20,7 @@
 //! Each flow has its own file. `request.rs` types the request of a `verify`
 //! input, `multisig.rs` builds and records the multisig kinds, and
 //! `steps.rs` holds the steps that both flows use.
+mod audio_key;
 mod detect;
 mod enroll;
 mod multisig;
@@ -69,6 +75,7 @@ pub fn run_with(input: &[u8], host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
         Some("select") => json_bytes(&select::select(value, host, pins)),
         Some("transcribe") => json_bytes(&transcribe::transcribe(value, host, pins)),
         Some("detect") => json_bytes(&detect::detect(value, host, pins)),
+        Some("audio_key") => json_bytes(&audio_key::audio_key(host)),
         _ => json_bytes(&UnknownOp {
             kind: ERROR_OUTPUT_KIND,
             verifier: VERIFIER_VERSION,

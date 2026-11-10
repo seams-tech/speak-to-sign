@@ -10,6 +10,7 @@ mod local_speaker;
 mod merges;
 mod multisig;
 mod notes;
+mod sealed;
 mod transcribe;
 mod verify;
 mod web2;
@@ -20,6 +21,6 @@ use fake::{call, Fake};
 
 #[test]
 fn unknown_op() {
-    let out = call(&mut Fake::new(), json!({ "op": "audio_key" }));
+    let out = call(&mut Fake::new(), json!({ "op": "forget" }));
     assert_eq!(out["reason"], "unsupported");
 }

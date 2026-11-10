@@ -34,7 +34,7 @@ Speak-to-Sign needs `@seams/voiceid` for the enrollment, the capture surface
 and the speech assets. Install all three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.64.0 @seams/voiceid@0.64.0 @seams/speak-to-sign@0.64.0
+pnpm add @seams/wallet@0.65.0 @seams/voiceid@0.65.0 @seams/speak-to-sign@0.65.0
 ```
 
 `@seams/wallet` does not depend on this package. An app without the
@@ -80,7 +80,7 @@ const enrollment = await seams.speakToSign.enroll({ walletId });
 `enroll` shows three short phrases on the VoiceID surface, one at a time. If
 the wallet has no VoiceID yet, the Wallet turns it on first, and the three
 samples of that VoiceID enrollment are the verifier's recordings too, so the
-owner reads one set for both (Wallet 0.64.0, host API 9). Then the owner
+owner reads one set for both (Wallet 0.64.0 and later, host API 9). Then the owner
 approves one signed message (NEP-413) on the wallet confirm. The VoiceID card
 steps aside while the confirm is open, and stays open from the last phrase to
 the result. The message names the digest of exactly these three recordings. The Wallet sends

@@ -516,36 +516,7 @@ code {
 .badge-blue {
   color: var(--accent);
 }
-.history {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--muted);
-}
-.history svg {
-  flex: none;
-  margin-top: 1px;
-}
-.history-full {
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--panel);
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--ink);
-}
-.history-full svg {
-  color: var(--muted);
-}
-.history .lk {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
+
 .media {
   position: relative;
   margin: 12px 0 0;
@@ -667,14 +638,7 @@ code {
   margin-top: 2px;
   overflow-wrap: anywhere;
 }
-.tl-pending {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--muted);
-}
+
 .actions {
   display: flex;
   align-items: center;
@@ -734,71 +698,16 @@ code {
   border-bottom: 1px solid var(--line);
 }
 
-/* Post page */
-.pd {
-  padding: 4px 16px 0;
-}
-.pd-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.pd-who {
-  flex: 1;
-  min-width: 0;
-}
-.pd-text {
-  font-size: 17px;
-  line-height: 1.4;
-  margin: 12px 0;
-  overflow-wrap: anywhere;
-}
-.pd-time {
-  padding: 12px 0;
-  margin-top: 4px;
-  border-bottom: 1px solid var(--line);
-}
-.write-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 0;
-  margin-top: 4px;
-  border-bottom: 1px solid var(--line);
-}
-/* The next step of the demo: a highlighted row, a pulsing blue button and a hand that points at it. */
-.write-row-cue {
-  margin: 12px 0 0;
-  padding: 12px 12px 12px 14px;
-  border: 1px solid #a9d6f8;
-  border-radius: 16px;
-  background: var(--accent-bg);
-}
-.cue-icon {
-  color: var(--accent);
-}
-/* The hand and the pulse stop after about 4 seconds (moving content that runs longer than 5
-   seconds needs a pause control); the highlighted row stays as the cue. */
-.cue-hand {
-  flex: none;
-  color: var(--accent);
-  animation: cue-point 1.1s ease-in-out 4 forwards;
-}
-/* The main calls to action of the demo: "Write a note" and "Bet". Solid blue; the next step
-   also pulses. */
-.btn-blue,
-.btn-cue {
+/* The main calls to action of the demo: "Write a note" and "Bet". Solid blue. */
+.btn-blue {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
   font-weight: 700;
 }
-.btn-cue {
-  animation: cue-ring 1.8s ease-out 2;
-}
+
 @media (hover: hover) and (pointer: fine) {
-  .btn-blue:not(:disabled):hover,
-  .btn-cue:not(:disabled):hover {
+  .btn-blue:not(:disabled):hover {
     background: var(--accent-ink);
     border-color: var(--accent-ink);
   }
@@ -821,18 +730,9 @@ code {
     box-shadow: 0 0 0 10px rgba(29, 155, 240, 0);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .cue-hand,
-  .btn-cue {
-    animation: none;
-  }
-}
+
 .draft-help {
   margin: 10px 0 -4px;
-}
-.write-row-text {
-  flex: 1;
-  min-width: 0;
 }
 
 /* The notes box */
@@ -844,7 +744,7 @@ code {
   cursor: auto;
 }
 /* The note that the visitor just posted: it moves in, then its blue glow fades. */
-.note-card.note-fresh {
+.note-fresh {
   animation:
     note-fresh-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1),
     note-fresh-glow 3200ms ease-out 480ms;
@@ -887,11 +787,7 @@ code {
   line-height: 20px;
   overflow-wrap: anywhere;
 }
-.note-meta {
-  padding: 0 16px 12px;
-  font-size: 13px;
-  color: var(--muted);
-}
+
 .note-foot {
   border-top: 1px solid var(--line);
   padding: 10px 16px;
@@ -925,21 +821,7 @@ code {
   gap: 2px;
   white-space: nowrap;
 }
-.notes-caption {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--muted);
-}
 
-/* The post's Community Note from X ("Readers added context") and its note view with the bet. */
-.pc-card .note-head {
-  padding: 10px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-}
-.pc-card .note-body {
-  padding: 10px 16px;
-}
 .pc-examples {
   margin: 8px 0 0;
   padding-left: 20px;
@@ -1146,21 +1028,7 @@ code {
     transform: rotate(360deg);
   }
 }
-.load-error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 12px 16px;
-  padding: 12px 16px;
-  border: 1px solid #fecdd3;
-  background: #fff1f2;
-  border-radius: 12px;
-  font-size: 14px;
-}
-.pd .load-error {
-  margin: 12px 0 0;
-}
+
 .empty {
   padding: 40px 32px;
   text-align: center;
@@ -2094,7 +1962,7 @@ fieldset:disabled .choice {
   .spinner,
   .toast,
   .step-just-done .step-mark,
-  .note-card.note-fresh {
+  .note-fresh {
     animation: none;
   }
   /* The parts of a new step only fade in. */
@@ -2186,19 +2054,6 @@ fieldset:disabled .choice {
   }
   .toast {
     white-space: normal;
-  }
-  /* The write row: the icon and the text on one line, the button under them, full width. */
-  .write-row {
-    flex-wrap: wrap;
-  }
-  .write-row-text {
-    flex: 1 1 0;
-  }
-  .write-row > .btn {
-    flex: 1 1 100%;
-  }
-  .write-row .cue-hand {
-    display: none;
   }
 }
 /* The dialogs open on document.body, so they follow the screen. */

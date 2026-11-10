@@ -1,12 +1,12 @@
 // The timeline of the notes app: the demo post and the posts from X that can get a note, each
-// with its note and the state of its market. The visitor writes a note and bets on the card
-// itself: the dialogs open over the timeline. A click on the card opens the post page, with
-// all notes and the ratings.
+// with its note and the state of its market. The timeline is the app's one view: the visitor
+// writes, rates and bets on the card itself, and the dialogs open over the timeline. A click on
+// a card opens its bet (when its market takes bets) or the write dialog.
 
 import { useEffect, useMemo, useState } from 'react';
 import { IconChevronDown, IconUsers } from '@tabler/icons-react';
 import { ActionRow, AuthorBadge, Avatar, Media, PostText } from '../components/bits';
-import { shownNote } from '../components/NotesBox';
+import { NoteRateLine, shownNote } from '../components/NotesBox';
 import { CONTEXT_MARKET_NOTE_ID, NoteDialog } from '../components/PostContext';
 import { POSTS, type Post } from '../data/posts';
 import { useDemo } from '../demoContext';
@@ -16,7 +16,6 @@ import { NoteMarketStrip } from '../market/NoteMarket';
 import { marketContext } from '../market/noteContext';
 import type { NoteMarket } from '../market/types';
 import type { Note } from '../notes/types';
-import { navigate, paths } from '../router';
 import './timeline.css';
 
 type Tab = 'fresh' | 'open' | 'decided';
@@ -107,13 +106,24 @@ export function Timeline() {
   );
 }
 
+/** The id of a post's card, so that the voice feed can bring it into view. */
+export const postCardId = (postId: number) => `post-${postId}`;
+
 function PostCard({ post, note, market }: { post: Post; note: CardNote | null; market: NoteMarket | null | undefined }) {
   const { openWrite } = useDemo();
-  const open = () => navigate(paths.post(post.id));
   // The bet dialog of the demo post's context, open in place.
   const [betting, setBetting] = useState(false);
+  // Goes up to open the bet sheet of a note of this app (its market strip).
+  const [betRequest, setBetRequest] = useState(0);
+  // A post has no page: a click opens the bet when its market takes bets, else the write dialog.
+  const open = () => {
+    if (post.context) setBetting(true);
+    else if (note?.note && marketTab(market, Date.now()) === 'open') setBetRequest((count) => count + 1);
+    else openWrite(post.id);
+  };
   return (
     <article
+      id={postCardId(post.id)}
       className="tl-post"
       onClick={open}
       onKeyDown={(event) => {
@@ -137,7 +147,7 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
         {post.image && <img className="xt-media" src={post.image.url} alt={post.image.alt} loading="lazy" referrerPolicy="no-referrer" />}
         {note ? (
-          <NoteBox note={note} market={market} onBet={() => setBetting(true)} />
+          <NoteBox note={note} market={market} onBet={() => setBetting(true)} betRequest={betRequest} />
         ) : (
           <div className="xt-box xt-empty xt-row">
             <IconUsers size={20} stroke={1.8} className="muted" aria-hidden="true" />
@@ -161,10 +171,10 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         <ActionRow post={post} showViews />
       </div>
       {betting && post.context && (
-        // A dialog is a child of the card in React, so its clicks must not open the post. The
+        // A dialog is a child of the card in React, so its clicks must not reach the card. The
         // wrapper makes no box (display: contents): as a box it was a third column of the card,
         // and the card's text moved 12 px to the left while the dialog was open. Keys pass: the
-        // dialog hears Escape and Tab on the document, and the card opens only on its own Enter.
+        // dialog hears Escape and Tab on the document, and the card answers only its own Enter.
         <div style={{ display: 'contents' }} onClick={(event) => event.stopPropagation()}>
           <NoteDialog post={post} context={post.context} onClose={() => setBetting(false)} />
         </div>
@@ -179,18 +189,29 @@ const LONG_NOTE_CHARS = 150;
 /**
  * The note of a card and its market. A long note, or a note with more lines of detail, shows two
  * lines and opens in place. The bet happens here too: the demo post's context opens its bet
- * dialog, and a note of this app has the market strip of the post page, which opens the bet
- * sheet.
+ * dialog, and a note of this app has its market strip, which opens the bet sheet. A note of this
+ * app has its rating line ("Rate it") too, and a new note flashes.
  */
-function NoteBox({ note, market, onBet }: { note: CardNote; market: NoteMarket | null | undefined; onBet: () => void }) {
-  const { account, prepare } = useDemo();
+function NoteBox({
+  note,
+  market,
+  onBet,
+  betRequest,
+}: {
+  note: CardNote;
+  market: NoteMarket | null | undefined;
+  onBet: () => void;
+  /** Goes up to open the strip's bet sheet. */
+  betRequest: number;
+}) {
+  const { account, prepare, freshNoteId } = useDemo();
   const source = useMarketSource();
   const [expanded, setExpanded] = useState(false);
   const state = marketTab(market, Date.now());
   const pool = market ? amountText(market.yesPool + market.noPool, source.currency) : '';
   const more = note.details.length > 0 || [...note.text].length > LONG_NOTE_CHARS;
   return (
-    <div className="xt-box" onClick={(event) => event.stopPropagation()}>
+    <div className={note.note && note.note.id === freshNoteId ? 'xt-box note-fresh' : 'xt-box'} onClick={(event) => event.stopPropagation()}>
       <div className="xt-box-head">
         <IconUsers size={18} stroke={1.8} aria-hidden="true" />
         {note.shown ? 'Readers added context' : 'Proposed note'}
@@ -210,14 +231,16 @@ function NoteBox({ note, market, onBet }: { note: CardNote; market: NoteMarket |
           <IconChevronDown size={15} stroke={2.2} className={expanded ? 'xt-more-up' : ''} aria-hidden="true" />
         </button>
       )}
+      {note.note && <NoteRateLine note={note.note} />}
       {note.note ? (
-        // A note of this app: the market strip of the post page, with its bet and open sheets.
+        // A note of this app: its market strip, with its bet and open sheets.
         <NoteMarketStrip
           noteId={note.marketNoteId}
           source={source}
           account={account}
           onSignIn={() => prepare({ funds: 'bet' }).then((ready) => ready.ok)}
           context={marketContext(note.note)}
+          openBet={betRequest}
         />
       ) : (
         <div className="xt-market">

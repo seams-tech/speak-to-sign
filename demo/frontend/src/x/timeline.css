@@ -115,10 +115,7 @@ button.tab {
 button.tab.tab-on {
   font-weight: 700;
 }
-/* A post from X keeps its line breaks on the post page. */
-.pd-text-lines {
-  white-space: pre-wrap;
-}
+
 .xt-state {
   color: var(--muted);
   font-weight: 400;

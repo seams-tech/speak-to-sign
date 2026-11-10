@@ -98,6 +98,7 @@ export function NoteMarketStrip({
   context,
   directBet = false,
   placeholder = false,
+  openBet = 0,
 }: {
   noteId: number;
   source: MarketSource;
@@ -127,6 +128,11 @@ export function NoteMarketStrip({
    * is known to exist, so that nothing appears and then goes away.
    */
   placeholder?: boolean;
+  /**
+   * A count that opens the bet sheet on "yes" each time it goes up, while the market is open:
+   * for example, a click on the post's card in the timeline. The sheet has its own yes and no.
+   */
+  openBet?: number;
 }) {
   const currency = source.currency ?? NEAR_CURRENCY;
   const [market, setMarket] = useState<NoteMarket | null>(null);
@@ -301,6 +307,13 @@ export function NoteMarketStrip({
     setWaiting(null);
     if (Date.now() - intent.atMs <= INTENT_MS) void runRef.current(intent.action);
   }, [account, intent]);
+
+  // A click on the post's card opens the bet sheet (`openBet`), while the market takes bets.
+  useEffect(() => {
+    if (openBet === 0 || directBet || !market) return;
+    if (market.status === 'open' && Date.now() < market.closesAtMs) setBetSide('yes');
+    // Only a new request opens the sheet, not a new read of the market.
+  }, [openBet]);
 
   if (!market && !loaded && placeholder) {
     return (

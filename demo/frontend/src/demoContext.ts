@@ -76,17 +76,6 @@ export function useDemo(): DemoState {
   return state;
 }
 
-/**
- * True while the write button of post `postId` is the next step of the demo: the visitor has no
- * note on that post yet. The page highlights the button and points at it.
- */
-export function useWriteCue(postId: number | null): boolean {
-  const { notesByPost, account } = useDemo();
-  if (postId === null) return false;
-  const notes = notesByPost[postId] ?? [];
-  return !(account !== undefined && notes.some((note) => note.author === account));
-}
-
 export const RATING_LABELS: Record<Rating, string> = {
   helpful: 'Helpful',
   somewhat_helpful: 'Somewhat helpful',

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
 import { SetupPanel, WalletWait } from './components/SetupPanel';
@@ -11,7 +10,6 @@ import { DemoContext, type DemoState, type PrepareNeeds, type Prepared, type Pre
 import { covers, ensureFunds, fundsProblem, peekFunds, readFunds } from './faucet/funds';
 import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
-import { routeKey, START_POST_ID, useRoute } from './router';
 import { Timeline } from './x/Timeline';
 import { VoiceFeed } from './x/VoiceFeed';
 import { loadXPosts } from './x/xPosts';
@@ -26,14 +24,9 @@ const FRESH_NOTE_MS = 6000;
 
 export function App({ signer, walletConfigured }: { signer: NotesSigner & SignerSetup; walletConfigured: boolean }) {
   const store = useMemo(() => new RpcNotesStore(config.rpcUrl, config.contract), []);
-  const route = useRoute();
-  // The app fills a window on the Speak-to-Sign page. It has two columns, the navigation and
-  // the posts, with the Wallet steps at the top of the posts. A new page scrolls the app.
+  // The app has three columns: the navigation, the timeline (with the Wallet steps at its top)
+  // and the voice feed. It has one view; a post opens a dialog, not a page.
   const rootRef = useRef<HTMLDivElement>(null);
-  const page = routeKey(route);
-  useLayoutEffect(() => {
-    rootRef.current?.scrollTo(0, 0);
-  }, [page]);
 
   const [status, setStatus] = useState<SignerStatus | null>(null);
   const [notesByPost, setNotesByPost] = useState<Record<number, Note[]>>({});
@@ -365,7 +358,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
           <Rail />
           <main className="column">
             <SetupPanel />
-            {route.name === 'timeline' ? <Timeline /> : <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />}
+            <Timeline />
           </main>
           <VoiceFeed />
         </div>

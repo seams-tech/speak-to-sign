@@ -92,7 +92,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
       if (!scroller) return;
       const top = coverDistance();
       if (scroller.scrollTop > top) scroller.scrollTo({ top });
-      else if (/^#\/notes\/post\//.test(window.location.hash)) scroller.scrollTo({ top, behavior: 'smooth' });
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);

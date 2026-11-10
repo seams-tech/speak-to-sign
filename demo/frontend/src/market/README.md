@@ -124,8 +124,9 @@ the payout. The UI only estimates it before the resolution.
    - The strip stops click propagation, so a click on it does not open the
      card.
 
-3. Keep `compact` cards (the timeline) without the strip. The strip belongs
-   on the post page.
+3. The timeline's card (`src/x/Timeline.tsx`) mounts the strip for a note of
+   this app. Its `openBet` prop opens the bet sheet when a click on the card
+   asks for it.
 
 ## The contract source
 
@@ -134,8 +135,7 @@ the payout. The UI only estimates it before the resolution.
 `src/showcase/live.tsx` gives it to the notes app through
 `MarketSourceContext`, with the Seams Wallet as the signer
 (`marketSigner.ts`). A build without a Seams key reads the markets and cannot
-sign. `NoteCard` in `src/components/NotesBox.tsx` mounts the strip on the post
-page with `useMarketSource()`.
+sign. The timeline's card mounts the strip with `useMarketSource()`.
 
 | `MarketSource` | Contract call | Notes |
 | -------------- | ------------- | ----- |

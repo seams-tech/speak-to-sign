@@ -183,6 +183,10 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
             ),
         ),
         (
+            "multisig_hide_note",
+            approval(12, ProposalV1::HideNote { note_id: 42 }),
+        ),
+        (
             "multisig_set_verifier_version",
             approval(
                 999,

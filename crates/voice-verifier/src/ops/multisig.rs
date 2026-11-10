@@ -1,6 +1,6 @@
-//! The multisig kinds of `verify`. The proposer says a transfer, and the
-//! worker keeps the proposal and its salt in storage; the contract holds
-//! only the commitment. Each other member says the proposal from memory, and
+//! The multisig kinds of `verify`. The proposer says a transfer or "hide
+//! note N", and the worker keeps the proposal and its salt in storage; the
+//! contract holds only the commitment. Each other member says the proposal from memory, and
 //! the worker builds the request from the stored proposal.
 //!
 //! Three rules hold the proposal back from a member who does not know it:
@@ -40,14 +40,46 @@ pub(super) struct Prepared {
     owner: String,
 }
 
-/// The stored proposal and salt.
+/// The stored proposal and salt: a transfer (`receiver` and
+/// `amount_yocto`) or a hide (`note_id`). Records of 0.6 hold only
+/// transfers.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StoredOpening {
     proposal_id: u64,
-    receiver: String,
-    amount_yocto: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    receiver: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    amount_yocto: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    note_id: Option<u64>,
     salt_hex: String,
+}
+
+impl StoredOpening {
+    fn new(proposal_id: u64, proposal: &ProposalV1, salt: &[u8; 32]) -> Result<Self, Reason> {
+        let (receiver, amount_yocto, note_id) = match proposal {
+            ProposalV1::Transfer { receiver, amount } => {
+                (Some(receiver.as_str().to_string()), Some(amount.yocto().to_string()), None)
+            }
+            ProposalV1::HideNote { note_id } => (None, None, Some(*note_id)),
+            _ => return Err(Reason::Unsupported),
+        };
+        Ok(Self { proposal_id, receiver, amount_yocto, note_id, salt_hex: hex(salt) })
+    }
+
+    /// The stored proposal. A record that is neither a transfer nor a hide
+    /// is a storage fault.
+    fn proposal(&self) -> Result<ProposalV1, Reason> {
+        match (&self.receiver, &self.amount_yocto, self.note_id) {
+            (Some(receiver), Some(amount), None) => {
+                let amount = parse_yocto(amount).ok_or(Reason::Storage)?;
+                transfer(receiver, amount).map_err(|_| Reason::Storage)
+            }
+            (None, None, Some(note_id)) => Ok(ProposalV1::HideNote { note_id }),
+            _ => Err(Reason::Storage),
+        }
+    }
 }
 
 /// The request of a multisig kind: a new salt for a proposal, or the stored
@@ -71,6 +103,15 @@ pub(super) fn prepare(
             let salt = host.random32().map_err(|_| Reason::Storage)?;
             Ok(prepared(network, owner, multisig, *proposal_id, proposal, salt, false))
         }
+        RequestInput::MultisigHideNote { multisig, proposal_id, note_id } => {
+            let multisig = NearAccount::new(multisig).map_err(unsupported)?;
+            if *proposal_id == 0 || *note_id == 0 {
+                return Err(Reason::Unsupported);
+            }
+            let salt = host.random32().map_err(|_| Reason::Storage)?;
+            let proposal = ProposalV1::HideNote { note_id: *note_id };
+            Ok(prepared(network, owner, multisig, *proposal_id, proposal, salt, false))
+        }
         RequestInput::MultisigConfirm { multisig, proposal_id, commitment_hex } => {
             let multisig = NearAccount::new(multisig).map_err(unsupported)?;
             let commitment = lowercase_hex::<32>(commitment_hex)?;
@@ -79,8 +120,7 @@ pub(super) fn prepare(
             if stored.proposal_id != *proposal_id {
                 return Err(Reason::ProposalMissing);
             }
-            let amount = parse_yocto(&stored.amount_yocto).ok_or(Reason::Storage)?;
-            let proposal = transfer(&stored.receiver, amount).map_err(|_| Reason::Storage)?;
+            let proposal = stored.proposal()?;
             let salt = crate::digest::from_hex::<32>(&stored.salt_hex).ok_or(Reason::Storage)?;
             let ready = prepared(network, owner, multisig, *proposal_id, proposal, salt, true);
             if ready.commitment != commitment {
@@ -142,21 +182,10 @@ pub(super) fn record_accept(host: &mut dyn Host, ready: &Prepared) -> Result<Opt
     let opening = if ready.recalled {
         None
     } else {
-        let SpokenRequestV1::MultisigApproval {
-            proposal_id,
-            proposal: ProposalV1::Transfer { receiver, amount },
-            salt,
-            ..
-        } = &ready.request
-        else {
+        let SpokenRequestV1::MultisigApproval { proposal_id, proposal, salt, .. } = &ready.request else {
             return Err(Reason::Unsupported);
         };
-        let stored = StoredOpening {
-            proposal_id: *proposal_id,
-            receiver: receiver.as_str().to_string(),
-            amount_yocto: amount.yocto().to_string(),
-            salt_hex: hex(salt),
-        };
+        let stored = StoredOpening::new(*proposal_id, proposal, salt)?;
         let bytes = serde_json::to_vec(&stored).map_err(|_| Reason::Storage)?;
         // A fresh salt gives a fresh key, so the key is absent.
         if !host.storage_set_if_absent(&format!("{}:open", ready.prefix), &bytes).map_err(|_| Reason::Storage)? {
@@ -184,7 +213,8 @@ fn prepared(
     Prepared { request, recalled, commitment, prefix, owner: owner_text }
 }
 
-/// Only transfers: the other proposal kinds change who the members are.
+/// A transfer. With "hide note N", these are the proposal kinds of the
+/// demo: the other kinds change who the members are.
 fn transfer(receiver: &str, amount_yocto: u128) -> Result<ProposalV1, Reason> {
     Ok(ProposalV1::Transfer {
         receiver: SpokenAccount::new(receiver).map_err(unsupported)?,

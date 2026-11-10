@@ -557,7 +557,24 @@ and the manifest. That is an upload, so it is not done.
    The plugin has no verdict check of its own: Wallet core has it.
 8. **The demo contracts keep their copies of `verdict.rs`.**
 
-### 4.6 Open questions
+### 4.6 Capture and VoiceID (decision of the owner, 2026-11-10)
+
+VoiceID stays in the `seams-wallet` repository, and `@seams/speak-to-sign`
+keeps its dependency on it. No capture library is taken out of VoiceID. The
+reason: the user must not enroll two times. Today `enroll` turns on VoiceID
+and uses its three samples as the recordings of the verifier, and that
+stays.
+
+- Inside Seams Wallet, capture is the phrase surface of VoiceID. Item (e) of
+  section 2.2 does not apply there.
+- `packages/voice-verdict/src/capture.ts` was built before this decision. It
+  holds no VoiceID code: it is a new WAV writer, the energy gate of the
+  verifier and a plain recorder. It has no voice activity detection, no
+  phrase tracking and no phrase card. Only `examples/voice-confirm` uses it.
+- No more capture work is planned. For a developer with no Seams Wallet,
+  capture is an open question (question 6 below).
+
+### 4.7 Open questions
 
 1. May verifier 0.8.0 go to OutLayer testnet, in both variants? The project
    is `seams-v1.testnet/voice-verifier`, and the key of its owner is needed.
@@ -567,3 +584,7 @@ and the manifest. That is an upload, so it is not done.
 4. For `detect`: which chat model on NEAR AI, and is a proposal with no
    authority the correct contract?
 5. Does `@seams/voice-verdict` go to npm now, or after the first deploy?
+6. Capture for a developer with no Seams Wallet: does the small module
+   `@seams/voice-verdict/capture` stay, or must it go, so that VoiceID is the
+   only capture code? An application with its own recorder needs only the
+   WAV format, which the verifier README states.

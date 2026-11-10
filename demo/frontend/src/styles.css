@@ -1906,9 +1906,10 @@ fieldset:disabled .choice {
   color: var(--muted);
 }
 
-/* The voice step */
-.speak-btn,
-.speak-wait {
+/* The voice step. One button for the whole run of a press: it says what to do, then each step
+   before the voice and the wait for the Wallet card (.speak-busy), in place, with no second
+   button. While busy, it takes no press. */
+.speak-btn {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1917,8 +1918,6 @@ fieldset:disabled .choice {
   padding: 0;
   background: transparent;
   text-align: left;
-}
-.speak-btn {
   cursor: pointer;
   border-radius: 12px;
   -webkit-tap-highlight-color: transparent;
@@ -1926,34 +1925,45 @@ fieldset:disabled .choice {
 .speak-btn:disabled {
   cursor: default;
 }
+.speak-btn.speak-busy {
+  cursor: progress;
+}
 .speak-btn:disabled .mic {
   opacity: 0.4;
 }
+/* The new words and icon of the next step fade in; the button itself stays. */
+.speak-swap {
+  animation: fade-in 0.16s ease-out;
+}
 /* In a dialog's foot, the voice button is the dialog's primary action: an X blue pill, as X's
    Post button (.btn-blue), with white text and a white microphone. A pointer makes it the darker
-   blue. The colours are the same on both themes. The waits that follow a click keep the pill's
-   shape, so the foot does not change its height, on the darker blue with a white spinner. */
-.dialog-foot .speak-btn,
-.dialog-foot .speak-wait {
+   blue. The colours are the same on both themes. While busy, the same pill is the darker blue
+   with a white spinner. */
+.dialog-foot .speak-btn {
   padding: 8px 20px 8px 8px;
   border-radius: 9999px;
+  background: var(--accent);
+  color: #fff;
+  transition: background-color 0.16s;
 }
 .dialog-foot .mic {
   width: 40px;
   height: 40px;
 }
-.dialog-foot .speak-wait {
-  background: var(--accent-ink);
-  color: #fff;
-}
-.dialog-foot .speak-wait .mic {
+.dialog-foot .speak-btn .mic {
   background: #fff;
-  color: var(--accent-ink);
+  color: var(--accent);
 }
-.dialog-foot .speak-wait .muted {
+.dialog-foot .speak-btn .muted {
   color: rgba(255, 255, 255, 0.85);
 }
-.dialog-foot .speak-wait .spinner {
+.dialog-foot .speak-btn.speak-busy {
+  background: var(--accent-ink);
+}
+.dialog-foot .speak-busy .mic {
+  color: var(--accent-ink);
+}
+.dialog-foot .speak-btn .spinner {
   flex: none;
   width: 20px;
   height: 20px;
@@ -1963,7 +1973,7 @@ fieldset:disabled .choice {
 }
 /* The live microphone: white on the blue, with a white ring that stays inside the pill. */
 @media (prefers-reduced-motion: no-preference) {
-  .dialog-foot .speak-wait .mic-live {
+  .dialog-foot .speak-btn .mic-live {
     animation-name: pulse-white;
   }
 }
@@ -1974,18 +1984,6 @@ fieldset:disabled .choice {
   100% {
     box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
   }
-}
-.dialog-foot .speak-btn {
-  background: var(--accent);
-  color: #fff;
-  transition: background-color 0.16s;
-}
-.dialog-foot .speak-btn .mic {
-  background: #fff;
-  color: var(--accent);
-}
-.dialog-foot .speak-btn .muted {
-  color: rgba(255, 255, 255, 0.85);
 }
 .dialog-foot .speak-btn:disabled {
   opacity: 0.5;
@@ -2007,7 +2005,7 @@ fieldset:disabled .choice {
 }
 /* A press shrinks the microphone. */
 @media (prefers-reduced-motion: no-preference) {
-  .speak-btn:not(:disabled):active .mic {
+  .speak-btn:not(:disabled):not(.speak-busy):active .mic {
     scale: 0.96;
   }
 }

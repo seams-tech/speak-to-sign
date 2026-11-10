@@ -1,10 +1,15 @@
 name: Release the standalone libraries
 
-# Publishes the three libraries for an application with no Seams Wallet, with one version and in
-# this order:
+# Publishes the libraries for an application with no Seams Wallet, with one version and in this
+# order:
 #   1. @seams/voice-verdict   checks what the verifier signed
 #   2. @seams/voice-capture   records one sentence in the browser
-#   3. @seams/speak-to-sign   joins both; it depends on the exact versions of 1 and 2
+#
+# The library that joins both (packages/speak-to-sign) is built and tested here, and is not
+# published: its package.json name is @seams/speak-to-sign, which is the npm name of the Seams
+# Wallet plugin (packages/speak-to-sign-wallet). It needs a name of its own first. The
+# validation step refuses a run in which it is not private, so no run can publish it under the
+# plugin's name.
 #
 # They need no Seams Wallet package. The Wallet plugin (@seams/speak-to-sign) has its own
 # workflow and is released with the Wallet.
@@ -44,10 +49,12 @@ jobs:
       - name: Validate the versions
         run: |
           set -euo pipefail
-          for package in voice-verdict voice-capture speak-to-sign; do
+          for package in voice-verdict voice-capture; do
             test "$(node -p "require('./packages/$package/package.json').version")" = "$RELEASE_VERSION"
             test "$(node -p "require('./packages/$package/package.json').private === true")" = "false"
           done
+          # The joining library must stay unpublished until it has its own npm name.
+          test "$(node -p "require('./packages/speak-to-sign/package.json').private === true")" = "true"
           for name in @seams/voice-verdict @seams/voice-capture; do
             test "$(node -p "require('./packages/speak-to-sign/package.json').dependencies['$name']")" = "$RELEASE_VERSION"
           done
@@ -67,7 +74,7 @@ jobs:
           pnpm type-check
           pnpm build
           pnpm test
-      - name: Build and test @seams/speak-to-sign
+      - name: Build and test the joining library (not published)
         working-directory: packages/speak-to-sign
         run: |
           pnpm install --frozen-lockfile
@@ -82,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .artifacts/npm
-          for package in voice-verdict voice-capture speak-to-sign; do
+          for package in voice-verdict voice-capture; do
             (cd "packages/$package" && npm pack --pack-destination ../../.artifacts/npm)
           done
       - uses: actions/upload-artifact@v7
@@ -94,7 +101,7 @@ jobs:
       - name: Publish, in dependency order
         run: |
           set -euo pipefail
-          for package in voice-verdict voice-capture speak-to-sign; do
+          for package in voice-verdict voice-capture; do
             name=$(node -p "require('./packages/$package/package.json').name")
             if npm view "$name@$RELEASE_VERSION" version > /dev/null 2>&1; then
               echo "$name@$RELEASE_VERSION is on npm already"

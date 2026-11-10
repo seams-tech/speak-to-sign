@@ -283,6 +283,11 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `FAUCET_PRIVATE_KEY` | The faucet's function-call key (`ed25519:…`). It can call `drip` on `seams-faucet.testnet` and nothing else, with a 1 NEAR gas allowance. Required for `/api/faucet`. |
 | `FAUCET_ACCOUNT`  | Optional. Default `seams-faucet.testnet`.                               |
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet` and `/api/multisig/approve`. Default `https://test.rpc.fastnear.com`. |
+| `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |
+| `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` | Secret. The OAuth 1.0a Access Token and secret of the same account. Required. A Bearer Token does not work on this endpoint. |
+| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 20.               |
+| `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 3600, minimum 60. |
+| `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://api.outlayer.fastnear.com`. |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
 | `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `multisig_propose` (0.6.0 or later). |
@@ -326,6 +331,35 @@ screen shows **Finish the transfer**.
 `get_notes({ post_id })` and `get_rating({ note_id, account_id })`. Ids are JSON
 numbers. After a sent result, the page reads the post again until the new note
 or the new counts show.
+
+## Posts that can get a note: `/api/x/eligible-posts`
+
+`functions/api/x/eligible-posts.ts` takes `GET` and answers
+`{ posts, fetchedAtMs, stale }` or `{ error }`. The posts come from the X API's
+AI Note Writer endpoint `GET /2/notes/search/posts_eligible_for_notes`: posts
+where people on X asked for a Community Note. The route always calls X in test
+mode and never sends a note to X.
+
+- **Account.** The keys must belong to an X account that is enrolled as an AI
+  Note Writer (<https://communitynotes.x.com/guide/en/api/overview>). The route
+  signs with OAuth 1.0a (`functions/lib/oauth1.ts`).
+- **Cost.** X bills each post ($0.005) and each author ($0.010) that it
+  returns, once for each UTC day. The route keeps one snapshot and asks X again
+  only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults, one call costs $0.30
+  at most.
+- **Snapshot.** Without a binding, the snapshot is in Cloudflare's Cache API,
+  one copy for each Cloudflare location. Bind a KV namespace as `X_CACHE` for
+  one copy for all locations.
+- **Failure.** If X fails, the route serves the old snapshot with
+  `stale: true` and waits 60 s before the next call. Without a snapshot it
+  answers 502. Without keys it answers 503.
+- **Checks.** The route drops posts that X marks as sensitive. It checks each
+  field of X's answer, and keeps only image URLs on `twimg.com`.
+
+Each post is `{ id, text, createdAt, lang, url, author, media, metrics }`
+(`XPost` in the function file). The tests are in
+`tests/x-eligible-posts.test.ts`, with a fake X API. The route was not yet run
+against the real X API.
 
 ## Summary rules and `/api/summary`
 

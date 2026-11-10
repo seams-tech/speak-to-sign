@@ -4,6 +4,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { IconCircleCheckFilled, IconExternalLink, IconUsers, IconX } from '@tabler/icons-react';
+import { config } from '../config';
 import type { Post, PostContext as Context } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { useFunds } from '../faucet/funds';
@@ -20,7 +21,8 @@ const BET_INTRO = 'Your bets are signed from your own NEAR testnet account. Use 
 
 /**
  * The context is not a note on the notes contract, so its market has a fixed note id. On
- * pm-notes.seams-v1.testnet that is market 2, "Is this note true?", in USDC.
+ * pm-notes.seams-v1.testnet, `get_market_for_note(0)` gives its market: "Is this note true?",
+ * in USDC (market 9 now, open until 18 Nov 2026 23:59 UTC).
  */
 export const CONTEXT_MARKET_NOTE_ID = 0;
 
@@ -103,7 +105,17 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
 
   // Sign in, then the faucet when the account has less than a bet needs. True when the strip
   // can place the bet.
-  const readyToBet = () => prepare({ funds: 'bet' }).then((ready) => ready.ok);
+  // When a step fails (the faucet, for example), the line under the buttons says why: the strip
+  // drops the tapped bet without a word.
+  const [problem, setProblem] = useState<string | null>(null);
+  const readyToBet = async () => {
+    setProblem(null);
+    const ready = await prepare({ funds: 'bet' });
+    if (!ready.ok && ready.reason) setProblem(ready.reason);
+    return ready.ok;
+  };
+  const short = balance !== null && balance < stake;
+  const line = preparing === 'funds' ? 'funds' : problem ? 'problem' : 'stake';
 
   return (
     <Modal
@@ -159,15 +171,25 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
                   directBet={stake}
                   placeholder
                 />
-                <Morph view={preparing === 'funds' ? 'funds' : 'stake'}>
-                  {preparing === 'funds' ? (
+                <Morph view={line}>
+                  {line === 'funds' ? (
                     <p className="pc-practice pc-busy" role="status">
                       <span className="spinner" aria-hidden="true" /> Getting testnet USDC for your bets from the faucet…
+                    </p>
+                  ) : line === 'problem' ? (
+                    <p className="pc-practice pc-problem" role="alert">
+                      {problem} <UsdcLink />
                     </p>
                   ) : (
                     <p className="pc-practice">
                       One tap bets {amountText(stake, currency)}. Your Seams Wallet asks you to confirm.
                       {balance !== null && <> You have {amountText(balance, currency)}.</>}
+                      {short && (
+                        <>
+                          {' '}
+                          <UsdcLink />
+                        </>
+                      )}
                     </p>
                   )}
                 </Morph>
@@ -182,5 +204,18 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
         )}
       </Morph>
     </Modal>
+  );
+}
+
+/**
+ * Where to get more testnet USDC. The page's faucet runs by itself once per account (after
+ * sign-in, or at the first bet), so an account that is short has had it already.
+ */
+function UsdcLink() {
+  return (
+    <a className="lk" href={config.usdcFaucetUrl} target="_blank" rel="noopener noreferrer">
+      Get test USDC (network: NEAR testnet)
+      <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
+    </a>
   );
 }

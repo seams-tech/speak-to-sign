@@ -69,7 +69,7 @@ function ContextText({ context }: { context: Context }) {
  * A visitor who is not signed in taps a bet button too: the dialog turns into the sign-in, then
  * back, the faucet sends testnet USDC, and the strip places the bet. One dialog all the way.
  */
-function NoteDialog({ post, context, onClose }: { post: Post; context: Context; onClose: () => void }) {
+export function NoteDialog({ post, context, onClose }: { post: Post; context: Context; onClose: () => void }) {
   const { account, prepare, preparing, signingIn, hostSignIn, endSignIn } = useDemo();
   useEffect(() => hostSignIn(), [hostSignIn]);
   const source = useMarketSource();

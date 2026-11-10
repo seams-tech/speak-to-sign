@@ -164,3 +164,40 @@ a.rail-item {
   text-decoration: none;
   cursor: pointer;
 }
+/* A card's note: two lines, or all of it when it is open. */
+.xt-note-open {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+.xt-details {
+  margin: -4px 12px 10px;
+  padding-left: 20px;
+}
+.xt-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: -4px 12px 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.xt-more:hover {
+  text-decoration: underline;
+}
+.xt-more svg {
+  transition: transform 0.2s;
+}
+.xt-more-up {
+  transform: rotate(180deg);
+}
+/* The market strip of the post page, inside a card's note box. */
+.xt-box .nm-strip {
+  padding: 8px 12px 10px;
+  background: var(--panel);
+}

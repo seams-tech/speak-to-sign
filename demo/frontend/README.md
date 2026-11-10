@@ -428,10 +428,12 @@ multisig page (`/multisig/`) keeps the page with a small screen and a window
 is not a post (`#/notes/post/<id>`) shows it. The back arrow of a post page
 opens it.
 
-- **A card** shows the post, its note and the state of the note's market:
-  no note, a note without a market, open bets, closed bets, or JEV's answer.
-  A card opens the post page. Notes, ratings and bets happen there, with the
-  same parts as the demo post.
+- **A card** shows the post, its note and the note's market. The visitor acts
+  on the card itself: "Write a note" opens the write dialog over the
+  timeline, and "Bet" opens the bet dialog (the demo post) or the market
+  strip's bet sheet (a note of this app). A long note, or one with more
+  lines, shows two lines and a "Show more" control. A click on the card opens
+  the post page, with all notes and the ratings.
 - **Tabs.** "Fresh" shows all posts. "Open markets" and "Decided" show the
   posts with a market in that state.
 - **Post ids.** An X post id has 64 bits, and the Seams Wallet refuses a post

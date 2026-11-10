@@ -1,16 +1,19 @@
 // The timeline of the notes app: the demo post and the posts from X that can get a note, each
-// with its note and the state of its market. A card opens the post page, where the visitor
-// writes, rates and bets.
+// with its note and the state of its market. The visitor writes a note and bets on the card
+// itself: the dialogs open over the timeline. A click on the card opens the post page, with
+// all notes and the ratings.
 
 import { useEffect, useMemo, useState } from 'react';
-import { IconUsers } from '@tabler/icons-react';
+import { IconChevronDown, IconUsers } from '@tabler/icons-react';
 import { ActionRow, AuthorBadge, Avatar, Media, PostText } from '../components/bits';
 import { shownNote } from '../components/NotesBox';
-import { CONTEXT_MARKET_NOTE_ID } from '../components/PostContext';
+import { CONTEXT_MARKET_NOTE_ID, NoteDialog } from '../components/PostContext';
 import { POSTS, type Post } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { useMarketSource } from '../market/contractSource';
 import { amountText, jevSentence, percentText, timeLeftText, yesShareBps } from '../market/math';
+import { NoteMarketStrip } from '../market/NoteMarket';
+import { marketContext } from '../market/noteContext';
 import type { NoteMarket } from '../market/types';
 import type { Note } from '../notes/types';
 import { navigate, paths } from '../router';
@@ -27,15 +30,19 @@ const TABS: { id: Tab; label: string }[] = [
 interface CardNote {
   marketNoteId: number;
   text: string;
+  /** More lines of the note, which show when the card's note is open. */
+  details: string[];
   /** False for a note that still needs ratings. */
   shown: boolean;
+  /** The note on the notes contract. The demo post's context is not one. */
+  note?: Note;
 }
 
 /** The demo post shows the note that it got on X. Another post shows its best note of this app. */
 export function cardNote(post: Post, notes: Note[]): CardNote | null {
-  if (post.context) return { marketNoteId: CONTEXT_MARKET_NOTE_ID, text: post.context.text, shown: true };
+  if (post.context) return { marketNoteId: CONTEXT_MARKET_NOTE_ID, text: post.context.text, details: post.context.examples, shown: true };
   const note = shownNote(notes) ?? [...notes].sort((a, b) => b.helpful - a.helpful || a.id - b.id)[0];
-  return note ? { marketNoteId: note.id, text: note.text, shown: note.status === 'helpful' } : null;
+  return note ? { marketNoteId: note.id, text: note.text, details: [], shown: note.status === 'helpful', note } : null;
 }
 
 /** `open`: bets are on. `decided`: JEV answered. `closed`: between the two. */
@@ -103,6 +110,8 @@ export function Timeline() {
 function PostCard({ post, note, market }: { post: Post; note: CardNote | null; market: NoteMarket | null | undefined }) {
   const { openWrite } = useDemo();
   const open = () => navigate(paths.post(post.id));
+  // The bet dialog of the demo post's context, open in place.
+  const [betting, setBetting] = useState(false);
   return (
     <article
       className="tl-post"
@@ -128,7 +137,7 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
         {post.image && <img className="xt-media" src={post.image.url} alt={post.image.alt} loading="lazy" referrerPolicy="no-referrer" />}
         {note ? (
-          <NoteBox note={note} market={market} onOpen={open} />
+          <NoteBox note={note} market={market} onBet={() => setBetting(true)} />
         ) : (
           <div className="xt-box xt-empty xt-row">
             <IconUsers size={20} stroke={1.8} className="muted" aria-hidden="true" />
@@ -136,12 +145,12 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
               <b>No note yet</b>
               <div className="muted small">Write the first note with your voice.</div>
             </div>
+            {/* The write dialog opens here, over the timeline: no stop at the post page. */}
             <button
               type="button"
               className="btn btn-blue btn-sm"
               onClick={(event) => {
                 event.stopPropagation();
-                open();
                 openWrite(post.id);
               }}
             >
@@ -151,71 +160,100 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         )}
         <ActionRow post={post} showViews />
       </div>
+      {betting && post.context && (
+        // A dialog is a child of the card in React, so its clicks must not open the post.
+        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <NoteDialog post={post} context={post.context} onClose={() => setBetting(false)} />
+        </div>
+      )}
     </article>
   );
 }
 
-function NoteBox({ note, market, onOpen }: { note: CardNote; market: NoteMarket | null | undefined; onOpen: () => void }) {
+/** A note is long enough to cut at two lines on a card. */
+const LONG_NOTE_CHARS = 150;
+
+/**
+ * The note of a card and its market. A long note, or a note with more lines of detail, shows two
+ * lines and opens in place. The bet happens here too: the demo post's context opens its bet
+ * dialog, and a note of this app has the market strip of the post page, which opens the bet
+ * sheet.
+ */
+function NoteBox({ note, market, onBet }: { note: CardNote; market: NoteMarket | null | undefined; onBet: () => void }) {
+  const { account, prepare } = useDemo();
   const source = useMarketSource();
+  const [expanded, setExpanded] = useState(false);
   const state = marketTab(market, Date.now());
   const pool = market ? amountText(market.yesPool + market.noPool, source.currency) : '';
-  const go = (label: string, kind: 'btn-blue' | 'btn-outline') => (
-    <button
-      type="button"
-      className={`btn ${kind} btn-sm`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onOpen();
-      }}
-    >
-      {label}
-    </button>
-  );
+  const more = note.details.length > 0 || [...note.text].length > LONG_NOTE_CHARS;
   return (
-    <div className="xt-box">
+    <div className="xt-box" onClick={(event) => event.stopPropagation()}>
       <div className="xt-box-head">
         <IconUsers size={18} stroke={1.8} aria-hidden="true" />
         {note.shown ? 'Readers added context' : 'Proposed note'}
         {!note.shown && <span className="xt-state">needs ratings</span>}
       </div>
-      <p className="xt-note">{note.text}</p>
-      <div className="xt-market">
-        {market && state && <Bar yesBps={state === 'decided' ? (market.verdictBps ?? 5_000) : yesShareBps(market.yesPool, market.noPool)} />}
-        <div className="xt-row">
-          {market === undefined && <span className="xt-row-text muted">Reading the market…</span>}
-          {market === null && (
-            <>
-              <span className="xt-row-text muted">No market on this note yet.</span>
-              {go('Open a market', 'btn-outline')}
-            </>
-          )}
-          {market && state === 'open' && (
-            <>
-              <span className="xt-row-text">
-                <b>{market.question}</b>{' '}
-                <span className="muted">
-                  {percentText(yesShareBps(market.yesPool, market.noPool))} yes · {pool} · {market.bets} {market.bets === 1 ? 'bet' : 'bets'} ·{' '}
-                  {timeLeftText(market.closesAtMs)}
+      <p className={expanded || !more ? 'xt-note xt-note-open' : 'xt-note'}>{note.text}</p>
+      {expanded && note.details.length > 0 && (
+        <ol className="pc-examples xt-details">
+          {note.details.map((detail) => (
+            <li key={detail}>{detail}</li>
+          ))}
+        </ol>
+      )}
+      {more && (
+        <button type="button" className="xt-more" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Show less' : 'Show more'}
+          <IconChevronDown size={15} stroke={2.2} className={expanded ? 'xt-more-up' : ''} aria-hidden="true" />
+        </button>
+      )}
+      {note.note ? (
+        // A note of this app: the market strip of the post page, with its bet and open sheets.
+        <NoteMarketStrip
+          noteId={note.marketNoteId}
+          source={source}
+          account={account}
+          onSignIn={() => prepare({ funds: 'bet' }).then((ready) => ready.ok)}
+          context={marketContext(note.note)}
+        />
+      ) : (
+        <div className="xt-market">
+          {market && state && <Bar yesBps={state === 'decided' ? (market.verdictBps ?? 5_000) : yesShareBps(market.yesPool, market.noPool)} />}
+          <div className="xt-row">
+            {market === undefined && <span className="xt-row-text muted">Reading the market…</span>}
+            {market === null && <span className="xt-row-text muted">No market on this note yet.</span>}
+            {market && state === 'open' && (
+              <>
+                <span className="xt-row-text">
+                  <b>{market.question}</b>{' '}
+                  <span className="muted">
+                    {percentText(yesShareBps(market.yesPool, market.noPool))} yes · {pool} · {market.bets} {market.bets === 1 ? 'bet' : 'bets'} ·{' '}
+                    {timeLeftText(market.closesAtMs)}
+                  </span>
                 </span>
-              </span>
-              {go('Bet', 'btn-blue')}
-            </>
-          )}
-          {market && state === 'closed' && (
-            <>
+                <button type="button" className="btn btn-blue btn-sm" onClick={onBet}>
+                  Bet
+                </button>
+              </>
+            )}
+            {market && state === 'closed' && (
+              <>
+                <span className="xt-row-text">
+                  <b>Betting is closed.</b> <span className="muted">{pool} waits for JEV.</span>
+                </span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={onBet}>
+                  See the market
+                </button>
+              </>
+            )}
+            {market && state === 'decided' && (
               <span className="xt-row-text">
-                <b>Betting is closed.</b> <span className="muted">{pool} waits for JEV.</span>
+                <span className="xt-verdict">{jevSentence(market.verdictBps ?? 5_000)}</span> <span className="muted">Pool: {pool}.</span>
               </span>
-              {go('See the market', 'btn-outline')}
-            </>
-          )}
-          {market && state === 'decided' && (
-            <span className="xt-row-text">
-              <span className="xt-verdict">{jevSentence(market.verdictBps ?? 5_000)}</span> <span className="muted">Pool: {pool}.</span>
-            </span>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

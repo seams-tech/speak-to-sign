@@ -116,79 +116,70 @@ interface SpeakStepProps {
 }
 
 /**
- * The voice part of a modal: the button, the steps before the voice, the wait for the Wallet
- * card, and the result card. Each new phase fades the old part out and the new one in, and the
- * dialog changes its size with it.
+ * The voice part of a modal: the button, then the result card. The button stays one button for
+ * the steps before the voice and the wait for the Wallet card: only its words and icon change.
+ * The result card fades in after it, and the dialog changes its size with it.
  */
 export function SpeakStep(props: SpeakStepProps) {
   const { phase } = props;
-  const view =
-    phase.state === 'preparing' ? `preparing-${phase.step}` : phase.state === 'done' ? `done-${phase.result.kind}` : phase.state;
   return (
-    <Morph view={view}>
-      <SpeakContent {...props} />
+    <Morph view={phase.state === 'done' ? `done-${phase.result.kind}` : 'button'}>
+      {phase.state === 'done' ? (
+        <div className="speak" aria-live="polite">
+          <ResultCard {...props} result={phase.result} title={phase.title} />
+        </div>
+      ) : (
+        <SpeakButton {...props} phase={phase} />
+      )}
     </Morph>
   );
 }
 
-function SpeakContent(props: SpeakStepProps) {
+/** The voice button, in each phase before the result: what to do, a step before the voice, or the wait. */
+function SpeakButton(props: SpeakStepProps & { phase: Exclude<SignPhase, { state: 'done' }> }) {
   const { phase } = props;
+  const step = phase.state === 'preparing' ? PREPARE_VIEW[phase.step] : null;
+  const live = phase.state === 'pending';
+  const busy = phase.state !== 'idle';
+  // The key of the words and icon: new ones fade in when it changes.
+  const swap = phase.state === 'preparing' ? `preparing-${phase.step}` : phase.state;
 
-  if (phase.state === 'idle') {
-    return (
-      <div className="speak">
-        <button type="button" className="speak-btn" disabled={props.disabled} onClick={props.onStart}>
-          <span className="mic" aria-hidden="true">
-            <IconMicrophone size={22} stroke={1.8} />
-          </span>
-          <span className="speak-text">
-            <b>{props.buttonLabel}</b>
-            <span className="muted">{props.disabled && props.disabledHint ? props.disabledHint : props.hint}</span>
-          </span>
-        </button>
-      </div>
-    );
-  }
-
-  if (phase.state === 'preparing') {
-    const view = PREPARE_VIEW[phase.step];
-    return (
-      <div className="speak" role="status" aria-live="polite">
-        <div className="speak-wait">
-          <span className="mic" aria-hidden="true">
-            {view.icon}
-          </span>
-          <span className="speak-text">
-            <b>{view.title}</b>
-            <span className="muted">{view.text}</span>
-          </span>
-          <span className="spinner" aria-hidden="true" />
-        </div>
-      </div>
-    );
-  }
-
-  if (phase.state === 'pending') {
-    return (
-      <div className="speak" role="status" aria-live="polite">
-        <div className="speak-wait">
-          <span className="mic mic-live" aria-hidden="true">
-            <IconMicrophone size={22} stroke={1.8} />
-          </span>
-          <span className="speak-text">
-            <b>Speak in the Seams Wallet card</b>
-            <span className="muted">
-              Click Record, then say: <q className="say">{props.sentence}</q>
-            </span>
-          </span>
-        </div>
-      </div>
-    );
-  }
+  const title = step ? step.title : live ? 'Speak in the Seams Wallet card' : props.buttonLabel;
+  const text = step ? (
+    step.text
+  ) : live ? (
+    <>
+      Click Record, then say: <q className="say">{props.sentence}</q>
+    </>
+  ) : props.disabled && props.disabledHint ? (
+    props.disabledHint
+  ) : (
+    props.hint
+  );
+  // Read out when the button turns to a step or the wait. The button keeps the focus.
+  const status = step ? `${step.title}. ${step.text}` : live ? `Speak in the Seams Wallet card. Click Record, then say: ${props.sentence}` : '';
 
   return (
-    <div className="speak" aria-live="polite">
-      <ResultCard {...props} result={phase.result} title={phase.title} />
+    <div className="speak">
+      <button
+        type="button"
+        className={busy ? 'speak-btn speak-busy' : 'speak-btn'}
+        disabled={!busy && props.disabled}
+        aria-disabled={busy || undefined}
+        onClick={busy ? undefined : props.onStart}
+      >
+        <span key={`mic-${swap}`} className={`mic${live ? ' mic-live' : ''}${busy ? ' speak-swap' : ''}`} aria-hidden="true">
+          {step ? step.icon : <IconMicrophone size={22} stroke={1.8} />}
+        </span>
+        <span key={`text-${swap}`} className={busy ? 'speak-text speak-swap' : 'speak-text'}>
+          <b>{title}</b>
+          <span className="muted">{text}</span>
+        </span>
+        {step && <span className="spinner" aria-hidden="true" />}
+      </button>
+      <span className="sr-only" role="status">
+        {status}
+      </span>
     </div>
   );
 }

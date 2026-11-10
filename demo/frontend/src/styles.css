@@ -34,10 +34,11 @@
 
 /* The dark theme of the Community Notes page (its theme picker sets data-theme on the root):
    X's black, Lights out. Blue, green, red and gold stay as in the light theme, as on X. It
-   applies to the notes app, its dialogs on document.body and the page's sheet, but not to the
+   applies to the notes app, its dialogs and floating errors on document.body and the page's
+   sheet, but not to the
    hero and the nav: those keep the light colours on the hero's field, also where they use the
    app's classes (the setup steps). */
-:root[data-theme='dark'] :is(.notes-app, .overlay, .wallet-wait, .ss-sheet) {
+:root[data-theme='dark'] :is(.notes-app, .overlay, .ss-sheet, .float-region) {
   --bg: #000;
   --ink: #e7e9ea;
   --on-ink: #0f1419;
@@ -72,8 +73,7 @@ body {
 
 /* The notes app and its dialogs, which open on document.body */
 .notes-app,
-.overlay,
-.wallet-wait {
+.overlay {
   color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
@@ -425,6 +425,38 @@ code {
   height: 4px;
   border-radius: 9999px;
   background: var(--accent);
+}
+/* Tabs with one underline of their own (TabBar in Timeline.tsx): the underline slides from the
+   label of one tab to the next, and takes its width. .tabs-bar is as wide as one tab and moves
+   by whole tabs (--i of --n); its ::before is the underline, as wide as the label (--w), in
+   the middle. */
+.tabs-slide .tab-on span::after {
+  display: none;
+}
+.tabs-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: calc(100% / var(--n));
+  height: 4px;
+  display: flex;
+  justify-content: center;
+  transform: translateX(calc(100% * var(--i)));
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tabs-bar::before {
+  content: '';
+  width: var(--w);
+  border-radius: 9999px;
+  background: var(--accent);
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabs-bar,
+  .tabs-bar::before {
+    transition: none;
+  }
 }
 
 /* Buttons */
@@ -1026,6 +1058,105 @@ code {
 .pc-bet .nm-no {
   color: color-mix(in srgb, var(--bet-no) 80%, var(--contrast));
 }
+/* The bet slider over the two buttons, in X's blue as X's own sliders: a thin pale blue track
+   that fills in --accent up to a round --accent thumb. A pointer over the thumb gives it a pale
+   blue halo. --p (0 to 1) is the thumb's place; the fill ends at the thumb's middle, which moves
+   over the track less the thumb's width. */
+.pc-stake {
+  margin-top: 14px;
+}
+.pc-stake-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+.pc-stake-row label {
+  color: var(--muted);
+}
+.pc-stake-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pc-stake-range {
+  --thumb: 20px;
+  --fill: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p, 0));
+  --stake-track: color-mix(in srgb, var(--accent) 22%, transparent);
+  --stake-halo: 0 0 0 7px color-mix(in srgb, var(--accent) 18%, transparent);
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 2px 0 0;
+  padding: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.pc-stake-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--stake-track) var(--fill));
+}
+.pc-stake-range::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc(2px - var(--thumb) / 2);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    box-shadow 150ms ease,
+    scale 150ms ease-out;
+}
+.pc-stake-range::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--stake-track);
+}
+.pc-stake-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+.pc-stake-range::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+  transition:
+    box-shadow 150ms ease,
+    scale 150ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pc-stake-range:hover::-webkit-slider-thumb {
+    box-shadow: var(--stake-halo);
+  }
+  .pc-stake-range:hover::-moz-range-thumb {
+    box-shadow: var(--stake-halo);
+  }
+}
+.pc-stake-range:active::-webkit-slider-thumb {
+  box-shadow: var(--stake-halo);
+}
+.pc-stake-range:active::-moz-range-thumb {
+  box-shadow: var(--stake-halo);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pc-stake-range:active::-webkit-slider-thumb {
+    scale: 1.1;
+  }
+  .pc-stake-range:active::-moz-range-thumb {
+    scale: 1.1;
+  }
+}
+.pc-bet .pc-stake + .nm-buttons {
+  margin-top: 10px;
+}
 .pc-practice {
   padding: 0 16px 8px;
   font-size: 12px;
@@ -1459,7 +1590,7 @@ code {
   overscroll-behavior: contain;
 }
 .dialog {
-  /* The corner radius, also for the voice button that fills the dialog's foot (--foot-r). */
+  /* The corner radius. */
   --foot-r: 2rem;
   width: 100%;
   max-width: 560px;
@@ -1775,9 +1906,10 @@ fieldset:disabled .choice {
   color: var(--muted);
 }
 
-/* The voice step */
-.speak-btn,
-.speak-wait {
+/* The voice step. One button for the whole run of a press: it says what to do, then each step
+   before the voice and the wait for the Wallet card (.speak-busy), in place, with no second
+   button. While busy, it takes no press. */
+.speak-btn {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1786,8 +1918,6 @@ fieldset:disabled .choice {
   padding: 0;
   background: transparent;
   text-align: left;
-}
-.speak-btn {
   cursor: pointer;
   border-radius: 12px;
   -webkit-tap-highlight-color: transparent;
@@ -1795,65 +1925,87 @@ fieldset:disabled .choice {
 .speak-btn:disabled {
   cursor: default;
 }
+.speak-btn.speak-busy {
+  cursor: progress;
+}
 .speak-btn:disabled .mic {
   opacity: 0.4;
 }
-/* In a dialog's foot, the whole foot is the voice button: the button reaches the foot's edges,
-   and a pointer over any part of it turns the whole foot --ink, with an --on-ink microphone. */
-.dialog-foot {
-  --foot-x: 20px;
-  --foot-top: 12px;
-  --foot-bottom: 16px;
+/* The new words and icon of the next step fade in; the button itself stays. */
+.speak-swap {
+  animation: fade-in 0.16s ease-out;
 }
+/* In a dialog's foot, the voice button is the dialog's primary action: an X blue pill, as X's
+   Post button (.btn-blue), with white text and a white microphone. A pointer makes it the darker
+   blue. The colours are the same on both themes. While busy, the same pill is the darker blue
+   with a white spinner. */
 .dialog-foot .speak-btn {
-  width: calc(100% + 2 * var(--foot-x));
-  margin: calc(-1 * var(--foot-top)) calc(-1 * var(--foot-x)) calc(-1 * var(--foot-bottom));
-  padding: var(--foot-top) var(--foot-x) var(--foot-bottom);
-  /* The dialog's own bottom corners. */
-  border-radius: 0 0 var(--foot-r, 2rem) var(--foot-r, 2rem);
-  transition:
-    background-color 0.16s,
-    color 0.16s;
+  padding: 8px 20px 8px 8px;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: #fff;
+  transition: background-color 0.16s;
+}
+.dialog-foot .mic {
+  width: 40px;
+  height: 40px;
+}
+.dialog-foot .speak-btn .mic {
+  background: #fff;
+  color: var(--accent);
 }
 .dialog-foot .speak-btn .muted {
-  transition: color 0.16s;
+  color: rgba(255, 255, 255, 0.85);
 }
-/* Keyboard focus lights the foot as a pointer does. */
-.dialog-foot .speak-btn:not(:disabled):focus-visible {
-  background: var(--ink);
-  color: var(--on-ink);
-  outline: none;
+.dialog-foot .speak-btn.speak-busy {
+  background: var(--accent-ink);
 }
-.dialog-foot .speak-btn:not(:disabled):focus-visible .mic {
-  background: var(--on-ink);
-  color: var(--ink);
+.dialog-foot .speak-busy .mic {
+  color: var(--accent-ink);
 }
-.dialog-foot .speak-btn:not(:disabled):focus-visible .muted {
-  color: color-mix(in srgb, var(--on-ink) 72%, transparent);
+.dialog-foot .speak-btn .spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+/* The live microphone: white on the blue, with a white ring that stays inside the pill. */
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-foot .speak-btn .mic-live {
+    animation-name: pulse-white;
+  }
+}
+@keyframes pulse-white {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+}
+.dialog-foot .speak-btn:disabled {
+  opacity: 0.5;
+}
+.dialog-foot .speak-btn:disabled .mic {
+  opacity: 1;
 }
 @media (hover: hover) and (pointer: fine) {
   .dialog-foot .speak-btn:not(:disabled):hover {
-    background: var(--ink);
-    color: var(--on-ink);
+    background: var(--accent-ink);
   }
   .dialog-foot .speak-btn:not(:disabled):hover .mic {
-    background: var(--on-ink);
-    color: var(--ink);
-  }
-  .dialog-foot .speak-btn:not(:disabled):hover .muted {
-    color: color-mix(in srgb, var(--on-ink) 72%, transparent);
+    background: #fff;
   }
   /* Outside a dialog's foot, only the microphone answers the pointer. */
   .speak-btn:not(:disabled):hover .mic {
     background: var(--ink-hover);
   }
 }
-.dialog-foot .speak-btn:not(:disabled):active {
-  background: var(--ink-hover);
-}
-/* A press shrinks the microphone: the foot itself keeps the dialog's edges. */
+/* A press shrinks the microphone. */
 @media (prefers-reduced-motion: no-preference) {
-  .speak-btn:not(:disabled):active .mic {
+  .speak-btn:not(:disabled):not(.speak-busy):active .mic {
     scale: 0.96;
   }
 }
@@ -1995,10 +2147,74 @@ fieldset:disabled .choice {
   }
 }
 
+/* Errors at the bottom of the screen (FloatingError.tsx): small bars in the middle, over the
+   page but under our modals' Wallet frames. Quiet: the page's own surface, a thin line and a red
+   icon, not a red block. */
+.float-region {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 55;
+  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.float-error {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 8px 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: rgba(101, 119, 134, 0.2) 0 0 15px, rgba(101, 119, 134, 0.15) 0 0 3px 1px;
+  animation: toast-in 0.2s ease-out;
+}
+.float-error-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--red);
+}
+.float-error-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.float-error-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -4px 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .float-error-close:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mic-live,
   .spinner,
   .toast,
+  .float-error,
   .step-just-done .step-mark,
   .note-fresh {
     animation: none;
@@ -2120,7 +2336,6 @@ fieldset:disabled .choice {
     padding-bottom: 16px;
   }
   .dialog-foot {
-    --foot-x: 16px;
     padding: 12px 16px 16px;
   }
 }
@@ -2173,33 +2388,4 @@ fieldset:disabled .choice {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* The card behind the Wallet's windows during a setup step (z-index under our modals and the Wallet). */
-.wallet-wait {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: var(--overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-.wallet-wait-card {
-  background: var(--bg);
-  border-radius: 16px;
-  padding: 24px 28px;
-  max-width: 340px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-  box-shadow: rgba(101, 119, 134, 0.2) 0 0 15px, rgba(101, 119, 134, 0.15) 0 0 3px 1px;
-}
-.spinner-lg {
-  width: 28px;
-  height: 28px;
-  border-width: 3px;
 }

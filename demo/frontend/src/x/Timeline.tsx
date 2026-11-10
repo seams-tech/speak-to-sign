@@ -3,7 +3,7 @@
 // writes, rates and bets on the card itself, and the dialogs open over the timeline. A click on
 // a card opens its bet (when its market takes bets) or the write dialog.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { IconChevronDown, IconUsers } from '@tabler/icons-react';
 import { ActionRow, AuthorBadge, Avatar, Media, PostText } from '../components/bits';
 import { NoteRateLine, shownNote } from '../components/NotesBox';
@@ -25,6 +25,36 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'open', label: 'Open markets' },
   { id: 'decided', label: 'Decided' },
 ];
+
+/**
+ * The timeline's tabs. One blue underline is under the label of the tab that is on, and it
+ * slides to the next one, and takes its width, when the visitor changes the tab. The tabs have
+ * equal widths, so the underline's place is a share of the bar (styles.css), at every width.
+ * Only the width of the bold label is measured.
+ */
+function TabBar({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
+  const nav = useRef<HTMLElement>(null);
+  const [labelWidth, setLabelWidth] = useState<number | null>(null);
+  const index = TABS.findIndex(({ id }) => id === tab);
+
+  useLayoutEffect(() => {
+    const label = nav.current?.querySelector<HTMLElement>('.tab-on span');
+    if (label) setLabelWidth(label.getBoundingClientRect().width);
+  }, [tab]);
+
+  const style = { '--n': TABS.length, '--i': index, '--w': `${labelWidth ?? 0}px` } as CSSProperties;
+  return (
+    <nav className="tabs tabs-slide" aria-label="Timeline" ref={nav}>
+      {TABS.map(({ id, label }) => (
+        <button key={id} type="button" className={`tab ${tab === id ? 'tab-on' : ''}`} aria-current={tab === id} onClick={() => onTab(id)}>
+          <span>{label}</span>
+        </button>
+      ))}
+      {/* It mounts at its place, so it slides only from one tab to another. */}
+      {labelWidth !== null && <span className="tabs-bar" aria-hidden="true" style={style} />}
+    </nav>
+  );
+}
 
 /** The note that a card shows, and the id that its market has in the market contract. */
 interface CardNote {
@@ -87,13 +117,7 @@ export function Timeline() {
   return (
     <>
       <h1 className="sr-only">Posts that need context</h1>
-      <nav className="tabs" aria-label="Timeline">
-        {TABS.map(({ id, label }) => (
-          <button key={id} type="button" className={`tab ${tab === id ? 'tab-on' : ''}`} aria-current={tab === id} onClick={() => setTab(id)}>
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+      <TabBar tab={tab} onTab={setTab} />
       {visible.map(({ post, note }) => (
         <PostCard key={post.id} post={post} note={note} market={note ? markets[note.marketNoteId] : null} />
       ))}

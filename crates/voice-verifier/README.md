@@ -14,7 +14,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.7.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.10.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -27,21 +27,18 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
 | 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route selects it by `version_key`. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
 | 0.7.0   | not built for OutLayer yet | The source on this branch. It adds `multisig_hide_note` for the voice multisig page ("hide note N"). The other kinds are unchanged, except the version in the verdict. Build it with `build.sh --docker`, add it to the OutLayer project, and set its hash as `VOICE_OUTLAYER_VERSION_KEY` of the demo site. |
-| 0.8.0   | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Added to the OutLayer project on 2026-11-11 (458,081 bytes, `build.sh --docker`, commit `21ad633`, FastFS tx `GPDF3s9pNwA8rxu7pbRjjvtFbBEW7hc1Sz7H2Xf1Ryg`, `add_version` tx `BSFZLLgM5PQ4v5bS8MJC7VKe2fR7MZ4YEDVS4kYaEYwN`). **Not active**: a call reaches it only with `version_key`. |
-| 0.8.0 `local-speaker` | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
+| 0.8.0   | `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3` | Added to the OutLayer project on 2026-11-10 (421,745 bytes, `build.sh --docker`, FastFS tx `C7ANV9NzfpZYoJaJxc5kzZbCttg14RPhYC8syqv8pq85`, `add_version` tx `F8orYFRTJybc26s6Sa1L329HbLkRfDfqhoXDKAb7Roq7`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"). The other kinds are unchanged, except the version in the verdict. The Seams staging Gateway pins it. |
+| 0.9.0   | not built for OutLayer yet | The source on this branch. Adds the general kinds `transaction` (any NEAR transaction or delegate action: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). Wallet SDK 0.66.0 needs it for `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage` of `seams.near.speakToSign`. |
+| 0.8.0 (standalone preview) | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | A build of the branch `claude/standalone-library-3e4d17` at commit `21ad633`, before it took a new version number. It writes `0.8.0` in a verdict. It has the kinds of 0.8.0 and the general kinds of 0.9.0. It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Added to the OutLayer project on 2026-11-11 (458,081 bytes, `build.sh --docker`, commit `21ad633`, FastFS tx `GPDF3s9pNwA8rxu7pbRjjvtFbBEW7hc1Sz7H2Xf1Ryg`, `add_version` tx `BSFZLLgM5PQ4v5bS8MJC7VKe2fR7MZ4YEDVS4kYaEYwN`). **Not active**: a call reaches it only with `version_key`. |
+| 0.8.0 (standalone preview, `local-speaker`) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
+| 0.10.0  | not built for OutLayer yet | The source on this branch. It adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, the variant `local-speaker`, and numbers in a spoken summary. The two "standalone preview" builds above have all of it except the numbers. |
 
-Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict, so that
-text does not name one build. Use the version key:
-
-- `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3`: the
-  build of the branch `spoken-bets` (`market_bet`; no general kinds). The
-  staging route pins it with `version_key`.
-- `599755ad…df2f` and `ca078933…6306`: the two rows above.
-
-On 2026-11-11 the active version of the project was still 0.5.2
-(`96b79b51…d7e5`), and all three 0.8.0 builds were in the version list
-(views `get_project` and `list_versions` of `outlayer.testnet`). The next
-change of this source must take a new version number.
+Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
+`b0f53da4…bff3` and the two "standalone preview" builds. So that text does
+not name one build. Use the version key. On 2026-11-11 the active version of
+the project was still 0.5.2 (`96b79b51…d7e5`), and all three builds were in
+the version list (views `get_project` and `list_versions` of
+`outlayer.testnet`).
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.

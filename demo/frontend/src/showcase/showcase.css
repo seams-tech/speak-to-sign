@@ -1831,10 +1831,11 @@ h1.ss-display {
   transform-origin: 0 0;
 }
 
-/* "Built on NEAR" and Seams before GitHub, in the same glass pills: the words and NEAR's
-   wordmark as on tatchi.xyz, and the Seams logo as on wallet.seams.sh, in white. GitHub follows
-   them with no gap of its own. */
+/* "Built on NEAR + NEAR AI", OutLayer and Seams after GitHub, in the same glass pills: the
+   words and NEAR's wordmark as on tatchi.xyz, NEAR AI's wordmark as on near.ai, OutLayer's logo
+   as on outlayer.ai, and the Seams logo as on wallet.seams.sh, all in white. */
 .ss-near,
+.ss-outlayer,
 .ss-seams {
   flex: none;
   display: inline-flex;
@@ -1884,34 +1885,136 @@ h1.ss-display {
   }
 }
 
+.ss-near-link {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  transition: opacity 150ms ease;
+}
+
 .ss-near svg {
+  flex: none;
   width: 48px;
   height: auto;
   /* The wordmark's letters sit a little low in its box. */
   margin-top: 1px;
 }
 
+/* NEAR AI's "near" is as high as NEAR's "near", and on the same line (--ai-w and --ai-y, from
+   the two logos' letters). */
+.ss-near .ss-near-ai {
+  width: var(--ai-w, 39px);
+  margin-top: var(--ai-y, 1px);
+}
+
+.ss-near-plus {
+  margin: 0 5px;
+  opacity: 0.8;
+}
+
+/* The two links share one pill. The pill shows the focus ring of either link, and the other
+   link dims while one has the pointer or the focus, so it is clear which one opens. */
+.ss-near-link:focus-visible {
+  outline: none;
+}
+.ss-near:has(.ss-near-link:focus-visible) {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+.ss-near:has(.ss-near-link:focus-visible) .ss-near-link:not(:focus-visible) {
+  opacity: 0.55;
+}
+
+/* OutLayer's logo: capitals and arrows, as high as the "near" letters and the "Built on" words
+   let it look the same weight. */
+.ss-outlayer img {
+  display: block;
+  width: 52px;
+  height: auto;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .ss-near:hover,
+  .ss-outlayer:hover,
   .ss-seams:hover {
     background: rgba(10, 10, 10, 0.42);
   }
+  .ss-near:has(.ss-near-link:hover) .ss-near-link:not(:hover) {
+    opacity: 0.55;
+  }
 }
 
-/* While the setup steps are in the nav, and on a phone, the wordmark stands alone. */
+/* While the setup steps are in the nav, and on a phone, the wordmark stands alone. When the
+   steps come in or go, the words fold away or open out and the pill shrinks or grows with
+   them, in the time of the steps' own move. The words' column goes from its full width (1fr)
+   to none (0fr), and the space before the wordmark goes with it. */
+.ss-near {
+  gap: 0;
+}
+.ss-near-words {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  margin-right: 5px;
+  transition:
+    grid-template-columns 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-right 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s;
+}
+.ss-near-words > span {
+  min-width: 0;
+  overflow: hidden;
+}
 .ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-words {
-  display: none;
+  grid-template-columns: 0fr;
+  margin-right: 0;
+  opacity: 0;
+}
+/* "+ NEAR AI" folds away in the same way, after NEAR's wordmark. Folded, it is hidden, so its
+   link takes no focus. */
+.ss-near-more {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  transition:
+    grid-template-columns 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s;
+}
+.ss-near-more > span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+.ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-more {
+  grid-template-columns: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-columns 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s,
+    visibility 0s linear 0.22s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-near-words,
+  .ss-near-more,
+  .ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-more {
+    transition: none;
+  }
 }
 
 @media (max-width: 720px) {
-  .ss-near-words {
+  .ss-near-words,
+  .ss-near-more {
+    display: none;
+  }
+  /* A setup step in the nav needs about 120 px: while one shows, OutLayer's pill goes. */
+  .ss-nav-inner:has(.ss-nav-setup[data-shown] .step:not(.step-done)) .ss-outlayer {
     display: none;
   }
 }
 
-/* From 861px to 1199px the three steps would run under the pills at the right (with all three
-   pills they need about 1145px): the nav shows one step, the first that is not done, as on a
-   phone. The name stays. */
+/* From 861px to 1199px the three steps would run under the pills at the right (with the four
+   pills, NEAR's folded, they need about 1160px): the nav shows one step, the first that is not
+   done, as on a phone. The name stays. */
 @media (min-width: 861px) and (max-width: 1199px) {
   .ss-nav-setup .step-done,
   .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
@@ -1957,7 +2060,8 @@ h1.ss-display {
 }
 
 /* The steps read as one path: done, the next one, the later ones. The next step is the
-   primary action of the nav: a white pill with a black button and a soft ring that breathes.
+   primary action of the nav: a white pill with an X-blue number and button, and a blue ring
+   that breathes.
    A later step is glass until its turn. A done step is its blue check and its name; the done
    funds step shows its two balances in place of its name. */
 .ss-nav-setup .step {
@@ -1977,13 +2081,20 @@ h1.ss-display {
   animation: ss-step-ring 2.4s ease-out infinite;
 }
 
+/* In the dark theme the next step is X's dark surface, not a white pill. :where() keeps this
+   rule as specific as the one above, so the later and done steps keep their own looks. */
+:where(:root[data-theme='dark']) .ss-nav-setup .step {
+  background: #16181c;
+  color: #e7e9ea;
+}
+
 @keyframes ss-step-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55);
+    box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.55);
   }
   70%,
   100% {
-    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0);
+    box-shadow: 0 0 0 7px rgba(29, 155, 240, 0);
   }
 }
 
@@ -2014,7 +2125,7 @@ h1.ss-display {
   width: 18px;
   height: 18px;
   border: 0;
-  background: var(--ink);
+  background: var(--accent);
   color: #ffffff;
   font-size: 11px;
 }
@@ -2022,15 +2133,16 @@ h1.ss-display {
 .ss-nav-setup .step .btn {
   height: 22px;
   padding: 0 10px;
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent);
   color: #ffffff;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ss-nav-setup .step .btn:not(:disabled):hover {
-  background: #272c30;
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
 }
 
 .ss-nav-setup .step .step-detail {
@@ -2210,7 +2322,7 @@ h1.ss-display {
 
 /* The three steps read as one path, as in the nav: every pill has the same height, a short
    line joins two pills, and the look of a pill says where the visitor is. The next step is
-   solid white with a black button, and a soft ring breathes around it. A later step is glass.
+   solid white with an X-blue number and button, and a blue ring breathes around it. A later step is glass.
    A done step is glass with a blue check. */
 .ss-setup-strip .step {
   position: relative;
@@ -2227,6 +2339,12 @@ h1.ss-display {
   white-space: nowrap;
   box-shadow: 0 10px 24px -14px rgba(6, 24, 38, 0.55);
   animation: ss-step-ring 2.4s ease-out infinite;
+}
+
+/* In the dark theme the next step is X's dark surface, as in the nav. */
+:where(:root[data-theme='dark']) .ss-setup-strip .step {
+  background: #16181c;
+  color: #e7e9ea;
 }
 
 .ss-setup-strip .step-text {
@@ -2255,7 +2373,7 @@ h1.ss-display {
   width: 24px;
   height: 24px;
   border: 0;
-  background: var(--ink);
+  background: var(--accent);
   color: #ffffff;
   font-size: 12.5px;
 }
@@ -2263,15 +2381,16 @@ h1.ss-display {
 .ss-setup-strip .step .btn {
   height: 30px;
   padding: 0 14px;
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent);
   color: #ffffff;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ss-setup-strip .step .btn:not(:disabled):hover {
-  background: #272c30;
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
 }
 
 .ss-setup-strip .step .step-detail {

@@ -4,6 +4,10 @@ Status: plan and build spec, 2026-11-10. Testnet only. Everything is in this
 repository: the grammar, the verifier, a demo contract and the demo page.
 Nothing in `seams-wallet` changes.
 
+The demo for new visitors changes this design: two Seams signers approve
+by key, and the visitor is the one voice signer. The plan is
+`docs/voice-multisig-guests.md`.
+
 ## Result
 
 A NEAR multisig on testnet where each confirmation is a spoken intent, not a

@@ -105,15 +105,16 @@ export async function runSpokenTransfer(
 }
 
 /**
- * One spoken community note or note rating, as a payment: the owner says the note's summary or
- * the rating sentence, and core signs `add_note` or `rate_note` on an approved verdict.
+ * One spoken community note, note rating, merge approval or market bet, as a payment: the owner
+ * says the note's summary or the sentence of the request, and core signs its one call on an
+ * approved verdict. A bet is the token's `ft_transfer_call` to the market, with the verdict.
  */
 export async function runSpokenNote(
   input: Pick<NoteInput, 'network' | 'signal' | 'note'>,
 ): Promise<SpeakToSignNoteResult> {
   const { note, signal } = input;
   const { action } = note;
-  const refusal = noteActionRefusal(action);
+  const refusal = noteActionRefusal(input.network, action);
   if (refusal) return { kind: 'refused', reason: refusal };
   const rendered = renderNoteAction(action);
   const verifyRequest = await noteVerifyRequest(action);
@@ -274,7 +275,7 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
 }
 
-/** The card copy of a spoken note, rating or merge approval. */
+/** The card copy of a spoken note, rating, merge approval or bet. */
 function noteCopy(
   action: NoteInput['note']['action'],
   displayText: string,
@@ -286,5 +287,7 @@ function noteCopy(
       return { noun: 'rating', doneHeadline: 'Rating saved', doneCaption: displayText };
     case 'merge_approval':
       return { noun: 'approval', doneHeadline: 'Merge approved', doneCaption: displayText };
+    case 'market_bet':
+      return { noun: 'bet', doneHeadline: 'Bet placed', doneCaption: displayText };
   }
 }

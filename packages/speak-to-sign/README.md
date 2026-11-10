@@ -163,6 +163,39 @@ const rated = await seams.speakToSign.requestRating({
   `transaction_failed`.
 - Notes need verifier 0.4.0 or later.
 
+## Spoken market bets
+
+The same card can sign a bet on a prediction market that takes a NEP-141
+`ft_transfer_call` with `msg`
+`{"action":"bet","market_id","outcome","verdict_json","signature_b64"}`. The
+owner says the amount, the outcome and the market id: "bet zero point five usdc
+yes on market nine". On an approved verdict, Wallet core itself builds the call
+on the token contract from the owner's account, with 1 yoctoNEAR and no confirm.
+The call carries the signed verdict, so the market contract can check it too.
+
+```ts
+const bet = await seams.speakToSign.requestBet({
+  walletId,
+  contract: 'pm-notes.testnet', // the market contract
+  token: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
+  marketId: 9,
+  outcome: 'yes', // or 'no'
+  amount: '0.5', // decimal USDC
+});
+```
+
+- The token must be the USDC contract of the network (testnet: the Circle
+  contract above). The sentence says "usdc" and an amount with 6 decimals, so
+  another token is refused.
+- The amount is a whole number of cents, from 0.01 to 1,000,000 USDC. The
+  Wallet sets no other amount limit.
+- The verdict binds the market contract and the token, which the owner does not
+  say.
+- The call returns the result kinds of `requestTransfer`. The refusals are the
+  verifier's, `bet_not_valid` (the market contract, the token, the market id,
+  the outcome or the amount), `verdict_mismatch` and `transaction_failed`.
+- Bets need verifier 0.8.0 or later, and Wallet host API 10.
+
 ## Wallet host setup
 
 The operator of `walletOrigin` installs the same three packages. Then the

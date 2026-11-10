@@ -44,7 +44,7 @@ const NETWORKS: Readonly<
 };
 
 /** What the card calls the request it signs. */
-export type CardNoun = 'payment' | 'note' | 'rating' | 'approval';
+export type CardNoun = 'payment' | 'note' | 'rating' | 'approval' | 'bet';
 
 export type CardInput = Readonly<{
   network: SpeakToSignNetwork;
@@ -85,6 +85,12 @@ const NOUN_COPY: Readonly<
     failedLabel: 'Not approved',
     failedDetail: 'Check the pull request and your balance, then try again.',
     unknownLabel: 'Check before you approve again',
+  },
+  bet: {
+    done: 'placed',
+    failedLabel: 'Not placed',
+    failedDetail: 'Check the market and your USDC balance, then try again.',
+    unknownLabel: 'Check before you bet again',
   },
 };
 

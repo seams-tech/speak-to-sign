@@ -5,12 +5,17 @@
 //! both calls from the user's own account with 0 deposit, so the contract
 //! pays for its storage from its own balance.
 //!
+//! One moderator account, the voice multisig of the demo, can hide a
+//! harmful note. A hidden note keeps its id, post, author and counts, but
+//! the contract removes its text and summary, and it takes no more ratings.
+//! The original text stays in the `add_note` transaction on chain.
+//!
 //! The method names and JSON shapes are fixed: Seams Wallet core and the
 //! demo page use them. See `README.md`.
 
 use near_sdk::serde::Serialize;
 use near_sdk::store::LookupMap;
-use near_sdk::{AccountId, BorshStorageKey, env, near, require};
+use near_sdk::{AccountId, BorshStorageKey, IntoStorageKey, env, near, require};
 
 /// The maximum length of a note text, in Unicode scalar values.
 pub const MAX_TEXT_CHARS: usize = 280;
@@ -22,7 +27,7 @@ pub const MAX_NOTES_PER_POST_VIEW: u32 = 50;
 pub const MIN_RATINGS_FOR_STATUS: u32 = 2;
 
 const EVENT_STANDARD: &str = "community_notes";
-const EVENT_VERSION: &str = "1.0.0";
+const EVENT_VERSION: &str = "1.1.0";
 
 /// The rating that one account gives to one note.
 #[near(serializers = [json, borsh])]
@@ -86,6 +91,11 @@ impl Note {
         NoteStatus::from_counts(self.helpful, self.not_helpful)
     }
 
+    /// `add_note` refuses an empty text, so only `hide_note` leaves one.
+    fn hidden(&self) -> bool {
+        self.text.is_empty()
+    }
+
     fn view(&self, id: u64) -> NoteView {
         NoteView {
             id,
@@ -98,11 +108,13 @@ impl Note {
             somewhat_helpful: self.somewhat_helpful,
             not_helpful: self.not_helpful,
             status: self.status(),
+            hidden: self.hidden(),
         }
     }
 }
 
-/// A note as the view methods return it.
+/// A note as the view methods return it. A hidden note has an empty `text`
+/// and `summary`, and `hidden` is true.
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoteView {
@@ -116,8 +128,11 @@ pub struct NoteView {
     pub somewhat_helpful: u32,
     pub not_helpful: u32,
     pub status: NoteStatus,
+    pub hidden: bool,
 }
 
+/// The storage prefixes. New keys go at the end: the prefix of a key is its
+/// position.
 #[near(serializers = [borsh])]
 #[derive(BorshStorageKey)]
 enum StorageKey {
@@ -125,6 +140,9 @@ enum StorageKey {
     PostNoteCounts,
     PostNotes,
     Ratings,
+    /// The moderator account, outside the contract state, so that an
+    /// upgrade of a deployed contract needs no state migration.
+    Moderator,
 }
 
 #[near(contract_state)]
@@ -212,6 +230,7 @@ impl CommunityNotes {
             note.author != account_id,
             "the author cannot rate their own note"
         );
+        require!(!note.hidden(), "this note is hidden");
 
         let previous_rating = self.ratings.insert((note_id, account_id.clone()), rating);
         if let Some(previous) = previous_rating {
@@ -230,6 +249,49 @@ impl CommunityNotes {
                 status: note.status(),
             },
         );
+    }
+
+    /// Hides a harmful note: removes its text and summary. Only the
+    /// moderator can call it. `proposal_id` is the multisig proposal that
+    /// decided it, for the event.
+    pub fn hide_note(&mut self, note_id: u64, proposal_id: Option<u64>) {
+        let caller = env::predecessor_account_id();
+        require!(
+            Some(&caller) == self.get_moderator().as_ref(),
+            "only the moderator can hide a note"
+        );
+        let note = self
+            .notes
+            .get_mut(&note_id)
+            .unwrap_or_else(|| env::panic_str(&format!("note {note_id} does not exist")));
+        require!(!note.hidden(), "this note is already hidden");
+        note.text.clear();
+        note.summary.clear();
+        emit(
+            "note_hidden",
+            NoteHidden {
+                note_id,
+                post_id: note.post_id,
+                moderator: &caller,
+                proposal_id,
+            },
+        );
+    }
+
+    /// Sets the moderator, the one account that can hide a note. Only the
+    /// contract account can call it.
+    #[private]
+    pub fn set_moderator(&mut self, account_id: AccountId) {
+        env::storage_write(
+            &StorageKey::Moderator.into_storage_key(),
+            account_id.as_bytes(),
+        );
+    }
+
+    pub fn get_moderator(&self) -> Option<AccountId> {
+        env::storage_read(&StorageKey::Moderator.into_storage_key())
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .and_then(|text| text.parse().ok())
     }
 
     /// The notes on a post, newest first, at most 50.
@@ -282,6 +344,16 @@ struct NoteRated<'a> {
     rating: Rating,
     previous_rating: Option<Rating>,
     status: NoteStatus,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+struct NoteHidden<'a> {
+    note_id: u64,
+    post_id: u64,
+    moderator: &'a AccountId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proposal_id: Option<u64>,
 }
 
 #[derive(Serialize)]

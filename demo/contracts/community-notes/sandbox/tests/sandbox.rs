@@ -110,7 +110,7 @@ async fn community_notes_in_the_sandbox() -> anyhow::Result<()> {
         added,
         json!({
             "standard": "community_notes",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "event": "note_added",
             "data": [{ "note_id": 1, "post_id": 42, "author": alice.id() }]
         })
@@ -157,7 +157,7 @@ async fn community_notes_in_the_sandbox() -> anyhow::Result<()> {
         event(&result),
         json!({
             "standard": "community_notes",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "event": "note_rated",
             "data": [{
                 "note_id": 1,
@@ -233,6 +233,7 @@ async fn community_notes_in_the_sandbox() -> anyhow::Result<()> {
         "somewhat_helpful",
         "not_helpful",
         "status",
+        "hidden",
     ];
     expected_keys.sort();
     let mut keys = keys;
@@ -324,5 +325,59 @@ async fn get_notes_with_50_of_the_largest_notes() -> anyhow::Result<()> {
         "get_notes with 50 of the largest notes: {} bytes of JSON",
         serde_json::to_string(&notes)?.len()
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_moderator_hides_a_note() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let contract = worker.dev_deploy(&wasm()?).await?;
+    let alice = worker.dev_create_account().await?;
+    let bob = worker.dev_create_account().await?;
+    let moderator = worker.dev_create_account().await?;
+
+    check_success(
+        "add_note",
+        &add_note(&alice, &contract, 900, "Call 555-0142 for the truth.", "Spam").await?,
+    );
+
+    // Only the contract account sets the moderator.
+    let result = bob
+        .call(contract.id(), "set_moderator")
+        .args_json(json!({ "account_id": bob.id() }))
+        .transact()
+        .await?;
+    check_failure("set_moderator by another account", &result, "is private");
+    let result = contract
+        .call("set_moderator")
+        .args_json(json!({ "account_id": moderator.id() }))
+        .transact()
+        .await?;
+    assert!(result.is_success(), "set_moderator failed: {result:#?}");
+    assert_eq!(view(&contract, "get_moderator", json!({})).await?, json!(moderator.id()));
+
+    let hide = |caller: &Account| {
+        caller
+            .call(contract.id(), "hide_note")
+            .args_json(json!({ "note_id": 1, "proposal_id": 3 }))
+            .gas(Gas::from_tgas(10))
+            .transact()
+    };
+    check_failure("hide_note by another account", &hide(&bob).await?, "only the moderator can hide a note");
+    let result = hide(&moderator).await?;
+    check_success("hide_note", &result);
+    assert_eq!(
+        event(&result),
+        json!({
+            "standard": "community_notes",
+            "version": "1.1.0",
+            "event": "note_hidden",
+            "data": [{ "note_id": 1, "post_id": 900, "moderator": moderator.id(), "proposal_id": 3 }]
+        })
+    );
+    let note = view(&contract, "get_note", json!({ "note_id": 1 })).await?;
+    assert_eq!((&note["text"], &note["summary"], &note["hidden"]), (&json!(""), &json!(""), &json!(true)));
+    check_failure("hide_note twice", &hide(&moderator).await?, "this note is already hidden");
+    check_failure("rate a hidden note", &rate_note(&bob, &contract, 1, "helpful").await?, "this note is hidden");
     Ok(())
 }

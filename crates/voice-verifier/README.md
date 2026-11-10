@@ -12,7 +12,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.6.1 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.7.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -24,6 +24,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.5.2   | `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5` | **Active** since 2026-11-09 at 17:04 UTC (373,865 bytes, `build.sh --docker`, FastFS tx `7zwppPbVm5AMmFQ18m9dWCYax4mA4zTrHupVnuhQpFnD`, `add_version` tx `A81vUiuvEdsCyFKrFwzZdQe3gVfFTXuse5ue4Qi5g7L2`). No change in behaviour: the code is reorganised. The signed output is the same as 0.5.1, except the version. |
 | 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
 | 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route selects it by `version_key`. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
+| 0.7.0   | not built for OutLayer yet | The source on this branch. It adds `multisig_hide_note` for the voice multisig page ("hide note N"). The other kinds are unchanged, except the version in the verdict. Build it with `build.sh --docker`, add it to the OutLayer project, and set its hash as `VOICE_OUTLAYER_VERSION_KEY` of the demo site. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -185,6 +186,13 @@ Stage times (`ms`, not signed), in ms:
       On an accept the worker stores the proposal and the salt, and the
       output has `"multisig":{"commitment","salt"}` (base64url) and no stage
       times, so that it stays below 1,024 bytes.
+    - `multisig_hide_note` (0.7.0 and later):
+      `{"multisig","proposal_id","note_id"}`, with `note_id` 1 or more. The
+      proposer says "approve proposal <id>, hide note <note id>" with the
+      exact words. Like `multisig_propose`, the worker draws the salt,
+      stores the proposal (`{"proposal_id","note_id","salt_hex"}`) and
+      returns the commitment and the salt. The near misses are the note id
+      one lower, one higher, and with each digit changed.
     - `multisig_confirm` (0.6.0 and later):
       `{"multisig","proposal_id","commitment_hex"}`. Another member says the
       same sentence from memory: the input does not hold the proposal. The
@@ -196,7 +204,8 @@ Stage times (`ms`, not signed), in ms:
       speaker check passed count. A voice that passes against another
       member who already said the proposal refuses `same_speaker`.
     - The contract `demo/contracts/voice-multisig` checks each verdict of
-      these two kinds on chain. Only `Transfer` proposals exist.
+      these kinds on chain. `Transfer` and `HideNote` proposals exist. A
+      0.6 record of a transfer still reads in 0.7.0.
   - The words must match the rendered text of the request. A rating and a
     merge approval need the exact words. Two kinds of forgiveness exist;
     each applies to words that hold no value:

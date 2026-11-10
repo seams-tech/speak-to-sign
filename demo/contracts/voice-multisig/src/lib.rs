@@ -1,14 +1,17 @@
 //! A voice multisig for the Speak-to-Sign demo, on testnet.
 //!
-//! Any account that is not an admin reads a transfer aloud. The verifier
-//! checks the voice and the words and signs a verdict. The account proposes
-//! with that verdict, and this contract checks it on chain: the signature
-//! with the pinned verifier key, the outcome, the expiry and the request
-//! digest. The digest binds the proposer (the predecessor), this contract,
-//! the proposal id and the commitment, a salted hash of the transfer. Then
-//! each admin approves the proposal with a plain signed call, and the
-//! proposer or an admin executes it. The chain sees the transfer only at
-//! `execute`.
+//! Any account that is not an admin reads a proposal aloud: a transfer, or
+//! "hide note N" for a harmful community note. The verifier checks the voice
+//! and the words and signs a verdict. The account proposes with that
+//! verdict, and this contract checks it on chain: the signature with the
+//! pinned verifier key, the outcome, the expiry and the request digest. The
+//! digest binds the proposer (the predecessor), this contract, the proposal
+//! id and the commitment, a salted hash of the proposal. Then each admin
+//! approves the proposal with a plain signed call, and the proposer or an
+//! admin executes it. The chain sees the proposal only at `execute`.
+//!
+//! For "hide note N", this contract is the moderator of the notes contract
+//! that `set_notes_contract` names, and `execute` calls its `hide_note`.
 //!
 //! The method names and JSON shapes are fixed: the demo page and the approve
 //! route use them. See `README.md` and `docs/voice-multisig-guests.md`.
@@ -16,7 +19,9 @@
 use near_sdk::json_types::U128;
 use near_sdk::serde::Serialize;
 use near_sdk::store::LookupMap;
-use near_sdk::{AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, env, near};
+use near_sdk::{
+    AccountId, BorshStorageKey, Gas, IntoStorageKey, NearToken, PanicOnDefault, Promise, env, near,
+};
 use spoken_intent::{
     NearAccount, NearAmount, Network, ProposalV1, SpokenAccount, multisig_approval_digest,
     multisig_commitment,
@@ -34,11 +39,13 @@ const MAX_ADMINS: usize = 10;
 pub const MAX_PROPOSALS_PER_VIEW: u32 = 50;
 /// The network that each request digest names.
 const NETWORK: Network = Network::Testnet;
-/// The gas for the callback after the transfer.
+/// The gas for the callback after the transfer or the hide.
 const CALLBACK_GAS: Gas = Gas::from_tgas(5);
+/// The gas for `hide_note` on the notes contract.
+const HIDE_GAS: Gas = Gas::from_tgas(10);
 
 const EVENT_STANDARD: &str = "voice_multisig";
-const EVENT_VERSION: &str = "2.0.0";
+const EVENT_VERSION: &str = "2.1.0";
 
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,7 +54,8 @@ pub enum Status {
     /// Admins can approve. When all admins approved, the proposer or an
     /// admin can execute.
     Open,
-    /// The transfer was sent, or is in flight.
+    /// The transfer was sent or the note was hidden, or the call is in
+    /// flight.
     Executed,
 }
 
@@ -69,7 +77,7 @@ pub struct Proposal {
 }
 
 impl Proposal {
-    fn view(&self, id: u64) -> ProposalView {
+    fn view(&self, id: u64, note_id: Option<u64>) -> ProposalView {
         let (receiver, amount_yocto) = match &self.transfer {
             Some((receiver, amount)) => (Some(receiver.clone()), Some(U128(*amount))),
             None => (None, None),
@@ -83,12 +91,14 @@ impl Proposal {
             created_at_ms: self.created_at_ms,
             receiver,
             amount_yocto,
+            note_id,
         }
     }
 }
 
 /// A proposal as the view methods return it. `receiver` and `amount_yocto`
-/// are absent until a transfer succeeds.
+/// are absent until a transfer succeeds, and `note_id` until a note is
+/// hidden.
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProposalView {
@@ -102,6 +112,8 @@ pub struct ProposalView {
     pub receiver: Option<AccountId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_yocto: Option<U128>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note_id: Option<u64>,
 }
 
 #[near(serializers = [json])]
@@ -111,10 +123,21 @@ pub struct ConfigView {
     pub verifier_public_key: String,
 }
 
+/// The storage prefixes. New keys go at the end: the prefix of a key is its
+/// position. The keys after `Proposals` live outside the contract state, so
+/// an upgrade of the deployed contract needs no state migration.
 #[near(serializers = [borsh])]
 #[derive(BorshStorageKey)]
 enum StorageKey {
     Proposals,
+    /// The notes contract whose moderator this multisig is.
+    NotesContract,
+    /// Proposal id to the id of the note that it hid.
+    HiddenNotes,
+}
+
+fn hidden_notes() -> LookupMap<u64, u64> {
+    LookupMap::new(StorageKey::HiddenNotes)
 }
 
 #[near(contract_state)]
@@ -237,19 +260,26 @@ impl VoiceMultisig {
         approvals
     }
 
-    /// Sends the transfer of a proposal that all admins approved. The
-    /// caller is the proposer or an admin, and knows the opening: the
-    /// receiver, the amount and the salt. The result is `true` if the
-    /// transfer arrived and `false` if it failed; on a failure the proposal
-    /// is open again. If the amount is above the balance of this account,
-    /// the runtime refuses the transfer in this call ("Exceeded the account
-    /// balance."), so the call fails and the proposal stays open.
+    /// Runs a proposal that all admins approved. The caller is the proposer
+    /// or an admin, and knows the opening: the salt, and either the receiver
+    /// and the amount of a transfer or the `note_id` of a note to hide.
+    ///
+    /// A transfer: the result is `true` if the transfer arrived and `false`
+    /// if it failed; on a failure the proposal is open again. If the amount
+    /// is above the balance of this account, the runtime refuses the
+    /// transfer in this call ("Exceeded the account balance."), so the call
+    /// fails and the proposal stays open.
+    ///
+    /// A hide: the call goes to `hide_note` of the notes contract. The
+    /// result is `true` if the note is hidden; on a failure the proposal is
+    /// open again.
     pub fn execute(
         &mut self,
         proposal_id: u64,
-        receiver: AccountId,
-        amount_yocto: U128,
+        receiver: Option<AccountId>,
+        amount_yocto: Option<U128>,
         salt_hex: String,
+        note_id: Option<u64>,
     ) -> Promise {
         let caller = env::predecessor_account_id();
         let proposal = self.open_proposal(proposal_id);
@@ -263,6 +293,15 @@ impl VoiceMultisig {
                 self.admins.len()
             ));
         }
+        let salt = from_hex32(&salt_hex)
+            .unwrap_or_else(|| env::panic_str("salt_hex must be 64 lowercase hex characters"));
+        let (receiver, amount_yocto) = match (receiver, amount_yocto, note_id) {
+            (Some(receiver), Some(amount_yocto), None) => (receiver, amount_yocto),
+            (None, None, Some(note_id)) => return self.execute_hide(proposal_id, note_id, &salt),
+            _ => env::panic_str(
+                "execute takes receiver and amount_yocto for a transfer, or note_id for a hide",
+            ),
+        };
         let spoken_receiver = SpokenAccount::new(receiver.as_str()).unwrap_or_else(|_| {
             env::panic_str("receiver must be a named account that the grammar can speak")
         });
@@ -271,8 +310,6 @@ impl VoiceMultisig {
                 "amount_yocto must be a multiple of 0.01 NEAR from 0.01 to 1,000,000 NEAR",
             )
         });
-        let salt = from_hex32(&salt_hex)
-            .unwrap_or_else(|| env::panic_str("salt_hex must be 64 lowercase hex characters"));
         let transfer = ProposalV1::Transfer {
             receiver: spoken_receiver,
             amount,
@@ -328,10 +365,52 @@ impl VoiceMultisig {
         sent
     }
 
+    /// Records the result of `hide_note`. On a failure the proposal is open
+    /// again with its approvals.
+    #[private]
+    pub fn on_hide(&mut self, proposal_id: u64, note_id: u64) -> bool {
+        let hidden = near_sdk::is_promise_success();
+        let proposal = self
+            .proposals
+            .get_mut(&proposal_id)
+            .unwrap_or_else(|| env::panic_str("no proposal has this id"));
+        if hidden {
+            hidden_notes().insert(proposal_id, note_id);
+            emit(
+                "executed",
+                Hidden {
+                    proposal_id,
+                    note_id,
+                },
+            );
+        } else {
+            proposal.status = Status::Open;
+            emit("execute_failed", ExecuteFailed { proposal_id });
+        }
+        hidden
+    }
+
+    /// Names the notes contract whose moderator this multisig is. Only the
+    /// contract account can call it.
+    #[private]
+    pub fn set_notes_contract(&mut self, account_id: AccountId) {
+        env::storage_write(
+            &StorageKey::NotesContract.into_storage_key(),
+            account_id.as_bytes(),
+        );
+    }
+
+    pub fn get_notes_contract(&self) -> Option<AccountId> {
+        env::storage_read(&StorageKey::NotesContract.into_storage_key())
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .and_then(|text| text.parse().ok())
+    }
+
     pub fn get_proposal(&self, proposal_id: u64) -> Option<ProposalView> {
-        self.proposals
-            .get(&proposal_id)
-            .map(|proposal| proposal.view(proposal_id))
+        self.proposals.get(&proposal_id).map(|proposal| {
+            let note_id = hidden_notes().get(&proposal_id).copied();
+            proposal.view(proposal_id, note_id)
+        })
     }
 
     /// Proposals newest first. `from_index` 0 is the newest; `limit` is at
@@ -364,6 +443,42 @@ impl VoiceMultisig {
 impl VoiceMultisig {
     fn is_admin(&self, account: &AccountId) -> bool {
         self.admins.contains(account)
+    }
+
+    /// The hide of `execute`, after the caller and approval checks.
+    fn execute_hide(&mut self, proposal_id: u64, note_id: u64, salt: &[u8; 32]) -> Promise {
+        let notes = self
+            .get_notes_contract()
+            .unwrap_or_else(|| env::panic_str("this multisig has no notes contract"));
+        let hide = ProposalV1::HideNote { note_id };
+        let multisig = near_account(&env::current_account_id());
+        let proposal = self.open_proposal(proposal_id);
+        if multisig_commitment(&multisig, proposal_id, &hide, salt) != proposal.commitment {
+            env::panic_str("note_id and salt_hex do not match the commitment");
+        }
+
+        // Marked before the call, so a second execute fails while this one
+        // is in flight.
+        self.proposals
+            .get_mut(&proposal_id)
+            .expect("checked above")
+            .status = Status::Executed;
+        Promise::new(notes)
+            .function_call(
+                "hide_note".to_owned(),
+                near_sdk::serde_json::to_vec(&HideArgs {
+                    note_id,
+                    proposal_id,
+                })
+                .unwrap_or_else(|_| env::panic_str("cannot serialize the hide_note arguments")),
+                NearToken::from_yoctonear(0),
+                HIDE_GAS,
+            )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(CALLBACK_GAS)
+                    .on_hide(proposal_id, note_id),
+            )
     }
 
     fn open_proposal(&self, proposal_id: u64) -> &Proposal {
@@ -455,6 +570,21 @@ struct Executed<'a> {
     proposal_id: u64,
     receiver: &'a AccountId,
     amount_yocto: U128,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+struct Hidden {
+    proposal_id: u64,
+    note_id: u64,
+}
+
+/// The arguments of `hide_note` on the notes contract.
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+struct HideArgs {
+    note_id: u64,
+    proposal_id: u64,
 }
 
 #[derive(Serialize)]

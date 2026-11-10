@@ -1,23 +1,27 @@
 // The two working parts of the multisig screen: the proposal form and an open proposal in the
-// history. The visitor reads the transfer aloud: the page records it, asks /api/voice-verify, and
-// on an accept signs `propose` with the Seams Wallet. Then the page sends the opening to
-// /api/multisig/approve: the two admin signers approve, and admin B executes. The page shows
-// three ticks (your approval, Admin A, Admin B) and the receipt. Until the transfer is executed,
-// this browser keeps the opening, and **Finish the transfer** calls the route again.
+// history. The visitor picks a reported note to hide (or types a transfer) and reads the
+// proposal aloud: the page records it, asks /api/voice-verify, and on an accept signs `propose`
+// with the Seams Wallet. Then the page sends the opening to /api/multisig/approve: the two admin
+// signers approve, and admin B executes. The page shows three ticks (your approval, Admin A,
+// Admin B) and the receipt. Until the proposal is executed, this browser keeps the opening, and
+// **Finish the proposal** calls the route again.
 //
 // The admins approve by key (docs/voice-multisig-guests.md). For the demo, the page shows them
 // as signers like the visitor: no key icon and no words about keys.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { IconCheck, IconExternalLink, IconSend } from '@tabler/icons-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { IconCheck, IconExternalLink, IconEyeOff, IconSend } from '@tabler/icons-react';
 import { accountUrl, config, shortAccount, shortHash, transactionUrl } from '../config';
 import { covers, useFunds } from '../faucet/funds';
 import type { SignResult } from '../signer/notesSigner';
 import { useEnrolled } from '../signer/voiceSetup';
+import { RpcNotesStore } from '../notes/rpcStore';
+import type { Note } from '../notes/types';
 import { requestApproval } from './approveClient';
-import { formatNear, formatYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from './intent';
+import { formatNear, formatYocto, hideSentence, isSpeakableAccount, parseNearAmount, proposalSentence } from './intent';
 import type { MultisigSigner } from './multisigSigner';
-import { readOpening, removeOpening, writeOpening, type Opening } from './openings';
+import { isHide, readOpening, removeOpening, writeOpening, type Opening } from './openings';
+import { PRACTICE_POST_ID } from './practice';
 import type { MultisigConfig, Proposal } from './contractViews';
 import { getProposal } from './views';
 import { checkVoice } from './voiceVerify';
@@ -84,8 +88,13 @@ type Finish =
   | { kind: 'idle' }
   | { kind: 'running' }
   /** `transactionHash` is null when an earlier call executed it. */
-  | { kind: 'done'; receiver: string; amountYocto: string; transactionHash: string | null }
+  | { kind: 'done'; opening: Opening; transactionHash: string | null }
   | { kind: 'failed'; message: string };
+
+/** A transfer or a hide: the words of the steps that differ. */
+type ProposalKind = 'transfer' | 'hide';
+
+const kindOf = (opening: Opening): ProposalKind => (isHide(opening) ? 'hide' : 'transfer');
 
 /**
  * The approve route for one proposal. While it runs, the page reads the proposal, so each admin
@@ -106,7 +115,7 @@ function useFinish(context: MultisigContext) {
   const run = async (proposalId: number, held?: Opening) => {
     const opening = held ?? readOpening(context.contract, proposalId);
     if (!opening) {
-      setFinish({ kind: 'failed', message: 'This browser has no opening for this proposal, so it cannot finish the transfer.' });
+      setFinish({ kind: 'failed', message: 'This browser has no opening for this proposal, so it cannot finish it.' });
       return;
     }
     setFinish({ kind: 'running' });
@@ -121,7 +130,7 @@ function useFinish(context: MultisigContext) {
     })();
     const answer = await requestApproval(proposalId, opening);
     running = false;
-    const done: Finish = { kind: 'done', receiver: opening.receiver, amountYocto: opening.amount_yocto, transactionHash: null };
+    const done: Finish = { kind: 'done', opening, transactionHash: null };
     if (answer.kind === 'done') {
       if (answer.proposal) setLive(answer.proposal);
       if (answer.executed) {
@@ -130,7 +139,9 @@ function useFinish(context: MultisigContext) {
       } else {
         setFinish({
           kind: 'failed',
-          message: 'The signers approved, but the transfer did not arrive. The NEAR is back in the multisig. Finish the transfer tries again.',
+          message: isHide(opening)
+            ? 'The signers approved, but the notes contract did not hide the note. Finish the proposal tries again.'
+            : 'The signers approved, but the transfer did not arrive. The NEAR is back in the multisig. Finish the proposal tries again.',
         });
       }
     } else if (answer.kind === 'executed_before') {
@@ -172,7 +183,7 @@ function ApprovalTicks({
   context: MultisigContext;
   proposer: string;
   approvals: string[];
-  /** The transfer is done, so every admin approved. */
+  /** The proposal ran, so every admin approved. */
   executed: boolean;
   proposeHash?: string;
 }) {
@@ -191,20 +202,34 @@ function ApprovalTicks({
   );
 }
 
-/** The end of a run: the receipt, the wait, or the failure and **Finish the transfer**. */
-function FinishState({ finish, onFinish, canFinish }: { finish: Finish; onFinish: () => void; canFinish: boolean }) {
+/** The end of a run: the receipt, the wait, or the failure and **Finish the proposal**. */
+function FinishState({
+  finish,
+  onFinish,
+  canFinish,
+  kind,
+}: {
+  finish: Finish;
+  onFinish: () => void;
+  canFinish: boolean;
+  kind: ProposalKind;
+}) {
   if (finish.kind === 'done') {
+    const { opening } = finish;
+    const target = isHide(opening) ? config.contract : opening.receiver;
     return (
       <div className="lms-receipt" role="status">
         <p className="lms-done-title">
-          <IconCheck size={16} stroke={3} /> Sent {formatYocto(finish.amountYocto)} NEAR to {finish.receiver}
+          <IconCheck size={16} stroke={3} />{' '}
+          {isHide(opening) ? `Note ${opening.note_id} is hidden` : `Sent ${formatYocto(opening.amount_yocto)} NEAR to ${opening.receiver}`}
         </p>
+        {isHide(opening) && <p>The notes contract removed its text. It now reads “The moderators hid this note.”</p>}
         <p>
           {finish.transactionHash ? (
             <TxLink hash={finish.transactionHash} />
           ) : (
-            <a href={accountUrl(finish.receiver)} target="_blank" rel="noopener noreferrer">
-              See {finish.receiver} on the explorer <IconExternalLink size={12} stroke={2} />
+            <a href={accountUrl(target)} target="_blank" rel="noopener noreferrer">
+              See {target} on the explorer <IconExternalLink size={12} stroke={2} />
             </a>
           )}
         </p>
@@ -214,12 +239,12 @@ function FinishState({ finish, onFinish, canFinish }: { finish: Finish; onFinish
   if (finish.kind === 'running') {
     return (
       <p className="lms-hint" role="status">
-        Admin A and Admin B approve, then Admin B sends the NEAR. This takes a few seconds.
+        Admin A and Admin B approve, then Admin B {kind === 'hide' ? 'hides the note' : 'sends the NEAR'}. This takes a few seconds.
       </p>
     );
   }
   if (finish.kind === 'idle' && !canFinish) {
-    return <p className="lms-hint">Only the proposer’s browser holds the opening, so only it can finish the transfer.</p>;
+    return <p className="lms-hint">Only the proposer’s browser holds the opening, so only it can finish the proposal.</p>;
   }
   return (
     <div className="lms-action">
@@ -230,7 +255,7 @@ function FinishState({ finish, onFinish, canFinish }: { finish: Finish; onFinish
       )}
       {canFinish && (
         <button type="button" className="sf-btn lms-btn" onClick={onFinish}>
-          <IconSend size={15} stroke={2} /> Finish the transfer
+          {kind === 'hide' ? <IconEyeOff size={15} stroke={2} /> : <IconSend size={15} stroke={2} />} Finish the proposal
         </button>
       )}
     </div>
@@ -252,31 +277,96 @@ function proposeBlock(context: MultisigContext, enrolled: boolean, gasShort: boo
   return null;
 }
 
-/** The proposal form. The visitor types the transfer and reads it aloud. */
+/** The reported practice notes that are not hidden, newest first, from the notes contract. */
+function usePracticeNotes(): { notes: Note[] | null; error: string | null; reload: () => void } {
+  const [notes, setNotes] = useState<Note[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const reload = useCallback(() => {
+    new RpcNotesStore(config.rpcUrl, config.contract)
+      .getNotes(PRACTICE_POST_ID)
+      .then((all) => {
+        setNotes(all.filter((note) => !note.hidden && note.text !== ''));
+        setError(null);
+      })
+      .catch((cause: unknown) => setError(`The page cannot read the reported notes: ${cause instanceof Error ? cause.message : 'unknown error'}`));
+  }, []);
+  useEffect(reload, [reload]);
+  return { notes, error, reload };
+}
+
+/** How many reported notes the form lists. */
+const NOTES_SHOWN = 4;
+
+/** The reported notes, one to pick. */
+function ReportedNotes({
+  notes,
+  error,
+  noteId,
+  onPick,
+  disabled,
+}: {
+  notes: Note[] | null;
+  error: string | null;
+  noteId: number | null;
+  onPick: (noteId: number) => void;
+  disabled: boolean;
+}) {
+  if (error) return <p className="lms-error">{error}</p>;
+  if (!notes) return <p className="lms-hint">Reading the reported notes…</p>;
+  if (notes.length === 0) return <p className="lms-hint">No reported note waits now. Try the transfer, or come back later.</p>;
+  return (
+    <fieldset className="lms-notes" disabled={disabled}>
+      <legend className="sf-label">Reported notes · pick one to hide</legend>
+      {notes.slice(0, NOTES_SHOWN).map((note) => (
+        <label key={note.id} className={`lms-report ${note.id === noteId ? 'lms-report-on' : ''}`}>
+          <input type="radio" name="hide-note" checked={note.id === noteId} onChange={() => onPick(note.id)} />
+          <span>
+            <b>Note {note.id}</b>
+            <span className="lms-report-text">{note.text}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+/**
+ * The proposal form. The visitor picks a reported note to hide, or types a transfer, and reads
+ * the proposal aloud.
+ */
 export function ProposePanel({ context, proposalId }: { context: MultisigContext; proposalId: number | null }) {
+  const [kind, setKind] = useState<ProposalKind>('hide');
   const [receiver, setReceiver] = useState(DEFAULT_RECEIVER);
   const [amountText, setAmountText] = useState(DEFAULT_AMOUNT);
+  const [picked, setPicked] = useState<number | null>(null);
   const [voice, setVoice] = useState<VoiceStep>({ kind: 'idle' });
   const [proposed, setProposed] = useState<{ id: number; transactionHash: string; opening: Opening; stored: boolean } | null>(null);
-  const transfer = useFinish(context);
+  const run = useFinish(context);
   const enrolled = useEnrolled(context.account);
   const funds = useFunds(context.account, false);
+  const reported = usePracticeNotes();
 
+  // The picked note, or the newest reported note.
+  const noteId = reported.notes?.some((note) => note.id === picked) ? picked : (reported.notes?.[0]?.id ?? null);
   const amount = parseNearAmount(amountText);
   const receiverOk = isSpeakableAccount(receiver.trim());
-  const ready = amount.ok && receiverOk && proposalId !== null;
+  const ready = proposalId !== null && (kind === 'hide' ? noteId !== null : amount.ok && receiverOk);
   const display = amount.ok ? formatNear(amount.hundredths) : '';
   const block = proposeBlock(context, enrolled, funds.balance !== null && !covers(funds.balance, 'gas'));
   const busy = BUSY[voice.kind] ?? null;
 
   const onRecorded = async (wav: Uint8Array) => {
-    if (!context.account || !ready || !amount.ok) return;
+    if (!context.account || !ready || proposalId === null) return;
     const id = proposalId;
     const to = receiver.trim();
+    if (kind === 'transfer' && !amount.ok) return;
+    if (kind === 'hide' && noteId === null) return;
     setVoice({ kind: 'checking' });
     const check = await checkVoice(
       context.account,
-      { kind: 'multisig_propose', multisig: context.contract, proposal_id: id, receiver: to, amount_yocto: amount.yocto },
+      kind === 'hide' && noteId !== null
+        ? { kind: 'multisig_hide_note', multisig: context.contract, proposal_id: id, note_id: noteId }
+        : { kind: 'multisig_propose', multisig: context.contract, proposal_id: id, receiver: to, amount_yocto: amount.ok ? amount.yocto : '' },
       wav,
     );
     if (check.kind !== 'accepted') {
@@ -284,7 +374,10 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
       return;
     }
     // Keep the opening before the Wallet step: without it the proposal can never execute.
-    const opening: Opening = { receiver: to, amount_yocto: amount.yocto, salt_hex: check.saltHex, commitment_hex: check.commitmentHex };
+    const opening: Opening =
+      kind === 'hide' && noteId !== null
+        ? { note_id: noteId, salt_hex: check.saltHex, commitment_hex: check.commitmentHex }
+        : { receiver: to, amount_yocto: amount.ok ? amount.yocto : '', salt_hex: check.saltHex, commitment_hex: check.commitmentHex };
     const stored = writeOpening(context.contract, id, opening);
     setVoice({ kind: 'signing' });
     const result = await context.signer.propose({
@@ -299,14 +392,18 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
     }
     setVoice({ kind: 'idle' });
     setProposed({ id, transactionHash: result.transactionHash, opening, stored });
-    void transfer.run(id, opening);
+    void run.run(id, opening).then(reported.reload);
   };
 
   if (proposed) {
-    const { finish, live } = transfer;
+    const { finish, live } = run;
+    const proposedKind = kindOf(proposed.opening);
     return (
       <div className="lms-panel">
-        <p className="lms-done-title">Proposal {proposed.id}</p>
+        <p className="lms-done-title">
+          Proposal {proposed.id}
+          {isHide(proposed.opening) ? `: hide note ${proposed.opening.note_id}` : ''}
+        </p>
         <ApprovalTicks
           context={context}
           proposer={context.account ?? ''}
@@ -315,9 +412,9 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
           proposeHash={proposed.transactionHash}
         />
         {!proposed.stored && finish.kind !== 'done' && (
-          <p className="lms-hint">This browser could not store the opening, so Finish the transfer works only until you close this page.</p>
+          <p className="lms-hint">This browser could not store the opening, so Finish the proposal works only until you close this page.</p>
         )}
-        <FinishState finish={finish} canFinish onFinish={() => void transfer.run(proposed.id, proposed.opening)} />
+        <FinishState finish={finish} canFinish kind={proposedKind} onFinish={() => void run.run(proposed.id, proposed.opening)} />
         {finish.kind !== 'running' && (
           <button
             type="button"
@@ -325,6 +422,7 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
             onClick={() => {
               setProposed(null);
               setVoice({ kind: 'idle' });
+              reported.reload();
             }}
           >
             New proposal
@@ -337,31 +435,62 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
   const locked = busy !== null;
   return (
     <div className="lms-panel">
-      <div className="lms-fields">
-        <label className="lms-field">
-          <span>Send to</span>
-          <input
-            value={receiver}
-            onChange={(event) => setReceiver(event.target.value.toLowerCase())}
-            placeholder={DEFAULT_RECEIVER}
-            spellCheck={false}
-            autoComplete="off"
+      <div className="lms-kinds" role="radiogroup" aria-label="Proposal">
+        {(['hide', 'transfer'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            role="radio"
+            aria-checked={kind === option}
+            className={kind === option ? 'lms-kind-on' : ''}
+            onClick={() => {
+              setKind(option);
+              setVoice({ kind: 'idle' });
+            }}
             disabled={locked}
-          />
-          {receiver.trim() !== '' && !receiverOk && <em>A named NEAR account, for example {DEFAULT_RECEIVER}.</em>}
-        </label>
-        <label className="lms-field lms-field-amount">
-          <span>Amount (NEAR)</span>
-          <input value={amountText} onChange={(event) => setAmountText(event.target.value)} placeholder={DEFAULT_AMOUNT} inputMode="decimal" disabled={locked} />
-          {amountText.trim() !== '' && !amount.ok && <em>{amount.error}</em>}
-        </label>
+          >
+            {option === 'hide' ? <IconEyeOff size={15} stroke={2} /> : <IconSend size={15} stroke={2} />}
+            {option === 'hide' ? 'Hide a note' : 'Send NEAR'}
+          </button>
+        ))}
       </div>
+      {kind === 'hide' ? (
+        <ReportedNotes notes={reported.notes} error={reported.error} noteId={noteId} onPick={setPicked} disabled={locked} />
+      ) : (
+        <div className="lms-fields">
+          <label className="lms-field">
+            <span>Send to</span>
+            <input
+              value={receiver}
+              onChange={(event) => setReceiver(event.target.value.toLowerCase())}
+              placeholder={DEFAULT_RECEIVER}
+              spellCheck={false}
+              autoComplete="off"
+              disabled={locked}
+            />
+            {receiver.trim() !== '' && !receiverOk && <em>A named NEAR account, for example {DEFAULT_RECEIVER}.</em>}
+          </label>
+          <label className="lms-field lms-field-amount">
+            <span>Amount (NEAR)</span>
+            <input value={amountText} onChange={(event) => setAmountText(event.target.value)} placeholder={DEFAULT_AMOUNT} inputMode="decimal" disabled={locked} />
+            {amountText.trim() !== '' && !amount.ok && <em>{amount.error}</em>}
+          </label>
+        </div>
+      )}
       <p className="sf-label">Read this aloud</p>
       <p className={`lms-say ${ready ? '' : 'lms-say-empty'}`}>
-        {ready ? proposalSentence(proposalId, display, receiver.trim()) : `Approve proposal ${proposalId ?? '…'}: send … NEAR to …`}
+        {kind === 'hide'
+          ? ready && noteId !== null
+            ? hideSentence(proposalId, noteId)
+            : `Approve proposal ${proposalId ?? '…'}: hide note …`
+          : ready
+            ? proposalSentence(proposalId, display, receiver.trim())
+            : `Approve proposal ${proposalId ?? '…'}: send … NEAR to …`}
       </p>
       <p className="lms-hint">
-        You can say “dot” or “point”, and you can leave out “dash”. The verifier keeps the transfer; the chain gets only its hash.
+        {kind === 'hide'
+          ? 'Readers reported these practice notes. The admins hide only them, not the real notes. The chain gets only a hash of the proposal until it runs.'
+          : 'You can say “dot” or “point”, and you can leave out “dash”. The verifier keeps the transfer; the chain gets only its hash.'}
       </p>
       {!context.account && !context.demo ? (
         <button type="button" className="sf-btn lms-btn" onClick={context.onSignIn} disabled={!context.onSignIn}>
@@ -390,40 +519,52 @@ export function proposalStatus(proposal: Proposal, adminCount: number): { text: 
   return proposal.approvals.length >= adminCount ? { text: 'Approved', tone: 'ready' } : { text: 'Needs approvals', tone: 'wait' };
 }
 
-/** The transfer of a proposal, if this page knows it: after execute, or from this browser's opening. */
-export function knownTransfer(contract: string, proposal: Proposal): { receiver: string; amount: string } | null {
-  if (proposal.receiver && proposal.amount_yocto) return { receiver: proposal.receiver, amount: formatYocto(proposal.amount_yocto) };
+/** What a proposal does, if this page knows it. */
+export type KnownProposal = { kind: 'transfer'; receiver: string; amount: string } | { kind: 'hide'; noteId: number };
+
+/** The proposal, if this page knows it: after execute, or from this browser's opening. */
+export function knownProposal(contract: string, proposal: Proposal): KnownProposal | null {
+  if (proposal.receiver && proposal.amount_yocto) {
+    return { kind: 'transfer', receiver: proposal.receiver, amount: formatYocto(proposal.amount_yocto) };
+  }
+  if (proposal.note_id) return { kind: 'hide', noteId: proposal.note_id };
   const opening = readOpening(contract, proposal.id);
   if (opening && opening.commitment_hex === proposal.commitment_hex) {
-    return { receiver: opening.receiver, amount: formatYocto(opening.amount_yocto) };
+    return isHide(opening)
+      ? { kind: 'hide', noteId: opening.note_id }
+      : { kind: 'transfer', receiver: opening.receiver, amount: formatYocto(opening.amount_yocto) };
   }
   return null;
 }
 
-/** The body of an open proposal in the history: the transfer, the approvals and **Finish the transfer**. */
+/** The body of an open proposal in the history: what it does, the approvals and **Finish the proposal**. */
 export function ProposalBody({ context, proposal }: { context: MultisigContext; proposal: Proposal }) {
   const transfer = useFinish(context);
   const shown = transfer.live?.id === proposal.id ? transfer.live : proposal;
-  const known = knownTransfer(context.contract, shown);
+  const known = knownProposal(context.contract, shown);
   const opening = readOpening(context.contract, proposal.id);
   const canFinish = !context.demo && shown.status === 'open' && opening?.commitment_hex === proposal.commitment_hex;
 
   return (
     <div className="sf-txbody">
       <div className="sf-details">
-        {known ? (
+        {known?.kind === 'hide' ? (
+          <p>
+            Hide <b>note {known.noteId}</b>
+          </p>
+        ) : known ? (
           <p>
             Send <b>{known.amount} NEAR</b> to <b>{known.receiver}</b>
           </p>
         ) : (
           <p>
-            Send NEAR <span className="sf-muted">· the amount and the receiver are hidden until executed</span>
+            Proposal <span className="sf-muted">· what it does is hidden until executed</span>
           </p>
         )}
         <p className="lms-hint">
           {known
             ? 'This browser holds the opening of this proposal.'
-            : 'The chain holds only a salted hash of the transfer. The proposer’s browser holds the opening.'}
+            : 'The chain holds only a salted hash of the proposal. The proposer’s browser holds the opening.'}
         </p>
         <dl>
           <dt>Proposal</dt>
@@ -441,7 +582,12 @@ export function ProposalBody({ context, proposal }: { context: MultisigContext; 
         {context.demo ? (
           <p className="lms-hint">{DEMO_NOTE}</p>
         ) : (
-          <FinishState finish={transfer.finish} canFinish={canFinish} onFinish={() => void transfer.run(proposal.id)} />
+          <FinishState
+            finish={transfer.finish}
+            canFinish={canFinish}
+            kind={opening && isHide(opening) ? 'hide' : 'transfer'}
+            onFinish={() => void transfer.run(proposal.id)}
+          />
         )}
       </div>
     </div>

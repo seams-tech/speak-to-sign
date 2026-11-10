@@ -176,4 +176,11 @@ pub enum ProposalV1 {
         /// digits.
         version_hash: [u8; 32],
     },
+    /// Hide a community note: the multisig is the moderator of a notes
+    /// contract, and the contract removes the note's text. The multisig
+    /// names the notes contract; the text does not say it.
+    HideNote {
+        /// The id of the note.
+        note_id: u64,
+    },
 }

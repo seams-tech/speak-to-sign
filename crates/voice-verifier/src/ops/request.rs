@@ -75,7 +75,9 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
         }
         // `multisig::prepare` builds these: they need the worker's storage
         // and randomness.
-        RequestInput::MultisigPropose { .. } | RequestInput::MultisigConfirm { .. } => Err(Reason::Unsupported),
+        RequestInput::MultisigPropose { .. }
+        | RequestInput::MultisigHideNote { .. }
+        | RequestInput::MultisigConfirm { .. } => Err(Reason::Unsupported),
     }
 }
 

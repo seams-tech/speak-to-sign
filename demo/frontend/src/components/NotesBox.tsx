@@ -109,11 +109,11 @@ function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind;
         <b>{title}</b>
       </header>
       <div className="note-body">
-        <Linkified text={note.text} />
+        {note.hidden ? <p className="muted">The moderators hid this note.</p> : <Linkified text={note.text} />}
       </div>
       {!compact && (
         <div className="note-meta">
-          <VoiceSigned account={note.author} hash={noteTx[note.id]} extra={<> · “{note.summary}”</>} />
+          <VoiceSigned account={note.author} hash={noteTx[note.id]} extra={note.hidden ? undefined : <> · “{note.summary}”</>} />
         </div>
       )}
       {!compact && kind === 'mine' && (

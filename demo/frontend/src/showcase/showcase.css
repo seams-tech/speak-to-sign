@@ -1485,7 +1485,8 @@ h1.ss-display {
   overflow-x: clip;
   overflow-y: auto;
   overscroll-behavior: none;
-  background: #0f7fa9;
+  /* The mean colour of the hero's field (NotesPage sets it). */
+  background: var(--field-base, #0f7fa9);
 }
 
 /* The nav has no ground of its own. It lies over the top of the hero, which goes on behind it.
@@ -1547,6 +1548,96 @@ h1.ss-display {
 @media (hover: hover) and (pointer: fine) {
   .ss-spa .ss-nav-source:hover {
     background: rgba(10, 10, 10, 0.42);
+  }
+}
+
+/* The picker of the hero's gradient (FieldPicker): a glass pill like GitHub, with a swatch of
+   the field's mean colour. The native select gives the list. */
+.ss-field-pick {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.26);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ss-field-pick select {
+  appearance: none;
+  /* A native select is as wide as its longest option: this one has a width of its own. */
+  width: 150px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  height: 100%;
+  margin: 0;
+  padding: 0 28px 0 30px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ss-field-pick select:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* The list of the native select is on a light ground. */
+.ss-field-pick option {
+  color: var(--ink);
+}
+
+.ss-field-swatch {
+  position: absolute;
+  left: 9px;
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+.ss-field-pick svg {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-field-pick:hover {
+    background: rgba(10, 10, 10, 0.42);
+  }
+}
+
+/* The picker sits at the right of the nav, so GitHub follows it with no gap of its own. */
+.ss-spa .ss-field-pick {
+  margin-left: auto;
+}
+
+.ss-spa .ss-field-pick + .ss-nav-source {
+  margin-left: 0;
+}
+
+/* While the setup steps are in the nav, and on a phone, the picker is its swatch and its arrow:
+   the steps need the room. The list still names every field. */
+.ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-field-pick select {
+  width: 46px;
+  padding-right: 0;
+  color: transparent;
+}
+
+@media (max-width: 720px) {
+  .ss-field-pick select {
+    width: 46px;
+    padding-right: 0;
+    color: transparent;
   }
 }
 
@@ -1731,18 +1822,27 @@ h1.ss-display {
     linear-gradient(100deg, #067aa5 0%, #1c84ad 36%, #5e8fad 62%, #a6a0bd 84%, #cfafbb 100%);
 }
 
-/* The grain: fine noise over the field, as on the Seams Wallet site. */
+/* The moving grain field (GrainField, a canvas) lies under everything in the hero. Its shader
+   draws the grain. The CSS gradient of .ss-hero shows only until its first frame, or without
+   WebGL. */
+.ss-hero > .grain-field {
+  z-index: -2;
+}
+
+/* A soft shade over the left of the hero, where the text is. A light field gets more of it
+   (--field-scrim, 0 to 0.34), so the white text and the nav stay readable on every field. */
 .ss-hero::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0' intercept='1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 220px 220px;
-  /* Grey noise with overlay: it makes light and dark grains, and does not change the colour. */
-  mix-blend-mode: overlay;
-  opacity: 0.38;
+  background: linear-gradient(
+    100deg,
+    rgba(6, 16, 24, var(--field-scrim, 0)) 0%,
+    rgba(6, 16, 24, calc(var(--field-scrim, 0) * 0.55)) 50%,
+    rgba(6, 16, 24, 0) 85%
+  );
 }
 
 .ss-hero-inner {
@@ -1928,7 +2028,9 @@ h1.ss-display {
   min-height: calc(100dvh - var(--nav-h));
   margin-top: calc(-1 * var(--sheet-r));
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
-  background: #ffffff;
+  /* Light grey diagonal stripes in the empty space at the sides of the notes app. The app's
+     layout is white (below). */
+  background: repeating-linear-gradient(135deg, #ebebeb 0 1.5px, #ffffff 1.5px 9px);
   box-shadow:
     0 -1px 0 rgba(255, 255, 255, 0.6),
     0 -22px 50px -14px rgba(8, 48, 66, 0.5);
@@ -2030,8 +2132,22 @@ h1.ss-display {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
+}
+
+/* The notes app shows the sheet's stripes at its sides: only its layout (navigation, column and
+   side panel) is white, with a hairline at each edge. */
+.ss-sheet .notes-app {
+  background: transparent;
+}
+
+.ss-sheet .layout {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  background: #ffffff;
+  box-shadow:
+    -1px 0 0 var(--line),
+    1px 0 0 var(--line);
 }
 
 /* The live app's element is in the flow here, with no containment: it is as high as its

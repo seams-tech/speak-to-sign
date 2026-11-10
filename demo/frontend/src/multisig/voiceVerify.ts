@@ -1,18 +1,14 @@
 // The page's call to the voice verifier: POST /api/voice-verify (functions/api/voice-verify.ts)
-// with a `verify` input of the kind `multisig_propose`. The answer is the verifier output
+// with a `verify` input of the kind `multisig_propose` (a transfer) or `multisig_hide_note`. The answer is the verifier output
 // unchanged: `verdict_json` (the signed bytes, a string), `signature_b64`, and on an accept the
 // `multisig` opening (base64url commitment and salt).
 
 import { hexOfBase64Url } from './intent';
 import { base64 } from './wav';
 
-export interface MultisigVoiceRequest {
-  kind: 'multisig_propose';
-  multisig: string;
-  proposal_id: number;
-  receiver: string;
-  amount_yocto: string;
-}
+export type MultisigVoiceRequest =
+  | { kind: 'multisig_propose'; multisig: string; proposal_id: number; receiver: string; amount_yocto: string }
+  | { kind: 'multisig_hide_note'; multisig: string; proposal_id: number; note_id: number };
 
 export type VoiceCheck =
   | { kind: 'accepted'; verdictJson: string; signatureB64: string; commitmentHex: string; saltHex: string }
@@ -97,7 +93,7 @@ const REASONS: Record<string, string> = {
   // route with another OutLayer payment key than the Seams one finds no template.
   template_missing:
     'This account has no voice on this verifier. Enroll VoiceID in Seams Wallet first (“Set up your voice” in the setup card on this page); if you did, the demo route uses another OutLayer payment key.',
-  unsupported: 'The verifier does not support this request. Its version may not have the multisig kinds yet.',
+  unsupported: 'The verifier does not support this request. Its version may not have this multisig kind yet.',
   speaker_unavailable: 'The speaker check service did not answer. Try again.',
   storage: 'The verifier could not read or write its record. Try again.',
   transcriber_unavailable: 'The speech-to-text service did not answer. Try again.',

@@ -178,9 +178,10 @@ fn execute_as(
     // The promise is scheduled when it is dropped.
     drop(contract.execute(
         proposal_id,
-        RECEIVER.parse().unwrap(),
-        U128(amount),
+        Some(RECEIVER.parse().unwrap()),
+        Some(U128(amount)),
         to_hex(salt),
+        None,
     ));
 }
 
@@ -211,7 +212,7 @@ fn propose_approve_execute_sends_the_transfer() {
     assert_eq!(
         get_logs(),
         vec![format!(
-            r#"EVENT_JSON:{{"standard":"voice_multisig","version":"2.0.0","event":"proposed","data":[{{"proposal_id":1,"commitment_hex":"{}","proposer":"visitor.testnet"}}]}}"#,
+            r#"EVENT_JSON:{{"standard":"voice_multisig","version":"2.1.0","event":"proposed","data":[{{"proposal_id":1,"commitment_hex":"{}","proposer":"visitor.testnet"}}]}}"#,
             to_hex(&commitment(1))
         )]
     );
@@ -220,14 +221,14 @@ fn propose_approve_execute_sends_the_transfer() {
     assert_eq!(
         get_logs(),
         vec![
-            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"approved","data":[{"proposal_id":1,"admin":"admin-a.testnet","approvals":1}]}"#
+            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"approved","data":[{"proposal_id":1,"admin":"admin-a.testnet","approvals":1}]}"#
         ]
     );
     assert_eq!(approve_as(&mut contract, "admin-b", 1), 2);
     assert_eq!(
         get_logs(),
         vec![
-            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"approved","data":[{"proposal_id":1,"admin":"admin-b.testnet","approvals":2}]}"#
+            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"approved","data":[{"proposal_id":1,"admin":"admin-b.testnet","approvals":2}]}"#
         ]
     );
 
@@ -252,7 +253,7 @@ fn propose_approve_execute_sends_the_transfer() {
     assert_eq!(
         get_logs(),
         vec![
-            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"executed","data":[{"proposal_id":1,"receiver":"grants.testnet","amount_yocto":"10000000000000000000000"}]}"#
+            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"executed","data":[{"proposal_id":1,"receiver":"grants.testnet","amount_yocto":"10000000000000000000000"}]}"#
         ]
     );
     assert_eq!(
@@ -285,7 +286,7 @@ fn a_failed_transfer_opens_the_proposal_again() {
     assert_eq!(
         get_logs(),
         vec![
-            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"execute_failed","data":[{"proposal_id":1}]}"#
+            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"execute_failed","data":[{"proposal_id":1}]}"#
         ]
     );
     let view = contract.get_proposal(1).unwrap();
@@ -708,9 +709,10 @@ fn execute_with_a_wrong_receiver_fails() {
     set_caller("admin-b");
     drop(contract.execute(
         1,
-        "attacker.testnet".parse().unwrap(),
-        U128(AMOUNT),
+        Some("attacker.testnet".parse().unwrap()),
+        Some(U128(AMOUNT)),
         to_hex(&SALT),
+        None,
     ));
 }
 
@@ -729,7 +731,7 @@ fn execute_to_an_implicit_account_fails() {
     let mut contract = ready();
     set_caller("admin-b");
     let implicit: AccountId = "a".repeat(64).parse().unwrap();
-    drop(contract.execute(1, implicit, U128(AMOUNT), to_hex(&SALT)));
+    drop(contract.execute(1, Some(implicit), Some(U128(AMOUNT)), to_hex(&SALT), None));
 }
 
 #[test]
@@ -737,7 +739,13 @@ fn execute_to_an_implicit_account_fails() {
 fn execute_with_a_short_salt_fails() {
     let mut contract = ready();
     set_caller("admin-b");
-    drop(contract.execute(1, RECEIVER.parse().unwrap(), U128(AMOUNT), "5a".into()));
+    drop(contract.execute(
+        1,
+        Some(RECEIVER.parse().unwrap()),
+        Some(U128(AMOUNT)),
+        "5a".into(),
+        None,
+    ));
 }
 
 #[test]
@@ -876,4 +884,179 @@ fn hex_round_trips() {
     assert_eq!(from_hex32(&to_hex(&bytes)), Some(bytes));
     assert_eq!(from_hex32(&"g".repeat(64)), None);
     assert_eq!(from_hex32(&"0".repeat(63)), None);
+}
+
+// --- hide a note ---
+
+const NOTES: &str = "notes.testnet";
+const NOTE_ID: u64 = 42;
+
+fn hide_commitment(proposal_id: u64, note_id: u64) -> [u8; 32] {
+    multisig_commitment(
+        &NearAccount::new(MULTISIG).unwrap(),
+        proposal_id,
+        &ProposalV1::HideNote { note_id },
+        &SALT,
+    )
+}
+
+/// A multisig with the notes contract set, and proposal 1 to hide note 42,
+/// approved by both admins.
+fn ready_to_hide() -> VoiceMultisig {
+    let mut contract = contract();
+    context(multisig_id(), vec![]);
+    contract.set_notes_contract(NOTES.parse().unwrap());
+    propose_with(&mut contract, VISITOR, 1, &hide_commitment(1, NOTE_ID));
+    approve_as(&mut contract, "admin-a", 1);
+    approve_as(&mut contract, "admin-b", 1);
+    contract
+}
+
+fn execute_hide(contract: &mut VoiceMultisig, who: &str, note_id: u64) {
+    set_caller(who);
+    drop(contract.execute(1, None, None, to_hex(&SALT), Some(note_id)));
+}
+
+fn finish_hide(contract: &mut VoiceMultisig, result: PromiseResult) -> bool {
+    context(multisig_id(), vec![result]);
+    contract.on_hide(1, NOTE_ID)
+}
+
+#[test]
+fn propose_approve_execute_hides_the_note() {
+    let mut contract = ready_to_hide();
+    assert_eq!(contract.get_notes_contract(), Some(NOTES.parse().unwrap()));
+
+    execute_hide(&mut contract, "admin-b", NOTE_ID);
+    let receipts = get_created_receipts();
+    assert_eq!(receipts.len(), 2, "hide_note and the callback");
+    assert_eq!(receipts[0].receiver_id.as_str(), NOTES);
+    match receipts[0].actions.as_slice() {
+        [MockAction::FunctionCallWeight { method_name, args, attached_deposit, prepaid_gas, .. }] => {
+            assert_eq!(String::from_utf8(method_name.clone()).unwrap(), "hide_note");
+            assert_eq!(
+                serde_json::from_slice::<Value>(args).unwrap(),
+                json!({ "note_id": NOTE_ID, "proposal_id": 1 })
+            );
+            assert_eq!(attached_deposit.as_yoctonear(), 0);
+            assert_eq!(*prepaid_gas, HIDE_GAS);
+        }
+        other => panic!("one function call, not {other:?}"),
+    }
+    assert_eq!(receipts[1].receiver_id, multisig_id());
+    let view = contract.get_proposal(1).unwrap();
+    assert_eq!(view.status, Status::Executed);
+    assert_eq!(view.note_id, None, "hidden until the note is hidden");
+
+    assert!(finish_hide(&mut contract, PromiseResult::Successful(vec![])));
+    assert_eq!(
+        get_logs(),
+        vec![
+            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"executed","data":[{"proposal_id":1,"note_id":42}]}"#
+        ]
+    );
+    assert_eq!(
+        serde_json::to_value(contract.get_proposal(1).unwrap()).unwrap(),
+        json!({
+            "id": 1,
+            "commitment_hex": to_hex(&hide_commitment(1, NOTE_ID)),
+            "proposer": "visitor.testnet",
+            "approvals": ["admin-a.testnet", "admin-b.testnet"],
+            "status": "executed",
+            "created_at_ms": NOW_MS,
+            "note_id": 42
+        })
+    );
+}
+
+#[test]
+fn a_failed_hide_opens_the_proposal_again() {
+    let mut contract = ready_to_hide();
+    execute_hide(&mut contract, "admin-b", NOTE_ID);
+    assert!(!finish_hide(&mut contract, PromiseResult::Failed));
+    assert_eq!(
+        get_logs(),
+        vec![
+            r#"EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"execute_failed","data":[{"proposal_id":1}]}"#
+        ]
+    );
+    let view = contract.get_proposal(1).unwrap();
+    assert_eq!(view.status, Status::Open);
+    assert_eq!(view.note_id, None);
+
+    execute_hide(&mut contract, VISITOR, NOTE_ID);
+    assert!(finish_hide(&mut contract, PromiseResult::Successful(vec![])));
+    assert_eq!(contract.get_proposal(1).unwrap().note_id, Some(NOTE_ID));
+}
+
+#[test]
+#[should_panic(expected = "note_id and salt_hex do not match the commitment")]
+fn execute_with_another_note_fails() {
+    let mut contract = ready_to_hide();
+    execute_hide(&mut contract, "admin-b", NOTE_ID + 1);
+}
+
+#[test]
+#[should_panic(expected = "note_id and salt_hex do not match the commitment")]
+fn a_transfer_commitment_cannot_hide_a_note() {
+    let mut contract = ready();
+    context(multisig_id(), vec![]);
+    contract.set_notes_contract(NOTES.parse().unwrap());
+    execute_hide(&mut contract, "admin-b", NOTE_ID);
+}
+
+#[test]
+#[should_panic(expected = "receiver, amount_yocto and salt_hex do not match the commitment")]
+fn a_hide_commitment_cannot_send_a_transfer() {
+    let mut contract = ready_to_hide();
+    execute_as(&mut contract, "admin-b", 1, AMOUNT, &SALT);
+}
+
+#[test]
+#[should_panic(expected = "this multisig has no notes contract")]
+fn a_hide_needs_the_notes_contract() {
+    let mut contract = contract();
+    propose_with(&mut contract, VISITOR, 1, &hide_commitment(1, NOTE_ID));
+    approve_as(&mut contract, "admin-a", 1);
+    approve_as(&mut contract, "admin-b", 1);
+    execute_hide(&mut contract, "admin-b", NOTE_ID);
+}
+
+#[test]
+#[should_panic(expected = "the proposal has 1 of 2 admin approvals")]
+fn a_hide_needs_every_admin() {
+    let mut contract = contract();
+    context(multisig_id(), vec![]);
+    contract.set_notes_contract(NOTES.parse().unwrap());
+    propose_with(&mut contract, VISITOR, 1, &hide_commitment(1, NOTE_ID));
+    approve_as(&mut contract, "admin-a", 1);
+    execute_hide(&mut contract, "admin-a", NOTE_ID);
+}
+
+#[test]
+#[should_panic(expected = "execute takes receiver and amount_yocto for a transfer, or note_id for a hide")]
+fn execute_with_a_transfer_and_a_note_fails() {
+    let mut contract = ready_to_hide();
+    set_caller("admin-b");
+    drop(contract.execute(
+        1,
+        Some(RECEIVER.parse().unwrap()),
+        Some(U128(AMOUNT)),
+        to_hex(&SALT),
+        Some(NOTE_ID),
+    ));
+}
+
+#[test]
+#[should_panic(expected = "the proposal is already executed")]
+fn a_second_hide_fails_while_the_first_is_in_flight() {
+    let mut contract = ready_to_hide();
+    execute_hide(&mut contract, "admin-b", NOTE_ID);
+    execute_hide(&mut contract, "admin-b", NOTE_ID);
+}
+
+#[test]
+fn without_a_notes_contract_the_view_is_empty() {
+    let contract = contract();
+    assert_eq!(contract.get_notes_contract(), None);
 }

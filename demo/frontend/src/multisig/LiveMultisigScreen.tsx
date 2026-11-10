@@ -14,12 +14,12 @@
 // with a note. It needs SeamsWebProvider above it. `onSignIn` opens the page's sign-in dialog.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { IconCircleDashed, IconCopy, IconListDetails, IconPlus, IconSend, IconUserCircle } from '@tabler/icons-react';
+import { IconCircleDashed, IconCopy, IconEyeOff, IconListDetails, IconPlus, IconSend, IconUserCircle } from '@tabler/icons-react';
 import { useSeams } from '@seams/wallet/react';
 import { accountUrl, config, shortAccount } from '../config';
 import { formatNear } from './intent';
 import { createMultisigSigner } from './multisigSigner';
-import { adminName, knownTransfer, ProposalBody, ProposePanel, proposalStatus, type MultisigContext } from './MultisigPanels';
+import { adminName, knownProposal, ProposalBody, ProposePanel, proposalStatus, type MultisigContext } from './MultisigPanels';
 import { readOpening, removeOpening } from './openings';
 import type { MultisigConfig, Proposal } from './contractViews';
 import { getBalance, getConfig, getProposal, getProposals, isMissingContract, nextProposalId } from './views';
@@ -164,7 +164,7 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
             )}
           </span>
           <div>
-            <b>Team multisig</b>
+            <b>Notes moderators</b>
             <span>
               <a href={accountUrl(contract)} target="_blank" rel="noopener noreferrer">
                 {contract}
@@ -222,7 +222,7 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
           <div className="lms-list">
             {proposals.map((proposal) => {
               const status = proposalStatus(proposal, admins.length);
-              const transfer = knownTransfer(contract, proposal);
+              const known = knownProposal(contract, proposal);
               const expanded = proposal.status === 'open' && proposal.id === selected;
               return (
                 <div className="sf-tx" key={proposal.id}>
@@ -233,14 +233,31 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
                     onClick={() => setOpenId(expanded ? -1 : proposal.id)}
                   >
                     <span className="sf-nonce">{proposal.id}</span>
-                    <span className="sf-kind">
-                      <IconSend size={18} stroke={1.8} /> Send
-                    </span>
-                    <span className="sf-amount">
-                      <i className="sf-token">N</i>
-                      {transfer ? `−${transfer.amount} NEAR` : <span className="sf-muted">Hidden until executed</span>}
-                    </span>
-                    <span className="sf-time">{transfer ? `to ${shortAccount(transfer.receiver)}` : `by ${shortAccount(proposal.proposer)}`}</span>
+                    {known?.kind === 'hide' ? (
+                      <>
+                        <span className="sf-kind">
+                          <IconEyeOff size={18} stroke={1.8} /> Hide
+                        </span>
+                        <span className="sf-amount">Note {known.noteId}</span>
+                        <span className="sf-time">by {shortAccount(proposal.proposer)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="sf-kind">
+                          {known ? <IconSend size={18} stroke={1.8} /> : <IconCircleDashed size={18} stroke={1.8} />} {known ? 'Send' : 'Proposal'}
+                        </span>
+                        <span className="sf-amount">
+                          {known ? (
+                            <>
+                              <i className="sf-token">N</i>−{known.amount} NEAR
+                            </>
+                          ) : (
+                            <span className="sf-muted">Hidden until executed</span>
+                          )}
+                        </span>
+                        <span className="sf-time">{known ? `to ${shortAccount(known.receiver)}` : `by ${shortAccount(proposal.proposer)}`}</span>
+                      </>
+                    )}
                     <span className="sf-confs">
                       <IconUserCircle size={16} stroke={1.8} /> {proposal.approvals.length} of {admins.length} signers
                     </span>

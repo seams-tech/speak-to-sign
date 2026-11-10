@@ -2146,6 +2146,34 @@ fieldset:disabled .choice {
 .step-detail {
   white-space: nowrap;
 }
+/* The funds step's two balances, each after its token's icon. */
+.step-tokens {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.token {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.token-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 9999px;
+}
+.token-near {
+  background: #ffffff;
+  color: #000000;
+}
+.token-near svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 /* The card behind the Wallet's windows during a setup step (z-index under our modals and the Wallet). */
 .wallet-wait {

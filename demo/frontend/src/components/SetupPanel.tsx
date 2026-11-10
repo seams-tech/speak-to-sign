@@ -4,7 +4,8 @@ import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react
 import { accountUrl, config, shortAccount, transactionUrl } from '../config';
 import { useDemo } from '../demoContext';
 import { covers, retryFaucet, useFunds, type Funds } from '../faucet/funds';
-import { formatNear, formatUsdc } from '../notes/nearAccount';
+import { formatNear, formatUsdc, nearAmount, usdcAmount } from '../notes/nearAccount';
+import { NearMark } from '../showcase/nearMarks';
 import type { SetupOutcome, SignerSetup, SignerStatus } from '../signer/notesSigner';
 import { setUpVoice, useEnrolled, type VoicePhase } from '../signer/voiceSetup';
 
@@ -135,7 +136,7 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
             {busy ? 'Wait…' : voiceSetUp ? 'Again' : 'Set up'}
           </button>
         </Step>
-        <Step index={3} done={signedIn && fundsReady} label="Testnet NEAR and USDC">
+        <Step index={3} done={signedIn && fundsReady} labelHidden={signedIn && fundsReady} label="Testnet NEAR and USDC">
           {signedIn && <FundsStep account={account} funds={funds} />}
         </Step>
       </ol>
@@ -154,7 +155,7 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
   );
 }
 
-/** The end of step 3: the balance, or what the faucet does now. */
+/** The end of step 3: the two balances, each after its token's icon, or what the faucet does now. */
 function FundsStep({ account, funds }: { account: string | undefined; funds: Funds }) {
   const { balance, faucet } = funds;
   if (faucet.kind === 'sending' || (faucet.kind === 'sent' && !covers(balance, 'bet'))) {
@@ -173,9 +174,44 @@ function FundsStep({ account, funds }: { account: string | undefined; funds: Fun
   }
   if (!balance || balance.free === null) return null;
   return (
-    <span className="small muted step-detail">
-      {formatNear(balance.free)} · {formatUsdc(balance.usdc)}
+    <span className="small muted step-detail step-tokens">
+      <span className="token">
+        <NearToken />
+        {nearAmount(balance.free)}
+        <span className="sr-only"> NEAR</span>
+      </span>
+      <span className="token">
+        <UsdcToken />
+        {usdcAmount(balance.usdc)}
+        <span className="sr-only"> USDC</span>
+      </span>
     </span>
+  );
+}
+
+/** NEAR's token icon: its N on a white disc. */
+function NearToken() {
+  return (
+    <span className="token-icon token-near" aria-hidden="true">
+      <NearMark />
+    </span>
+  );
+}
+
+/** USDC's token icon: the white dollar sign and its two arcs on Circle's blue disc. */
+function UsdcToken() {
+  return (
+    <svg className="token-icon" viewBox="0 0 2000 2000" aria-hidden="true" focusable="false">
+      <circle cx="1000" cy="1000" r="1000" fill="#2775ca" />
+      <path
+        fill="#ffffff"
+        d="M1275 1158.33c0-145.83-87.5-195.83-262.5-216.66-125-16.67-150-50-150-108.34s41.67-95.83 125-95.83c75 0 116.67 25 137.5 87.5 4.17 12.5 16.67 20.83 29.17 20.83h66.66c16.67 0 29.17-12.5 29.17-29.16v-4.17c-16.67-91.67-91.67-162.5-187.5-170.83v-100c0-16.67-12.5-29.17-33.33-33.34h-62.5c-16.67 0-29.17 12.5-33.34 33.34v95.83c-125 16.67-204.16 100-204.16 204.17 0 137.5 83.33 191.66 258.33 212.5 116.67 20.83 154.17 45.83 154.17 112.5s-58.34 112.5-137.5 112.5c-108.34 0-145.84-45.84-158.34-108.34-4.16-16.66-16.66-25-29.16-25h-70.84c-16.66 0-29.16 12.5-29.16 29.17v4.17c16.66 104.16 83.33 179.16 220.83 200v100c0 16.66 12.5 29.16 33.33 33.33h62.5c16.67 0 29.17-12.5 33.34-33.33v-100c125-20.84 208.33-108.34 208.33-220.84z"
+      />
+      <path
+        fill="#ffffff"
+        d="M787.5 1595.83c-325-116.66-491.67-479.16-370.83-800 62.5-175 200-308.33 370.83-370.83 16.67-8.33 25-20.83 25-41.67V325c0-16.67-8.33-29.17-25-33.33-4.17 0-12.5 0-16.67 4.16-395.83 125-612.5 545.84-487.5 941.67 75 233.33 254.17 412.5 487.5 487.5 16.67 8.33 33.34 0 37.5-16.67 4.17-4.16 4.17-8.33 4.17-16.66v-58.34c0-12.5-12.5-29.16-25-37.5zM1229.17 295.83c-16.67-8.33-33.34 0-37.5 16.67-4.17 4.17-4.17 8.33-4.17 16.67v58.33c0 16.67 12.5 33.33 25 41.67 325 116.66 491.67 479.16 370.83 800-62.5 175-200 308.33-370.83 370.83-16.67 8.33-25 20.83-25 41.67V1700c0 16.67 8.33 29.17 25 33.33 4.17 0 12.5 0 16.67-4.16 395.83-125 612.5-545.84 487.5-941.67-75-237.5-258.34-416.67-487.5-491.67z"
+      />
+    </svg>
   );
 }
 
@@ -214,7 +250,20 @@ function FundsNote({ account, funds }: { account: string; funds: Funds }) {
 }
 
 /** One step. Its mark pops when the step becomes done while the visitor looks at it. */
-function Step({ index, done, label, children }: { index: number; done: boolean; label: string; children?: React.ReactNode }) {
+function Step({
+  index,
+  done,
+  label,
+  labelHidden = false,
+  children,
+}: {
+  index: number;
+  done: boolean;
+  label: string;
+  /** Only screen readers read the label: what the step shows says it. */
+  labelHidden?: boolean;
+  children?: React.ReactNode;
+}) {
   const wasDone = useRef(done);
   const [justDone, setJustDone] = useState(false);
   useEffect(() => {
@@ -226,7 +275,7 @@ function Step({ index, done, label, children }: { index: number; done: boolean; 
       <span className="step-mark" aria-hidden="true">
         {done ? <IconCheck size={14} stroke={3} /> : index}
       </span>
-      <span className="step-text">
+      <span className={labelHidden ? 'step-text sr-only' : 'step-text'}>
         {label}
         <span className="sr-only">{done ? ' (done)' : ' (not done)'}</span>
       </span>

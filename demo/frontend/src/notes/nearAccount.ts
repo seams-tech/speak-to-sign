@@ -31,10 +31,15 @@ export async function readFreeBalance(rpcUrl: string, accountId: string): Promis
   return amount - storage * STORAGE_YOCTO_PER_BYTE;
 }
 
-export function formatNear(yocto: bigint): string {
+/** NEAR with four decimals and no unit: "0.2100". */
+export function nearAmount(yocto: bigint): string {
   const whole = yocto / YOCTO_PER_NEAR;
   const fraction = ((yocto % YOCTO_PER_NEAR) * 10_000n) / YOCTO_PER_NEAR;
-  return `${whole}.${fraction.toString().padStart(4, '0')} NEAR`;
+  return `${whole}.${fraction.toString().padStart(4, '0')}`;
+}
+
+export function formatNear(yocto: bigint): string {
+  return `${nearAmount(yocto)} NEAR`;
 }
 
 /** One USDC in base units (testnet USDC has 6 decimals). */
@@ -67,8 +72,13 @@ export async function readTokenBalance(rpcUrl: string, token: string, accountId:
   return BigInt(JSON.parse(text) as string);
 }
 
-export function formatUsdc(units: bigint): string {
+/** USDC with two decimals and no unit: "2.00". */
+export function usdcAmount(units: bigint): string {
   const whole = units / USDC_UNIT;
   const cents = ((units % USDC_UNIT) * 100n) / USDC_UNIT;
-  return `${whole}.${cents.toString().padStart(2, '0')} USDC`;
+  return `${whole}.${cents.toString().padStart(2, '0')}`;
+}
+
+export function formatUsdc(units: bigint): string {
+  return `${usdcAmount(units)} USDC`;
 }

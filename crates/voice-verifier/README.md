@@ -30,6 +30,19 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.8.0   | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Added to the OutLayer project on 2026-11-11 (458,081 bytes, `build.sh --docker`, commit `21ad633`, FastFS tx `GPDF3s9pNwA8rxu7pbRjjvtFbBEW7hc1Sz7H2Xf1Ryg`, `add_version` tx `BSFZLLgM5PQ4v5bS8MJC7VKe2fR7MZ4YEDVS4kYaEYwN`). **Not active**: a call reaches it only with `version_key`. |
 | 0.8.0 `local-speaker` | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
 
+Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict, so that
+text does not name one build. Use the version key:
+
+- `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3`: the
+  build of the branch `spoken-bets` (`market_bet`; no general kinds). The
+  staging route pins it with `version_key`.
+- `599755ad…df2f` and `ca078933…6306`: the two rows above.
+
+On 2026-11-11 the active version of the project was still 0.5.2
+(`96b79b51…d7e5`), and all three 0.8.0 builds were in the version list
+(views `get_project` and `list_versions` of `outlayer.testnet`). The next
+change of this source must take a new version number.
+
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
 

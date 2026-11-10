@@ -1,13 +1,13 @@
 {
-  "name": "@seams/speak-to-sign",
+  "name": "@seams/speak-to-sign-wallet",
   "version": "0.65.0",
   "type": "module",
-  "description": "Optional spoken payments for Seams Wallet, built on VoiceID",
+  "description": "The Speak-to-Sign host plugin for Seams Wallet, built on VoiceID (until 0.65.0: @seams/speak-to-sign)",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seams-tech/speak-to-sign.git",
-    "directory": "packages/speak-to-sign"
+    "directory": "packages/speak-to-sign-wallet"
   },
   "exports": {
     ".": {

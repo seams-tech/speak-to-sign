@@ -1,4 +1,10 @@
-# @seams/speak-to-sign
+# @seams/speak-to-sign-wallet
+
+The Speak-to-Sign host plugin for Seams Wallet. Up to version 0.65.0 its npm
+name was `@seams/speak-to-sign`. That name now belongs to the library for
+an application with no wallet (`packages/speak-to-sign`). The first release
+under the new name is not made yet: version 0.65.0 on npm is
+`@seams/speak-to-sign@0.65.0`.
 
 > **Experimental. NEAR testnet only.** First released in 0.54.0. `enroll` is new in 0.56.0.
 
@@ -48,7 +54,7 @@ Add the descriptor to `transactionFeatures`:
 ```ts
 import { SeamsWeb } from '@seams/wallet';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/speak-to-sign';
+import { speakToSign } from '@seams/speak-to-sign-wallet';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration
@@ -386,7 +392,7 @@ recording used.
 
 ## Develop and release
 
-This package lives in `packages/speak-to-sign` of
+This package lives in `packages/speak-to-sign-wallet` of
 [seams-tech/speak-to-sign](https://github.com/seams-tech/speak-to-sign), beside
 the verifier. It builds against the published `@seams/wallet` and
 `@seams/voiceid` of the same version.
@@ -408,7 +414,7 @@ A release has these steps:
 2. Set the same version here: `version`, and the `@seams/wallet` and
    `@seams/voiceid` entries of `peerDependencies` and `devDependencies`. Run
    `pnpm install` and commit `pnpm-lock.yaml`.
-3. Run the "Release @seams/speak-to-sign" workflow with that version.
+3. Run the "Release @seams/speak-to-sign-wallet" workflow with that version.
 
 Before the Wallet packages of a new version are on npm, build against a local
 seams-wallet checkout with `pnpm link <path to packages/wallet>` and

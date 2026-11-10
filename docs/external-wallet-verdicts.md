@@ -1,8 +1,43 @@
 # Speak-to-Sign with an external NEAR wallet: plan
 
-Status: plan only, 2026-11-10. Nothing is built, deployed or changed.
+Status: dropped, 2026-11-10. The owner decided not to build this. The plan
+below stays as a record. Nothing is built, deployed or changed.
 Scope: Meteor first, through the Seams external NEAR connector
 (`@seams/wallet/external-near`, SDK 0.64.0).
+
+## Decision (2026-11-10)
+
+Do not build Speak-to-Sign for Meteor or for other external wallets.
+"Speak = sign" works only with a programmable wallet, such as the Seams
+Wallet.
+
+Reasons:
+
+- **Approval for each note** (the plan below): Meteor asks for a click
+  after each voice check. For notes, the voice adds friction and no value,
+  because the click already shows the owner's intent.
+- **Relayer form**: the contract accepts the verdict as the authorization,
+  and a relayer sends the call. There is no click for each note, but the
+  voice is the only check, so a remote replay works:
+  - The verifier blocks only a clip with the same bytes. A re-encoded
+    recording passes.
+  - The rating sentence does not name the note. One recording of "this
+    note is helpful" can rate any note as the owner.
+  - The Seams path blocks this. Wallet core accepts only audio that it
+    recorded in this flow, and the verify route needs the owner's Wallet
+    Session.
+- **Relayer form with a session**: one Meteor "sign message" popup on each
+  visit adds a device factor. With the connect and enrollment popups, that
+  is too many Meteor popups. Meteor is not programmable, so it cannot
+  combine the voice step and its approval.
+
+A later option, not planned: a function-call key that the page holds, as
+older NEAR dApps did at sign-in. Meteor approves it once. The page then
+signs each call that carries a verdict, and the contract requires both
+that key and the voice. The Seams connector cannot add a key today
+(`connect` takes only the network, and the actions are only transfers and
+function calls). So this option needs a seams-wallet change and an SDK
+release.
 
 ## Result
 

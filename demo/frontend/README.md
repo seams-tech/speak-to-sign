@@ -426,8 +426,7 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 - **The nav**, the one bar of the page, 44 pixels high: at the left one pill
   with the name and the gradient picker; at the right "Built on NEAR" (NEAR's
-  wordmark, a link to near.org), Seams (the logo of wallet.seams.sh, a link
-  to it; the mark alone on a phone) and GitHub, in the same glass pills. Its
+  wordmark, a link to near.org) and GitHub, in the same glass pills. Its
   content is as wide as the notes app's layout (1220 pixels), so its two
   ends line up with the app's edges. It stays at the top and has no ground of its own: it lies over the
   top of the hero. When the sheet covers the hero, that strip of the hero
@@ -435,7 +434,7 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   the sheet covers the hero, the setup steps show in the nav, until every
   step is done. The next step is the primary action: a white pill with a
   black button. A done step is a green check, and a later step is glass.
-  A screen narrower than 1121 pixels shows only the next step.
+  A screen narrower than 1140 pixels shows only the next step.
 - **The hero**, about voice signatures, on a moving grain field of the Seams
   site: the title, one sentence, the signature card (`SignatureCard.tsx`: the
   Seams Wallet voice card as it records a sentence, passes the two checks and
@@ -478,26 +477,28 @@ multisig page (`/multisig/`) keeps the page with a small screen and a window
 ## The timeline
 
 `src/x/Timeline.tsx` lists the demo post and the posts from
-`/api/x/eligible-posts`. It is the first screen of the app: every hash that
-is not a post (`#/notes/post/<id>`) shows it. The back arrow of a post page
-opens it.
+`/api/x/eligible-posts`. It is the app's one view: a post has no page of its
+own, and every hash shows the timeline (an old link to `#/notes/post/<id>`
+too).
 
 - **A card** shows the post, its note and the note's market. The visitor acts
   on the card itself: "Write a note" opens the write dialog over the
   timeline, and "Bet" opens the bet dialog (the demo post) or the market
   strip's bet sheet (a note of this app). A long note, or one with more
-  lines, shows two lines and a "Show more" control. A click on the card opens
-  the post page, with all notes and the ratings.
+  lines, shows two lines and a "Show more" control. A note of this app has
+  its rating line ("Rate it", or the visitor's rating) on the card. A click
+  on the card itself opens the bet (the demo post's dialog, or the strip's
+  bet sheet while the market takes bets), and otherwise the write dialog.
+  "Signed by voice" in the right column brings a note's card into view.
 - **Tabs.** "Fresh" shows all posts. "Open markets" and "Decided" show the
   posts with a market in that state.
 - **Post ids.** An X post id has 64 bits, and the Seams Wallet refuses a post
   id above 2^53 - 1. `notePostId` in `src/x/xPosts.ts` drops the lowest 10
-  bits of the X id. That number is the `post_id` in the notes contract and in
-  the hash `#/notes/post/<id>`.
+  bits of the X id. That number is the `post_id` in the notes contract.
 - **Lookup.** `toPost` turns an X post into a `Post` of the app, and
-  `registerPosts` in `src/data/posts.ts` adds it to `findPost`. The post page,
-  the write dialog and the text that JEV reads (`marketContext`) then work
-  for it without a change.
+  `registerPosts` in `src/data/posts.ts` adds it to `findPost`. The write
+  dialog and the text that JEV reads (`marketContext`) then work for it
+  without a change.
 - **Without the route.** `pnpm dev` without the function server shows the
   five example posts of `src/x/fixture.ts`. A build shows the demo post and
   the line "The posts from X are not available now."
@@ -573,7 +574,7 @@ above).
 | `src/seams/seamsConfig.ts`       | The SeamsWeb configuration.                                |
 | `src/notes/`                     | Note types, the contract rule, the RPC store, the balance. |
 | `src/summaryRules.ts`            | The spoken summary rules (port of the SDK).                |
-| `src/components/`                | Timeline, post page, notes box, modals, setup panel.       |
+| `src/components/`                | Note parts, modals, setup panel.                           |
 | `src/data/posts.ts`              | Fictional posts.                                           |
 | `functions/api/summary.ts`       | The Cloudflare Pages Function for NEAR AI summaries.       |
 | `functions/api/faucet.ts`        | The testnet faucet: one `drip` transaction for an account. |

@@ -5,7 +5,6 @@ import {
   IconChartBar,
   IconExternalLink,
   IconHeart,
-  IconHistory,
   IconMessageCircle,
   IconMicrophone,
   IconRepeat,
@@ -56,27 +55,6 @@ const BADGE_LABELS = {
 export function AuthorBadge({ author }: { author: PostAuthor }) {
   if (!author.badge) return null;
   return <IconRosetteDiscountCheckFilled className={`badge badge-${author.badge}`} size={18} aria-label={BADGE_LABELS[author.badge]} />;
-}
-
-/** Where the post comes from and what happened to it. Short on the timeline, full on the post page. */
-export function PostHistoryLine({ post, full }: { post: Post; full: boolean }) {
-  return (
-    <p className={`history ${full ? 'history-full' : ''}`}>
-      <IconHistory size={full ? 18 : 15} stroke={1.8} aria-hidden="true" />
-      <span>
-        {full ? post.history.detail : post.history.short}
-        {full && (
-          <>
-            {' '}
-            <a className="lk" href={post.history.source.url} target="_blank" rel="noopener noreferrer" title={post.history.source.title}>
-              Source
-              <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
-            </a>
-          </>
-        )}
-      </span>
-    </p>
-  );
 }
 
 const LINK = /((?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s]*)?)/gi;

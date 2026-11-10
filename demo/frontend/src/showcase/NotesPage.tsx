@@ -19,7 +19,6 @@ import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
 import { FieldPicker } from './FieldPicker';
 import { NearMark, NearWordmark } from './nearMarks';
-import { SeamsMark, SeamsWordmark } from './seamsMarks';
 import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
 import { fieldScrim, useHeroField } from './heroField';
@@ -29,7 +28,6 @@ import { SignatureCard } from './SignatureCard';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
 const NEAR_URL = 'https://near.org';
-const SEAMS_URL = 'https://wallet.seams.sh/';
 /** The part of the way at which the hero's setup strip is out of sight. */
 const COVERED_AT = 0.6;
 /** The hero field moves at half the site pace, as on the Seams home page. */
@@ -94,7 +92,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
       if (!scroller) return;
       const top = coverDistance();
       if (scroller.scrollTop > top) scroller.scrollTo({ top });
-      else if (/^#\/notes\/post\//.test(window.location.hash)) scroller.scrollTo({ top, behavior: 'smooth' });
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -127,10 +124,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
             <a className="ss-near" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
               <span className="ss-near-words">Built on</span>
               <NearWordmark />
-            </a>
-            <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
-              <SeamsWordmark className="ss-seams-wordmark" />
-              <SeamsMark className="ss-seams-mark" />
             </a>
             <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
               <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />

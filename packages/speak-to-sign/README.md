@@ -25,8 +25,8 @@ One spoken payment has these steps:
    the session's own method (a passkey on a passkey session).
 5. The card shows the result. "Done" closes it after a payment. After a
    refusal, "Try again" records the sentence again, up to five recordings in
-   all, and the result is the last attempt's. `requestTransfer` returns when
-   the card closes.
+   all, and the result is the last attempt's. The call returns when the card
+   closes.
 
 ## Install
 
@@ -56,8 +56,9 @@ const seams = new SeamsWeb({
   transactionFeatures: [speakToSign({ network: 'testnet' })],
 });
 
-if (seams.speakToSign) {
-  const result = await seams.speakToSign.requestTransfer({
+const voice = seams.near.speakToSign;
+if (voice) {
+  const result = await voice.typed.transfer({
     walletId,
     receiver: 'alice.testnet', // any named NEAR account
     amount: '2', // decimal NEAR, at most two decimal places
@@ -65,8 +66,25 @@ if (seams.speakToSign) {
 }
 ```
 
-`seams.speakToSign` exists only when the configuration names the descriptor.
-The descriptor is a few bytes of data and loads no code.
+`seams.near.speakToSign` exists only when the configuration names the
+descriptor. The descriptor is a few bytes of data and loads no code.
+
+## The calls
+
+`seams.near.speakToSign` is the NEAR signer by voice. Each signing call has the
+name of the `seams.near` call that it replaces, and takes the same transaction,
+delegate action or message with a `summary`:
+
+| Normal call                   | Voice call                                | `result` of an approved call    |
+| ----------------------------- | ----------------------------------------- | ------------------------------- |
+| `near.signAndSendTransaction` | `near.speakToSign.signAndSendTransaction` | `{ transactionHash }`           |
+| `near.signTransaction`        | `near.speakToSign.signTransaction`        | The signed transaction          |
+| `near.signDelegateAction`     | `near.speakToSign.signDelegateAction`     | The signed delegate action      |
+| `near.signMessage`            | `near.speakToSign.signMessage`            | The NEP-413 signature and nonce |
+
+`seams.near.speakToSign.typed` has the calls whose sentence comes from the
+request fields: `transfer`, `note`, `rating`, `mergeApproval` and `bet`.
+`seams.near.speakToSign.enroll` stores the owner's voice template.
 
 ## Owner setup
 
@@ -74,7 +92,7 @@ Before the first spoken payment, the owner needs a voice template at the
 verifier:
 
 ```ts
-const enrollment = await seams.speakToSign.enroll({ walletId });
+const enrollment = await seams.near.speakToSign.enroll({ walletId });
 ```
 
 `enroll` shows three short phrases on the VoiceID surface, one at a time. If
@@ -99,11 +117,11 @@ A spoken payment needs a warm Wallet Session. If the session is locked or
 expired, the Wallet asks the owner to unlock first. The owner's account pays the
 gas of each transfer, about 0.00005 NEAR.
 
-`requestTransfer` returns one of these results:
+Every signing call returns one of these results:
 
 | `kind`        | Meaning                                                                         |
 | ------------- | ------------------------------------------------------------------------------- |
-| `sent`        | The transfer was paid. The result has the hash, `approval` and the stage times. |
+| `approved`    | The Wallet signed. The result has `result`, `approval` and the stage times.     |
 | `refused`     | The verifier, the verdict check or the chain refused, for example `words`.      |
 | `cancelled`   | The owner closed the surface before a verdict, or closed the step-up question.  |
 | `unavailable` | VoiceID, the verifier or the Wallet signing path could not be reached.          |
@@ -131,7 +149,7 @@ import { summaryRefusal } from '@seams/wallet';
 
 // null when the summary is 1 to 12 plain words of ASCII letters.
 if (summaryRefusal(summary) === null) {
-  const posted = await seams.speakToSign.requestNote({
+  const posted = await seams.near.speakToSign.typed.note({
     walletId,
     contract: 'community-notes.testnet',
     postId: 7,
@@ -140,7 +158,7 @@ if (summaryRefusal(summary) === null) {
   });
 }
 
-const rated = await seams.speakToSign.requestRating({
+const rated = await seams.near.speakToSign.typed.rating({
   walletId,
   contract: 'community-notes.testnet',
   noteId: 3,
@@ -157,7 +175,7 @@ const rated = await seams.speakToSign.requestRating({
   or "this note is not helpful".
 - The words must match. A summary of 4 or more words also passes with one word
   heard differently or dropped, but never with an added or dropped "not".
-- Both calls return the result kinds of `requestTransfer`. The refusals are the
+- Both calls return the result kinds of every signing call. The refusals are the
   verifier's, `summary_not_speakable`, `note_not_valid` (the contract, the id,
   the note of 1 to 280 characters or the rating), `verdict_mismatch` and
   `transaction_failed`.
@@ -174,7 +192,7 @@ on the token contract from the owner's account, with 1 yoctoNEAR and no confirm.
 The call carries the signed verdict, so the market contract can check it too.
 
 ```ts
-const bet = await seams.speakToSign.requestBet({
+const bet = await seams.near.speakToSign.typed.bet({
   walletId,
   contract: 'pm-notes.testnet', // the market contract
   token: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
@@ -191,21 +209,21 @@ const bet = await seams.speakToSign.requestBet({
   Wallet sets no other amount limit.
 - The verdict binds the market contract and the token, which the owner does not
   say.
-- The call returns the result kinds of `requestTransfer`. The refusals are the
+- The call returns the result kinds of every signing call. The refusals are the
   verifier's, `bet_not_valid` (the market contract, the token, the market id,
   the outcome or the amount), `verdict_mismatch` and `transaction_failed`.
 - Bets need verifier 0.8.0 or later, and Wallet host API 10.
 
 ## Any transaction
 
-`requestTransaction` signs and sends any NEAR transaction by voice: any
-receiver and any actions, as `signAndSendTransaction` takes them. It is not
+`signAndSendTransaction` signs and sends any NEAR transaction by voice: any
+receiver and any actions, as `near.signAndSendTransaction` takes them. It is not
 tied to a contract or a method.
 
 ```ts
 import { functionCall } from '@seams/wallet';
 
-const sent = await seams.speakToSign.requestTransaction({
+const sent = await seams.near.speakToSign.signAndSendTransaction({
   walletId,
   transaction: {
     receiverId: 'guest-book.testnet',
@@ -222,7 +240,7 @@ const sent = await seams.speakToSign.requestTransaction({
   so one verdict approves exactly one list of actions for one receiver.
 - The application writes the summary. The voice proves who approves and which
   words this person said. It does not prove that the summary describes the
-  transaction. Use the typed calls (`requestTransfer`, `requestBet` and the
+  transaction. Use the typed calls (`typed.transfer`, `typed.bet` and the
   others) when one fits: their sentence comes from the request fields.
 - Speak-to-Sign sets no amount limit of its own. A limit is a rule of the
   Wallet's policy engine, as for a normal signature.
@@ -233,23 +251,24 @@ const sent = await seams.speakToSign.requestTransaction({
 
 ### Sign only, and delegate actions
 
-`requestSignedTransaction` takes the same request and returns the signed
-transaction without sending it, as `near.signTransaction` does.
-`near.sendTransaction` sends it later.
+`signTransaction` takes the same request and returns the signed transaction
+without sending it, as `near.signTransaction` does. `near.sendTransaction`
+sends it later.
 
-`requestDelegateAction` signs a NEP-366 delegate action, as
+`signDelegateAction` signs a NEP-366 delegate action, as
 `near.signDelegateAction` does. A relayer sends its actions for the owner.
 
 ```ts
-const signed = await seams.speakToSign.requestSignedTransaction({ walletId, transaction, summary });
-// signed.kind === 'signed_transaction': signed.signed is the result of near.signTransaction
+const voice = seams.near.speakToSign;
+const signed = await voice.signTransaction({ walletId, transaction, summary });
+// signed.kind === 'approved': signed.result is the result of near.signTransaction
 
-const delegated = await seams.speakToSign.requestDelegateAction({
+const delegated = await voice.signDelegateAction({
   walletId,
   delegate: { receiverId, actions, nonce, maxBlockHeight, publicKey },
   summary,
 });
-// delegated.kind === 'signed_delegate': delegated.signed is the result of near.signDelegateAction
+// delegated.kind === 'approved': delegated.result is the result of near.signDelegateAction
 ```
 
 - The verdict binds the receiver and the actions in each of the three calls.
@@ -259,18 +278,18 @@ const delegated = await seams.speakToSign.requestDelegateAction({
 
 ## Any NEP-413 message
 
-`requestMessage` signs a NEP-413 message by voice, as `near.signMessage` does
+`signMessage` signs a NEP-413 message by voice, as `near.signMessage` does
 with a confirm.
 
 ```ts
-const signed = await seams.speakToSign.requestMessage({
+const signed = await seams.near.speakToSign.signMessage({
   walletId,
   message: 'Log in to example.app',
   recipient: 'example.app',
   summary: 'Log in to the example app',
 });
-if (signed.kind === 'signed') {
-  // signed.accountId, signed.publicKey, signed.signature, signed.nonce
+if (signed.kind === 'approved') {
+  // signed.result: accountId, publicKey, signature, nonce
 }
 ```
 

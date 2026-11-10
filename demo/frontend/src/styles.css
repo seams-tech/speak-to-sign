@@ -990,13 +990,15 @@ a.lk:hover {
   font-size: 17px;
 }
 /* In the note view the strip shows only the odds and the two bet buttons: its own question
-   row (the title says it), the odds chart and the "odds change" line are hidden. */
+   row (the title says it), the odds chart and the "odds change" line under the buttons are
+   hidden. So the loaded strip has the shapes of its placeholder, and the dialog keeps its
+   height when the market arrives. */
 .pc-bet .nm-strip {
   border-top: 0;
 }
 .pc-bet .nm-strip > .nm-row:first-child,
 .pc-bet .nm-spark,
-.pc-bet .nm-strip > .nm-small:has(+ .nm-buttons) {
+.pc-bet .nm-strip > .nm-buttons + .nm-small {
   display: none;
 }
 .pc-bet .nm-buttons {
@@ -1494,6 +1496,11 @@ a.lk:hover {
   max-height: 90vh;
   outline: none;
 }
+/* In the middle of the screen. An auto margin, not align-items: a dialog taller than the
+   screen starts at the top and scrolls, and is not cut off above. */
+.overlay:not(.overlay-bare) > .dialog {
+  margin-block: auto;
+}
 .dialog-head {
   display: flex;
   align-items: center;
@@ -1516,6 +1523,10 @@ a.lk:hover {
   padding: 0 20px 12px;
   overflow-y: auto;
   min-height: 0;
+}
+/* With no footer under it, the body keeps the same space below as at its sides. */
+.dialog-body:last-child {
+  padding-bottom: 20px;
 }
 .dialog-foot {
   flex: none;
@@ -2120,6 +2131,9 @@ fieldset:disabled .choice {
   }
   .dialog-body {
     padding: 0 16px 12px;
+  }
+  .dialog-body:last-child {
+    padding-bottom: 16px;
   }
   .dialog-foot {
     --foot-x: 16px;

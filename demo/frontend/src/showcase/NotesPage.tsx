@@ -9,6 +9,7 @@
 // dims. When the sheet is at the nav ("docked"), the notes app scrolls inside the sheet.
 
 import { useEffect, useRef, useState } from 'react';
+import { IconBrandGithub } from '@tabler/icons-react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
 import { LiveApps, LiveSlot } from './live';
@@ -75,8 +76,9 @@ export function NotesPage({ seams }: { seams: boolean }) {
             <div className="ss-nav-setup" data-shown={covered || undefined} inert={!covered} aria-label="Set up">
               {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
             </div>
-            <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
-              GitHub
+            <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+              <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
+              <span>GitHub</span>
             </a>
           </div>
         </header>

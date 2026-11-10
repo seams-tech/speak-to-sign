@@ -79,10 +79,7 @@ export function Timeline() {
 
   return (
     <>
-      <header className="page-head">
-        <h1>Needs context</h1>
-      </header>
-      <p className="xt-sub muted">Posts where readers on X asked for a note. Write the note, then bet on it.</p>
+      <h1 className="sr-only">Posts that need context</h1>
       <nav className="tabs" aria-label="Timeline">
         {TABS.map(({ id, label }) => (
           <button key={id} type="button" className={`tab ${tab === id ? 'tab-on' : ''}`} aria-current={tab === id} onClick={() => setTab(id)}>

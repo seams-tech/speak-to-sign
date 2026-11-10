@@ -4,14 +4,11 @@ import { IconX } from '@tabler/icons-react';
 import { HostedSeamsAuthMenu, type HostedAuthMenuOutcome } from '@seams/wallet/react';
 import { Modal, type ModalHandle } from './Modal';
 
-const NOTES_INTRO =
-  'Your notes and ratings are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
-
 /**
  * Seams Wallet sign-in and registration. The menu runs inside the Wallet's own iframe, which the
  * SDK places over this element and keeps there while the element moves.
  */
-function SignInMenu({ intro, onSignedIn, onCancel }: { intro: string; onSignedIn: () => void; onCancel: () => void }) {
+function SignInMenu({ onSignedIn, onCancel }: { onSignedIn: () => void; onCancel: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const onOutcome = (outcome: HostedAuthMenuOutcome) => {
@@ -35,7 +32,6 @@ function SignInMenu({ intro, onSignedIn, onCancel }: { intro: string; onSignedIn
     <>
       <HostedSeamsAuthMenu
         onOutcome={onOutcome}
-        copy={{ login: { subtitle: intro }, register: { subtitle: intro } }}
         placeholder={<div className="loading">Loading Seams Wallet</div>}
       />
       {error && (
@@ -48,21 +44,12 @@ function SignInMenu({ intro, onSignedIn, onCancel }: { intro: string; onSignedIn
 }
 
 /** The sign-in on its own, for a place with no open dialog (the page, the notes app's bar). */
-export function SignInModal({
-  onClose,
-  onSignedIn,
-  intro = NOTES_INTRO,
-}: {
-  onClose: () => void;
-  onSignedIn: () => void;
-  /** What the page signs, in one or two sentences. */
-  intro?: string;
-}) {
+export function SignInModal({ onClose, onSignedIn }: { onClose: () => void; onSignedIn: () => void }) {
   const titleId = useId();
   const modal = useRef<ModalHandle>(null);
 
-  // The Wallet's menu is its own card, so the dialog has no panel: the intro goes into the
-  // card's subtitle, the title is for screen readers only, and Close sits on the card's corner.
+  // The Wallet's menu is its own card, so the dialog has no panel: the title is for screen
+  // readers only, and Close sits on the card's corner.
   return (
     <Modal labelledBy={titleId} onClose={onClose} locked={false} bare handle={modal}>
       <h2 id={titleId} className="sr-only">
@@ -71,7 +58,7 @@ export function SignInModal({
       <button type="button" className="icon-btn card-close" onClick={() => modal.current?.close()} aria-label="Close">
         <IconX size={20} />
       </button>
-      <SignInMenu intro={intro} onSignedIn={() => modal.current?.close(onSignedIn)} onCancel={() => modal.current?.close()} />
+      <SignInMenu onSignedIn={() => modal.current?.close(onSignedIn)} onCancel={() => modal.current?.close()} />
     </Modal>
   );
 }
@@ -83,13 +70,11 @@ export function SignInModal({
  */
 export function SignInStep({
   titleId,
-  intro = NOTES_INTRO,
   onSignedIn,
   onBack,
 }: {
   /** The id that labels the dialog. */
   titleId: string;
-  intro?: string;
   onSignedIn: () => void;
   onBack: () => void;
 }) {
@@ -99,7 +84,7 @@ export function SignInStep({
         Sign in to Seams Wallet
       </h2>
       <div className="signin-step">
-        <SignInMenu intro={intro} onSignedIn={onSignedIn} onCancel={onBack} />
+        <SignInMenu onSignedIn={onSignedIn} onCancel={onBack} />
         <CardCorner onClick={onBack} />
       </div>
     </>

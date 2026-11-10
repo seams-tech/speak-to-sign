@@ -1,5 +1,5 @@
 import { rolldown } from 'rolldown';
-import { cp, mkdir, rm } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,10 +15,18 @@ const alias = { react: 'preact/compat', 'react/jsx-runtime': 'preact/jsx-runtime
 const entries = { index: 'src/index.ts', card: 'src/card/index.ts' };
 
 // The library keeps onnxruntime-web and Preact as imports, so the application's bundler loads
-// each of them once.
-// The two entries share their chunks, so the card uses the settings of configureVoiceCapture.
+// each of them once. Each source file is one output file, so that bundler takes only the files
+// that the application uses, and can load the phrase card later than the prompt.
+const modules = {};
+for (const file of await readdir(path.join(root, 'src'), { recursive: true })) {
+  if (file.endsWith('.ts')) modules[file.slice(0, -'.ts'.length)] = path.join('src', file);
+}
 await build(
-  { input: entries, external: [/^onnxruntime-web/, /^preact/], resolve: { alias } },
+  {
+    input: modules,
+    external: [/^onnxruntime-web/, /^preact/],
+    plugins: [{ name: 'react-on-preact', resolveId: preactImport }],
+  },
   {
     dir: path.join(dist, 'esm'),
     format: 'esm',
@@ -66,4 +74,9 @@ async function build(input, output) {
   } finally {
     await bundle.close();
   }
+}
+
+/** In the library, an import of React becomes an import of Preact that stays outside. */
+function preactImport(source) {
+  return Object.hasOwn(alias, source) ? { id: alias[source], external: true } : null;
 }

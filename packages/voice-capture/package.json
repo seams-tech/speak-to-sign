@@ -16,7 +16,7 @@
     },
     "./card": {
       "types": "./dist/types/card/index.d.ts",
-      "import": "./dist/esm/card.js"
+      "import": "./dist/esm/card/index.js"
     },
     "./hosting": {
       "types": "./dist/hosting.d.mts",

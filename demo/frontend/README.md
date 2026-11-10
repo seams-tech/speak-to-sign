@@ -426,8 +426,7 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 - **The nav**, the one bar of the page, 44 pixels high: at the left one pill
   with the name and the gradient picker; at the right "Built on NEAR" (NEAR's
-  wordmark, a link to near.org), Seams (the logo of wallet.seams.sh, a link
-  to it; the mark alone on a phone) and GitHub, in the same glass pills. Its
+  wordmark, a link to near.org) and GitHub, in the same glass pills. Its
   content is as wide as the notes app's layout (1220 pixels), so its two
   ends line up with the app's edges. It stays at the top and has no ground of its own: it lies over the
   top of the hero. When the sheet covers the hero, that strip of the hero
@@ -435,7 +434,7 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   the sheet covers the hero, the setup steps show in the nav, until every
   step is done. The next step is the primary action: a white pill with a
   black button. A done step is a green check, and a later step is glass.
-  A screen narrower than 1121 pixels shows only the next step.
+  A screen narrower than 1140 pixels shows only the next step.
 - **The hero**, about voice signatures, on a moving grain field of the Seams
   site: the title, one sentence, the signature card (`SignatureCard.tsx`: a
   spoken sentence, the two checks and "Signed", as a loop) and the setup

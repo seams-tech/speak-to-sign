@@ -393,20 +393,28 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 `src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
 
-- **The nav**, the one bar of the page, 44 pixels high, with the name and
-  GitHub. It stays at the top and has no ground of its own: it lies over the
+- **The nav**, the one bar of the page, 44 pixels high, with the name, the
+  gradient picker and GitHub. It stays at the top and has no ground of its own: it lies over the
   top of the hero. When the sheet covers the hero, that strip of the hero
   stays in sight, so the nav keeps the hero's gradient. The notes app's own top line is hidden on this page. When
   the sheet covers the hero, the setup steps show in the nav, until every
   step is done. The next step is the primary action: a white pill with a
   black button. A done step is a green check, and a later step is glass.
   A phone shows only the next step.
-- **The hero**, about voice signatures, on the grainy blue and rose field of
-  the Seams Wallet site (wallet.seams.sh; CSS gradients and SVG noise): the title, one sentence, the
-  signature card (`SignatureCard.tsx`: a spoken sentence, the two checks and
-  "Signed", as a loop) and the setup steps as one strip (`#setup`).
-- **The sheet**, white, with the notes app in the page itself, not in a
-  window.
+- **The hero**, about voice signatures, on a moving grain field of the Seams
+  site: the title, one sentence, the signature card (`SignatureCard.tsx`: a
+  spoken sentence, the two checks and "Signed", as a loop) and the setup
+  steps as one strip (`#setup`). The field is the `GrainField` of
+  seams-monorepo (`packages/grain-field-ts`, copied into
+  `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
+  grid, flows it and adds grain. The nav's picker (`FieldPicker.tsx`) shows
+  its 14 gradients; the default is `teal-peach-wisp`, the field of the Seams
+  home hero. The choice stays in this browser (`localStorage`), and
+  `?field=<name>` picks one for a link. A light field gets a soft dark shade
+  on the left (`--field-scrim`), so the white text stays readable.
+- **The sheet**, with the notes app in the page itself, not in a window. The
+  app's layout is white, and the empty space at its sides has light grey
+  diagonal stripes.
 
 The page scrolls by the height of the hero. The hero stays in place, and the
 sheet moves up over it like paper. While the sheet covers it, the hero goes

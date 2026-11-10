@@ -80,6 +80,21 @@ pub enum RequestInput {
         /// The head commit id, 40 lowercase hex characters.
         head_commit_hex: String,
     },
+    /// A bet on one outcome of a prediction market, paid in USDC. The owner
+    /// says the amount, the outcome and the market id. The market contract
+    /// checks the verdict of this request before it takes the bet.
+    MarketBet {
+        /// The market contract.
+        market: String,
+        /// The token contract of the stake.
+        token: String,
+        /// 1 or more.
+        market_id: u64,
+        outcome: OutcomeInput,
+        /// Decimal base units of the token, 10^-6 USDC (a JSON string, as
+        /// `amount_yocto`).
+        amount_units: String,
+    },
     /// A new multisig transfer, said by its proposer. The verifier draws the
     /// salt and keeps the proposal; the contract gets only its commitment.
     MultisigPropose {
@@ -121,6 +136,14 @@ impl RequestInput {
     pub fn is_multisig(&self) -> bool {
         matches!(self, Self::MultisigPropose { .. } | Self::MultisigHideNote { .. } | Self::MultisigConfirm { .. })
     }
+}
+
+/// The outcome of a `market_bet` request.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OutcomeInput {
+    Yes,
+    No,
 }
 
 /// The rating of a `note_rating` request.

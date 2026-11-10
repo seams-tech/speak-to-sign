@@ -2,12 +2,12 @@
 //! field must parse as its `spoken-intent` type. Any other value refuses as
 //! `unsupported`.
 use spoken_intent::{
-    NearAccount, NearAmount, Network, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
-    SpokenSummary,
+    BetOutcomeV1, NearAccount, NearAmount, Network, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch,
+    SpokenRequestV1, SpokenSummary, UsdcAmount,
 };
 
 use crate::digest::from_hex;
-use crate::input::{parse_yocto, RatingInput, RequestInput};
+use crate::input::{parse_yocto, OutcomeInput, RatingInput, RequestInput};
 use crate::output::Reason;
 
 /// The network that this version serves.
@@ -71,6 +71,25 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
                 pull_request: *pull_request,
                 base: SpokenBranch::new(base).map_err(unsupported)?,
                 head_commit: lowercase_hex::<20>(head_commit_hex)?,
+            })
+        }
+        RequestInput::MarketBet { market, token, market_id, outcome, amount_units } => {
+            if *market_id == 0 {
+                return Err(Reason::Unsupported);
+            }
+            // The same decimal rule as a yoctoNEAR amount: digits only, no sign.
+            let units = parse_yocto(amount_units).ok_or(Reason::Unsupported)?;
+            Ok(SpokenRequestV1::MarketBet {
+                network: SERVED_NETWORK,
+                owner,
+                market: NearAccount::new(market).map_err(unsupported)?,
+                token: NearAccount::new(token).map_err(unsupported)?,
+                market_id: *market_id,
+                outcome: match outcome {
+                    OutcomeInput::Yes => BetOutcomeV1::Yes,
+                    OutcomeInput::No => BetOutcomeV1::No,
+                },
+                amount: UsdcAmount::from_units(units).map_err(unsupported)?,
             })
         }
         // `multisig::prepare` builds these: they need the worker's storage

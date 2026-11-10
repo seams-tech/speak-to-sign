@@ -2,6 +2,7 @@
 //! signs as the real one does, a fake NEAR AI, storage maps and a real
 //! ed25519 signing key. `fake.rs` holds the fake host and the shared input
 //! builders; each other file tests one operation or one request kind.
+mod bets;
 mod enroll;
 mod fake;
 mod merges;

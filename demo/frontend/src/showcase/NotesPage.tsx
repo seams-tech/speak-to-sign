@@ -18,7 +18,9 @@ import { IconBrandGithub } from '@tabler/icons-react';
 import type { CSSProperties } from 'react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
-import { NearMark, NearWordmark } from './nearMarks';
+import { NearAiWordmark, NearMark, NearWordmark } from './nearMarks';
+// OutLayer's logo from outlayer.ai, as a white shape (its outline, at 64 px high).
+import outlayerLogo from './outlayer-white.png';
 import { SeamsMark, SeamsWordmark } from './seamsMarks';
 import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
@@ -29,6 +31,8 @@ import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
 const NEAR_URL = 'https://near.org';
+const NEAR_AI_URL = 'https://near.ai';
+const OUTLAYER_URL = 'https://outlayer.ai';
 const SEAMS_URL = 'https://wallet.seams.sh/';
 /** The part of the way at which the hero's setup strip is out of sight. */
 const COVERED_AT = 0.6;
@@ -138,11 +142,28 @@ export function NotesPage({ seams }: { seams: boolean }) {
               <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
               <span>GitHub</span>
             </a>
-            <a className="ss-near" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
-              <span className="ss-near-words">
-                <span>Built on</span>
+            {/* One pill, two links: NEAR, and NEAR AI after a "+". When the pill shrinks, only
+                NEAR's wordmark stays (showcase.css). */}
+            <div className="ss-near">
+              <a className="ss-near-link" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
+                <span className="ss-near-words">
+                  <span>Built on</span>
+                </span>
+                <NearWordmark />
+              </a>
+              <span className="ss-near-more">
+                <span>
+                  <span className="ss-near-plus" aria-hidden="true">
+                    +
+                  </span>
+                  <a className="ss-near-link" href={NEAR_AI_URL} target="_blank" rel="noopener noreferrer" aria-label="and NEAR AI">
+                    <NearAiWordmark className="ss-near-ai" />
+                  </a>
+                </span>
               </span>
-              <NearWordmark />
+            </div>
+            <a className="ss-outlayer" href={OUTLAYER_URL} target="_blank" rel="noopener noreferrer" aria-label="OutLayer">
+              <img src={outlayerLogo} alt="" />
             </a>
             <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
               <SeamsWordmark className="ss-seams-wordmark" />

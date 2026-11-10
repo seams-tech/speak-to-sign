@@ -1831,10 +1831,11 @@ h1.ss-display {
   transform-origin: 0 0;
 }
 
-/* "Built on NEAR" and Seams before GitHub, in the same glass pills: the words and NEAR's
-   wordmark as on tatchi.xyz, and the Seams logo as on wallet.seams.sh, in white. GitHub follows
-   them with no gap of its own. */
+/* "Built on NEAR + NEAR AI", OutLayer and Seams after GitHub, in the same glass pills: the
+   words and NEAR's wordmark as on tatchi.xyz, NEAR AI's wordmark as on near.ai, OutLayer's logo
+   as on outlayer.ai, and the Seams logo as on wallet.seams.sh, all in white. */
 .ss-near,
+.ss-outlayer,
 .ss-seams {
   flex: none;
   display: inline-flex;
@@ -1884,17 +1885,62 @@ h1.ss-display {
   }
 }
 
+.ss-near-link {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  transition: opacity 150ms ease;
+}
+
 .ss-near svg {
+  flex: none;
   width: 48px;
   height: auto;
   /* The wordmark's letters sit a little low in its box. */
   margin-top: 1px;
 }
 
+/* NEAR AI's "near" is as high as NEAR's "near", and on the same line (--ai-w and --ai-y, from
+   the two logos' letters). */
+.ss-near .ss-near-ai {
+  width: var(--ai-w, 39px);
+  margin-top: var(--ai-y, 1px);
+}
+
+.ss-near-plus {
+  margin: 0 5px;
+  opacity: 0.8;
+}
+
+/* The two links share one pill. The pill shows the focus ring of either link, and the other
+   link dims while one has the pointer or the focus, so it is clear which one opens. */
+.ss-near-link:focus-visible {
+  outline: none;
+}
+.ss-near:has(.ss-near-link:focus-visible) {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+.ss-near:has(.ss-near-link:focus-visible) .ss-near-link:not(:focus-visible) {
+  opacity: 0.55;
+}
+
+/* OutLayer's logo: capitals and arrows, as high as the "near" letters and the "Built on" words
+   let it look the same weight. */
+.ss-outlayer img {
+  display: block;
+  width: 52px;
+  height: auto;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .ss-near:hover,
+  .ss-outlayer:hover,
   .ss-seams:hover {
     background: rgba(10, 10, 10, 0.42);
+  }
+  .ss-near:has(.ss-near-link:hover) .ss-near-link:not(:hover) {
+    opacity: 0.55;
   }
 }
 
@@ -1923,21 +1969,52 @@ h1.ss-display {
   margin-right: 0;
   opacity: 0;
 }
+/* "+ NEAR AI" folds away in the same way, after NEAR's wordmark. Folded, it is hidden, so its
+   link takes no focus. */
+.ss-near-more {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  transition:
+    grid-template-columns 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s;
+}
+.ss-near-more > span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+.ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-more {
+  grid-template-columns: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-columns 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s,
+    visibility 0s linear 0.22s;
+}
 @media (prefers-reduced-motion: reduce) {
-  .ss-near-words {
+  .ss-near-words,
+  .ss-near-more,
+  .ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-more {
     transition: none;
   }
 }
 
 @media (max-width: 720px) {
-  .ss-near-words {
+  .ss-near-words,
+  .ss-near-more {
+    display: none;
+  }
+  /* A setup step in the nav needs about 120 px: while one shows, OutLayer's pill goes. */
+  .ss-nav-inner:has(.ss-nav-setup[data-shown] .step:not(.step-done)) .ss-outlayer {
     display: none;
   }
 }
 
-/* From 861px to 1199px the three steps would run under the pills at the right (with all three
-   pills they need about 1145px): the nav shows one step, the first that is not done, as on a
-   phone. The name stays. */
+/* From 861px to 1199px the three steps would run under the pills at the right (with the four
+   pills, NEAR's folded, they need about 1160px): the nav shows one step, the first that is not
+   done, as on a phone. The name stays. */
 @media (min-width: 861px) and (max-width: 1199px) {
   .ss-nav-setup .step-done,
   .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {

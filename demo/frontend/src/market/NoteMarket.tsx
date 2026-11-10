@@ -689,7 +689,6 @@ function useHostedSignIn(): { signingIn: boolean; end: (signedIn: boolean) => vo
   return { signingIn: demo?.signingIn ?? false, end: (signedIn) => demo?.endSignIn(signedIn) };
 }
 
-const SIGN_IN_INTRO = 'Your bets are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
 
 /**
  * One dialog for one flow: the sheet, and the page's sign-in as a step of the same dialog. While
@@ -725,7 +724,7 @@ function SheetDialog({
         </MorphView>
         {signingIn && (
           <MorphView name="signin">
-            <SignInStep titleId={signInTitleId} intro={SIGN_IN_INTRO} onSignedIn={() => end(true)} onBack={() => end(false)} />
+            <SignInStep titleId={signInTitleId} onSignedIn={() => end(true)} onBack={() => end(false)} />
           </MorphView>
         )}
       </Morph>

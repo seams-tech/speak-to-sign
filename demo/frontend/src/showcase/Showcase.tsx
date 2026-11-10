@@ -12,9 +12,6 @@ import { MultisigScreen } from './screens';
 import { ExampleWindow } from './window';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
-const MULTISIG_INTRO =
-  'Your proposals and approvals are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
-const SETUP_INTRO = 'Create a Seams Wallet with a passkey, or sign in to yours. It is a NEAR testnet account.';
 
 // One page. The hash names the open window: #/notes (and the notes app's own pages under it) or
 // #/multisig. No hash: no window.
@@ -48,7 +45,7 @@ export function Showcase({ seams }: { seams: boolean }) {
   const routed = exampleFromHash(hash);
   const [shown, setShown] = useState<ExampleId | null>(routed);
   // The sign-in dialog, with the line that says what the wallet signs here.
-  const [signIn, setSignIn] = useState<string | null>(null);
+  const [signIn, setSignIn] = useState(false);
   const closing = shown !== null && routed !== shown;
 
   useEffect(() => {
@@ -81,7 +78,7 @@ export function Showcase({ seams }: { seams: boolean }) {
           </div>
         </header>
         <main className="ss-col">
-          <Intro seams={seams} onSignIn={() => setSignIn(SETUP_INTRO)} />
+          <Intro seams={seams} onSignIn={() => setSignIn(true)} />
           <Apps seams={seams} shown={shown} />
         </main>
         <footer className="ss-footer">
@@ -111,8 +108,8 @@ export function Showcase({ seams }: { seams: boolean }) {
         </ExampleWindow>
       )}
 
-      <LiveApps seams={seams} onMultisigSignIn={() => setSignIn(MULTISIG_INTRO)} />
-      {seams && signIn && <SignInModal intro={signIn} onClose={() => setSignIn(null)} onSignedIn={() => setSignIn(null)} />}
+      <LiveApps seams={seams} onMultisigSignIn={() => setSignIn(true)} />
+      {seams && signIn && <SignInModal onClose={() => setSignIn(false)} onSignedIn={() => setSignIn(false)} />}
     </>
   );
 }

@@ -17,7 +17,6 @@ import { Modal, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
 import { SignInStep } from './SignInModal';
 
-const BET_INTRO = 'Your bets are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
 
 /**
  * The context is not a note on the notes contract, so its market has a fixed note id. On
@@ -189,7 +188,7 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
         </MorphView>
         {signingIn && (
           <MorphView name="signin">
-            <SignInStep titleId={signInTitleId} intro={BET_INTRO} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
+            <SignInStep titleId={signInTitleId} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
           </MorphView>
         )}
       </Morph>

@@ -2039,10 +2039,11 @@ h1.ss-display {
   padding-right: 8px;
 }
 
-/* A later step: glass, no ring, an outline button. */
+/* A later step: dark glass (readable on a light field too), no ring, a quiet button. */
 .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  background: rgba(10, 16, 22, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
   color: #ffffff;
   font-weight: 400;
   animation: none;
@@ -2055,8 +2056,8 @@ h1.ss-display {
 }
 
 .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) .btn {
-  border-color: rgba(255, 255, 255, 0.7);
-  background: none;
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
   font-weight: 500;
 }
@@ -2251,7 +2252,7 @@ h1.ss-display {
   left: -22px;
   top: 50%;
   width: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.7);
 }
 
 .ss-setup-strip .step .step-mark {
@@ -2282,35 +2283,36 @@ h1.ss-display {
   color: inherit;
 }
 
-/* A later step: glass, no ring, and its button is quiet until its turn. */
+/* A later step: dark glass, no ring, and its button is quiet until its turn. The glass is dark
+   because a field can be light (the apricot one): white text on white glass was hard to see. */
 .ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done) {
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
-  backdrop-filter: blur(6px);
+  background: rgba(10, 16, 22, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
   color: #ffffff;
   font-weight: 400;
   animation: none;
 }
 
 .ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done) .step-mark {
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
   background: none;
   color: #ffffff;
 }
 
 .ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done) .btn {
   border-color: transparent;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
   font-weight: 500;
   opacity: 1;
 }
 
-/* A done step: glass, a green check, and its link or small control in white. */
+/* A done step: dark glass, a green check, and its link or small control in white. */
 .ss-setup-strip .step.step-done {
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
-  backdrop-filter: blur(6px);
+  background: rgba(10, 16, 22, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
   color: #ffffff;
   font-weight: 400;
   animation: none;

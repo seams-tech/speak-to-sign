@@ -1,12 +1,13 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import type { Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
-import { RATING_SENTENCES, type Rating, type SignResult } from '../signer/notesSigner';
+import { RATING_SENTENCES, type Rating } from '../signer/notesSigner';
+import { useEnrolled } from '../signer/voiceSetup';
 import { shortAccount } from '../config';
 import { Linkified } from './bits';
-import { Modal } from './Modal';
-import { SpeakStep, type SignPhase } from './SpeakStep';
+import { Modal, type ModalHandle } from './Modal';
+import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
 
 const OPTIONS: { rating: Rating; answer: string }[] = [
   { rating: 'helpful', answer: 'Yes' },
@@ -19,37 +20,38 @@ interface Props {
   onClose: () => void;
   /** Called as soon as the Wallet sends `rate_note`. */
   onSent: (rating: Rating, transactionHash: string) => void;
-  /** Called when the rater closes the success card. */
+  /** Called when the success card closes (by itself, or with Done). */
   onDone: () => void;
 }
 
 export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
-  const { signer, account, status, myRatings, openSignIn } = useDemo();
+  const { account, status, myRatings, prepare } = useDemo();
+  const enrolled = useEnrolled(account);
+  const modal = useRef<ModalHandle>(null);
   const titleId = useId();
   const previous = myRatings[note.id];
   const [choice, setChoice] = useState<Rating | null>(null);
   const [phase, setPhase] = useState<SignPhase>({ state: 'idle' });
   const signing = phase.state !== 'idle';
+  const locked = phase.state === 'pending' || phase.state === 'preparing';
 
   const startSigning = async () => {
     if (!choice) return;
-    setPhase({ state: 'pending' });
-    let result: SignResult;
-    try {
-      result = await signer.requestRating({ noteId: note.id, rating: choice });
-    } catch (cause) {
-      result = { kind: 'unavailable', reason: cause instanceof Error ? cause.message : 'The signer failed.' };
-    }
-    if (result.kind === 'sent') onSent(choice, result.transactionHash);
-    setPhase({ state: 'done', result });
+    const rating = choice;
+    const result = await runVoiceAction(prepare, !!status?.signedIn, setPhase, (signer) =>
+      signer.requestRating({ noteId: note.id, rating }),
+    );
+    if (result?.kind === 'sent') onSent(rating, result.transactionHash);
   };
 
   const sent = phase.state === 'done' && phase.result.kind === 'sent';
+  const finish = () => modal.current?.close(onDone);
+  useAutoClose(sent, finish);
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={phase.state === 'pending'}>
+    <Modal labelledBy={titleId} onClose={onClose} locked={locked} handle={modal}>
       <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} disabled={phase.state === 'pending'} aria-label="Close">
+        <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
           <IconX size={20} />
         </button>
         <h2 id={titleId}>Rate this note</h2>
@@ -86,18 +88,16 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
           phase={phase}
           sentence={choice ? RATING_SENTENCES[choice] : ''}
           buttonLabel="Say it aloud to rate"
-          hint="Your voice signs the rating. No confirm tap."
+          hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the rating. No confirm tap.')}
           disabled={!choice}
           disabledHint="Pick one answer first."
-          needsSignIn={!status?.signedIn}
-          onSignIn={openSignIn}
           accountId={account}
           wordsLine="Words matched your rating"
           signedLine="Rating signed"
           nothingLine="Nothing was rated."
           onStart={startSigning}
           onRetry={() => setPhase({ state: 'idle' })}
-          onDone={sent ? onDone : onClose}
+          onDone={sent ? finish : () => modal.current?.close()}
         />
       </footer>
     </Modal>

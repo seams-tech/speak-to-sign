@@ -2,16 +2,17 @@
 // "Do you find this helpful?", it asks for a bet. The Bet button opens the note, as X's note
 // view does, with the note market at its foot.
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { IconCircleCheckFilled, IconExternalLink, IconUsers, IconX } from '@tabler/icons-react';
 import type { Post, PostContext as Context } from '../data/posts';
 import { useDemo } from '../demoContext';
+import { useFunds } from '../faucet/funds';
 import { useMarketSource } from '../market/contractSource';
 import { amountText } from '../market/math';
 import { NoteMarketStrip } from '../market/NoteMarket';
 import { NEAR_CURRENCY } from '../market/types';
 import { MediaThumb } from './Media';
-import { Modal } from './Modal';
+import { Modal, type ModalHandle } from './Modal';
 
 /**
  * The context is not a note on the notes contract, so its market has a fixed note id. On
@@ -62,10 +63,16 @@ function ContextText({ context, source }: { context: Context; source: Post['hist
   );
 }
 
-/** The note view, kept short: the quoted post, the note, then the bet with two colored buttons. */
+/**
+ * The note view, kept short: the quoted post, the note, then the bet with two colored buttons.
+ * A visitor who is not signed in taps a bet button too: the page signs them in and gets them
+ * testnet USDC from the faucet, then the strip places the bet.
+ */
 function NoteDialog({ post, context, onClose }: { post: Post; context: Context; onClose: () => void }) {
-  const { account, openSignIn } = useDemo();
+  const { account, prepare, preparing } = useDemo();
   const source = useMarketSource();
+  const funds = useFunds(account, false);
+  const modal = useRef<ModalHandle>(null);
   const titleId = useId();
   const currency = source.currency ?? NEAR_CURRENCY;
   // A tap bets the middle chip: 0.5 USDC (the market takes 0.1 USDC or more), so the faucet's
@@ -85,12 +92,17 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
     return () => {
       current = false;
     };
-  }, [account, source]);
+    // A new USDC balance in the page's funds (the faucet, a note) reads the market's again.
+  }, [account, source, funds.balance?.usdc]);
+
+  // Sign in, then the faucet when the account has less than a bet needs. True when the strip
+  // can place the bet.
+  const readyToBet = () => prepare({ funds: 'bet' }).then((ready) => ready.ok);
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={false}>
+    <Modal labelledBy={titleId} onClose={onClose} locked={false} handle={modal}>
       <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <button type="button" className="icon-btn" onClick={() => modal.current?.close()} aria-label="Close">
           <IconX size={20} />
         </button>
         <h2 id={titleId}>Note</h2>
@@ -128,14 +140,20 @@ function NoteDialog({ post, context, onClose }: { post: Post; context: Context; 
               noteId={CONTEXT_MARKET_NOTE_ID}
               source={source}
               account={account}
-              onSignIn={openSignIn}
+              onSignIn={readyToBet}
               directBet={stake}
               placeholder
             />
-            <p className="pc-practice">
-              One tap bets {amountText(stake, currency)}. Your Seams Wallet asks you to confirm.
-              {balance !== null && <> You have {amountText(balance, currency)}.</>}
-            </p>
+            {preparing === 'funds' ? (
+              <p className="pc-practice pc-busy" role="status">
+                <span className="spinner" aria-hidden="true" /> Getting testnet USDC for your bets from the faucet…
+              </p>
+            ) : (
+              <p className="pc-practice">
+                One tap bets {amountText(stake, currency)}. Your Seams Wallet asks you to confirm.
+                {balance !== null && <> You have {amountText(balance, currency)}.</>}
+              </p>
+            )}
           </div>
         </div>
       </div>

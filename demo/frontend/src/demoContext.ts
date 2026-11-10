@@ -1,6 +1,25 @@
 import { createContext, useContext } from 'react';
+import type { FundsNeed } from './faucet/funds';
 import type { Note, NotesStore } from './notes/types';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
+
+/** A step that `prepare` runs before an action: sign in, set up the voice, testnet funds. */
+export type PrepareStep = 'signin' | 'voice' | 'funds';
+
+/** What an action needs before it can run. Sign-in is always part of it. */
+export interface PrepareNeeds {
+  funds?: FundsNeed;
+  voice?: boolean;
+}
+
+/**
+ * `ok`: the account is ready, and `signer` is the signer of that account (the one in a closure
+ * from before the sign-in is out of date). Not `ok`: the visitor stopped, or `reason` says why
+ * `step` failed.
+ */
+export type Prepared =
+  | { ok: true; account: string; signer: NotesSigner & SignerSetup }
+  | { ok: false; reason?: string; step?: PrepareStep };
 
 export interface DemoState {
   signer: NotesSigner & SignerSetup;
@@ -19,9 +38,19 @@ export interface DemoState {
   noteTx: Record<number, string>;
   /** The `rate_note` transaction of the signed-in account, by note id. */
   ratingTx: Record<number, string>;
+  /** The note that this visitor posted last, while the page shows it as new. */
+  freshNoteId: number | null;
+  /** The step that `prepare` runs now, if any. */
+  preparing: PrepareStep | null;
   openWrite(postId: number): void;
   openRate(noteId: number): void;
-  openSignIn(): void;
+  /** Opens the sign-in dialog. Resolves with the account, or null when the visitor closes it. */
+  openSignIn(): Promise<string | null>;
+  /**
+   * Runs the steps that an action still needs, in order: sign in, set up the voice, testnet
+   * funds (the faucet). A step that is done already is skipped, so a set-up visitor sees nothing.
+   */
+  prepare(needs: PrepareNeeds, onStep?: (step: PrepareStep) => void): Promise<Prepared>;
   reload(): void;
 }
 

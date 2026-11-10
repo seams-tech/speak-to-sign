@@ -148,7 +148,7 @@ function Intro({ seams, onSignIn }: { seams: boolean; onSignIn: () => void }) {
       <div className="ss-setup-card">
         <div className="ss-setup-head">
           <h2 className="ss-setup-title">Set up</h2>
-          <span className="ss-setup-sub">Once · NEAR testnet</span>
+          <span className="ss-setup-sub">Optional · NEAR testnet</span>
         </div>
         {seams ? <SeamsOnboarding onSignIn={onSignIn} /> : <KeylessOnboarding />}
         <a className="ss-btn ss-btn-primary ss-setup-go" href={openHref('notes')}>

@@ -796,6 +796,24 @@ a.lk:hover {
   overflow: hidden;
   cursor: auto;
 }
+/* The note that the visitor just posted: it moves in, then its blue glow fades. */
+.note-card.note-fresh {
+  animation:
+    note-fresh-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    note-fresh-glow 3200ms ease-out 480ms;
+}
+@keyframes note-fresh-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes note-fresh-glow {
+  from {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-bg);
+  }
+}
 .tl-post .note-card {
   cursor: pointer;
 }
@@ -1045,6 +1063,9 @@ a.lk:hover {
   font-size: 12px;
   color: var(--muted);
 }
+.pc-busy {
+  color: var(--ink);
+}
 .pc-foot {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--line);
@@ -1239,6 +1260,18 @@ a.lk:hover {
   border-color: var(--green);
   color: #fff;
 }
+/* A step that becomes done while the visitor looks: its mark pops once. */
+.step-just-done .step-mark {
+  animation: step-pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes step-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+}
 .step-text {
   flex: 1;
   min-width: 0;
@@ -1308,35 +1341,76 @@ a.lk:hover {
   font-size: 14px;
 }
 
-/* Compact setup bar (narrow screens) */
-.setup-compact {
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-}
-.setup-compact summary {
+/* The status line at the top of the notes app: account, testnet funds, voice */
+.setup-line {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  cursor: pointer;
-  list-style: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
   font-size: 14px;
 }
-.setup-compact summary::-webkit-details-marker {
-  display: none;
-}
-.setup-compact-text {
+.setup-line-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.setup-compact-body {
-  padding: 0 16px 14px;
+.setup-line-error {
+  color: var(--red);
+}
+/* A spinner inside a line of text */
+.setup-line .spinner,
+.step-detail .spinner,
+.pc-busy .spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: -2px;
 }
 
-/* Dialogs */
+/* Dialogs. They fade and grow in; Modal adds overlay-leaving to fade them out. */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+.overlay,
+.overlay-backdrop {
+  animation: overlay-in 180ms ease-out;
+}
+.overlay.overlay-bare {
+  animation: none;
+}
+.dialog:not(.dialog-bare) {
+  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.overlay-leaving {
+  animation: overlay-out 140ms ease-in forwards;
+  pointer-events: none;
+}
+.overlay-leaving .dialog:not(.dialog-bare) {
+  animation: dialog-out 140ms ease-in forwards;
+}
 .overlay {
   position: fixed;
   inset: 0;
@@ -1652,6 +1726,9 @@ fieldset:disabled .choice {
 
 /* The voice step */
 .speak-btn,
+.speak-prepare {
+  animation: overlay-in 200ms ease-out;
+}
 .speak-wait {
   display: flex;
   align-items: center;
@@ -1812,7 +1889,13 @@ fieldset:disabled .choice {
 @media (prefers-reduced-motion: reduce) {
   .mic-live,
   .spinner,
-  .toast {
+  .toast,
+  .overlay,
+  .overlay-backdrop,
+  .dialog:not(.dialog-bare),
+  .step-just-done .step-mark,
+  .note-card.note-fresh,
+  .speak-prepare {
     animation: none;
   }
 }

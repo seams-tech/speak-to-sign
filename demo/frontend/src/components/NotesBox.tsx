@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { IconUsers } from '@tabler/icons-react';
 import { MIN_RATINGS_FOR_STATUS, type Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
@@ -76,8 +77,14 @@ export function TimelineNotes({ notes, showToRate }: { notes: Note[]; showToRate
 type CardKind = 'shown' | 'mine' | 'to_rate';
 
 function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind; compact?: boolean }) {
-  const { account, noteTx, openSignIn } = useDemo();
+  const { account, noteTx, freshNoteId, prepare } = useDemo();
   const marketSource = useMarketSource();
+  // The note that the visitor just posted moves in with a short highlight, in view.
+  const fresh = kind === 'mine' && note.id === freshNoteId;
+  const cardRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (fresh) cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [fresh]);
   const mineNotShown = kind === 'mine' && note.status === 'not_helpful';
   const title =
     kind === 'shown'
@@ -91,7 +98,12 @@ function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind;
             : 'Your note needs more ratings';
 
   return (
-    <section className="note-card" aria-label={title} onClick={compact ? undefined : (event) => event.stopPropagation()}>
+    <section
+      ref={cardRef}
+      className={`note-card ${fresh ? 'note-fresh' : ''}`}
+      aria-label={title}
+      onClick={compact ? undefined : (event) => event.stopPropagation()}
+    >
       <header className="note-head">
         <IconUsers size={20} stroke={1.8} className={kind === 'shown' ? 'note-icon-shown' : 'note-icon'} aria-hidden="true" />
         <b>{title}</b>
@@ -114,7 +126,7 @@ function NoteCard({ note, kind, compact = false }: { note: Note; kind: CardKind;
         </div>
       )}
       {!compact && kind !== 'mine' && (note.author === account ? <OwnNoteRow /> : <RateRow note={note} />)}
-      {!compact && <NoteMarketStrip noteId={note.id} source={marketSource} account={account} onSignIn={openSignIn} context={marketContext(note)} />}
+      {!compact && <NoteMarketStrip noteId={note.id} source={marketSource} account={account} onSignIn={() => prepare({ funds: 'bet' }).then((ready) => ready.ok)} context={marketContext(note)} />}
     </section>
   );
 }

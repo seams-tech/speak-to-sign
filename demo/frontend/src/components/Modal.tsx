@@ -1,5 +1,13 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react';
 import { createPortal } from 'react-dom';
+
+/** How long the close animation runs (the CSS `overlay-out` and `dialog-out`). */
+const EXIT_MS = 140;
+
+/** Closes the dialog with its close animation, then calls `after` (default: `onClose`). */
+export interface ModalHandle {
+  close(after?: () => void): void;
+}
 
 /** Open dialogs, newest last. Only the newest one answers Escape and Tab. */
 const openDialogs: object[] = [];
@@ -15,18 +23,23 @@ let bodyOverflow = '';
 /**
  * An X-style dialog over a grey overlay. Escape and a click outside close it unless `locked`.
  * A `bare` dialog has no panel of its own, for content that brings its own card.
+ *
+ * It fades and grows in when it opens. Escape, a click outside and `handle.close()` fade it out
+ * first; a parent that removes it at once skips that.
  */
 export function Modal({
   labelledBy,
   onClose,
   locked,
   bare = false,
+  handle,
   children,
 }: {
   labelledBy: string;
   onClose: () => void;
   locked: boolean;
   bare?: boolean;
+  handle?: Ref<ModalHandle>;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -36,6 +49,18 @@ export function Modal({
     lockedRef.current = locked;
     onCloseRef.current = onClose;
   });
+
+  const [leaving, setLeaving] = useState(false);
+  const leaveTimer = useRef(0);
+  const close = useCallback((after?: () => void) => {
+    const done = after ?? (() => onCloseRef.current());
+    if (leaveTimer.current) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+    setLeaving(true);
+    leaveTimer.current = window.setTimeout(done, EXIT_MS);
+  }, []);
+  useImperativeHandle(handle, () => ({ close }), [close]);
+  useEffect(() => () => window.clearTimeout(leaveTimer.current), []);
 
   useEffect(() => {
     const token = {};
@@ -47,7 +72,7 @@ export function Modal({
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== token) return;
-      if (event.key === 'Escape' && !lockedRef.current) onCloseRef.current();
+      if (event.key === 'Escape' && !lockedRef.current) close();
       if (event.key === 'Tab') keepFocusInside(event, dialogRef.current);
     };
     document.addEventListener('keydown', onKey);
@@ -58,10 +83,10 @@ export function Modal({
       if (scrollLocks === 0) document.body.style.overflow = bodyOverflow;
       opener?.focus();
     };
-  }, []);
+  }, [close]);
 
   const closeOutside = () => {
-    if (!lockedRef.current) onCloseRef.current();
+    if (!lockedRef.current) close();
   };
   const dialog = (
     <div
@@ -81,12 +106,12 @@ export function Modal({
   return createPortal(
     bare ? (
       <>
-        <div className="overlay-backdrop" onMouseDown={closeOutside} />
+        <div className={`overlay-backdrop ${leaving ? 'overlay-leaving' : ''}`} onMouseDown={closeOutside} />
         <div className="overlay overlay-bare">{dialog}</div>
       </>
     ) : (
       <div
-        className="overlay"
+        className={`overlay ${leaving ? 'overlay-leaving' : ''}`}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeOutside();
         }}

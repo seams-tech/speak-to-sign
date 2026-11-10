@@ -1957,7 +1957,8 @@ h1.ss-display {
 }
 
 /* The steps read as one path: done, the next one, the later ones. The next step is the
-   primary action of the nav: a white pill with a black button and a soft ring that breathes.
+   primary action of the nav: a white pill with an X-blue number and button, and a blue ring
+   that breathes.
    A later step is glass until its turn. A done step is its blue check and its name; the done
    funds step shows its two balances in place of its name. */
 .ss-nav-setup .step {
@@ -1979,11 +1980,11 @@ h1.ss-display {
 
 @keyframes ss-step-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55);
+    box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.55);
   }
   70%,
   100% {
-    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0);
+    box-shadow: 0 0 0 7px rgba(29, 155, 240, 0);
   }
 }
 
@@ -2014,7 +2015,7 @@ h1.ss-display {
   width: 18px;
   height: 18px;
   border: 0;
-  background: var(--ink);
+  background: var(--accent);
   color: #ffffff;
   font-size: 11px;
 }
@@ -2022,15 +2023,16 @@ h1.ss-display {
 .ss-nav-setup .step .btn {
   height: 22px;
   padding: 0 10px;
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent);
   color: #ffffff;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ss-nav-setup .step .btn:not(:disabled):hover {
-  background: #272c30;
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
 }
 
 .ss-nav-setup .step .step-detail {
@@ -2210,7 +2212,7 @@ h1.ss-display {
 
 /* The three steps read as one path, as in the nav: every pill has the same height, a short
    line joins two pills, and the look of a pill says where the visitor is. The next step is
-   solid white with a black button, and a soft ring breathes around it. A later step is glass.
+   solid white with an X-blue number and button, and a blue ring breathes around it. A later step is glass.
    A done step is glass with a blue check. */
 .ss-setup-strip .step {
   position: relative;
@@ -2255,7 +2257,7 @@ h1.ss-display {
   width: 24px;
   height: 24px;
   border: 0;
-  background: var(--ink);
+  background: var(--accent);
   color: #ffffff;
   font-size: 12.5px;
 }
@@ -2263,15 +2265,16 @@ h1.ss-display {
 .ss-setup-strip .step .btn {
   height: 30px;
   padding: 0 14px;
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: var(--accent);
+  background: var(--accent);
   color: #ffffff;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ss-setup-strip .step .btn:not(:disabled):hover {
-  background: #272c30;
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
 }
 
 .ss-setup-strip .step .step-detail {

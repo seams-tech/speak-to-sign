@@ -108,5 +108,7 @@ than the Seams staging account.
 - `detect` is a proposal, and its call takes 6 to 10 s.
 - The `local-speaker` build is at least 8 times slower, and three of twelve
   of its calls failed in one test run.
-- `@seams/voice-verdict` does not check the signature chain of a TDX quote
-  to Intel. `outlayer-verify` does.
+- `@seams/voice-verdict` 0.66.0 does not check the signature chain of a TDX
+  quote to Intel. The next release does: `checkQuoteSignature` (the quote
+  only) and `checkQuoteCollateral` (with Intel's collateral and the TCB
+  status, the same result as `dcap-qvl` 0.5.2 for the test quote).

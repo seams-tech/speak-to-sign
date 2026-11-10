@@ -898,10 +898,11 @@ code {
   display: grid;
   gap: 4px;
 }
-/* 12 px: the dialog's 32 px corner less its 20 px inset, so the two corners are concentric. */
+/* 16 px, as X's quoted post in its composer. The other boxes in a dialog (the note and sentence
+   boxes, the fields, the result card) match it. */
 .pc-note {
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
 }
 .pc-post {
@@ -1590,8 +1591,8 @@ code {
   overscroll-behavior: contain;
 }
 .dialog {
-  /* The corner radius. */
-  --foot-r: 2rem;
+  /* The corner radius: 16 px, as X's own dialogs (the composer). */
+  --foot-r: 16px;
   width: 100%;
   max-width: 560px;
   background: var(--bg);
@@ -1600,6 +1601,14 @@ code {
   flex-direction: column;
   max-height: 90vh;
   outline: none;
+}
+/* On the dark theme a dialog is X's raised dark grey, the same as the Seams Wallet's cards
+   (src/seams/walletTheme.tsx), so it stands out on the black page. Its own surfaces are a step
+   lighter again. A dialog that is only the Wallet's card (.dialog-bare) has no surface. */
+:root[data-theme='dark'] .overlay .dialog:not(.dialog-bare) {
+  --bg: #16181c;
+  --panel: #202327;
+  --media: #2a2d32;
 }
 /* In the middle of the screen. An auto margin, not align-items: a dialog taller than the
    screen starts at the top and scrolls, and is not cut off above. */
@@ -1682,7 +1691,7 @@ code {
 .post-quote,
 .note-preview {
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 10px 12px;
   margin: 4px 0 14px;
   overflow-wrap: anywhere;
@@ -1790,8 +1799,8 @@ fieldset:disabled .choice {
   display: block;
   width: 100%;
   border: 1px solid var(--line-strong);
-  /* As the note box above it: 12 px, concentric with the dialog's corner. */
-  border-radius: 12px;
+  /* As the note box above it: 16 px, as the other boxes in a dialog. */
+  border-radius: 16px;
   padding: 10px 12px;
   font-size: 15px;
   resize: vertical;
@@ -1818,7 +1827,7 @@ fieldset:disabled .choice {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--panel);
   font: inherit;
   line-height: 20px;
@@ -2047,7 +2056,7 @@ fieldset:disabled .choice {
 }
 .seams-card {
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 10px 12px;
 }
 .seams-card-bad {

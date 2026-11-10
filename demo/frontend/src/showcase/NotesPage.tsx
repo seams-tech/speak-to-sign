@@ -19,9 +19,10 @@ import type { CSSProperties } from 'react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
 import { NearAiWordmark, NearMark, NearWordmark } from './nearMarks';
-// OutLayer's logo from outlayer.ai, as a white shape (its outline, at 64 px high).
-import outlayerLogo from './outlayer-white.png';
-import { SeamsMark, SeamsWordmark } from './seamsMarks';
+// The arrows of OutLayer's logo from outlayer.ai, as a white shape (64 px high).
+import outlayerArrows from './outlayer-arrows-white.png';
+import { SeamsPillLogo } from './seamsMarks';
+import { SeamsSettingsPill } from './SeamsSettingsPill';
 import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
 import { fieldScrim, THEMES, useTheme } from './theme';
@@ -46,6 +47,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
   const pageRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const groundRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   // The sheet is at the nav or past it: only the nav's strip of the field shows.
   const [docked, setDocked] = useState(false);
@@ -66,17 +68,20 @@ export function NotesPage({ seams }: { seams: boolean }) {
   /** How far the scroll area scrolls until the sheet is at the nav. */
   const coverDistance = () => sheetRef.current?.offsetTop ?? 0;
 
-  // The scroll position drives the hero (--cover: 0 = open, 1 = covered).
+  // The scroll position drives the hero and the ground's NEAR mark (--cover: 0 = open,
+  // 1 = covered).
   useEffect(() => {
     const scroller = scrollRef.current;
     const hero = heroRef.current;
+    const ground = groundRef.current;
     if (!scroller || !hero) return;
-    // The work is one style write, so it runs in the scroll event itself. A frame callback does
+    // The work is two style writes, so it runs in the scroll event itself. A frame callback does
     // not run while the tab is in the background.
     const update = () => {
       const distance = coverDistance();
       const cover = distance > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / distance)) : 1;
       hero.style.setProperty('--cover', cover.toFixed(3));
+      ground?.style.setProperty('--cover', cover.toFixed(3));
       setCovered(cover >= COVERED_AT);
       setDocked(cover >= 0.999);
     };
@@ -117,7 +122,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
   return (
     <>
       <div className="ss-page ss-spa" ref={pageRef} style={fieldStyle}>
-        <div className="ss-ground" aria-hidden="true">
+        <div className="ss-ground" aria-hidden="true" ref={groundRef}>
           {/* While the sheet is at the nav, only the nav's strip of the field shows: it holds still. */}
           <GrainField field={field} pace={HERO_FIELD_PACE} playing={!docked} />
           {/* NEAR's N, big and faint, behind the right side of the hero. */}
@@ -142,8 +147,8 @@ export function NotesPage({ seams }: { seams: boolean }) {
               <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
               <span>GitHub</span>
             </a>
-            {/* One pill, two links: NEAR, and NEAR AI after a "+". When the pill shrinks, only
-                NEAR's wordmark stays (showcase.css). */}
+            {/* One pill, three links: "Built on NEAR | NEAR AI | OutLayer". When the pill
+                shrinks, only NEAR's wordmark stays (showcase.css). */}
             <div className="ss-near">
               <a className="ss-near-link" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
                 <span className="ss-near-words">
@@ -153,22 +158,27 @@ export function NotesPage({ seams }: { seams: boolean }) {
               </a>
               <span className="ss-near-more">
                 <span>
-                  <span className="ss-near-plus" aria-hidden="true">
-                    +
-                  </span>
-                  <a className="ss-near-link" href={NEAR_AI_URL} target="_blank" rel="noopener noreferrer" aria-label="and NEAR AI">
+                  <span className="ss-near-sep" aria-hidden="true" />
+                  <a className="ss-near-link" href={NEAR_AI_URL} target="_blank" rel="noopener noreferrer" aria-label="NEAR AI">
                     <NearAiWordmark className="ss-near-ai" />
+                  </a>
+                  <span className="ss-near-sep" aria-hidden="true" />
+                  <a className="ss-near-link ss-near-outlayer" href={OUTLAYER_URL} target="_blank" rel="noopener noreferrer">
+                    OutLayer
+                    <img src={outlayerArrows} alt="" />
                   </a>
                 </span>
               </span>
             </div>
-            <a className="ss-outlayer" href={OUTLAYER_URL} target="_blank" rel="noopener noreferrer" aria-label="OutLayer">
-              <img src={outlayerLogo} alt="" />
-            </a>
-            <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
-              <SeamsWordmark className="ss-seams-wordmark" />
-              <SeamsMark className="ss-seams-mark" />
-            </a>
+            {/* Signed in, the Wallet's settings drawer; signed out, the sign-in. A build with no
+                Seams key has no Wallet, so the pill is a link to it. */}
+            {seams ? (
+              <SeamsSettingsPill onSignIn={() => setSignIn(true)} />
+            ) : (
+              <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
+                <SeamsPillLogo />
+              </a>
+            )}
           </div>
         </header>
 

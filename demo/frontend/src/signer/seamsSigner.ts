@@ -7,6 +7,7 @@
 import { summaryRefusal, type SpeakToSignEnrollmentResult, type SpeakToSignNoteResult } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
+import { isCancelError, isUserRejection } from './rejection';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type SpeakToSign = NonNullable<Seams['speakToSign']>;
@@ -96,18 +97,25 @@ async function withFreshUnlock(seams: Seams, walletId: string, step: () => Promi
   try {
     return await step();
   } catch (cause) {
+    // A closed Wallet or passkey window ("Request cancelled.") is the owner's choice, not a failure.
+    if (isCancelError(cause)) return CLOSED;
     if (!NEEDS_UNLOCK.test(errorText(cause))) return { kind: 'failed', message: errorText(cause) };
   }
   try {
     const unlock = await seams.auth.unlock(walletId);
     if (!unlock.success) {
+      if (isUserRejection(unlock.error ?? '')) return CLOSED;
       return { kind: 'failed', message: `The Wallet needs a passkey unlock first, and the unlock did not finish. ${unlock.error}` };
     }
     return await step();
   } catch (cause) {
+    if (isCancelError(cause)) return CLOSED;
     return { kind: 'failed', message: errorText(cause) };
   }
 }
+
+/** The owner closed a Wallet or passkey window. The page shows no note for it. */
+const CLOSED: SetupOutcome = { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
 
 /** The Wallet's messages that ask for a fresh owner unlock. */
 const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active owner wallet session/i;

@@ -10,6 +10,7 @@ in a Cloudflare Worker.
 | Verdict check | `checkVerdict` | Checks a signed verdict against the key that you pin |
 | Request | `confirmationRequest` | Builds a request for any payload, and its digest |
 | TDX quote | `checkAttestationBinding` | Checks that a TDX quote of OutLayer binds the verifier output to a WASM hash |
+| Intel signature | `checkQuoteSignature`, `checkQuoteCollateral` | Checks that an Intel TDX platform signed the quote, with a chain to Intel's root, and its TCB status |
 
 A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).
@@ -230,14 +231,90 @@ const approved = await measurementsApproved({
 3. The WASM hash of the record is one that you accept.
 4. If you give them: the input, the project and the caller.
 
-Two checks are not in this package. The result names them in `notChecked`:
+`checkAttestationBinding` does not check two things. The result names them
+in `notChecked`:
 
-- **The signature of the quote.** A DCAP verifier must check the chain of
-  the quote to Intel, with Intel's collateral. Pass `bound.quote` to one, or
-  run `outlayer-verify call <call id>` (github.com/out-layer/outlayer-verify).
-  Without this check, the quote is only a claim.
+- **The signature of the quote.** Without this check, the quote is only a
+  claim. Use `checkQuoteSignature` or `checkQuoteCollateral` (below).
 - **The measurements.** `measurementsApproved` asks the OutLayer contract on
   NEAR if it approves the five measurements. It trusts the RPC for the view.
+
+### The signature of the quote
+
+The package checks the DCAP signature of the quote with Web Crypto only. The
+only trust anchor is the Intel SGX Root CA, which the package pins
+(`INTEL_SGX_ROOT_CA_SHA256` is the SHA-256 of Intel's published file,
+`Intel_SGX_Provisioning_Certification_RootCA.cer`).
+
+```ts
+import { checkQuoteCollateral, checkQuoteSignature, fetchCollateral } from '@seams/voice-verdict';
+
+const atMs = record.timestamp * 1000; // the time of the call
+
+// With the quote only.
+const signed = await checkQuoteSignature({ quote: bound.quote, nowMs: atMs });
+if (!signed.ok) throw new Error(signed.refusal.code);
+
+// With Intel's collateral for the platform at the time of the call.
+const { collateral } = await fetchCollateral({ baseUrl: config.baseUrl, fmspc: signed.fmspc, atMs });
+const full = await checkQuoteCollateral({ quote: bound.quote, nowMs: atMs, collateral });
+if (!full.ok) throw new Error(full.refusal.code);
+if (full.tcbStatus !== 'UpToDate') console.warn('Intel flags this platform:', full.tcbStatus, full.advisoryIds);
+```
+
+`checkQuoteSignature` checks these links, in this order. The first check
+that fails gives the refusal:
+
+| Order | Check | Refusal `code` |
+| --- | --- | --- |
+| 1 | The bytes are a TDX quote, version 4 or 5, with an ECDSA P-256 key of the Intel QE. | `malformed_quote` |
+| 2 | The attestation key signed the header and the TD report. | `bad_quote_signature` |
+| 3 | The QE report data is SHA-256(attestation key \|\| QE authentication data), then 32 zero bytes. | `qe_report_data_mismatch` |
+| 4 | The PCK certificate in the quote signed the QE report. | `malformed_certificate`, `bad_qe_report_signature` |
+| 5 | The names and CA flags of the PCK chain link. Each certificate is signed by the next one, and the last one by the pinned root. | `bad_certificate_chain`, `bad_certificate_signature` |
+| 6 | A root at the end of the chain is the pinned root. | `untrusted_root` |
+| 7 | Each certificate is valid at `nowMs`. | `certificate_not_yet_valid`, `certificate_expired` |
+
+It does not check the TCB status of the platform, the QE identity, the
+revocation of the certificates and the attributes of the TD. Its result
+names them in `notChecked`. A quote from a platform that Intel revoked can
+pass this check.
+
+`checkQuoteCollateral` does all of `checkQuoteSignature`, then the checks of
+`dcap-qvl` 0.5.2 (the library of `outlayer-verify`) with Intel's collateral:
+
+- The root CA CRL and the PCK CRL: the issuer signed each CRL, the CRL's
+  next update is after `nowMs`, and no certificate of a chain is in a CRL.
+- The TCB info and the QE identity: each is valid at `nowMs`, and an Intel
+  signing certificate, with a chain to the pinned root, signed it.
+- The QE report against the QE identity: MRSIGNER, ISVPRODID, MISCSELECT,
+  ATTRIBUTES, no debug mode, and the TCB level of its ISVSVN.
+- The platform against the TCB info: the FMSPC, the PCE ID, and the first
+  TCB level that the CPU SVN, the PCE SVN and the TEE TCB SVN reach.
+- The TDX module: MRSIGNER_SEAM, SEAMATTRIBUTES and the TCB level of its
+  version.
+- The TD attributes: no debug TD, no reserved bits, SEPT_VE_DISABLE set, and
+  no service TD.
+
+The result has `tcbStatus` (the worst status of the platform, the TDX module
+and the QE) and `advisoryIds`. Only `Revoked` is a refusal (`tcb_revoked`):
+you decide if you accept `OutOfDate` and the other statuses. Each other
+refusal `code` is in the type `QuoteCollateralRefusal`.
+
+Rules for the collateral:
+
+- Pass the time of the call as `nowMs`, not the time of your check. The
+  collateral is valid for about 30 days, so today's collateral fails for an
+  old quote.
+- `fetchCollateral` gets the collateral that OutLayer keeps on NEAR for the
+  platform and the time (`GET <api>/public/collateral`). Intel signed it, so
+  the server cannot make a bad quote pass. A collateral in the JSON format
+  of `dcap-qvl` from another source also works.
+- The test vectors are a real quote of OutLayer testnet and two collaterals
+  for its platform: the copy of OutLayer and a copy from Intel PCS. For them,
+  the result of `checkQuoteCollateral` is the same as the result of
+  `dcap-qvl` 0.5.2 and 0.7.1 (`UpToDate`), also for an expired CRL and for
+  collateral out of its time window.
 
 To get the WASM hash that you accept, build the verifier from its source
 (`crates/voice-verifier/build.sh --docker`). The build is reproducible.

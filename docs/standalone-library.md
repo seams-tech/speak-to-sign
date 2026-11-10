@@ -41,11 +41,15 @@ verdict is for a request digest that the third party computes itself.
 | 11 | The keystore derives the key from the project and the caller. Over HTTPS, the caller is the owner of the payment key. So another payment key gives another verdict key and another storage cell. | M (as a statement), I (the consequence) | `config.rs:12-15`, `README.md:268-274`, `README.md:333` of the verifier |
 | 12 | The OutLayer version key is the SHA-256 of the WASM. The build is reproducible on x86_64 Linux. | M (documented; not built again for this report) | `crates/voice-verifier/README.md:44-106` |
 | 13 | A verdict does not show which WASM version made it. A caller selects a version with `version_key`, or gets the active version. | M | `demo/frontend/functions/api/voice-verify.ts:71`, `README.md` "Testnet facts" |
-| 14 | OutLayer gives a quote or an attestation for one run, or for the keystore. | U | No file here reads or stores one |
+| 14 | OutLayer gives a TDX quote for each HTTPS call. The reply has `attestation_url`. The record has the quote, the WASM hash, the input hash and the output hash. The first 32 bytes of the quote's report data are a SHA-256 over those values, the caller, the project and the time. `worker.outlayer.testnet` approves the five measurements. | M (one call on testnet, 2026-11-10) | `packages/voice-verdict/tests/fixtures/outlayer_attestation_testnet.json`, `packages/voice-verdict/src/attestation.ts` |
 | 15 | OutLayer has a key that is bound to one build: `bind: "wasm"`. "The key belongs to this exact build and the caller. Issued only to a direct run of a wasm URL." This repository uses only `bind: "project"`. | M (the SDK text; not run) | `outlayer` 0.2.1 on crates.io, `src/signing_keys.rs:20-26` |
 
-So today the chain from the verdict key to the code has a gap. A third party
-must trust three parties for it: OutLayer (the TEE, the keystore and the rule
+Fact 14 was unknown at the first report. It is measured now (section 4),
+and it closes this gap with no change to the verifier: the quote of a call
+binds the output, and so the verdict, to one WASM hash.
+
+Without the quote, the chain from the verdict key to the code has a gap. A
+third party must trust three parties for it: OutLayer (the TEE, the keystore and the rule
 that only project versions get the key), the owner of the project (the
 versions that exist), and the owner of the payment key (the version that a
 call selects).
@@ -437,3 +441,129 @@ Web2) and the first part of question 4 (stay on OutLayer).
     identity of the user at enrollment. Is that acceptable?
 12. **Intent detection.** Is `select` (a closed set, no language model)
     enough for the first version, with `detect` later?
+
+## 4. State after the second round of work (2026-11-10)
+
+The owner of the project answered the questions of section 3, and the work
+of section 3.1 started. This section is the current state. Where it differs
+from the sections above, this section is correct.
+
+### 4.1 Decisions of the owner
+
+| Question | Decision |
+| --- | --- |
+| Speaker model on Phala | Both: the model inside the OutLayer worker, and the model on Phala. Two variants of the worker |
+| Other speaker models | The library must let a developer use another model, for example another ReDimNet |
+| Probe on OutLayer testnet | Yes |
+| Web2 trust | Accepted: the user trusts the developer for the identity |
+| Intent detection | `confirm` and `select` first. Then `transcribe`, then `detect` |
+| Developer API | No Seams gateway. Each developer brings an own OutLayer payment key and an own NEAR AI key |
+| Package | `@seams/voice-verdict` is a separate package in this repository. `@seams/speak-to-sign` can import it |
+
+### 4.2 What exists now
+
+All of it is on the branch `claude/standalone-library-3e4d17`. Nothing is
+pushed, published or deployed.
+
+| Item | Where | Tests |
+| --- | --- | --- |
+| Verdict check (TypeScript, Rust) | `packages/voice-verdict`, `crates/voice-verdict` | Shared signed vectors |
+| Application owner `app:<id>`, `Confirmation` (tag 10) | `crates/spoken-intent/src/owner.rs`, `request.rs` | 3 new golden vectors |
+| Request kind `confirmation`, enrollment of an application owner | `crates/voice-verifier/src/ops/request.rs`, `enroll.rs` | `tests/ops/web2.rs` |
+| Operation `select` | `crates/voice-verifier/src/ops/select.rs` | `tests/ops/web2.rs` |
+| Operation `transcribe` | `crates/voice-verifier/src/ops/transcribe.rs` | `tests/ops/transcribe.rs`, shared vectors |
+| Variant `local-speaker` (ReDimNet in the worker) | `crates/voice-verifier/src/local_model.rs`, `build.sh --local-speaker` | Fake host, and the real model in a native run |
+| One constant for the speaker model | `config::SPEAKER_MODEL` | Existing tests |
+| Request builder, verifier client, transcript check | `packages/voice-verdict/src/request.ts`, `client.ts`, `verdict.ts` | Golden vectors, fake OutLayer |
+| Browser capture, WAV and energy gate | `packages/voice-verdict/src/capture.ts` | WAV and gate only |
+| TDX quote of a call | `packages/voice-verdict/src/attestation.ts` | A real testnet attestation |
+| Web2 example with no wallet | `examples/voice-confirm` | Run with its fake verifier |
+
+### 4.3 The TDX quote: what the probe measured
+
+No probe worker was needed. One call of the active verifier (0.5.2) with an
+unknown operation gave these facts:
+
+1. The reply of an HTTPS call has `attestation_url`
+   (`/attestations/by-call/<call id>`). The record is public.
+2. The record has `tdx_quote`, `wasm_hash`, `input_hash`, `output_hash`,
+   `project_id`, `caller_account_id` (the owner of the payment key) and
+   `timestamp`.
+3. `wasm_hash` was `96b79b51…d7e5`: the version key of verifier 0.5.2 in the
+   root README.
+4. `input_hash` is the SHA-256 of the input JSON as sent. `output_hash` is
+   the SHA-256 of the output JSON with sorted keys.
+5. The first 32 bytes of the report data of the quote are
+   `SHA-256(task_type || task_id || build_target || wasm_hash || input_hash
+   || output_hash || caller || project || timestamp || attached_usd)`. The
+   computed value was equal to the value in the quote. The formula is from
+   the source of `outlayer-verify`.
+6. `worker.outlayer.testnet` answered `true` to `is_measurements_approved`
+   for the five measurements of the quote, and `false` after a change.
+
+So the chain for a third party is: verdict → output of the call → output
+hash → task hash → TDX quote → approved measurements; and WASM hash →
+reproducible build → source. The verdict key is not in this chain.
+
+Consequences:
+
+- (c) way 2 (`bind: "wasm"`) is not needed. It also does not fit: a
+  `bind: "wasm"` key is issued only to a direct run of a WASM URL, and the
+  HTTPS API runs only projects.
+- The quote is optional for the consumer. The verdict check stays the fast
+  path.
+- Not done in the package: the check of the quote's signature chain to
+  Intel. It needs a DCAP verifier and Intel's collateral. `outlayer-verify`
+  does it.
+- Not covered by the quote: the transcript of NEAR AI (no signature), and,
+  for the default variant, the Phala service (its own quote, fact 16). The
+  `local-speaker` variant has no Phala service: its speaker model is inside
+  the attested WASM run, with a pinned model digest.
+
+### 4.4 The two variants and "NEAR infrastructure"
+
+| | Default | `local-speaker` |
+| --- | --- | --- |
+| Outside NEAR | Phala (speaker) | The host of the model file |
+| Trust in that host | Its key and its quote | None: the worker pins the SHA-256 of the file |
+| WASM | about 0.45 MB | about 8.3 MB |
+| Speed | Fast | Slower: Gate 0 measured 8 to 13 s of fixed time for a worker of this size |
+
+The model file is on `test.sign.seams.sh` today. To be only on NEAR
+infrastructure, put the file on FastFS and change `config::REDIMNET_B1.url`
+and the manifest. That is an upload, so it is not done.
+
+### 4.5 Not done, and why
+
+1. **No verifier version with this work is on OutLayer.** The source is
+   version 0.8.0. A deploy needs a yes: the reference build
+   (`build.sh --docker` for each variant), the FastFS upload, `add_version`
+   and a new version key. Until then, `confirmation`, `select`,
+   `transcribe` and `local-speaker` ran only in tests with a fake host.
+2. **`local-speaker` did not run on OutLayer.** The real model ran natively
+   through the same code. The WASM builds. Its time and cost on OutLayer are
+   not measured.
+3. **`detect` is not built.** It needs a chat model call in the worker, a
+   signed format for an intent, and a rule for the schema of the
+   application. It is the weakest operation, so it comes last.
+4. **The microphone path of the capture module ran in no test.** The WAV
+   writer and the energy gate have tests.
+5. **`crates/voice-verdict` has no transcript check, no request builder and
+   no attestation check.** The TypeScript package has them.
+6. **The Wallet's TypeScript port of `spoken-intent` does not know tag 10.**
+   The golden file has three new requests. The Wallet tests that read the
+   file can fail until the port has the kind, or skips it.
+7. **`@seams/speak-to-sign` does not import `@seams/voice-verdict` yet.**
+   The plugin has no verdict check of its own: Wallet core has it.
+8. **The demo contracts keep their copies of `verdict.rs`.**
+
+### 4.6 Open questions
+
+1. May verifier 0.8.0 go to OutLayer testnet, in both variants? The project
+   is `seams-v1.testnet/voice-verifier`, and the key of its owner is needed.
+2. May the model file go to FastFS, for the `local-speaker` variant?
+3. Which other speaker models do you want first? Each one needs its file,
+   its SHA-256 and a measured cutoff.
+4. For `detect`: which chat model on NEAR AI, and is a proposal with no
+   authority the correct contract?
+5. Does `@seams/voice-verdict` go to npm now, or after the first deploy?

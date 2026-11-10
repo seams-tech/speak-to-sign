@@ -1,7 +1,19 @@
 # The `voice-capture` package
 
-Status, 2026-11-10: slice 1 (the capture core) is built in `packages/voice-capture`. Slices 2
-to 4 are not started. The owner accepted the recommended answers of the last section.
+Status, 2026-11-11: slices 1 and 2 are built in `packages/voice-capture`. Slice 3 is a local
+commit in seams-wallet on the branch `claude/voiceid-voice-capture`: VoiceID imports this package
+and its copies of the moved files are deleted. Slice 4 (the release) is not started. The
+seams-wallet branch cannot install in CI before `@seams/voice-capture` is on npm.
+
+What slice 3 measured:
+
+- The VoiceID host files of the build are the same bytes for the speech detection model, the
+  audio worklet, the model engine and the notices.
+- The VoiceID host code is not larger: 359,578 bytes before the minifier against 364,725 bytes,
+  with one copy of Preact. The library has one file for each source file, so the phrase card
+  stays a later download (14.7 kB) as before.
+- VoiceID has no import of `onnxruntime-web` of its own: `BrowserInferenceModel.run` makes the
+  input tensor.
 
 ## The owner's target structure
 
@@ -209,8 +221,10 @@ phrases again for Speak-to-Sign.
   then `@seams/wallet` and `@seams/voiceid`, then `@seams/speak-to-sign`.
 - `@seams/voiceid` gets `@seams/voice-capture` as a dependency with an exact version. In
   seams-wallet, a new private pin needs the release-age exclusion during `pnpm install`.
-- For work on both repositories at one time, seams-wallet uses a `pnpm` override to the local
-  `packages/voice-capture`.
+- For work on both repositories at one time, link the built package into VoiceID:
+  `packages/voiceid/node_modules/@seams/voice-capture` -> `speak-to-sign/packages/voice-capture`.
+  The tests of seams-wallet read the package from that path. A link gives the host a second
+  copy of Preact (about 12 kB); an installed package does not.
 - The VoiceID build copies the capture assets from the package (through `./hosting`), so
   `seams-voiceid-host` and `seams-speak-to-sign-host` give the same folder as today.
 - Tests that move with the code: `tests/unit/voiceIdSpeechPause.unit.test.ts` and the capture

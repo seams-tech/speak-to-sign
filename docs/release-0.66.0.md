@@ -6,12 +6,16 @@ State, 2026-11-11.
 
 | npm name | Folder | Version | Job | Released by |
 | --- | --- | --- | --- | --- |
-| `@seams/speak-to-sign` | `packages/speak-to-sign-wallet` | 0.66.0 | The Seams Wallet host plugin. Needs `@seams/wallet` and `@seams/voiceid` 0.66.0 | `release-speak-to-sign.yml`, with the Wallet |
+| `@seams/speak-to-sign` | `packages/wallet-voice-sign` (from 0.67.0: `@seams/wallet-voice-sign`) | 0.66.0 | The Seams Wallet host plugin. Needs `@seams/wallet` and `@seams/voiceid` 0.66.0 | `release-wallet-voice-sign.yml`, with the Wallet |
 | `@seams/voice-verdict` | `packages/voice-verdict` | 0.66.0 | Checks a signed verdict, a signed transcript, a signed intent and the TDX quote of a call. No dependency | `release-standalone.yml` |
 | `@seams/voice-capture` | `packages/voice-capture` | 0.66.0 | Records one spoken sentence in the browser, with speech detection and a phrase card | `release-standalone.yml` |
 | `@seams/voice-sign` | `packages/voice-sign` | 0.66.0 | For an application with no wallet: `./browser` (`recordSentence`) and `./server` (`enroll`, `confirm`, `select`, `transcribe`, `detect`). Depends on the exact versions of the two above | `release-standalone.yml` |
 
 Owner's decisions:
+
+- From 0.67.0 the Wallet plugin is `@seams/wallet-voice-sign`, in the folder
+  `packages/wallet-voice-sign`, released by `release-wallet-voice-sign.yml`.
+  0.66.0 stays on npm as `@seams/speak-to-sign`.
 
 - `@seams/speak-to-sign` stays the name of the Wallet plugin, because the
   Wallet 0.66.0 release names it.
@@ -24,10 +28,10 @@ path or by git.
 
 | Package | State |
 | --- | --- |
-| `@seams/speak-to-sign@0.66.0` | Published by `release-speak-to-sign.yml` (run 42867738332) |
+| `@seams/speak-to-sign@0.66.0` | Published by the plugin workflow (run 42867738332) |
 | `@seams/voice-verdict@0.66.0` | Published by hand from the owner's account. It holds two unused files of an old local build (`dist/client.js`, `dist/client.d.ts`); no export reaches them. The build now empties `dist/` first |
 | `@seams/voice-capture@0.66.0` | Published by hand from the owner's account |
-| `@seams/voice-sign@0.66.0` | Not published yet |
+| `@seams/voice-sign@0.66.0` | Published by hand from the owner's account |
 
 npm allows trusted publishing only for a package that exists. So the first
 version of each new name comes from the owner's account. After that,
@@ -64,18 +68,30 @@ than the Seams staging account.
 
 ## 5. Steps that are left
 
-1. Publish `@seams/voice-sign@0.66.0` one time from the owner's account,
-   from `packages/voice-sign` after `pnpm install --frozen-lockfile` and
-   `pnpm build`.
-2. Run `sh scripts/npm-trust-standalone.sh` and approve the npm login one
-   time (tick "skip two-factor authentication for the next 5 minutes").
-3. Tag the release on `dev`, for example `standalone-0.66.0`.
-4. Decide the default verifier: if developers must get 0.11.0 with no
+1. Done: `scripts/npm-trust-standalone.sh` set `release-standalone.yml` as the
+   trusted publisher of `@seams/voice-verdict`, `@seams/voice-capture` and
+   `@seams/voice-sign`. The next release of the three needs no hand step.
+2. Decide the default verifier: if developers must get 0.11.0 with no
    `version_key`, the project owner sets it active. That also changes the
    build that the Wallet staging route gets, if that route sends no
    `version_key`.
+3. At 0.67.0: the plugin is published under `@seams/wallet-voice-sign` for
+   the first time. npm allows trusted publishing only for a package that
+   exists, so that first version needs one publish from the owner's account
+   (or the run of `release-wallet-voice-sign.yml` fails at the publish
+   step). Then set `release-wallet-voice-sign.yml` as its trusted publisher,
+   and mark the old name:
+
+   ```sh
+   npm deprecate @seams/speak-to-sign "Renamed: the Seams Wallet plugin is @seams/wallet-voice-sign from 0.67.0."
+   ```
 
 ## 6. What other repositories must change
+
+- **seams-wallet, at 0.67.0:** the release notes and the README install
+  `@seams/wallet-voice-sign` in place of `@seams/speak-to-sign`.
+- **seams-monorepo, at 0.67.0:** pin `@seams/wallet-voice-sign`. The command
+  `seams-speak-to-sign-host` of the staging deploy keeps its name.
 
 - **seams-wallet, the TypeScript port of `spoken-intent`:** add request tag
   10 (`Confirmation`), and read `$40` as "forty dollars" and `10%` as "ten

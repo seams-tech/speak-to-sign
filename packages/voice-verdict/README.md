@@ -1,7 +1,7 @@
 # @seams/voice-verdict
 
 The checks of Speak-to-Sign, with no Seams Wallet and no chain. The package
-has no dependency. `@seams/speak-to-sign` uses it and adds the verifier call
+has no dependency. `@seams/voice-sign` uses it and adds the verifier call
 and the recording; most applications use that package. It runs in a browser, in Node.js 20 or later, in Deno, in Bun and
 in a Cloudflare Worker.
 

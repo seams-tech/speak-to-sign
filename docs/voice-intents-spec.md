@@ -29,7 +29,7 @@ This document is the specification. The diagrams are in
 | `spoken-intent` | `crates/spoken-intent/` | Renders a request to its sentence, computes the digests, and reads transcripts. `no_std`, with no floats, clock or randomness. |
 | Verifier | `crates/voice-verifier/` | The operations `enroll` and `verify`. It keeps the templates and signs the verdicts. |
 | Speaker service | `crates/speaker-service/` | ReDimNet B1 in a Phala dstack CVM. It returns a signed speaker embedding. It gives no verdict. |
-| Plugin | `packages/speak-to-sign-wallet/` | `@seams/speak-to-sign`, the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
+| Plugin | `packages/wallet-voice-sign/` | `@seams/wallet-voice-sign` (until 0.66.0: `@seams/speak-to-sign`), the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
 | Wallet core | `seams-wallet` | Records the audio, checks the verdict against a pinned key, and signs the one transaction. |
 | Contracts | `demo/contracts/` | The targets of the requests. The voice multisig also checks the verdict on chain. |
 
@@ -358,6 +358,6 @@ has the interface.
 | Grammar types and digests | `crates/spoken-intent/src/lib.rs`, `request.rs` |
 | Near misses | `crates/spoken-intent/src/confusion.rs` |
 | Word decision | `crates/voice-verifier/src/words.rs` |
-| Plugin files | `packages/speak-to-sign-wallet/src/README.md` |
+| Plugin files | `packages/wallet-voice-sign/src/README.md` |
 | Voice multisig contract | `demo/contracts/voice-multisig/README.md` |
 | Deployed accounts and versions | The "Testnet facts" table of the root `README.md` |

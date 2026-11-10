@@ -877,7 +877,7 @@ The owner's decisions:
 
 | npm name | Folder | Job |
 | --- | --- | --- |
-| `@seams/speak-to-sign` | `packages/speak-to-sign-wallet` | The Seams Wallet host plugin (it keeps its name) |
+| `@seams/speak-to-sign` (0.66.0), `@seams/wallet-voice-sign` (from 0.67.0) | `packages/wallet-voice-sign` | The Seams Wallet host plugin |
 | `@seams/voice-sign` | `packages/voice-sign` | The library for an application with no wallet (sections 5 to 8 call it "the top layer" and `@seams/speak-to-sign`) |
 | `@seams/voice-capture` | `packages/voice-capture` | Records one sentence |
 | `@seams/voice-verdict` | `packages/voice-verdict` | Checks what the verifier signed |

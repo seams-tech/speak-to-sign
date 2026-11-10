@@ -1479,7 +1479,7 @@ h1.ss-display {
    the sheet covers it, the hero goes back, blurs and dims (--cover: 0 open, 1 covered). */
 
 .ss-spa {
-  --nav-h: 57px;
+  --nav-h: 46px;
   height: 100dvh;
   min-height: 0;
   overflow-x: clip;
@@ -1502,11 +1502,77 @@ h1.ss-display {
   padding-bottom: 0;
 }
 
-.ss-spa .ss-nav-pay {
-  margin-left: auto;
+.ss-spa .ss-nav-inner {
+  gap: 14px;
+}
+
+.ss-spa .ss-brand {
+  font-size: 14.5px;
 }
 
 .ss-spa .ss-nav-source {
+  margin-left: auto;
+  padding: 6px 10px;
+}
+
+/* The setup steps in the nav. They come in when the sheet covers the hero, and they go when
+   every step is done. */
+.ss-nav-setup {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.22s,
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+
+.ss-nav-setup[data-shown] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.ss-nav-setup:not(:has(.step:not(.step-done))) {
+  visibility: hidden;
+}
+
+.ss-nav-setup > div,
+.ss-nav-setup .steps {
+  display: contents;
+}
+
+.ss-nav-setup .step {
+  flex: none;
+  width: auto;
+  gap: 6px;
+  padding: 2px 4px 2px 6px;
+  border: 1px solid var(--stone);
+  border-radius: 9999px;
+  background: #ffffff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ss-nav-setup .step-text {
+  flex: none;
+}
+
+.ss-nav-setup .step-done {
+  padding-right: 10px;
+  color: var(--smoke);
+}
+
+/* The notes under the steps (an error, "sent") have no room in the nav. The hero's strip has them. */
+.ss-nav-setup .side-note {
+  display: none;
+}
+
+.ss-nav-setup + .ss-nav-source {
   margin-left: 0;
 }
 
@@ -1794,19 +1860,10 @@ h1.ss-display {
 }
 
 /* One bar on this page: the nav. The notes app's own top line ("Speak-to-Sign · not signed
-   in · Testnet") would be a second one. Its sign-in is in the app's navigation, and "Testnet" is
-   a chip in the nav. */
+   in · Testnet") would be a second one. Its sign-in is in the app's navigation and in the setup
+   steps. */
 .ss-sheet .setup-line {
   display: none;
-}
-
-.ss-nav-chip {
-  padding: 3px 9px;
-  border-radius: 9999px;
-  background: var(--green-soft);
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .ss-sheet-app {
@@ -1866,17 +1923,27 @@ h1.ss-display {
     margin-top: -36px;
     padding: 0 16px 44px;
   }
-  .ss-nav-chip {
+  /* A phone has room for one step in the nav: the first that is not done. */
+  .ss-nav-setup .step-done,
+  .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
     display: none;
+  }
+  .ss-nav-setup .step {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .ss-nav-setup .step-text {
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .ss-setup-strip-sub {
     display: none;
   }
-  .ss-spa .ss-nav-pay {
-    display: none;
-  }
-  .ss-spa .ss-nav-source {
-    margin-left: auto;
+  .ss-spa .ss-nav-inner {
+    padding-left: 16px;
+    padding-right: 12px;
+    gap: 10px;
   }
   .ss-sheet-app {
     border: 0;
@@ -1889,7 +1956,8 @@ h1.ss-display {
     transform: none;
     filter: none;
   }
-  .ss-sheet {
+  .ss-sheet,
+  .ss-nav-setup {
     transition: none;
   }
   .ss-sig-words,

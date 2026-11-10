@@ -393,9 +393,10 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 `src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
 
-- **The nav**, the one bar of the page. It stays at the top. It has both
-  examples, a "Testnet" chip, Speak to pay and GitHub. The notes app's own top
-  line is hidden on this page.
+- **The nav**, the one bar of the page, narrow, with the name and GitHub. It
+  stays at the top. The notes app's own top line is hidden on this page. When
+  the sheet covers the hero, the setup steps show in the nav, until every
+  step is done (a phone shows the first step that is not done).
 - **The hero**, about voice signatures, on the grainy blue and rose field of
   the Seams Wallet site (wallet.seams.sh; CSS gradients and SVG noise): the title, one sentence, the
   signature card (`SignatureCard.tsx`: a spoken sentence, the two checks and

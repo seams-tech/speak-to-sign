@@ -1,6 +1,7 @@
 // The Community Notes page of the Speak-to-Sign site, as one single-page app: a hero about
 // voice signatures (with the setup steps), and the live notes app on a white sheet under it.
-// The page has one bar, the nav: the notes app's own top line is hidden here.
+// The page has one bar, the nav, with the name and GitHub: the notes app's own top line is
+// hidden here. When the sheet covers the hero, the setup steps show in the nav.
 //
 // The hero has the grainy blue and rose field of the Seams Wallet site.
 // The page scrolls by the height of the hero. The nav stays in place. The hero stays too, and the
@@ -10,18 +11,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
-import { config } from '../config';
-import { EXAMPLES, PAGE_PATH } from './examples';
 import { LiveApps, LiveSlot } from './live';
 import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
-import { PAGE_LABEL } from './Showcase';
 import { SignatureCard } from './SignatureCard';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
+/** The part of the way at which the hero's setup strip is out of sight. */
+const COVERED_AT = 0.6;
 
 export function NotesPage({ seams }: { seams: boolean }) {
   const [signIn, setSignIn] = useState(false);
   const [docked, setDocked] = useState(false);
+  // The sheet covers most of the hero: the setup steps show in the nav.
+  const [covered, setCovered] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
 
@@ -38,6 +40,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
       hero.style.setProperty('--cover', cover.toFixed(3));
       // One pixel of slack: a zoomed page stops a fraction before the end.
       setDocked(distance <= 0 || page.scrollTop >= distance - 1);
+      setCovered(cover >= COVERED_AT);
     };
     update();
     page.addEventListener('scroll', update, { passive: true });
@@ -67,17 +70,11 @@ export function NotesPage({ seams }: { seams: boolean }) {
               <BrandMark size={24} />
               Speak-to-Sign
             </a>
-            <nav className="ss-nav-pages" aria-label="Examples">
-              {EXAMPLES.map((item) => (
-                <a key={item.id} className="ss-nav-page" href={PAGE_PATH[item.id]} aria-current={item.id === 'notes' ? 'page' : undefined}>
-                  {PAGE_LABEL[item.id]}
-                </a>
-              ))}
-            </nav>
-            <span className="ss-nav-chip">Testnet</span>
-            <a className="ss-nav-link ss-nav-pay" href={config.payPath}>
-              Speak to pay
-            </a>
+            {/* The setup steps again, for the time that the sheet covers the hero and its strip.
+                They show until every step is done, so the wallet setup is always in reach. */}
+            <div className="ss-nav-setup" data-shown={covered || undefined} inert={!covered} aria-label="Set up">
+              {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
+            </div>
             <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
               GitHub
             </a>

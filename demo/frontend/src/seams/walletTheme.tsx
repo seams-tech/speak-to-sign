@@ -1,12 +1,16 @@
 // The Wallet's theme on the page. On the dark theme of the Community Notes page the Wallet takes
 // the page's own colours: X's black, Lights out (the dark block in src/styles.css). On the light
-// theme it keeps the SDK's light colours. The Wallet's components in the page take the theme
-// from SeamsWebProvider, and the Wallet's frames (the sign-in menu, the confirmation) take it
-// from `seams.config.setAppearance`.
+// theme it keeps the SDK's light colours. SeamsWebProvider gives the theme to the Wallet's
+// components in the page, and pushes it to the Wallet's frames (the sign-in menu, VoiceID, the
+// confirmation) when it changes.
+//
+// Each page theme sends a full colour set, and has its own theme id. The Wallet frame keeps the
+// colours that a push does not name: with an empty light set, a page that loads dark kept the
+// black colours after a switch to light.
 
-import { useEffect, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { SeamsConfigsInput } from '@seams/wallet';
-import { SeamsWebProvider, SHAPE_PRESETS, useSeams } from '@seams/wallet/react';
+import { DARK_TOKENS, LIGHT_TOKENS, SeamsWebProvider } from '@seams/wallet/react';
 import type { ThemeName } from '../showcase/theme';
 
 // The values of the dark block in src/styles.css, by the SDK's token names.
@@ -23,6 +27,7 @@ const ACCENT = '#1d9bf0'; // --accent
 const ACCENT_INK = '#1a8cd8'; // --accent-ink
 
 const LIGHTS_OUT_COLORS: Record<string, string> = {
+  ...DARK_TOKENS.colors,
   primary: ACCENT,
   primaryHover: ACCENT_INK,
   secondary: MUTED,
@@ -45,7 +50,6 @@ const LIGHTS_OUT_COLORS: Record<string, string> = {
 
   colorBackground: BG,
   surface: PANEL,
-  passkeyHaloBackground: PANEL,
   surface2: MEDIA,
   surface3: MEDIA,
   surface4: LINE,
@@ -65,40 +69,18 @@ const LIGHTS_OUT_COLORS: Record<string, string> = {
   borderHover: LINE_STRONG,
 
   highlightPrimary: ACCENT,
-  highlightRow: 'rgba(29, 155, 240, 0.12)',
   highlightHalo: ACCENT,
   highlightReceiver: ACCENT,
   highlightMethodName: INK,
   highlightAmount: INK,
 };
 
-type Appearance = NonNullable<SeamsConfigsInput['appearance']>;
+type AppearanceTheme = NonNullable<NonNullable<SeamsConfigsInput['appearance']>['theme']>;
 
-function walletAppearance(theme: ThemeName): Appearance {
-  return {
-    locale: 'en',
-    theme:
-      theme === 'dark'
-        ? { id: 'lights-out', mode: 'dark', colors: LIGHTS_OUT_COLORS, shape: { ...SHAPE_PRESETS.square } }
-        : { id: 'light', mode: 'light' },
-  };
-}
-
-/** Sends the theme to the Wallet's frames, at the start and on each change. */
-function WalletFrameTheme({ theme }: { theme: ThemeName }) {
-  const { seams, loginState } = useSeams();
-  const signedIn = loginState?.isLoggedIn ?? false;
-
-  useEffect(() => {
-    try {
-      seams.config.setAppearance(walletAppearance(theme));
-    } catch {
-      // The frame is not there yet. The config's appearance holds until the next change.
-    }
-  }, [seams, theme, signedIn]);
-
-  return null;
-}
+const WALLET_THEMES: Record<ThemeName, AppearanceTheme> = {
+  dark: { id: 'lights-out', mode: 'dark', colors: LIGHTS_OUT_COLORS },
+  light: { id: 'light', mode: 'light', colors: { ...LIGHT_TOKENS.colors } },
+};
 
 /** SeamsWebProvider with the Wallet's theme for the page's theme. */
 export function ThemedSeamsProvider({
@@ -110,15 +92,14 @@ export function ThemedSeamsProvider({
   theme: ThemeName;
   children: ReactNode;
 }) {
+  // The SDK keeps one Wallet for a config that differs only in its appearance.
+  const themedConfig = useMemo(
+    () => ({ ...config, appearance: { ...config.appearance, theme: WALLET_THEMES[theme] } }),
+    [config, theme],
+  );
+
   return (
-    <SeamsWebProvider
-      config={config}
-      theme={{
-        theme,
-        tokens: { dark: { colors: LIGHTS_OUT_COLORS, shape: SHAPE_PRESETS.square } },
-      }}
-    >
-      <WalletFrameTheme theme={theme} />
+    <SeamsWebProvider config={themedConfig} theme={{ theme }}>
       {children}
     </SeamsWebProvider>
   );

@@ -1,0 +1,13 @@
+{
+  "name": "voice-confirm-example",
+  "private": true,
+  "type": "module",
+  "description": "Voice confirmation for a Web2 application with the Speak-to-Sign verifier, with no wallet",
+  "scripts": {
+    "start": "node server.mjs",
+    "start:fake": "FAKE_VERIFIER=1 node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

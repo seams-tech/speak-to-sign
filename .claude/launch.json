@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "timeline-mock", "runtimeExecutable": "pnpm", "runtimeArgs": ["-C", "demo/frontend", "exec", "vite", "--port", "5179", "--strictPort"], "port": 5179 }
+    {"name": "timeline-mock", "runtimeExecutable": "pnpm", "runtimeArgs": ["-C", "demo/frontend", "exec", "vite", "--port", "5179", "--strictPort"], "port": 5179},
+    {"name": "voice-confirm-fake", "runtimeExecutable": "env", "runtimeArgs": ["FAKE_VERIFIER=1", "PORT=8791", "node", "examples/voice-confirm/server.mjs"], "port": 8791}
   ]
 }

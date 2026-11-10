@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Checks a signed Speak-to-Sign voice verdict. No dependency, no Seams Wallet.",
+  "description": "Speak-to-Sign with no wallet: build a request, call the verifier, check the signed verdict. No dependency.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -14,6 +14,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./capture": {
+      "types": "./dist/capture.d.ts",
+      "import": "./dist/capture.js"
     },
     "./package.json": "./package.json"
   },

@@ -1,8 +1,18 @@
 # @seams/voice-verdict
 
-Checks a signed Speak-to-Sign voice verdict. It needs no Seams Wallet, no
-chain and no dependency. It runs in a browser, in Node.js 20 or later, in
-Deno, in Bun and in a Cloudflare Worker.
+Speak-to-Sign with no Seams Wallet and no chain. The package has no
+dependency. It runs in a browser, in Node.js 20 or later, in Deno, in Bun and
+in a Cloudflare Worker.
+
+| Part | Import | Job |
+| --- | --- | --- |
+| Verdict check | `checkVerdict` | Checks a signed verdict against the key that you pin |
+| Request | `confirmationRequest` | Builds a request for any payload, and its digest |
+| Client | `callVerifier` | Calls the verifier (an OutLayer worker) from your server |
+| Capture | `@seams/voice-verdict/capture` | Records a 16 kHz WAV in a browser, with the energy gate of the verifier |
+
+A complete application with all four parts is in
+[`examples/voice-confirm`](../../examples/voice-confirm).
 
 A verdict is the answer of the Speak-to-Sign verifier to one question: did
 the enrolled owner say the sentence of this request? The verifier signs the
@@ -95,6 +105,61 @@ runtime has no Ed25519 in Web Crypto.
   you used, until its expiry.
 - On `step_up`, the voice and the words passed, and a policy rule asks for a
   second approval. Pass `acceptStepUp: true` only if you get that approval.
+
+## A request for any payload
+
+`confirmationRequest` builds `SpokenRequestV1::Confirmation` (Borsh tag 10)
+for an application owner. The verdict binds the owner, the context and the
+SHA-256 of the payload. The owner says the summary.
+
+```ts
+import { callVerifier, checkVerdict, confirmationRequest } from '@seams/voice-verdict';
+
+const login = await confirmationRequest({
+  owner: 'app:user-42', // "app:" and your id of the user
+  context: 'shop.example/login', // your name of the action
+  payload: new TextEncoder().encode(sessionChallenge), // any bytes
+  summary: 'Log in to the example shop', // the sentence that the user says
+});
+
+const output = await callVerifier(config, {
+  op: 'verify',
+  owner: login.owner,
+  request: login.request,
+  contacts: [],
+  audio_wav_b64: audio,
+});
+
+const result = await checkVerdict({
+  verdictJson: output.verdict_json,
+  signatureB64: output.signature_b64 ?? '',
+  publicKey: PINNED_VERIFIER_KEY,
+  requestDigest: login.digest,
+});
+```
+
+- `op: 'select'` takes `requests` (2 to 16 of them) in place of `request`.
+  The output has `selected`, the index of the request that the user said.
+  Check the verdict with the digest of that request.
+- `op: 'enroll'` takes `{ owner, audio_wav_b64: [three WAVs] }`. An
+  application owner needs no signature: your payment key is the authority.
+  The reply has `verifier_public_key`, the key that you pin.
+- `config` has your OutLayer payment key. Call the verifier from a server.
+
+## Audio in a browser
+
+```ts
+import { recordClip, toBase64 } from '@seams/voice-verdict/capture';
+
+const recording = await recordClip(); // asks for the microphone
+// ... the user says the sentence ...
+const clip = await recording.stop(); // 16 kHz mono, at most 8 s
+if (clip.gate.passes) send(toBase64(clip.wav));
+```
+
+`clip.gate` is the energy gate of the verifier. Run it before the upload:
+the verifier marks a recording as used even if it then refuses it.
+`encodeWav`, `energyGate`, `toPcm16` and `audioDigest` run in any runtime.
 
 ## Other functions
 

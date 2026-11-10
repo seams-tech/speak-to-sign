@@ -1,4 +1,4 @@
-// The live voice multisig example for the Speak-to-Sign page (#/multisig). It draws the
+// The live voice multisig example, on its own page (/multisig/, window #/multisig). It draws the
 // transactions of a multisig wallet app (the sf-* classes of src/showcase/showcase.css), at
 // 1120 × 700, and it works on NEAR testnet against the voice multisig contract
 // (demo/contracts/voice-multisig, docs/voice-multisig-guests.md). It opens on the New proposal

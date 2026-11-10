@@ -1,4 +1,4 @@
-// The live apps of the Speak-to-Sign page. Each app renders once, into an element of its own,
+// The live app of a Speak-to-Sign page. The app renders once, into an element of its own,
 // and that element moves between the small screen of its row and the big window. So a click
 // expands the same running app: its page, its sign-in and its data stay as they are.
 
@@ -37,15 +37,18 @@ export function LiveSlot({ id, active = true }: { id: LiveId; active?: boolean }
 }
 
 /**
- * Renders the live apps into their elements. With `seams`, it needs SeamsWebProvider above it.
- * Without a Seams publishable key, the notes app shows the notes and cannot sign, and there is
- * no live multisig screen. Each app has its own guard, so an error in one does not blank the page.
+ * Renders the live app of the page (`page`) into its element. With `seams`, it needs
+ * SeamsWebProvider above it. Without a Seams publishable key, the notes app shows the notes and
+ * cannot sign, and there is no live multisig screen. The app has its own guard, so an error in it
+ * does not blank the page.
  */
-export function LiveApps({ seams, onMultisigSignIn }: { seams: boolean; onMultisigSignIn: () => void }) {
+export function LiveApps({ page, seams, onMultisigSignIn }: { page: LiveId; seams: boolean; onMultisigSignIn: () => void }) {
   return (
     <>
-      {createPortal(<ExampleGuard name="notes">{seams ? <SeamsNotes /> : <KeylessNotes />}</ExampleGuard>, liveNode('notes'))}
-      {seams &&
+      {page === 'notes' &&
+        createPortal(<ExampleGuard name="notes">{seams ? <SeamsNotes /> : <KeylessNotes />}</ExampleGuard>, liveNode('notes'))}
+      {page === 'multisig' &&
+        seams &&
         createPortal(
           <ExampleGuard name="multisig">
             <LiveMultisigScreen onSignIn={onMultisigSignIn} />

@@ -176,6 +176,31 @@ h1.ss-display {
   }
 }
 
+/* The two pages: Community Notes and the voice multisig. */
+.ss-nav-pages {
+  display: flex;
+  gap: 2px;
+}
+
+.ss-nav-page {
+  padding: 8px 12px;
+  border-radius: 9999px;
+  font-size: 13.5px;
+  color: var(--smoke);
+  white-space: nowrap;
+}
+
+.ss-nav-page[aria-current='page'] {
+  color: var(--ink);
+  background: var(--taupe);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-nav-page:hover {
+    color: var(--ink);
+  }
+}
+
 .ss-brand {
   white-space: nowrap;
   display: inline-flex;
@@ -502,24 +527,11 @@ h1.ss-display {
 
 /* ---------- applications ---------- */
 
-.ss-apps {
-  display: grid;
-  gap: 72px;
-}
-
 .ss-app {
   display: grid;
   grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
   gap: 48px;
   align-items: center;
-}
-
-.ss-app-flip {
-  grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
-}
-
-.ss-app-flip .ss-app-text {
-  order: 2;
 }
 
 .ss-app-text {
@@ -539,6 +551,64 @@ h1.ss-display {
   font-size: 14px;
   line-height: 1.55;
   color: var(--graphite);
+}
+
+/* ---------- the link to the other example's page ---------- */
+
+.ss-section.ss-other {
+  padding-top: 40px;
+  padding-bottom: 48px;
+}
+
+.ss-other-card {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  max-width: 560px;
+  padding: 20px 22px;
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-card);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.ss-other-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--smoke);
+}
+
+.ss-other-title {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.ss-other-blurb {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--graphite);
+}
+
+.ss-other-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-other-card:hover {
+    border-color: var(--ash);
+    background: var(--taupe);
+  }
+}
+
+.ss-other-card:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 
 /* ---------- the hand-drawn example frame ---------- */
@@ -1346,13 +1416,9 @@ h1.ss-display {
     gap: 36px;
     padding: 56px 28px 48px;
   }
-  .ss-app,
-  .ss-app-flip {
+  .ss-app {
     grid-template-columns: 1fr;
     gap: 28px;
-  }
-  .ss-app-flip .ss-app-text {
-    order: 0;
   }
   .ss-section {
     padding: 64px 28px;
@@ -1372,6 +1438,10 @@ h1.ss-display {
   .ss-nav-inner {
     justify-content: space-between;
     padding: 10px 16px;
+  }
+  /* The footer and the link under the example lead to the other page. */
+  .ss-nav-pages {
+    display: none;
   }
   .ss-intro {
     padding: 44px 16px 40px;

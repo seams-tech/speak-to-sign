@@ -247,7 +247,7 @@ const sent = await seams.near.speakToSign.signAndSendTransaction({
 - The refusals are the verifier's, `summary_not_speakable`,
   `transaction_not_valid` (the receiver, or no action), `verdict_mismatch` and
   `transaction_failed`.
-- It needs verifier 0.8.0 or later, and Wallet host API 10.
+- It needs verifier 0.9.0 or later, and Wallet host API 10.
 
 ### Sign only, and delegate actions
 

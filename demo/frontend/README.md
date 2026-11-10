@@ -351,9 +351,10 @@ mode and never sends a note to X.
   The budget is $5 to $10 a week. The route cannot enforce it: set a spend
   limit in the X console, and bind `X_CACHE` so that all Cloudflare locations
   share one snapshot.
-- **Snapshot.** Without a binding, the snapshot is in Cloudflare's Cache API,
-  one copy for each Cloudflare location. Bind a KV namespace as `X_CACHE` for
-  one copy for all locations.
+- **Snapshot.** `wrangler.toml` binds the KV namespace
+  `seams-voice-intents-x-cache` as `X_CACHE`: one copy for all Cloudflare
+  locations. Without the binding (local runs), the snapshot is in the Cache
+  API, one copy for each location.
 - **Failure.** If X fails, the route serves the old snapshot with
   `stale: true` and waits 60 s before the next call. Without a snapshot it
   answers 502. Without keys it answers 503.

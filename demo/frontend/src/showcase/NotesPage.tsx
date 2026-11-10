@@ -33,11 +33,11 @@ export function NotesPage({ seams }: { seams: boolean }) {
   const [signIn, setSignIn] = useState(false);
   // The sheet covers most of the hero: the setup steps show in the nav.
   const [covered, setCovered] = useState(false);
-  // The sheet is at the nav: only the nav's strip of the hero shows, and its field holds still.
-  const [atNav, setAtNav] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
+  // The sheet is at the nav or past it: only the nav's strip of the field shows.
+  const [docked, setDocked] = useState(false);
   const field = useHeroField();
   const fieldStyle = { '--field-base': grainFieldSource(field).base, '--field-scrim': fieldScrim(field) } as CSSProperties;
 
@@ -62,7 +62,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
       const cover = distance > 0 ? Math.min(1, Math.max(0, page.scrollTop / distance)) : 1;
       hero.style.setProperty('--cover', cover.toFixed(3));
       setCovered(cover >= COVERED_AT);
-      setAtNav(cover >= 1);
+      setDocked(cover >= 0.999);
       // The nav has no ground of its own: the top of the hero shows behind it. When the feed
       // scrolls on, the sheet would go up behind the nav and hide that strip. So the part of
       // the sheet above the nav's lower edge is cut off, with the sheet's round corners.
@@ -120,7 +120,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
 
         <section className="ss-hero" ref={heroRef} aria-labelledby="hero-title">
           {/* While the sheet is at the nav, only the nav's strip of the field shows: it holds still. */}
-          <GrainField field={field} pace={HERO_FIELD_PACE} playing={!atNav} />
+          <GrainField field={field} pace={HERO_FIELD_PACE} playing={!docked} />
           <div className="ss-hero-inner">
             <div className="ss-hero-text">
               <p className="ss-hero-kicker">Seams voice signatures</p>

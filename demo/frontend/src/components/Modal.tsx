@@ -131,55 +131,98 @@ export function Modal({
   );
 }
 
+type Size = { width: number; height: number };
+
+function sameSize(a: Size, b: Size): boolean {
+  return Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1;
+}
+
 /**
  * When the content of the dialog changes its size (a new step, an error line, a market that
  * loads), the dialog grows or shrinks to the new size in place of a jump.
  *
  * A ResizeObserver reports the new size after layout and before paint, so the animation starts
- * from the old size in the same frame. Reports during an animation are the animation's own
- * frames; at its end the dialog checks its size once more.
+ * from the old size in the same frame. While the dialog animates, its own size is the
+ * animation's, so the observer also watches the dialog's children. A change in their size during
+ * the animation turns the same move toward the new size: a step whose parts arrive one after
+ * another (the sign-in step's width, then the Wallet card's height) moves once, not twice.
  */
 function useSmoothSize(ref: RefObject<HTMLDivElement | null>, enabled: boolean) {
   useEffect(() => {
     const panel = ref.current;
     if (!enabled || !panel || typeof ResizeObserver !== 'function') return;
-    let size: { width: number; height: number } | null = null;
+    // The content's size: the size that the dialog shows, or the size that it moves to.
+    let size: Size | null = null;
     let running: Animation | null = null;
 
-    const settle = () => {
-      // Layout sizes: the open animation's scale does not count.
-      const next = { width: panel.offsetWidth, height: panel.offsetHeight };
-      const from = size;
-      size = next;
-      if (!from || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      if (Math.abs(from.width - next.width) < 1 && Math.abs(from.height - next.height) < 1) return;
+    // Layout sizes: the open animation's scale does not count.
+    const layoutSize = (): Size => ({ width: panel.offsetWidth, height: panel.offsetHeight });
+
+    const start = (from: Size, to: Size) => {
       panel.style.overflow = 'hidden';
       // The limits go while it runs: a new step can bring a new max-width (the sign-in step).
-      running = panel.animate(
+      const animation = panel.animate(
         [
           { width: `${from.width}px`, height: `${from.height}px`, maxWidth: 'none', maxHeight: 'none' },
-          { width: `${next.width}px`, height: `${next.height}px`, maxWidth: 'none', maxHeight: 'none' },
+          { width: `${to.width}px`, height: `${to.height}px`, maxWidth: 'none', maxHeight: 'none' },
         ],
         { duration: RESIZE_MS, easing: RESIZE_EASING },
       );
-      running.onfinish = () => {
+      animation.onfinish = () => {
         running = null;
         panel.style.overflow = '';
-        settle();
+        check();
       };
-      running.oncancel = () => {
-        running = null;
-        panel.style.overflow = '';
-      };
+      running = animation;
     };
 
-    const observer = new ResizeObserver(() => {
-      if (!running) settle();
+    const stop = () => {
+      if (!running) return;
+      running.onfinish = null;
+      running.cancel();
+      running = null;
+      panel.style.overflow = '';
+    };
+
+    // While the dialog moves, its size is the animation's. With the animation's effect off the
+    // dialog for one measurement, layout gives the content's own size; the timing goes on as is.
+    const contentSize = (animation: Animation): Size => {
+      const effect = animation.effect as KeyframeEffect;
+      effect.target = null;
+      panel.style.overflow = '';
+      const content = layoutSize();
+      panel.style.overflow = 'hidden';
+      effect.target = panel;
+      return content;
+    };
+
+    const check = () => {
+      const moving = running;
+      const next = moving ? contentSize(moving) : layoutSize();
+      const from = size;
+      size = next;
+      if (!from || sameSize(from, next)) return;
+      // A new size during a move: the move turns toward it from the frame that shows now.
+      const shown = moving ? layoutSize() : from;
+      stop();
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      start(shown, next);
+    };
+
+    const observer = new ResizeObserver(check);
+    const children = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.removedNodes) if (node instanceof Element) observer.unobserve(node);
+        for (const node of record.addedNodes) if (node instanceof Element) observer.observe(node);
+      }
     });
     observer.observe(panel);
+    for (const child of panel.children) observer.observe(child);
+    children.observe(panel, { childList: true });
     return () => {
+      children.disconnect();
       observer.disconnect();
-      running?.cancel();
+      stop();
     };
   }, [ref, enabled]);
 }

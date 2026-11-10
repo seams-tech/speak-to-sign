@@ -1552,7 +1552,10 @@ h1.ss-display {
   color: #ffffff;
 }
 
+/* The nav's content is as wide as the notes app's layout (navigation, column and side panel:
+   1220px when the screen has room), so the brand pill and GitHub line up with the app's edges. */
 .ss-spa .ss-nav-inner {
+  max-width: calc(1220px + 48px);
   height: 100%;
   padding-top: 0;
   padding-bottom: 0;
@@ -1828,9 +1831,11 @@ h1.ss-display {
   transform-origin: 0 0;
 }
 
-/* "Built on NEAR" before GitHub, in the same glass pill: the words and NEAR's wordmark, in
-   white, as on tatchi.xyz. GitHub follows it with no gap of its own. */
-.ss-near {
+/* "Built on NEAR" and Seams before GitHub, in the same glass pills: the words and NEAR's
+   wordmark as on tatchi.xyz, and the Seams logo as on wallet.seams.sh, in white. GitHub follows
+   them with no gap of its own. */
+.ss-near,
+.ss-seams {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1850,8 +1855,34 @@ h1.ss-display {
   margin-left: auto;
 }
 
-.ss-spa .ss-near + .ss-nav-source {
+.ss-spa .ss-near ~ .ss-nav-source {
   margin-left: 0;
+}
+
+.ss-seams-wordmark {
+  width: 62px;
+  height: auto;
+}
+
+/* On a phone, the Seams pill is the mark alone, round like GitHub's. */
+.ss-seams-mark {
+  display: none;
+  width: 15px;
+  height: auto;
+}
+
+@media (max-width: 720px) {
+  .ss-seams {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+  }
+  .ss-seams-wordmark {
+    display: none;
+  }
+  .ss-seams-mark {
+    display: block;
+  }
 }
 
 .ss-near svg {
@@ -1862,7 +1893,8 @@ h1.ss-display {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .ss-near:hover {
+  .ss-near:hover,
+  .ss-seams:hover {
     background: rgba(10, 10, 10, 0.42);
   }
 }
@@ -1878,17 +1910,17 @@ h1.ss-display {
   }
 }
 
-/* From 1041px to 1180px the three setup steps need the badge's room: it goes while they are in
-   the nav. Narrower, the nav shows one step (below), and the badge comes back. */
-@media (min-width: 1041px) and (max-width: 1180px) {
+/* From 1121px to 1200px the three setup steps need the NEAR badge's room: it goes while they
+   are in the nav. Narrower, the nav shows one step (below), and the badge comes back. */
+@media (min-width: 1121px) and (max-width: 1200px) {
   .ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near {
     display: none;
   }
 }
 
-/* From 861px to 1040px the three steps would run under the picker: the nav shows one step, the
-   first that is not done, as on a phone. The name stays. */
-@media (min-width: 861px) and (max-width: 1040px) {
+/* From 861px to 1120px the three steps would run under the pills at the right: the nav shows
+   one step, the first that is not done, as on a phone. The name stays. */
+@media (min-width: 861px) and (max-width: 1120px) {
   .ss-nav-setup .step-done,
   .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
     display: none;

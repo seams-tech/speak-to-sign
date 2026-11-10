@@ -181,17 +181,18 @@ code {
     background: var(--hover);
   }
 }
-/* The menu items copy the look only, so they are a dim grey that does not invite a click. */
+/* The menu items copy the look only, so they are a dim grey that does not invite a click. They
+   are spaced as on X: about 52px from one item to the next. */
 .rail-item {
   display: flex;
-  padding: 1px 0;
+  padding: 2px 0;
   color: #aab4bc;
 }
 .rail-item-pill {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 8px 12px;
+  gap: 20px;
+  padding: 12px 12px;
   border-radius: 9999px;
   transition: background-color 0.2s;
 }
@@ -202,8 +203,8 @@ code {
 }
 .rail-label {
   display: none;
-  font-size: 17px;
-  line-height: 22px;
+  font-size: 18px;
+  line-height: 24px;
   padding-right: 16px;
 }
 .rail-label-on {

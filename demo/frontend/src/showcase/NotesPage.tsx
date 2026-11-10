@@ -162,10 +162,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
             </div>
           </div>
           {/* The multisig page sends a visitor here (#setup) to set up the voice and get testnet NEAR. */}
-          <div className="ss-setup-strip" id="setup">
-            <span className="ss-setup-strip-label">
-              Set up <span className="ss-setup-strip-sub">optional · NEAR testnet</span>
-            </span>
+          <div className="ss-setup-strip" id="setup" aria-label="Set up">
             {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
           </div>
         </section>

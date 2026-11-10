@@ -2194,7 +2194,7 @@ h1.ss-display {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: 10px 12px;
   font-size: 13.5px;
   color: #ffffff;
   transform-origin: 50% 0;
@@ -2203,57 +2203,130 @@ h1.ss-display {
   opacity: calc(1 - var(--cover) * 0.6);
 }
 
-.ss-setup-strip-label {
-  font-weight: 600;
-}
-
-.ss-setup-strip-sub {
-  margin-left: 4px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.78);
-}
-
 .ss-setup-strip > div,
 .ss-setup-strip .steps {
   display: contents;
 }
 
+/* The three steps read as one path, as in the nav: every pill has the same height, a short
+   line joins two pills, and the look of a pill says where the visitor is. The next step is
+   solid white with a black button, and a soft ring breathes around it. A later step is glass.
+   A done step is glass with a green check. */
 .ss-setup-strip .step {
+  position: relative;
+  flex: none;
   width: auto;
-  gap: 8px;
-  padding: 4px 6px 4px 10px;
+  height: 42px;
+  gap: 9px;
+  padding: 0 6px 0 9px;
   border-radius: 9999px;
   background: #ffffff;
   color: var(--ink);
-  font-size: 13.5px;
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px -14px rgba(6, 24, 38, 0.55);
+  animation: ss-step-ring 2.4s ease-out infinite;
 }
 
-/* The same order as in the nav: the next step is solid white, a later step is glass. */
+.ss-setup-strip .step-text {
+  flex: none;
+}
+
+.ss-setup-strip .step:last-child,
+.ss-setup-strip .step:not(:has(.btn, .step-detail)) {
+  padding-right: 16px;
+}
+
+.ss-setup-strip .step + .step {
+  margin-left: 16px;
+}
+
+.ss-setup-strip .step + .step::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  width: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.ss-setup-strip .step .step-mark {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 12.5px;
+}
+
 .ss-setup-strip .step .btn {
+  height: 30px;
+  padding: 0 14px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
-.ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done),
-.ss-setup-strip .step.step-done {
-  background: rgba(255, 255, 255, 0.2);
+.ss-setup-strip .step .btn:not(:disabled):hover {
+  background: #272c30;
+}
+
+.ss-setup-strip .step .step-detail {
+  padding-right: 10px;
+  color: inherit;
+}
+
+/* A later step: glass, no ring, and its button is quiet until its turn. */
+.ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done) {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(6px);
   color: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  font-weight: 400;
+  animation: none;
 }
 
 .ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done) .step-mark {
-  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.8);
   background: none;
   color: #ffffff;
 }
 
 .ss-setup-strip .step:not(.step-done) ~ .step:not(.step-done) .btn {
-  border-color: rgba(255, 255, 255, 0.7);
-  background: none;
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-weight: 500;
+  opacity: 1;
+}
+
+/* A done step: glass, a green check, and its link or small control in white. */
+.ss-setup-strip .step.step-done {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-weight: 400;
+  animation: none;
+}
+
+.ss-setup-strip .step.step-done .step-mark {
+  background: var(--green);
   color: #ffffff;
 }
 
 .ss-setup-strip .step.step-done .lk {
   color: #ffffff;
+}
+
+.ss-setup-strip .step.step-done .btn {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .ss-setup-strip .side-note {
@@ -2404,8 +2477,16 @@ h1.ss-display {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .ss-setup-strip-sub {
+  /* The pills are one under the other on a phone, so they have no joining lines. */
+  .ss-setup-strip .step + .step {
+    margin-left: 0;
+  }
+  .ss-setup-strip .step + .step::before {
     display: none;
+  }
+  .ss-setup-strip .step {
+    height: 38px;
+    font-size: 14px;
   }
   .ss-spa .ss-nav-inner {
     padding-left: 16px;
@@ -2426,7 +2507,8 @@ h1.ss-display {
   .ss-nav-setup {
     transition: none;
   }
-  .ss-nav-setup .step {
+  .ss-nav-setup .step,
+  .ss-setup-strip .step {
     animation: none;
   }
 

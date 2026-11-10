@@ -44,7 +44,9 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
             let body = push_proposal_words(&mut words, proposal);
             format!("Approve proposal {proposal_id}: {body}")
         }
-        SpokenRequestV1::CommunityNote { summary, .. } => {
+        SpokenRequestV1::CommunityNote { summary, .. }
+        | SpokenRequestV1::Transaction { summary, .. }
+        | SpokenRequestV1::SignedMessage { summary, .. } => {
             words.0.extend(summary.spoken_tokens());
             summary.as_str().to_owned()
         }

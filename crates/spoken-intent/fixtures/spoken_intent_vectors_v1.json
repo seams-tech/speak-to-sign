@@ -136,6 +136,14 @@
       "name": "unknown_request_kind_7"
     },
     {
+      "borsh_hex": "0800",
+      "name": "unknown_request_kind_8"
+    },
+    {
+      "borsh_hex": "0a00",
+      "name": "unknown_request_kind_10"
+    },
+    {
       "borsh_hex": "06000d0000006f776e65722e746573746e6574170000006d65726765732e7365616d732d76312e746573746e6574b889cd18d30803c66cf974ceff302935b8a1c9e753345821eaf77575bd8c22f42a00000000000000040000004d61696e000102030405060708090a0b0c0d0e0f10111213",
       "name": "merge_base_uppercase"
     },
@@ -3101,6 +3109,56 @@
       "request_digest_hex": "02a9299d5c9c043950797906f791743ba2f522d6bef055e45e3c8d5b54a56213",
       "spoken_text": "bet one thousand two hundred fifty point seven five usdc yes on market one thousand one",
       "spoken_text_digest_hex": "76e45780d0717b6f5f3b3461370d5f55009dbae1ae4a13bd8e42af718d0d2fa5"
+    },
+    {
+      "borsh_hex": "08000d0000006f776e65722e746573746e65741200000067756573742d626f6f6b2e746573746e6574f1fc2ff21b65bb79e920cb13a40f6a3ea14903fb55ef6055bba597ff8c2c1c56140000005369676e2074686520677565737420626f6f6b2e",
+      "confusion_set": [
+        "not sign the guest book",
+        "sign not the guest book",
+        "sign the guest book not",
+        "sign the guest not book",
+        "sign the not guest book"
+      ],
+      "display_text": "Sign the guest book.",
+      "name": "transaction_one_call",
+      "request_digest_hex": "6ad1cd00aa4bb0670326dd9b2e5d65d7ad896e2b0a5a70eadf0f3bdb7bee5dd0",
+      "spoken_text": "sign the guest book",
+      "spoken_text_digest_hex": "7323803553fd9e32773ad30cbefd292ab5c42e63705714228626be8e04b20f88"
+    },
+    {
+      "borsh_hex": "080040000000336236613237626363656236613432643632613361386430326136663064373336353332313537373164653234336136336163303438613138623539646132394000000033623661323762636365623661343264363261336138643032613666306437333635333231353737316465323433613633616330343861313862353964613239f1fc2ff21b65bb79e920cb13a40f6a3ea14903fb55ef6055bba597ff8c2c1c561b0000004164642061206e6577206b657920746f206d79206163636f756e74",
+      "confusion_set": [
+        "add a new key not to my account",
+        "add a new key to my account not",
+        "add a new key to my not account",
+        "add a new key to not my account",
+        "add a new not key to my account",
+        "add a not new key to my account",
+        "add not a new key to my account",
+        "not add a new key to my account"
+      ],
+      "display_text": "Add a new key to my account",
+      "name": "transaction_implicit_accounts",
+      "request_digest_hex": "5a20f8520976e124fba8c03af535c1a1c98fd6928dc8d1679b62276a8d5c4ffb",
+      "spoken_text": "add a new key to my account",
+      "spoken_text_digest_hex": "962607c286c14a381380b9e0fac7d824236fa198f89130a1d931ab05e35540d2"
+    },
+    {
+      "borsh_hex": "09000d0000006f776e65722e746573746e65744141414141414141414141414141414141414141414141414141414141414141190000004c6f6720696e20746f20746865206578616d706c6520617070",
+      "confusion_set": [
+        "log in not to the example app",
+        "log in to not the example app",
+        "log in to the example app not",
+        "log in to the example not app",
+        "log in to the not example app",
+        "log not in to the example app",
+        "not log in to the example app"
+      ],
+      "display_text": "Log in to the example app",
+      "name": "signed_message",
+      "request_digest_hex": "fe31b02d8d535357061920f9581c3684404cc09792543bd8836a3de7cae8049f",
+      "spoken_text": "log in to the example app",
+      "spoken_text_digest_hex": "f60ce9d4d743e15564cd8db3693aafe17662813a5a738d276a581b399bc83a5b"
     }
   ],
   "spoken_text_digest_domain": "seams:spoken-intent:spoken:v1",

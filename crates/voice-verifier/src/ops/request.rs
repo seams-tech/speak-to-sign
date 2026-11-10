@@ -92,6 +92,23 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
                 amount: UsdcAmount::from_units(units).map_err(unsupported)?,
             })
         }
+        RequestInput::Transaction { receiver, actions_sha256_hex, summary } => {
+            Ok(SpokenRequestV1::Transaction {
+                network: SERVED_NETWORK,
+                owner,
+                receiver: NearAccount::new(receiver).map_err(unsupported)?,
+                actions_sha256: lowercase_hex::<32>(actions_sha256_hex)?,
+                summary: SpokenSummary::new(summary).map_err(unsupported)?,
+            })
+        }
+        RequestInput::SignedMessage { payload_sha256_hex, summary } => {
+            Ok(SpokenRequestV1::SignedMessage {
+                network: SERVED_NETWORK,
+                owner,
+                payload_sha256: lowercase_hex::<32>(payload_sha256_hex)?,
+                summary: SpokenSummary::new(summary).map_err(unsupported)?,
+            })
+        }
         // `multisig::prepare` builds these: they need the worker's storage
         // and randomness.
         RequestInput::MultisigPropose { .. }

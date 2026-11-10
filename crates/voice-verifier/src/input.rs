@@ -95,6 +95,22 @@ pub enum RequestInput {
         /// `amount_yocto`).
         amount_units: String,
     },
+    /// Any NEAR transaction from the owner's account. The owner says only
+    /// the summary; the verdict binds the receiver and the actions.
+    Transaction {
+        /// The receiver of the transaction.
+        receiver: String,
+        /// SHA-256 of the Borsh of the transaction's actions, 64 lowercase
+        /// hex characters.
+        actions_sha256_hex: String,
+        summary: String,
+    },
+    /// A NEP-413 message. The owner says only the summary.
+    SignedMessage {
+        /// The 32 bytes that the key signs, 64 lowercase hex characters.
+        payload_sha256_hex: String,
+        summary: String,
+    },
     /// A new multisig transfer, said by its proposer. The verifier draws the
     /// salt and keeps the proposal; the contract gets only its commitment.
     MultisigPropose {
@@ -201,6 +217,24 @@ mod tests {
         assert!(matches!(
             serde_json::from_value::<RequestInput>(note).unwrap(),
             RequestInput::CommunityNote { post_id: 7, .. }
+        ));
+        let transaction = json!({
+            "kind": "transaction",
+            "receiver": "guest-book.testnet",
+            "actions_sha256_hex": "00",
+            "summary": "Sign the guest book",
+        });
+        assert!(matches!(
+            serde_json::from_value::<RequestInput>(transaction.clone()).unwrap(),
+            RequestInput::Transaction { .. }
+        ));
+        let mut with_actions = transaction;
+        with_actions["actions"] = json!([]);
+        assert!(serde_json::from_value::<RequestInput>(with_actions).is_err());
+        let message = json!({ "kind": "signed_message", "payload_sha256_hex": "00", "summary": "Log in" });
+        assert!(matches!(
+            serde_json::from_value::<RequestInput>(message).unwrap(),
+            RequestInput::SignedMessage { .. }
         ));
         let rating = json!({ "kind": "note_rating", "contract": "notes.testnet", "note_id": 1, "rating": "somewhat_helpful" });
         assert!(matches!(

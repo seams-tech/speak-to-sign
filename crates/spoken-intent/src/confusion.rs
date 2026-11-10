@@ -120,7 +120,9 @@ pub fn confusion_set(
             };
             approval_near_misses(&expected, *proposal_id, proposal, contacts, approval)
         }
-        SpokenRequestV1::CommunityNote { .. } => note_near_misses(&expected, Vec::new()),
+        SpokenRequestV1::CommunityNote { .. }
+        | SpokenRequestV1::Transaction { .. }
+        | SpokenRequestV1::SignedMessage { .. } => note_near_misses(&expected, Vec::new()),
         SpokenRequestV1::NoteRating {
             network,
             owner,

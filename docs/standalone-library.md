@@ -743,6 +743,15 @@ test of the path and not of a real person.
    builds on OutLayer do not have the fix. A TypeScript port of
    `normalize_punctuated` needs the same rule.
 
+3. **A changed number passed (found in a test of fault 2).** A summary of
+   4 words or more passes with one word changed. So "Pay fourteen dollars
+   for two books" passed for the summary "Pay forty dollars for two books".
+   This rule is in every build on OutLayer, also for the Wallet kinds
+   `transaction` and `signed_message`. The verdict still binds the digest of
+   the real payload, so the wrong words cannot change what is signed. But
+   the owner said another amount than the summary. Fixed in the source
+   (0.10.0): the changed or dropped word is never a number word.
+
 ### 6.4 The two variants, compared
 
 The owner's rule: if the model in OutLayer is comparable in speed to the

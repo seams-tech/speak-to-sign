@@ -157,7 +157,7 @@ fn verify_steps(
     //    summary may differ by one word, see `words_pass`).
     let confusions = confusion_set(&request, &contacts);
     let check = check_words(&transcript, &contacts, &rendered.spoken, &confusions);
-    let passed = words_pass(&request, &check, rendered.spoken.len());
+    let passed = words_pass(&request, &check, &rendered.spoken);
     verdict.heard = Some(check.heard);
     if !passed {
         if let Some(ready) = prepared.as_ref().filter(|ready| ready.recalled) {

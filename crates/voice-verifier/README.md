@@ -391,7 +391,9 @@ Stage times (`ms`, not signed), in ms:
     - Community note summary (0.4.0 and later): a summary of 4 or more words
       also passes with one word changed or dropped, when the heard words are
       still closer to the summary than to every near miss (an added or dropped
-      "not" never passes).
+      "not" never passes). From 0.10.0, the changed or dropped word is never
+      a number word: "pay fourteen dollars" does not pass for "pay forty
+      dollars". The builds before 0.10.0 let it pass.
   - `contacts`: at most 32 named accounts that the owner knows, for the
     account names and the confusion set. The receiver is added if missing,
     except for `multisig_confirm`.

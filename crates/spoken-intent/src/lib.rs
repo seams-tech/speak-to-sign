@@ -47,6 +47,7 @@ pub use amount::{NearAmount, UsdcAmount};
 pub use branch::{InvalidBranch, SpokenBranch, MAX_BRANCH_LETTERS};
 pub use confusion::confusion_set;
 pub use normalize::normalize;
+pub use numbers::is_number_word;
 pub use owner::{
     AppOwner, ConfirmationContext, InvalidIdentifier, APP_OWNER_PREFIX, MAX_APP_OWNER_BYTES, MAX_CONTEXT_BYTES,
 };

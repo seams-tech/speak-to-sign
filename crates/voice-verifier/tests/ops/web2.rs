@@ -169,6 +169,19 @@ fn a_summary_with_an_amount_matches_the_models_numerals() {
     let request = confirmation("shop.example/order", "Pay forty dollars for two books");
     let out = call(&mut fake, verify_input(USER, request, &wav));
     assert_eq!(outcome_name(&checked_verdict(&out)), "words");
+    // A dropped number word is not forgiven. A dropped word that is not a
+    // number is (a summary of 4 words or more).
+    for (index, (transcript, outcome)) in
+        [("Pay forty dollars for books.", "words"), ("Pay forty dollars two books.", "accept")].into_iter().enumerate()
+    {
+        let mut fake = app_enrolled();
+        fake.transcript = Some(transcript.into());
+        let wav = clip(0.4 + 0.01 * index as f32);
+        fake.voice(&wav, embedding(0, 0.3));
+        let request = confirmation("shop.example/order", "Pay forty dollars for two books");
+        let out = call(&mut fake, verify_input(USER, request, &wav));
+        assert_eq!(outcome_name(&checked_verdict(&out)), outcome, "{transcript}");
+    }
 }
 
 #[test]

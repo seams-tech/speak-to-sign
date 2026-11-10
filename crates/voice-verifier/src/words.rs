@@ -66,19 +66,35 @@ const SUMMARY_FORGIVE_MIN_WORDS: usize = 4;
 /// changed or dropped, when the heard words are still closer to the summary
 /// than to every near miss. An added word is as close to the near miss with
 /// "not" in its place, so it does not pass, and an added or dropped "not"
-/// never passes.
-pub(crate) fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected_words: usize) -> bool {
+/// never passes. The changed or dropped word is never a number
+/// word.
+pub(crate) fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected: &[SpokenToken]) -> bool {
     if check.matched {
         return true;
     }
+    // A number word holds a value: the one changed word can be "forty" for
+    // "fourteen". So the changed or dropped word must not be a number word,
+    // on either side.
+    let heard: Vec<&str> = check.heard.split(' ').collect();
+    let at = expected.iter().zip(&heard).take_while(|(want, got)| want.as_str() == **got).count();
+    let number = |word: Option<&str>| word.is_some_and(spoken_intent::is_number_word);
+    let said = expected.get(at).map(SpokenToken::as_str);
+    let has_number = match heard.len().cmp(&expected.len()) {
+        // One word dropped: the expected word at the first difference.
+        std::cmp::Ordering::Less => number(said),
+        // One word added: the heard word there.
+        std::cmp::Ordering::Greater => number(heard.get(at).copied()),
+        // One word changed: both.
+        std::cmp::Ordering::Equal => number(said) || number(heard.get(at).copied()),
+    };
     matches!(
         request,
         SpokenRequestV1::CommunityNote { .. }
             | SpokenRequestV1::Transaction { .. }
             | SpokenRequestV1::SignedMessage { .. }
             | SpokenRequestV1::Confirmation { .. }
-    )
-        && expected_words >= SUMMARY_FORGIVE_MIN_WORDS
+    ) && !has_number
+        && expected.len() >= SUMMARY_FORGIVE_MIN_WORDS
         && check.distance == Some(1)
         && check.margin_milli.is_some_and(|margin| margin > 0)
 }

@@ -144,11 +144,11 @@ test('readSettings needs all four keys and clamps the optional values', () => {
   assert.equal(readSettings({}), 'no-keys');
   assert.equal(readSettings({ ...ENV, X_ACCESS_TOKEN_SECRET: ' ' }), 'no-keys');
   const defaults = settingsOf({ ...ENV, X_ELIGIBLE_TTL_SECONDS: undefined });
-  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [20, 21_600_000, null]);
+  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [20, 28_800_000, null]);
   const set = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '500', X_ELIGIBLE_TTL_SECONDS: '5', X_ELIGIBLE_LANG: ' JA ' });
   assert.deepEqual([set?.maxResults, set?.ttlMs, set?.lang], [100, 60_000, 'ja']);
   const bad = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '-3', X_ELIGIBLE_TTL_SECONDS: 'soon', X_ELIGIBLE_LANG: 'feed_size:xxl' });
-  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [20, 21_600_000, null]);
+  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [20, 28_800_000, null]);
 });
 
 test('parseEligiblePosts keeps the good posts and checks every field', () => {

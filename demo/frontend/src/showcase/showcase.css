@@ -1898,9 +1898,35 @@ h1.ss-display {
   }
 }
 
-/* While the setup steps are in the nav, and on a phone, the wordmark stands alone. */
+/* While the setup steps are in the nav, and on a phone, the wordmark stands alone. When the
+   steps come in or go, the words fold away or open out and the pill shrinks or grows with
+   them, in the time of the steps' own move. The words' column goes from its full width (1fr)
+   to none (0fr), and the space before the wordmark goes with it. */
+.ss-near {
+  gap: 0;
+}
+.ss-near-words {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  margin-right: 5px;
+  transition:
+    grid-template-columns 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-right 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s;
+}
+.ss-near-words > span {
+  min-width: 0;
+  overflow: hidden;
+}
 .ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-words {
-  display: none;
+  grid-template-columns: 0fr;
+  margin-right: 0;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-near-words {
+    transition: none;
+  }
 }
 
 @media (max-width: 720px) {

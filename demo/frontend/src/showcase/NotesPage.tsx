@@ -139,7 +139,9 @@ export function NotesPage({ seams }: { seams: boolean }) {
               <span>GitHub</span>
             </a>
             <a className="ss-near" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
-              <span className="ss-near-words">Built on</span>
+              <span className="ss-near-words">
+                <span>Built on</span>
+              </span>
               <NearWordmark />
             </a>
             <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">

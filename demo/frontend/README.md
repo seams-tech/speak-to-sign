@@ -457,10 +457,10 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
   grid, flows it and adds grain. The page has two themes, and each has
-  one of the site's gradients: Light mode (Apricot Beam, the default) and
+  one of the site's gradients: Light mode (Apricot Beam) and
   Dark mode (Onyx Black, with X's black, Lights out). The theme picker
   (`ThemePicker.tsx`, `theme.ts`), in the nav's brand pill, is a round button with a picture of the field. It opens a menu of
-  three choices, each with a picture: the two themes, and System, which follows the
+  three choices, each with a picture: the two themes, and System (the default), which follows the
   system's light or dark setting (`prefers-color-scheme`) and changes when it changes.
   The arrow keys change the theme as they move.
   The choice stays in this browser (`localStorage`), and `?theme=light`,

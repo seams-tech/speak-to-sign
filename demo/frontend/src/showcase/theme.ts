@@ -27,8 +27,8 @@ export function choiceLabel(choice: ThemeChoice): string {
   return choice === 'system' ? 'System' : THEMES[choice].label;
 }
 
-/** The choice of the page until the visitor picks another. */
-const DEFAULT_CHOICE: ThemeChoice = 'light';
+/** The choice of the page until the visitor picks another: the system's setting. */
+const DEFAULT_CHOICE: ThemeChoice = 'system';
 
 const STORAGE_KEY = 'speak-to-sign:theme';
 

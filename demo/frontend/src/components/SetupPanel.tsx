@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react';
 import { accountUrl, config, shortAccount, transactionUrl } from '../config';
 import { useDemo } from '../demoContext';
-import { covers, retryFaucet, useFunds, type Funds } from '../faucet/funds';
+import { covers, retryFaucet, useFunds, type FaucetState, type Funds } from '../faucet/funds';
+import { FloatingError, FloatingErrors } from './FloatingError';
 import { formatNear, formatUsdc, nearAmount, usdcAmount } from '../notes/nearAccount';
 import { NearMark } from '../showcase/nearMarks';
 import type { SetupOutcome, SignerSetup, SignerStatus } from '../signer/notesSigner';
@@ -95,11 +96,15 @@ export interface SetupStepsProps {
 export function SetupSteps({ status, account, signer, walletConfigured, onSignIn, onChanged }: SetupStepsProps) {
   const [busy, setBusy] = useState<VoicePhase | null>(null);
   const [outcome, setOutcome] = useState<SetupOutcome | null>(null);
+  /** The faucet failure that the visitor closed. A new failure shows again. */
+  const [closedFaucet, setClosedFaucet] = useState<FaucetState | null>(null);
   const enrolled = useEnrolled(account);
   const funds = useFunds(account, true);
   const signedIn = !!status?.signedIn;
   const voiceSetUp = !!status?.voiceReady && enrolled;
   const fundsReady = covers(funds.balance, 'bet');
+  const voiceError = outcome?.kind === 'failed' ? outcome.message : null;
+  const faucetError = signedIn && account && funds.faucet.kind === 'failed' && funds.faucet !== closedFaucet ? funds.faucet : null;
 
   const voiceStep = async () => {
     if (!account) return;
@@ -145,10 +150,21 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
         </p>
       )}
       {signedIn && account && <FundsNote account={account} funds={funds} />}
-      {outcome && (
-        <p className={`side-note ${outcome.kind === 'failed' ? 'side-error' : ''}`} role={outcome.kind === 'failed' ? 'alert' : 'status'}>
+      {outcome?.kind === 'done' && (
+        <p className="side-note" role="status">
           {outcome.message}
         </p>
+      )}
+      {/* The errors float at the bottom of the screen, not under the steps. */}
+      {(voiceError || faucetError) && (
+        <FloatingErrors>
+          {voiceError && <FloatingError onClose={() => setOutcome(null)}>{voiceError}</FloatingError>}
+          {faucetError && account && (
+            <FloatingError onClose={() => setClosedFaucet(faucetError)}>
+              {faucetError.text} <FaucetLinks account={account} />
+            </FloatingError>
+          )}
+        </FloatingErrors>
       )}
     </>
   );
@@ -214,7 +230,10 @@ function UsdcToken() {
   );
 }
 
-/** The faucet's result under the steps: the transaction, or where else to get testnet funds. */
+/**
+ * The faucet's result under the steps: the transaction, or where else to get testnet funds. A
+ * failure floats at the bottom of the screen instead (SetupSteps).
+ */
 function FundsNote({ account, funds }: { account: string; funds: Funds }) {
   const { balance, faucet } = funds;
   if (faucet.kind === 'sent') {
@@ -228,11 +247,18 @@ function FundsNote({ account, funds }: { account: string; funds: Funds }) {
       </p>
     );
   }
-  const short = faucet.kind === 'failed' || (faucet.kind === 'claimed' && !covers(balance, 'bet'));
-  if (!short) return null;
+  if (faucet.kind !== 'claimed' || covers(balance, 'bet')) return null;
   return (
-    <p className={`side-note ${faucet.kind === 'failed' ? 'side-error' : ''}`} role={faucet.kind === 'failed' ? 'alert' : 'status'}>
-      {faucet.kind === 'failed' ? `${faucet.text} ` : 'This account got the faucet before. '}
+    <p className="side-note" role="status">
+      This account got the faucet before. <FaucetLinks account={account} />
+    </p>
+  );
+}
+
+/** Where else to get testnet NEAR and USDC for the account. */
+function FaucetLinks({ account }: { account: string }) {
+  return (
+    <>
       You can get{' '}
       <a className="lk" href={config.faucetUrl} target="_blank" rel="noopener noreferrer">
         testnet NEAR
@@ -244,7 +270,7 @@ function FundsNote({ account, funds }: { account: string; funds: Funds }) {
         <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
       </a>{' '}
       (network: NEAR testnet) for <code>{shortAccount(account)}</code> yourself.
-    </p>
+    </>
   );
 }
 

@@ -34,10 +34,11 @@
 
 /* The dark theme of the Community Notes page (its theme picker sets data-theme on the root):
    X's black, Lights out. Blue, green, red and gold stay as in the light theme, as on X. It
-   applies to the notes app, its dialogs on document.body and the page's sheet, but not to the
+   applies to the notes app, its dialogs and floating errors on document.body and the page's
+   sheet, but not to the
    hero and the nav: those keep the light colours on the hero's field, also where they use the
    app's classes (the setup steps). */
-:root[data-theme='dark'] :is(.notes-app, .overlay, .ss-sheet) {
+:root[data-theme='dark'] :is(.notes-app, .overlay, .ss-sheet, .float-region) {
   --bg: #000;
   --ink: #e7e9ea;
   --on-ink: #0f1419;
@@ -2017,10 +2018,74 @@ fieldset:disabled .choice {
   }
 }
 
+/* Errors at the bottom of the screen (FloatingError.tsx): small bars in the middle, over the
+   page but under our modals' Wallet frames. Quiet: the page's own surface, a thin line and a red
+   icon, not a red block. */
+.float-region {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 55;
+  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.float-error {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 8px 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: rgba(101, 119, 134, 0.2) 0 0 15px, rgba(101, 119, 134, 0.15) 0 0 3px 1px;
+  animation: toast-in 0.2s ease-out;
+}
+.float-error-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--red);
+}
+.float-error-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.float-error-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -4px 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .float-error-close:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mic-live,
   .spinner,
   .toast,
+  .float-error,
   .step-just-done .step-mark,
   .note-fresh {
     animation: none;

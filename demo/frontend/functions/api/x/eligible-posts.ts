@@ -9,9 +9,14 @@
 // X bills each post and each author that it returns. The route therefore keeps one snapshot for
 // every visitor and asks X again only when the snapshot is older than X_ELIGIBLE_TTL_SECONDS.
 // If X fails, the route serves the old snapshot.
+//
+// The posts are about what people on X dispute, so most are about politics or war. A NEAR AI
+// model sorts each new post by subject once (functions/lib/topicFilter.ts), and the route gives
+// only the posts with an allowed subject. The snapshot collects them over time.
 
 import { json, refuseOtherOrigin } from '../../lib/http.ts';
 import { oauth1Header, queryString, type OAuth1Keys } from '../../lib/oauth1.ts';
+import { classifyPosts, DEFAULT_ALLOWED_TOPICS, DEFAULT_TOPIC_MODEL, isTopic, type Topic } from '../../lib/topicFilter.ts';
 
 export interface Env {
   /** OAuth 1.0a "Consumer Key" and secret of the AI Note Writer's X app. */
@@ -26,6 +31,15 @@ export interface Env {
   X_ELIGIBLE_TTL_SECONDS?: string;
   /** Optional. A language code such as "ja", or "all". X's default is English. */
   X_ELIGIBLE_LANG?: string;
+  /**
+   * Optional. The subjects to show, as a comma list (see TOPICS in functions/lib/topicFilter.ts).
+   * Default: sport, science, technology, business, entertainment. "all" turns the filter off.
+   */
+  X_ELIGIBLE_TOPICS?: string;
+  /** The key of the subject filter. Required unless X_ELIGIBLE_TOPICS is "all". */
+  NEAR_AI_API_KEY?: string;
+  /** Optional. A chat model that NEAR AI lists at /v1/models. */
+  NEAR_AI_MODEL?: string;
   /** Optional. A KV namespace: one snapshot for all Cloudflare locations. */
   X_CACHE?: KVNamespace;
 }
@@ -54,6 +68,8 @@ export interface XPost {
   author: XAuthor | null;
   media: XMedia[];
   metrics: { likes: number; reposts: number; replies: number; views: number } | null;
+  /** The subject from the filter. Null when the filter is off. */
+  topic: Topic | null;
 }
 
 /** What the route keeps between calls to X. */
@@ -63,6 +79,8 @@ export interface Snapshot {
   posts: XPost[];
   /** The time of the last failed call to X, if it came after the last good answer. */
   failedAtMs: number | null;
+  /** The subject of each post that the filter sorted, also of the posts that it left out. */
+  topics: Record<string, Topic>;
 }
 
 export interface SnapshotStore {
@@ -75,6 +93,8 @@ export interface Settings {
   maxResults: number;
   ttlMs: number;
   lang: string | null;
+  /** Null when the filter is off. */
+  filter: { apiKey: string; model: string; allowed: ReadonlySet<Topic> } | null;
 }
 
 export interface Deps {
@@ -95,9 +115,13 @@ const KEEP_SECONDS = 7 * 24 * 3_600;
 const TIMEOUT_MS = 15_000;
 const MAX_TEXT_CHARS = 4_000;
 const MAX_MEDIA = 4;
-const STORE_KEY = 'x-eligible-posts-v1';
+const STORE_KEY = 'x-eligible-posts-v2';
+/** The most posts in the snapshot, and the most subjects that it remembers. */
+export const MAX_KEPT_POSTS = 30;
+const MAX_KEPT_TOPICS = 1_000;
 
 export const NO_KEYS = 'The posts service has no X API keys.';
+export const NO_FILTER_KEY = 'The posts service has no NEAR AI key for its subject filter.';
 const X_FAILED = 'X did not give the posts. Try again in a minute.';
 
 export const onRequestGet: PagesFunction<Env> = ({ request, env }) => {
@@ -116,7 +140,8 @@ export async function handleEligiblePosts(request: Request, env: Env, deps: Deps
   const refusal = refuseOtherOrigin(request);
   if (refusal) return refusal;
   const settings = readSettings(env);
-  if (!settings) return json({ error: NO_KEYS }, 503);
+  if (settings === 'no-keys') return json({ error: NO_KEYS }, 503);
+  if (settings === 'no-filter-key') return json({ error: NO_FILTER_KEY }, 503);
 
   const now = deps.now();
   const old = await deps.store.get().catch(() => null);
@@ -124,16 +149,54 @@ export async function handleEligiblePosts(request: Request, env: Env, deps: Deps
   const failedLately = old?.failedAtMs != null && now - old.failedAtMs < RETRY_AFTER_FAILURE_MS;
   if (old && (isFresh || failedLately)) return answer(old, !isFresh);
 
-  const result = await fetchEligiblePosts(settings, deps);
+  const result = await refresh(settings, old, deps);
   if (result.ok) {
-    const fresh: Snapshot = { fetchedAtMs: now, posts: result.posts, failedAtMs: null };
+    const fresh: Snapshot = { fetchedAtMs: now, posts: result.posts, failedAtMs: null, topics: result.topics };
     await deps.store.put(fresh).catch(() => undefined);
     return answer(fresh, false);
   }
   console.error(`eligible-posts: ${result.error}`);
-  const failed: Snapshot = { fetchedAtMs: old?.fetchedAtMs ?? null, posts: old?.posts ?? [], failedAtMs: now };
+  const failed: Snapshot = { fetchedAtMs: old?.fetchedAtMs ?? null, posts: old?.posts ?? [], failedAtMs: now, topics: old?.topics ?? {} };
   await deps.store.put(failed).catch(() => undefined);
   return answer(failed, true);
+}
+
+type RefreshResult = { ok: true; posts: XPost[]; topics: Record<string, Topic> } | { ok: false; error: string };
+
+/**
+ * The new posts of X, sorted by subject, together with the kept posts of the old snapshot. If
+ * the filter fails, the whole refresh fails: a post never shows without its subject.
+ */
+async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Promise<RefreshResult> {
+  const fetched = await fetchEligiblePosts(settings, deps);
+  if (!fetched.ok) return fetched;
+  const topics: Record<string, Topic> = { ...old?.topics };
+  let shown = fetched.posts;
+  if (settings.filter) {
+    const { allowed, apiKey, model } = settings.filter;
+    const unsorted = fetched.posts.filter((post) => topics[post.id] === undefined);
+    if (unsorted.length > 0) {
+      const sorted = await classifyPosts(unsorted, { apiKey, model, fetch: deps.fetch });
+      if (!sorted.ok) return sorted;
+      Object.assign(topics, sorted.topics);
+    }
+    shown = fetched.posts.flatMap((post) => {
+      const topic = topics[post.id];
+      return topic !== undefined && allowed.has(topic) ? [{ ...post, topic }] : [];
+    });
+  }
+  // The new posts first, then the old posts that X did not give again. With the filter on, an
+  // old post stays only while its subject is allowed. With the filter off, no post has a subject.
+  const ids = new Set(shown.map((post) => post.id));
+  const kept = (old?.posts ?? []).filter((post) => {
+    if (ids.has(post.id) || fetched.posts.some((other) => other.id === post.id)) return false;
+    return settings.filter ? post.topic !== null && settings.filter.allowed.has(post.topic) : post.topic === null;
+  });
+  const posts = [...shown, ...kept]
+    .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0))
+    .slice(0, MAX_KEPT_POSTS);
+  const entries = Object.entries(topics);
+  return { ok: true, posts, topics: Object.fromEntries(entries.slice(Math.max(0, entries.length - MAX_KEPT_TOPICS))) };
 }
 
 function answer(snapshot: Snapshot, stale: boolean): Response {
@@ -142,20 +205,32 @@ function answer(snapshot: Snapshot, stale: boolean): Response {
   return json({ posts: snapshot.posts, fetchedAtMs: snapshot.fetchedAtMs, stale }, 200, { 'Cache-Control': 'public, max-age=60' });
 }
 
-/** The settings, or null when a key is missing. */
-export function readSettings(env: Env): Settings | null {
+/** The settings, or the name of what is missing. */
+export function readSettings(env: Env): Settings | 'no-keys' | 'no-filter-key' {
   const consumerKey = env.X_API_KEY?.trim();
   const consumerSecret = env.X_API_SECRET?.trim();
   const token = env.X_ACCESS_TOKEN?.trim();
   const tokenSecret = env.X_ACCESS_TOKEN_SECRET?.trim();
-  if (!consumerKey || !consumerSecret || !token || !tokenSecret) return null;
+  if (!consumerKey || !consumerSecret || !token || !tokenSecret) return 'no-keys';
+  const allowed = readAllowedTopics(env.X_ELIGIBLE_TOPICS);
+  const apiKey = env.NEAR_AI_API_KEY?.trim();
+  if (allowed && !apiKey) return 'no-filter-key';
   const lang = env.X_ELIGIBLE_LANG?.trim().toLowerCase() ?? '';
   return {
     keys: { consumerKey, consumerSecret, token, tokenSecret },
     maxResults: clampInteger(env.X_ELIGIBLE_MAX, DEFAULT_MAX, 1, 100),
     ttlMs: clampInteger(env.X_ELIGIBLE_TTL_SECONDS, DEFAULT_TTL_SECONDS, MIN_TTL_SECONDS, KEEP_SECONDS) * 1_000,
     lang: /^[a-z]{2,3}$/.test(lang) ? lang : null,
+    filter: allowed && apiKey ? { apiKey, model: env.NEAR_AI_MODEL?.trim() || DEFAULT_TOPIC_MODEL, allowed } : null,
   };
+}
+
+/** The allowed subjects, or null for "all" (no filter). Unknown names are ignored. */
+function readAllowedTopics(value: string | undefined): ReadonlySet<Topic> | null {
+  const names = (value ?? '').split(',').map((name) => name.trim().toLowerCase()).filter((name) => name !== '');
+  if (names.includes('all')) return null;
+  const topics = names.filter(isTopic);
+  return new Set(topics.length > 0 ? topics : DEFAULT_ALLOWED_TOPICS);
 }
 
 function clampInteger(value: string | undefined, fallback: number, minimum: number, maximum: number): number {
@@ -253,6 +328,7 @@ export function parseEligiblePosts(body: unknown): XPost[] {
       author,
       media: keys.flatMap((key) => (typeof key === 'string' ? (media.get(key) ?? []) : [])).slice(0, MAX_MEDIA),
       metrics: parseMetrics(item.public_metrics),
+      topic: null,
     });
   }
   return posts;
@@ -315,7 +391,8 @@ function arrayOf(value: unknown): unknown[] {
 export function asSnapshot(value: unknown): Snapshot | null {
   if (!isRecord(value) || !Array.isArray(value.posts)) return null;
   const time = (field: unknown) => (typeof field === 'number' && Number.isFinite(field) ? field : null);
-  return { fetchedAtMs: time(value.fetchedAtMs), posts: value.posts as XPost[], failedAtMs: time(value.failedAtMs) };
+  const topics = isRecord(value.topics) ? Object.fromEntries(Object.entries(value.topics).filter((entry): entry is [string, Topic] => isTopic(entry[1]))) : {};
+  return { fetchedAtMs: time(value.fetchedAtMs), posts: value.posts as XPost[], failedAtMs: time(value.failedAtMs), topics };
 }
 
 // ---- The two stores ----

@@ -288,6 +288,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 20.               |
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 3600, minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
+| `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment`. `all` turns the filter off. The filter needs `NEAR_AI_API_KEY`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://api.outlayer.fastnear.com`. |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
 | `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `multisig_propose` (0.6.0 or later). |
@@ -353,15 +354,27 @@ mode and never sends a note to X.
 - **Failure.** If X fails, the route serves the old snapshot with
   `stale: true` and waits 60 s before the next call. Without a snapshot it
   answers 502. Without keys it answers 503.
+- **Subject filter.** The posts are about what people on X dispute, so most
+  are about politics or war. A NEAR AI model sorts each new post once into
+  one of `sport`, `science`, `technology`, `business`, `entertainment`,
+  `health`, `politics`, `war`, `crime`, `adult` and `other`
+  (`functions/lib/topicFilter.ts`). The route gives only the posts with a
+  subject in `X_ELIGIBLE_TOPICS`, each with its `topic`. A post that the model
+  does not answer for is `other`. If the model fails, the refresh fails: no
+  post shows without a subject. Without `NEAR_AI_API_KEY` the route answers
+  503, unless `X_ELIGIBLE_TOPICS` is `all`.
+- **Collection.** About 1 post in 4 passes the default filter. The snapshot
+  therefore keeps the passed posts of earlier calls, 30 at most, newest first.
 - **Checks.** The route drops posts that X marks as sensitive. It checks each
   field of X's answer, and keeps only image URLs on `twimg.com`.
 
-Each post is `{ id, text, createdAt, lang, url, author, media, metrics }`
+Each post is `{ id, text, createdAt, lang, url, author, media, metrics, topic }`
 (`XPost` in the function file). The tests are in
 `tests/x-eligible-posts.test.ts`, with a fake X API. A local run against the
 real X API on 10 Nov 2026 gave 10 English posts, from 2 hours to 2 days old.
-X took the `tweet.fields` name. Most posts are about politics or other
-contested subjects, as the source is note requests.
+X took the `tweet.fields` name. Of 20 posts, 5 passed the default filter (2
+sport, 1 science, 1 technology, 1 entertainment). The model put the posts on
+Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 ## Summary rules and `/api/summary`
 

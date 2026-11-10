@@ -114,7 +114,7 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
     <>
       {busy && <WalletWait step={busy} />}
       <ol className="steps">
-        <Step index={1} done={signedIn} label="Create a wallet, or sign in">
+        <Step index={1} done={signedIn} label="Create a wallet">
           {signedIn && account ? (
             <a className="lk small step-detail" href={accountUrl(account)} target="_blank" rel="noopener noreferrer">
               {shortAccount(account)}

@@ -31,7 +31,7 @@ path or by git.
 | `@seams/speak-to-sign@0.66.0` | Published by the plugin workflow (run 42867738332) |
 | `@seams/voice-verdict@0.66.0` | Published by hand from the owner's account. It holds two unused files of an old local build (`dist/client.js`, `dist/client.d.ts`); no export reaches them. The build now empties `dist/` first |
 | `@seams/voice-capture@0.66.0` | Published by hand from the owner's account |
-| `@seams/voice-sign@0.66.0` | Published by hand from the owner's account |
+| `@seams/voice-sign@0.66.0` | Published by hand from the owner's account. A clean `npm install @seams/voice-sign@0.66.0` gets `@seams/voice-capture` and `@seams/voice-verdict` 0.66.0, and its server entry point imports |
 
 npm allows trusted publishing only for a package that exists. So the first
 version of each new name comes from the owner's account. After that,
@@ -41,9 +41,11 @@ hand step.
 
 ## 3. The verifier that the libraries work with
 
-On OutLayer testnet, project `seams-v1.testnet/voice-verifier`. None of these
-builds is the active version (the active version is 0.5.2). A developer
-selects a build with `version_key`.
+On OutLayer testnet, project `seams-v1.testnet/voice-verifier`. 0.11.0 is the
+active version since 2026-11-11 (`set_active_version` tx
+`69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`), so a call with no `version_key` runs it.
+Before, 0.5.2 was active. Every known caller (the Wallet server, the demo
+routes) sends its own `version_key`, so none of them changed.
 
 | Build | Version key | Has |
 | --- | --- | --- |
@@ -71,11 +73,10 @@ than the Seams staging account.
 1. Done: `scripts/npm-trust-standalone.sh` set `release-standalone.yml` as the
    trusted publisher of `@seams/voice-verdict`, `@seams/voice-capture` and
    `@seams/voice-sign`. The next release of the three needs no hand step.
-2. Decide the default verifier: if developers must get 0.11.0 with no
-   `version_key`, the project owner sets it active. That also changes the
-   build that the Wallet staging route gets, if that route sends no
-   `version_key`.
-3. At 0.67.0: the plugin is published under `@seams/wallet-voice-sign` for
+2. Done: 0.11.0 is the active verifier version. A call with no `version_key`
+   answered as `0.11.0`.
+3. Done: the tag `v0.66.0` marks the release on `dev`.
+4. At 0.67.0: the plugin is published under `@seams/wallet-voice-sign` for
    the first time. npm allows trusted publishing only for a package that
    exists, so that first version needs one publish from the owner's account
    (or the run of `release-wallet-voice-sign.yml` fails at the publish

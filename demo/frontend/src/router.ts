@@ -1,45 +1,9 @@
-import { useSyncExternalStore } from 'react';
-import { POSTS } from './data/posts';
-
-/** The post that the demo opens on. */
-export const START_POST_ID = POSTS[0]?.id ?? 1;
-
-// The notes app lives in the Speak-to-Sign page, under the hash #/notes. The page opens the
-// notes window when the hash starts with #/notes, and closes it when the hash goes.
-// #/notes/post/<id> shows a post. Every other hash, and no hash, shows the timeline: the demo
-// post and the posts from X that can get a note.
-
-export type HomeTab = 'for_you' | 'needs_help';
-export type Route = { name: 'home'; tab: HomeTab } | { name: 'timeline' } | { name: 'post'; postId: number };
-
-function subscribe(onChange: () => void) {
-  window.addEventListener('hashchange', onChange);
-  return () => window.removeEventListener('hashchange', onChange);
-}
-
-function parse(hash: string): Route {
-  const post = /^#\/notes\/post\/(\d+)/.exec(hash);
-  if (post) return { name: 'post', postId: Number(post[1]) };
-  return { name: 'timeline' };
-}
-
-export function useRoute(): Route {
-  return parse(useSyncExternalStore(subscribe, () => window.location.hash));
-}
-
-/** A key that changes when the page changes, to scroll back to the top. */
-export function routeKey(route: Route): string {
-  if (route.name === 'timeline') return 'timeline';
-  return route.name === 'post' ? `post:${route.postId}` : `home:${route.tab}`;
-}
+// The notes app lives in the Speak-to-Sign page, under the hash #/notes. It has one view: the
+// timeline of the demo post and the posts from X that can get a note. A post has no page of its
+// own: a click on it opens its bet dialog or the write dialog over the timeline. Any hash shows
+// the timeline, so an old link to a post (#/notes/post/<id>) still lands there.
 
 export const paths = {
   home: '#/notes',
-  needsHelp: '#/notes/needs-help',
   timeline: '#/notes/timeline',
-  post: (postId: number) => `#/notes/post/${postId}`,
 };
-
-export function navigate(path: string) {
-  window.location.hash = path;
-}

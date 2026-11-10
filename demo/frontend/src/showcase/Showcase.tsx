@@ -3,7 +3,7 @@ import { IconArrowRight, IconArrowUpRight, IconChevronRight } from '@tabler/icon
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
 import { config } from '../config';
-import { paths, START_POST_ID } from '../router';
+import { paths } from '../router';
 import { EXAMPLES, PAGE_PATH, type ExampleId, type VoiceExample } from './examples';
 import { BrowserChrome, DrawnFrame, FitScreen, ScaledScreen } from './frame';
 import { LiveApps, LiveSlot } from './live';
@@ -32,7 +32,7 @@ function exampleFromHash(hash: string): ExampleId | null {
 }
 
 // The notes window opens on the post page, where the demo starts.
-const openHash = (id: ExampleId) => (id === 'notes' ? paths.post(START_POST_ID) : `#/${id}`);
+const openHash = (id: ExampleId) => (id === 'notes' ? paths.timeline : `#/${id}`);
 
 function closeWindow() {
   if (!exampleFromHash(window.location.hash)) return;

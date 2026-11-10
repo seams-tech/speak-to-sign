@@ -1,9 +1,9 @@
-// The Community Note that the post got on X, shown as on X: "Readers added context". In place of
-// "Do you find this helpful?", it asks for a bet. The Bet button opens the note, as X's note
-// view does, with the note market at its foot.
+// The note view of the demo post's context: the note that the post got on X, then the note
+// market with two bet buttons. The timeline opens it from the post's card (its Bet button, or a
+// click on the card).
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { IconCircleCheckFilled, IconExternalLink, IconUsers, IconX } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconExternalLink, IconX } from '@tabler/icons-react';
 import { config } from '../config';
 import type { Post, PostContext as Context } from '../data/posts';
 import { useDemo } from '../demoContext';
@@ -24,45 +24,6 @@ import { SignInStep } from './SignInModal';
  * in USDC (market 9 now, open until 18 Nov 2026 23:59 UTC).
  */
 export const CONTEXT_MARKET_NOTE_ID = 0;
-
-export function PostContextBox({ post }: { post: Post }) {
-  const [open, setOpen] = useState(false);
-  const context = post.context;
-  if (!context) return null;
-  return (
-    <>
-      <section className="note-card pc-card" aria-label="Readers added context">
-        <header className="note-head">
-          <IconUsers size={20} stroke={1.8} className="note-icon-shown" aria-hidden="true" />
-          <b>Readers added context they thought people might want to know</b>
-        </header>
-        <div className="note-body">
-          <ContextText context={context} />
-        </div>
-        <div className="note-foot note-rate">
-          <span>Do you bet this is true or false?</span>
-          <button type="button" className="btn btn-blue" onClick={() => setOpen(true)}>
-            Bet
-          </button>
-        </div>
-      </section>
-      {open && <NoteDialog post={post} context={context} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
-function ContextText({ context }: { context: Context }) {
-  return (
-    <>
-      <p>{context.text}</p>
-      <ol className="pc-examples">
-        {context.examples.map((example) => (
-          <li key={example}>{example}</li>
-        ))}
-      </ol>
-    </>
-  );
-}
 
 /**
  * The note view, kept short: the quoted post, the note, then the bet with two colored buttons.

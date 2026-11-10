@@ -3,7 +3,7 @@
 The site is one page (`/`): what a spoken approval is, and the applications as
 small screens in hand-drawn frames. A click on a screen grows it into a window
 of about 90% of the screen, and the app in it works. Community Notes is live
-(`#/notes`); the pull request merge (`#/merge`) works up to the Wallet call; the
+(`#/notes`); the
 voice multisig (`#/multisig`) works against its testnet contract, and shows
 example data until the contract is deployed. The page style follows the
 Seams Wallet site. Its code is in `src/showcase/`.
@@ -12,23 +12,6 @@ Each live app renders once (`src/showcase/live.tsx`), and its element moves
 between its small screen and the window, so the app keeps its page, sign-in
 and data. The notes app scrolls itself, and its layout follows the window size
 (container queries), not the screen size.
-
-## PR merge by voice (on `/`)
-
-The pull request example on the Speak-to-Sign page is live. Its screen,
-`LiveMergeScreen` in `src/merge/`, draws the same pull request page as the
-other examples, but **Merge with voice** works: the owner says "merge pull
-request four hundred twelve into main", the verifier checks the voice and the
-words, and the Seams Wallet signs `approve_merge` on the merge approvals
-contract (`../contracts/merge-approvals/`, proposed account
-`github.seams-v1.testnet`). Nothing in a repository changes; the on-chain
-approval is the signed merge message. The screen lists the newest approvals
-that the contract holds.
-
-It waits for two things. The contract must be deployed. The Wallet must have
-the new spoken request kind and `seams.speakToSign.requestMergeApproval`
-(`merge-approval-spec.md` in the session notes). Until then the button
-answers with the reason.
 
 ## Voice multisig (`#/multisig`)
 
@@ -132,8 +115,8 @@ There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
 The site has two pages on one origin, `https://seams-voice-intents.pages.dev`:
-the Speak-to-Sign page at `/` (`index.html`, with Community Notes and the PR
-merge in its windows), and the Speak to pay example
+the Speak-to-Sign page at `/` (`index.html`, with Community Notes and the voice
+multisig in its windows), and the Speak to pay example
 (`../../examples/speak-to-pay`) at `/pay/`. Both use the same Seams project, so
 one wallet works on both.
 

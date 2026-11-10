@@ -11,7 +11,7 @@ The plan and the threat table are in `docs/voice-multisig.md`.
 
 ## Toolchain
 
-The same as `../merge-approvals/`: Rust 1.97.0 (`rust-toolchain.toml`),
+Rust 1.97.0 (`rust-toolchain.toml`),
 near-sdk 5.30.1, near-workspaces 0.24.0 with the nearcore 2.14.0 sandbox.
 `.cargo/config.toml` adds `--cfg near` to each WASM build, so a failed call
 keeps its message on chain. The contract links `crates/spoken-intent` by

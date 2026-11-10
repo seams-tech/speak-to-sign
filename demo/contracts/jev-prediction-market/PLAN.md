@@ -17,7 +17,7 @@ fractionally.
 
 | Part | Folder | Notes |
 | ---- | ------ | ----- |
-| Contract `pm-notes` | `demo/contracts/jev-prediction-market/` | near-sdk 5.30.1, Rust 1.97.0, setup copied from `merge-approvals/` |
+| Contract `pm-notes` | `demo/contracts/jev-prediction-market/` | near-sdk 5.30.1, Rust 1.97.0, setup copied from `voice-multisig/` |
 | Sandbox test and fake OutLayer | `demo/contracts/jev-prediction-market/sandbox/` | near-workspaces 0.24.0 (nearcore 2.14.0) |
 | Resolver worker | `demo/contracts/jev-prediction-market/resolver/` | OutLayer worker, `wasm32-wasip2`, Rust 1.97.1, `wasi-http-client` 0.2.1 |
 | Market strip | `demo/frontend` (the notes example) | The user asked this session to build it (10 Nov 2026), after the contract. I agree the files with the demo page session. |

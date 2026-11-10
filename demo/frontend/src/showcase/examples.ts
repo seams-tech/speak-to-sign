@@ -1,12 +1,11 @@
 // The applications on the Speak-to-Sign page. A click on one opens it in a window on the page.
-// Community Notes is live on NEAR testnet. The pull request screen works too, but its contract
-// and the Wallet's merge request are not live yet. The voice multisig works against its testnet
-// contract, and shows example data until the contract is deployed. All copy the style of the
+// Community Notes is live on NEAR testnet. The voice multisig works against its testnet
+// contract, and shows example data until the contract is deployed. Both copy the style of the
 // real apps, with neutral logos, inside a hand-drawn frame.
 
 import { config } from '../config';
 
-export type ExampleId = 'notes' | 'merge' | 'multisig';
+export type ExampleId = 'notes' | 'multisig';
 
 export interface VoiceExample {
   id: ExampleId;
@@ -36,17 +35,6 @@ export const EXAMPLES: VoiceExample[] = [
     status: 'live',
     blurb: 'Rate or post a note by voice, on an X-style page.',
     url: 'x.com',
-  },
-  {
-    id: 'merge',
-    chip: 'Merge a PR',
-    title: 'Merge a pull request',
-    say: 'merge pull request four hundred twelve into main',
-    signs: 'approve({ pr: 412, head: "9c1e2fa", base: "main" })',
-    target: 'a required check verifies it, then the merge runs',
-    status: 'concept',
-    blurb: 'The maintainer reads the intent aloud, so it is hard to merge the wrong PR by accident.',
-    url: 'github.com/seams-tech/speak-to-sign/pull/412',
   },
   {
     id: 'multisig',

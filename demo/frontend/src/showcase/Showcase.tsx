@@ -8,18 +8,16 @@ import { EXAMPLES, type ExampleId, type VoiceExample } from './examples';
 import { BrowserChrome, DrawnFrame, FitScreen, ScaledScreen } from './frame';
 import { LiveApps, LiveSlot } from './live';
 import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
-import { MergeScreen, MultisigScreen } from './screens';
+import { MultisigScreen } from './screens';
 import { ExampleWindow } from './window';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
-const MERGE_INTRO =
-  'Your merge approval is signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
 const MULTISIG_INTRO =
   'Your proposals and approvals are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
 const SETUP_INTRO = 'Create a Seams Wallet with a passkey, or sign in to yours. It is a NEAR testnet account.';
 
-// One page. The hash names the open window: #/notes (and the notes app's own pages under it),
-// #/merge or #/multisig. No hash: no window.
+// One page. The hash names the open window: #/notes (and the notes app's own pages under it) or
+// #/multisig. No hash: no window.
 
 function subscribeHash(onChange: () => void) {
   window.addEventListener('hashchange', onChange);
@@ -31,7 +29,7 @@ function useHash(): string {
 }
 
 function exampleFromHash(hash: string): ExampleId | null {
-  const match = /^#\/(notes|merge|multisig)(?:\/|$)/.exec(hash);
+  const match = /^#\/(notes|multisig)(?:\/|$)/.exec(hash);
   return match ? (match[1] as ExampleId) : null;
 }
 
@@ -64,7 +62,6 @@ export function Showcase({ seams }: { seams: boolean }) {
   };
 
   const open = EXAMPLES.find((example) => example.id === shown);
-  const merge = EXAMPLES.find((example) => example.id === 'merge');
 
   return (
     <>
@@ -114,12 +111,7 @@ export function Showcase({ seams }: { seams: boolean }) {
         </ExampleWindow>
       )}
 
-      <LiveApps
-        seams={seams}
-        mergeSay={merge?.say ?? ''}
-        onMergeSignIn={() => setSignIn(MERGE_INTRO)}
-        onMultisigSignIn={() => setSignIn(MULTISIG_INTRO)}
-      />
+      <LiveApps seams={seams} onMultisigSignIn={() => setSignIn(MULTISIG_INTRO)} />
       {seams && signIn && <SignInModal intro={signIn} onClose={() => setSignIn(null)} onSignedIn={() => setSignIn(null)} />}
     </>
   );
@@ -222,8 +214,7 @@ function SmallScreen({ example, seams, away }: { example: VoiceExample; seams: b
   }
   return (
     <ScaledScreen width={1120} height={700}>
-      {example.id === 'merge' && (seams ? <LiveSlot id="merge" active={!away} /> : <MergeScreen say={example.say} />)}
-      {example.id === 'multisig' && (seams ? <LiveSlot id="multisig" active={!away} /> : <MultisigScreen />)}
+      {seams ? <LiveSlot id="multisig" active={!away} /> : <MultisigScreen />}
     </ScaledScreen>
   );
 }
@@ -233,8 +224,7 @@ function WindowScreen({ example, seams }: { example: VoiceExample; seams: boolea
   if (example.id === 'notes') return <LiveSlot id="notes" />;
   return (
     <FitScreen width={1120} height={700}>
-      {example.id === 'merge' && (seams ? <LiveSlot id="merge" /> : <MergeScreen say={example.say} />)}
-      {example.id === 'multisig' && (seams ? <LiveSlot id="multisig" /> : <MultisigScreen />)}
+      {seams ? <LiveSlot id="multisig" /> : <MultisigScreen />}
     </FitScreen>
   );
 }

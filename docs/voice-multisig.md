@@ -120,7 +120,7 @@ The verifier version with these kinds is 0.6.0.
 
 ## Contract (`demo/contracts/voice-multisig`)
 
-Copied from the `merge-approvals` layout: near-sdk 5.30.1, Rust 1.97.0,
+near-sdk 5.30.1, Rust 1.97.0,
 unit tests, a sandbox test and a pinned build. It links `spoken-intent` by
 path. Members are `predecessor_account_id`. Only `execute` moves value. No
 change method accepts a deposit. The multisig gets its NEAR by a plain

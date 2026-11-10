@@ -1,6 +1,0 @@
-# near-sdk 5.30 calls the NEAR host functions (panic_utf8, sha256, ...) only
-# when `cfg(near)` is set. Without it, a panic in the contract loses its
-# message and traps with `unreachable`. cargo-near 0.21+ adds this flag; a
-# plain `cargo build` needs it here.
-[target.wasm32-unknown-unknown]
-rustflags = ["--cfg", "near"]

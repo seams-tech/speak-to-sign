@@ -12,8 +12,6 @@ const e = import.meta.env;
 export const config = {
   /** The notes contract on NEAR testnet (demo/contracts/community-notes/). */
   contract: env(e.VITE_NOTES_CONTRACT, 'notes.seams-v1.testnet'),
-  /** The merge approvals contract on NEAR testnet (demo/contracts/merge-approvals/). */
-  mergeContract: env(e.VITE_MERGE_CONTRACT, 'github.seams-v1.testnet'),
   /** The voice multisig contract on NEAR testnet (demo/contracts/voice-multisig/). */
   multisigContract: env(e.VITE_MULTISIG_CONTRACT, 'team.seams-v1.testnet'),
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),

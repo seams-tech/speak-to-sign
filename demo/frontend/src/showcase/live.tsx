@@ -7,13 +7,12 @@ import { createPortal } from 'react-dom';
 import { useSeams } from '@seams/wallet/react';
 import { App as NotesApp } from '../App';
 import { config } from '../config';
-import { LiveMergeScreen } from '../merge/LiveMergeScreen';
 import { LiveMultisigScreen } from '../multisig/LiveMultisigScreen';
 import { createContractMarketSource, MarketSourceContext } from '../market/contractSource';
 import { createSeamsMarketSigner } from '../market/marketSigner';
 import { createMissingKeySigner, createSeamsSigner } from '../signer/seamsSigner';
 
-export type LiveId = 'notes' | 'merge' | 'multisig';
+export type LiveId = 'notes' | 'multisig';
 
 const nodes = new Map<LiveId, HTMLDivElement>();
 
@@ -39,23 +38,12 @@ export function LiveSlot({ id, active = true }: { id: LiveId; active?: boolean }
 /**
  * Renders the live apps into their elements. With `seams`, it needs SeamsWebProvider above it.
  * Without a Seams publishable key, the notes app shows the notes and cannot sign, and there is
- * no live merge or multisig screen.
+ * no live multisig screen.
  */
-export function LiveApps({
-  seams,
-  mergeSay,
-  onMergeSignIn,
-  onMultisigSignIn,
-}: {
-  seams: boolean;
-  mergeSay: string;
-  onMergeSignIn: () => void;
-  onMultisigSignIn: () => void;
-}) {
+export function LiveApps({ seams, onMultisigSignIn }: { seams: boolean; onMultisigSignIn: () => void }) {
   return (
     <>
       {createPortal(seams ? <SeamsNotes /> : <KeylessNotes />, liveNode('notes'))}
-      {seams && createPortal(<LiveMergeScreen say={mergeSay} onSignIn={onMergeSignIn} />, liveNode('merge'))}
       {seams && createPortal(<LiveMultisigScreen onSignIn={onMultisigSignIn} />, liveNode('multisig'))}
     </>
   );

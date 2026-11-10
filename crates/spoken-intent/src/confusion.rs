@@ -8,6 +8,7 @@ use crate::render::VERSION_CHECK_DIGITS;
 use crate::token::SpokenToken;
 use crate::{
     render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+    UsdcAmount,
 };
 
 /// The verbs of the grammar: the two request verbs, "reject" (the opposite
@@ -68,6 +69,12 @@ type NearMisses = BTreeSet<Vec<SpokenToken>>;
 /// changed to each other digit (only numbers of 1 or more); the base
 /// replaced by each other base of `MERGE_BASES`; "not" added at each
 /// position; and the verb "close" in place of "merge".
+///
+/// A market bet moves value. Its near misses are the other outcome; the
+/// amount changes of a transfer; the market id one lower and one higher,
+/// and with each decimal digit changed to each other digit (only ids of 1
+/// or more), each with the same and with the other outcome; "not" added at
+/// each position; and the verbs "cancel" and "sell" in place of "bet".
 pub fn confusion_set(
     request: &SpokenRequestV1,
     contacts: &[SpokenAccount],
@@ -159,6 +166,52 @@ pub fn confusion_set(
                 .spoken
             };
             merge_near_misses(&expected, *pull_request, base, merge)
+        }
+        SpokenRequestV1::MarketBet {
+            network,
+            owner,
+            market,
+            token,
+            market_id,
+            outcome,
+            amount,
+        } => {
+            let bet = |market_id, outcome, amount| {
+                render(&SpokenRequestV1::MarketBet {
+                    network: *network,
+                    owner: owner.clone(),
+                    market: market.clone(),
+                    token: token.clone(),
+                    market_id,
+                    outcome,
+                    amount,
+                })
+                .spoken
+            };
+            let mut set = NearMisses::new();
+            set.insert(bet(*market_id, outcome.other(), *amount));
+            for other in amount_neighbours(
+                NearAmount::from_hundredths(amount.hundredths())
+                    .expect("a USDC amount has the range of a NEAR amount"),
+            ) {
+                let other = UsdcAmount::from_hundredths(other.hundredths())
+                    .expect("a NEAR amount has the range of a USDC amount");
+                set.insert(bet(*market_id, *outcome, other));
+            }
+            let neighbours = [market_id.checked_sub(1), market_id.checked_add(1)];
+            let ids = neighbours
+                .into_iter()
+                .flatten()
+                .chain(digit_changes(*market_id, 1));
+            for id in ids.filter(|id| *id >= 1) {
+                set.insert(bet(id, *outcome, *amount));
+                set.insert(bet(id, outcome.other(), *amount));
+            }
+            insert_not_everywhere(&expected, &mut set);
+            for verb in ["cancel", "sell"] {
+                set.insert(spliced(&expected, 0, 1, &[word(verb)]));
+            }
+            set
         }
     };
     set.remove(&expected);

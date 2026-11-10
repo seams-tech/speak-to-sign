@@ -12,9 +12,9 @@ pub mod support;
 use serde_json::{json, Value};
 use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
-    request_digest, spoken_text, spoken_text_digest, NearAmount, Network, NoteRatingV1,
-    ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
-    PUNCTUATED_ALIASES, RENDERER_VERSION,
+    request_digest, spoken_text, spoken_text_digest, BetOutcomeV1, NearAmount, Network,
+    NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+    SpokenSummary, UsdcAmount, PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
 use support::{account, contacts, near, near_account, IMPLICIT_ACCOUNT, MULTISIG_SALT, ONE_NEAR};
 
@@ -133,6 +133,21 @@ const TRANSFER_CASES: [(&str, Network, &str, u64); 12] = [
     ("account_transfer_mainnet", Network::Mainnet, "alice.near", 2_500),
 ];
 
+const MARKET_CONTRACT: &str = "pm-notes.testnet";
+const USDC_CONTRACT: &str = "usdc.testnet";
+
+fn bet(owner: &str, market_id: u64, outcome: BetOutcomeV1, hundredths: u64) -> SpokenRequestV1 {
+    SpokenRequestV1::MarketBet {
+        network: Network::Testnet,
+        owner: near_account(owner),
+        market: near_account(MARKET_CONTRACT),
+        token: near_account(USDC_CONTRACT),
+        market_id,
+        outcome,
+        amount: UsdcAmount::from_hundredths(hundredths).expect("speakable"),
+    }
+}
+
 fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
     let mut sequential_hash = [0u8; 32];
     for (index, byte) in sequential_hash.iter_mut().enumerate() {
@@ -243,6 +258,18 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
         (
             "merge_approval_1001_main_implicit_owner",
             merge(IMPLICIT_OWNER, 1_001, "main"),
+        ),
+        (
+            "market_bet_yes_half_usdc",
+            bet("owner.testnet", 9, BetOutcomeV1::Yes, 50),
+        ),
+        (
+            "market_bet_no_one_usdc",
+            bet("owner.testnet", 12, BetOutcomeV1::No, 100),
+        ),
+        (
+            "market_bet_yes_implicit_owner",
+            bet(IMPLICIT_OWNER, 1_001, BetOutcomeV1::Yes, 125_075),
         ),
     ]);
     cases

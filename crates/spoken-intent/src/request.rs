@@ -2,7 +2,7 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary};
+use crate::{NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary, UsdcAmount};
 
 /// The NEAR network of a request. It is part of the request digest, not of
 /// the spoken text.
@@ -123,6 +123,63 @@ pub enum SpokenRequestV1 {
         /// text does not say it.
         head_commit: [u8; 20],
     } = 6,
+    /// A bet on one outcome of a prediction market, paid in USDC from the
+    /// owner's own account. The text says the amount, the outcome and the
+    /// market id: "bet zero point five usdc yes on market nine".
+    ///
+    /// This kind moves value, as a transfer does: the owner sends `amount`
+    /// of `token` to the `market` contract. The market contract checks the
+    /// verdict of this request before it takes the bet, so the sentence that
+    /// the owner said is the bet that the contract books.
+    MarketBet {
+        /// The network of the market.
+        network: Network,
+        /// The account that bets, named or implicit. The text does not say
+        /// it.
+        owner: NearAccount,
+        /// The market contract. The text does not say it.
+        market: NearAccount,
+        /// The token contract of the stake. The text says only "usdc"; the
+        /// digest binds the contract.
+        token: NearAccount,
+        /// The market id that the text says.
+        market_id: u64,
+        /// The outcome that the text says.
+        outcome: BetOutcomeV1,
+        /// The stake that the text says.
+        amount: UsdcAmount,
+    } = 7,
+}
+
+/// The outcome of a market that a bet backs.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize,
+)]
+#[borsh(use_discriminant = true)]
+#[repr(u8)]
+pub enum BetOutcomeV1 {
+    /// "yes"
+    Yes = 0,
+    /// "no"
+    No = 1,
+}
+
+impl BetOutcomeV1 {
+    /// The other outcome.
+    pub fn other(self) -> Self {
+        match self {
+            Self::Yes => Self::No,
+            Self::No => Self::Yes,
+        }
+    }
+
+    /// The word that the text says.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Yes => "yes",
+            Self::No => "no",
+        }
+    }
 }
 
 /// The rating of a community note.

@@ -122,3 +122,72 @@ impl BorshDeserialize for NearAmount {
         })
     }
 }
+
+/// The base units of 0.01 USDC: the token has 6 decimals.
+const USDC_UNITS_PER_HUNDREDTH: u128 = 10_000;
+
+/// A USDC amount that the grammar can speak: a whole multiple of 0.01 USDC,
+/// from 0.01 USDC to 1,000,000 USDC. It is spoken as a NEAR amount is, with
+/// the unit word "usdc".
+///
+/// Borsh writes it as the `u128` value in base units (6 decimals), and
+/// decoding refuses any other value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct UsdcAmount {
+    hundredths: NearAmount,
+}
+
+impl UsdcAmount {
+    /// Accepts an exact amount in base units (10^-6 USDC). The crate never
+    /// rounds.
+    pub fn from_units(units: u128) -> Result<Self, UnsupportedReason> {
+        if units % USDC_UNITS_PER_HUNDREDTH != 0 {
+            return Err(UnsupportedReason::AmountNotSpeakable);
+        }
+        let hundredths = u64::try_from(units / USDC_UNITS_PER_HUNDREDTH)
+            .map_err(|_| UnsupportedReason::AmountNotSpeakable)?;
+        Self::from_hundredths(hundredths)
+    }
+
+    /// Accepts an amount in units of 0.01 USDC.
+    pub fn from_hundredths(hundredths: u64) -> Result<Self, UnsupportedReason> {
+        Ok(Self {
+            hundredths: NearAmount::from_hundredths(hundredths)?,
+        })
+    }
+
+    /// The amount in base units (10^-6 USDC).
+    pub fn units(self) -> u128 {
+        u128::from(self.hundredths.hundredths()) * USDC_UNITS_PER_HUNDREDTH
+    }
+
+    /// The amount in units of 0.01 USDC.
+    pub fn hundredths(self) -> u64 {
+        self.hundredths.hundredths()
+    }
+
+    /// "1,250", "2.5" or "0.05".
+    pub(crate) fn display(self) -> String {
+        self.hundredths.display()
+    }
+
+    /// "two point five", as a NEAR amount.
+    pub(crate) fn push_spoken_words(self, out: &mut Vec<&'static str>) {
+        self.hundredths.push_spoken_words(out);
+    }
+}
+
+impl BorshSerialize for UsdcAmount {
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+        self.units().serialize(writer)
+    }
+}
+
+impl BorshDeserialize for UsdcAmount {
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
+        let units = u128::deserialize_reader(reader)?;
+        Self::from_units(units).map_err(|_| {
+            borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, "amount not speakable")
+        })
+    }
+}

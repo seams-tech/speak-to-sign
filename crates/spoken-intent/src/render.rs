@@ -7,6 +7,10 @@ use crate::numbers::{digit_word, push_integer_words};
 use crate::token::{spoken_text, SpokenToken};
 use crate::{NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
 
+/// The unit word of a bet. Whisper writes the spoken letters as "USDC"; it writes "dollars"
+/// as a "$" sign, which has no spoken form.
+const USDC_WORD: &str = "usdc";
+
 /// The text of one request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RenderedIntentV1 {
@@ -66,6 +70,29 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
             words.push("into");
             words.0.push(base.spoken_token());
             format!("Merge pull request {pull_request} into {}", base.as_str())
+        }
+        SpokenRequestV1::MarketBet {
+            market_id,
+            outcome,
+            amount,
+            ..
+        } => {
+            words.push("bet");
+            let mut amount_words = Vec::new();
+            amount.push_spoken_words(&mut amount_words);
+            for word in amount_words {
+                words.push(word);
+            }
+            words.push(USDC_WORD);
+            words.push(outcome.word());
+            words.push("on");
+            words.push("market");
+            words.push_integer(*market_id);
+            format!(
+                "Bet {} USDC {} on market {market_id}",
+                amount.display(),
+                outcome.word()
+            )
         }
     };
     let spoken = words.0;

@@ -145,7 +145,8 @@ function Intro({ seams, onSignIn }: { seams: boolean; onSignIn: () => void }) {
           </li>
         </ol>
       </div>
-      <div className="ss-setup-card">
+      {/* The multisig window sends a visitor here (#setup) to set up the voice and get testnet NEAR. */}
+      <div className="ss-setup-card" id="setup">
         <div className="ss-setup-head">
           <h2 className="ss-setup-title">Set up</h2>
           <span className="ss-setup-sub">Optional · NEAR testnet</span>

@@ -1,6 +1,7 @@
-//! Deploys `res/voice_multisig.wasm` to a local nearcore sandbox and runs
-//! two proposals the way the demo page does, with 30 Tgas and 0 deposit:
-//! one whose transfer arrives, and one whose receiver does not exist.
+//! Deploys `res/voice_multisig.wasm` to a local nearcore sandbox with 2
+//! admins and runs two proposals the way the demo page and the approve
+//! route do, with 30 Tgas and 0 deposit: one whose transfer arrives, and one
+//! whose receiver does not exist, so the proposal opens again.
 //!
 //! Run `./build.sh` first, or set `VOICE_MULTISIG_WASM` to a WASM path.
 
@@ -19,14 +20,18 @@ use spoken_intent::{
     multisig_commitment,
 };
 
-/// The gas that the Seams Wallet attaches to each call.
+/// The gas that the Seams Wallet and the approve route attach to each call.
 const WALLET_GAS: Gas = Gas::from_tgas(30);
-/// `propose` and `confirm` must burn less than this.
+/// `new`, `propose` and `approve` must burn less than this.
 const GAS_BUDGET: Gas = Gas::from_tgas(10);
 
 const VERDICT_DOMAIN: &[u8] = b"seams:outlayer:voice-verdict:v2";
 const SALT: [u8; 32] = [0x5a; 32];
 const SALT_2: [u8; 32] = [0x6b; 32];
+/// 0.01 NEAR.
+const ONE_HUNDREDTH_NEAR: u128 = 10_000_000_000_000_000_000_000;
+/// 0.05 NEAR, the cap of the demo.
+const CAP: u128 = 5 * ONE_HUNDREDTH_NEAR;
 
 fn wasm() -> anyhow::Result<Vec<u8>> {
     let path = std::env::var("VOICE_MULTISIG_WASM").unwrap_or_else(|_| {
@@ -67,10 +72,10 @@ fn opening(
     multisig: &Contract,
     proposal_id: u64,
     receiver: &str,
-    near: u128,
+    hundredths: u128,
     salt: [u8; 32],
 ) -> Opening {
-    let amount_yocto = near * 10u128.pow(24);
+    let amount_yocto = hundredths * ONE_HUNDREDTH_NEAR;
     let proposal = ProposalV1::Transfer {
         receiver: SpokenAccount::new(receiver).unwrap(),
         amount: NearAmount::from_yocto(amount_yocto).unwrap(),
@@ -84,10 +89,10 @@ fn opening(
     }
 }
 
-/// A signed accept verdict of `member` for this proposal, in the
-/// verifier's field order. Returns the JSON and the signature.
+/// A signed accept verdict of `owner` for this proposal, in the verifier's
+/// field order. Returns the JSON and the signature.
 fn verdict(
-    member: &Account,
+    owner: &Account,
     multisig: &Contract,
     proposal_id: u64,
     commitment: &[u8; 32],
@@ -95,7 +100,7 @@ fn verdict(
 ) -> (String, String) {
     let digest = multisig_approval_digest(
         Network::Testnet,
-        &near(member),
+        &near(owner),
         &NearAccount::new(multisig.id().as_str()).unwrap(),
         proposal_id,
         commitment,
@@ -113,18 +118,12 @@ fn verdict(
 }
 
 fn fresh(
-    member: &Account,
+    owner: &Account,
     multisig: &Contract,
     proposal_id: u64,
     commitment: &[u8; 32],
 ) -> (String, String) {
-    verdict(
-        member,
-        multisig,
-        proposal_id,
-        commitment,
-        now_ms() + 600_000,
-    )
+    verdict(owner, multisig, proposal_id, commitment, now_ms() + 600_000)
 }
 
 async fn call(
@@ -143,35 +142,35 @@ async fn call(
         .await?)
 }
 
+fn propose_args(id: u64, open: &Opening, verdict: (String, String)) -> Value {
+    json!({
+        "proposal_id": id,
+        "commitment_hex": hex(&open.commitment),
+        "verdict_json": verdict.0,
+        "signature_b64": verdict.1
+    })
+}
+
 async fn propose(
     who: &Account,
     multisig: &Contract,
     id: u64,
     open: &Opening,
 ) -> anyhow::Result<ExecutionFinalResult> {
-    let (verdict_json, signature_b64) = fresh(who, multisig, id, &open.commitment);
-    call(
-        who,
-        multisig,
-        "propose",
-        json!({ "proposal_id": id, "commitment_hex": hex(&open.commitment), "verdict_json": verdict_json, "signature_b64": signature_b64 }),
-        NearToken::from_yoctonear(0),
-    )
-    .await
+    let args = propose_args(id, open, fresh(who, multisig, id, &open.commitment));
+    call(who, multisig, "propose", args, NearToken::from_yoctonear(0)).await
 }
 
-async fn confirm(
+async fn approve(
     who: &Account,
     multisig: &Contract,
     id: u64,
-    open: &Opening,
 ) -> anyhow::Result<ExecutionFinalResult> {
-    let (verdict_json, signature_b64) = fresh(who, multisig, id, &open.commitment);
     call(
         who,
         multisig,
-        "confirm",
-        json!({ "proposal_id": id, "verdict_json": verdict_json, "signature_b64": signature_b64 }),
+        "approve",
+        json!({ "proposal_id": id }),
         NearToken::from_yoctonear(0),
     )
     .await
@@ -239,45 +238,38 @@ async fn view(contract: &Contract, method: &str, args: Value) -> anyhow::Result<
     Ok(contract.view(method).args_json(args).await?.json()?)
 }
 
+async fn subaccount(root: &Account, name: &str, near: u128) -> anyhow::Result<Account> {
+    Ok(root
+        .create_subaccount(name)
+        .initial_balance(NearToken::from_near(near))
+        .transact()
+        .await?
+        .into_result()?)
+}
+
 #[tokio::test]
 async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
     let worker = near_workspaces::sandbox().await?;
     let root = worker.root_account()?;
-    let mut members = Vec::new();
-    for name in ["alice", "bob", "carol"] {
-        let account = root
-            .create_subaccount(name)
-            .initial_balance(NearToken::from_near(20))
-            .transact()
-            .await?
-            .into_result()?;
-        members.push(account);
-    }
-    let (alice, bob, carol) = (&members[0], &members[1], &members[2]);
-    let grants = root
-        .create_subaccount("grants")
-        .initial_balance(NearToken::from_near(1))
-        .transact()
-        .await?
-        .into_result()?;
-    let team = root
-        .create_subaccount("team")
-        .initial_balance(NearToken::from_near(50))
-        .transact()
-        .await?
-        .into_result()?;
+    let admin_a = subaccount(&root, "admin-a", 5).await?;
+    let admin_b = subaccount(&root, "admin-b", 5).await?;
+    let visitor = subaccount(&root, "visitor", 5).await?;
+    let stranger = subaccount(&root, "stranger", 5).await?;
+    let grants = subaccount(&root, "grants", 1).await?;
+    let team = subaccount(&root, "team", 10).await?;
     let multisig = team.deploy(&wasm()?).await?.into_result()?;
     let verifier_public_key = format!(
         "ed25519:{}",
         bs58::encode(verifier().verifying_key().as_bytes()).into_string()
     );
+    let init_args = json!({
+        "admins": [admin_a.id(), admin_b.id()],
+        "verifier_public_key": verifier_public_key,
+        "max_amount_yocto": CAP.to_string()
+    });
     let init = multisig
         .call("new")
-        .args_json(json!({
-            "members": [alice.id(), bob.id(), carol.id()],
-            "threshold": 2,
-            "verifier_public_key": verifier_public_key
-        }))
+        .args_json(init_args.clone())
         .gas(WALLET_GAS)
         .transact()
         .await?;
@@ -286,115 +278,133 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
         view(&multisig, "next_proposal_id", json!({})).await?,
         json!(1)
     );
-    assert_eq!(
-        view(&multisig, "get_config", json!({})).await?,
-        json!({
-            "members": [alice.id(), bob.id(), carol.id()],
-            "threshold": 2,
-            "verifier_public_key": verifier_public_key
-        })
+    assert_eq!(view(&multisig, "get_config", json!({})).await?, init_args);
+
+    // Proposal 1: 0.01 NEAR to grants, which arrives.
+    let open = opening(&multisig, 1, grants.id().as_str(), 1, SALT);
+
+    // Propose rules that fail on the real chain.
+    check_failure(
+        "propose by an admin",
+        &propose(&admin_a, &multisig, 1, &open).await?,
+        "an admin cannot propose",
+    );
+    let (verdict_json, _) = fresh(&visitor, &multisig, 1, &open.commitment);
+    let (_, other_signature) = fresh(&stranger, &multisig, 1, &open.commitment);
+    let result = call(
+        &visitor,
+        &multisig,
+        "propose",
+        propose_args(1, &open, (verdict_json, other_signature)),
+        NearToken::from_yoctonear(0),
+    )
+    .await?;
+    check_failure(
+        "propose with a wrong signature",
+        &result,
+        "the verdict signature does not match the verifier key",
+    );
+    let expired = verdict(&visitor, &multisig, 1, &open.commitment, now_ms() - 60_000);
+    let result = call(
+        &visitor,
+        &multisig,
+        "propose",
+        propose_args(1, &open, expired),
+        NearToken::from_yoctonear(0),
+    )
+    .await?;
+    check_failure(
+        "propose with an expired verdict",
+        &result,
+        "the verdict has expired",
+    );
+    let result = call(
+        &visitor,
+        &multisig,
+        "propose",
+        propose_args(1, &open, fresh(&stranger, &multisig, 1, &open.commitment)),
+        NearToken::from_yoctonear(0),
+    )
+    .await?;
+    check_failure(
+        "propose with the verdict of another account",
+        &result,
+        "the verdict is for another request",
     );
 
-    // Proposal 1: 25 NEAR to grants, which arrives.
-    let open = opening(&multisig, 1, grants.id().as_str(), 25, SALT);
     let storage_before = multisig.view_account().await?.storage_usage;
-    let result = propose(alice, &multisig, 1, &open).await?;
+    let result = propose(&visitor, &multisig, 1, &open).await?;
     check_success("propose", &result, GAS_BUDGET);
     assert_eq!(result.clone().json::<u64>()?, 1);
     assert_eq!(events(&result)[0]["event"], "proposed");
 
-    // Rules that fail on the real chain.
-    let (verdict_json, signature_b64) = fresh(alice, &multisig, 1, &open.commitment);
-    let result = call(
-        bob,
-        &multisig,
-        "confirm",
-        json!({ "proposal_id": 1, "verdict_json": verdict_json, "signature_b64": signature_b64 }),
-        NearToken::from_yoctonear(0),
-    )
-    .await?;
+    // Approve and execute rules that fail on the real chain.
     check_failure(
-        "confirm with alice's verdict",
-        &result,
-        "the verdict is for another request",
+        "approve by the proposer",
+        &approve(&visitor, &multisig, 1).await?,
+        "the caller is not an admin",
     );
-    let (verdict_json, _) = fresh(bob, &multisig, 1, &open.commitment);
-    let (_, other_signature) = fresh(carol, &multisig, 1, &open.commitment);
-    let result = call(
-        bob,
-        &multisig,
-        "confirm",
-        json!({ "proposal_id": 1, "verdict_json": verdict_json, "signature_b64": other_signature }),
-        NearToken::from_yoctonear(0),
-    )
-    .await?;
     check_failure(
-        "confirm with a wrong signature",
-        &result,
-        "the verdict signature does not match the verifier key",
+        "execute with no approvals",
+        &execute(&visitor, &multisig, 1, &open).await?,
+        "the proposal has 0 of 2 admin approvals",
     );
-    let (verdict_json, signature_b64) =
-        verdict(bob, &multisig, 1, &open.commitment, now_ms() - 60_000);
-    let result = call(
-        bob,
-        &multisig,
-        "confirm",
-        json!({ "proposal_id": 1, "verdict_json": verdict_json, "signature_b64": signature_b64 }),
-        NearToken::from_yoctonear(0),
-    )
-    .await?;
+    let result = approve(&admin_a, &multisig, 1).await?;
+    check_success("approve (1 of 2)", &result, GAS_BUDGET);
+    assert_eq!(result.clone().json::<u32>()?, 1);
+    assert_eq!(
+        events(&result),
+        vec![json!({
+            "standard": "voice_multisig",
+            "version": "2.0.0",
+            "event": "approved",
+            "data": [{ "proposal_id": 1, "admin": admin_a.id(), "approvals": 1 }]
+        })]
+    );
     check_failure(
-        "confirm with an expired verdict",
-        &result,
-        "the verdict has expired",
+        "approve twice",
+        &approve(&admin_a, &multisig, 1).await?,
+        "this admin already approved the proposal",
     );
-    let result = execute(alice, &multisig, 1, &open).await?;
     check_failure(
-        "execute before the threshold",
-        &result,
-        "the proposal has 1 of 2 confirmations",
+        "execute before all approvals",
+        &execute(&admin_a, &multisig, 1, &open).await?,
+        "the proposal has 1 of 2 admin approvals",
     );
-
-    let result = confirm(bob, &multisig, 1, &open).await?;
-    check_success("confirm", &result, GAS_BUDGET);
+    let result = approve(&admin_b, &multisig, 1).await?;
+    check_success("approve (2 of 2)", &result, GAS_BUDGET);
     assert_eq!(result.json::<u32>()?, 2);
     println!(
-        "one proposal with 2 confirmations: {} bytes of contract storage",
+        "one proposal with 2 admin approvals: {} bytes of contract storage",
         multisig.view_account().await?.storage_usage - storage_before
     );
-    let result = execute(carol, &multisig, 1, &open).await?;
     check_failure(
-        "execute by carol",
-        &result,
-        "only a member who confirmed the proposal can execute it",
+        "execute by a stranger",
+        &execute(&stranger, &multisig, 1, &open).await?,
+        "only the proposer or an admin can execute the proposal",
     );
     let wrong_salt = Opening {
         salt: SALT_2,
-        ..opening(&multisig, 1, grants.id().as_str(), 25, SALT)
+        ..opening(&multisig, 1, grants.id().as_str(), 1, SALT)
     };
-    let result = execute(bob, &multisig, 1, &wrong_salt).await?;
     check_failure(
         "execute with a wrong salt",
-        &result,
+        &execute(&admin_b, &multisig, 1, &wrong_salt).await?,
         "receiver, amount_yocto and salt_hex do not match the commitment",
     );
 
     // Deposits are refused on each change method.
     let one_yocto = NearToken::from_yoctonear(1);
-    let (verdict_json, signature_b64) = fresh(carol, &multisig, 1, &open.commitment);
     let deposit_calls = [
         (
             "propose",
-            json!({ "proposal_id": 2, "commitment_hex": hex(&open.commitment), "verdict_json": verdict_json, "signature_b64": signature_b64 }),
+            propose_args(2, &open, fresh(&stranger, &multisig, 2, &open.commitment)),
         ),
-        (
-            "confirm",
-            json!({ "proposal_id": 1, "verdict_json": verdict_json, "signature_b64": signature_b64 }),
-        ),
+        ("approve", json!({ "proposal_id": 1 })),
         ("execute", execute_args(1, &open)),
     ];
     for (method, args) in deposit_calls {
-        let result = call(carol, &multisig, method, args, one_yocto).await?;
+        let result = call(&admin_b, &multisig, method, args, one_yocto).await?;
         check_failure(
             &format!("{method} with a deposit"),
             &result,
@@ -403,60 +413,73 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
     }
 
     let grants_before = grants.view_account().await?.balance;
-    let result = execute(bob, &multisig, 1, &open).await?;
+    let result = execute(&admin_b, &multisig, 1, &open).await?;
     check_success("execute (transfer arrives)", &result, WALLET_GAS);
     assert!(result.clone().json::<bool>()?);
     let grants_after = grants.view_account().await?.balance;
     assert_eq!(
         grants_after.as_yoctonear() - grants_before.as_yoctonear(),
         open.amount_yocto,
-        "grants receives exactly 25 NEAR"
+        "grants receives exactly 0.01 NEAR"
     );
     assert_eq!(
         events(&result),
         vec![json!({
             "standard": "voice_multisig",
-            "version": "1.0.0",
+            "version": "2.0.0",
             "event": "executed",
             "data": [{ "proposal_id": 1, "receiver": grants.id(), "amount_yocto": open.amount_yocto.to_string() }]
         })]
     );
     let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 1 })).await?;
+    let created_at_ms = proposal["created_at_ms"].as_u64().unwrap();
+    assert!(created_at_ms > 0 && created_at_ms <= now_ms());
     assert_eq!(
         proposal,
         json!({
             "id": 1,
             "commitment_hex": hex(&open.commitment),
-            "proposer": alice.id(),
-            "confirmations": [alice.id(), bob.id()],
+            "proposer": visitor.id(),
+            "approvals": [admin_a.id(), admin_b.id()],
             "status": "executed",
+            "created_at_ms": created_at_ms,
             "receiver": grants.id(),
             "amount_yocto": open.amount_yocto.to_string()
         })
     );
-    let result = execute(alice, &multisig, 1, &open).await?;
     check_failure(
         "a second execute",
-        &result,
+        &execute(&visitor, &multisig, 1, &open).await?,
         "the proposal is already executed",
     );
 
-    // Proposal 2: 3 NEAR to an account that does not exist. The transfer
+    // Proposal 2: 0.02 NEAR to an account that does not exist. The transfer
     // fails, the NEAR comes back and the proposal is open again.
     let missing = format!("nobody.{}", root.id());
-    let open_2 = opening(&multisig, 2, &missing, 3, SALT_2);
+    let open_2 = opening(&multisig, 2, &missing, 2, SALT_2);
     check_success(
         "propose 2",
-        &propose(carol, &multisig, 2, &open_2).await?,
+        &propose(&visitor, &multisig, 2, &open_2).await?,
         GAS_BUDGET,
     );
-    check_success(
-        "confirm 2",
-        &confirm(alice, &multisig, 2, &open_2).await?,
-        GAS_BUDGET,
+    for admin in [&admin_a, &admin_b] {
+        check_success(
+            "approve 2",
+            &approve(admin, &multisig, 2).await?,
+            GAS_BUDGET,
+        );
+    }
+    let above_cap = Opening {
+        amount_yocto: CAP + ONE_HUNDREDTH_NEAR,
+        ..opening(&multisig, 2, &missing, 2, SALT_2)
+    };
+    check_failure(
+        "execute above the cap",
+        &execute(&visitor, &multisig, 2, &above_cap).await?,
+        "amount_yocto is above max_amount_yocto",
     );
     let team_before = multisig.view_account().await?.balance;
-    let result = execute(alice, &multisig, 2, &open_2).await?;
+    let result = execute(&visitor, &multisig, 2, &open_2).await?;
     assert!(
         result.is_success(),
         "the callback must not fail: {result:#?}"
@@ -470,10 +493,11 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
     let team_after = multisig.view_account().await?.balance;
     assert!(
         team_after.as_yoctonear() >= team_before.as_yoctonear(),
-        "the 3 NEAR came back: {team_before} then {team_after}"
+        "the 0.02 NEAR came back: {team_before} then {team_after}"
     );
     let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 2 })).await?;
     assert_eq!(proposal["status"], "open");
+    assert_eq!(proposal["approvals"], json!([admin_a.id(), admin_b.id()]));
     assert!(proposal.get("receiver").is_none());
 
     // Views.
@@ -501,7 +525,7 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
 
     // Only the contract calls the callback and `new`.
     let result = call(
-        alice,
+        &admin_a,
         &multisig,
         "on_transfer",
         json!({ "proposal_id": 2, "receiver": missing, "amount_yocto": "1" }),
@@ -509,22 +533,22 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
     )
     .await?;
     check_failure(
-        "on_transfer by a member",
+        "on_transfer by an admin",
         &result,
         "Method on_transfer is private",
     );
     let result = call(
-        alice,
+        &admin_a,
         &multisig,
         "new",
-        json!({ "members": [alice.id(), bob.id()], "threshold": 1, "verifier_public_key": verifier_public_key }),
+        init_args.clone(),
         NearToken::from_yoctonear(0),
     )
     .await?;
-    check_failure("new by a member", &result, "Method new is private");
+    check_failure("new by an admin", &result, "Method new is private");
     let result = multisig
         .call("new")
-        .args_json(json!({ "members": [alice.id(), bob.id()], "threshold": 1, "verifier_public_key": verifier_public_key }))
+        .args_json(init_args)
         .gas(WALLET_GAS)
         .transact()
         .await?;

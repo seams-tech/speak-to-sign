@@ -1,15 +1,17 @@
 //! A voice multisig for the Speak-to-Sign demo, on testnet.
 //!
-//! The proposer reads a transfer aloud, and each other member says it from
-//! memory. The verifier checks each voice and the words and signs a verdict.
-//! This contract checks each verdict on chain: the signature with the pinned
-//! verifier key, the outcome, the expiry and the request digest. The digest
-//! binds the member (the predecessor), this contract, the proposal id and
-//! the commitment, a salted hash of the transfer. The chain sees the
-//! transfer only when a member who confirmed executes it.
+//! Any account that is not an admin reads a transfer aloud. The verifier
+//! checks the voice and the words and signs a verdict. The account proposes
+//! with that verdict, and this contract checks it on chain: the signature
+//! with the pinned verifier key, the outcome, the expiry and the request
+//! digest. The digest binds the proposer (the predecessor), this contract,
+//! the proposal id and the commitment, a salted hash of the transfer. Then
+//! each admin approves the proposal with a plain signed call, and the
+//! proposer or an admin executes it. The chain sees the transfer only at
+//! `execute`, and each transfer is at most `max_amount_yocto`.
 //!
-//! The method names and JSON shapes are fixed: the demo page uses them. See
-//! `README.md` and `docs/voice-multisig.md`.
+//! The method names and JSON shapes are fixed: the demo page and the approve
+//! route use them. See `README.md` and `docs/voice-multisig-guests.md`.
 
 use near_sdk::json_types::U128;
 use near_sdk::serde::Serialize;
@@ -24,10 +26,13 @@ mod verdict;
 
 pub use verdict::{VERDICT_DOMAIN, VERDICT_KIND};
 
-/// The fewest members of a multisig.
-pub const MIN_MEMBERS: usize = 2;
-/// The most members of a multisig.
-pub const MAX_MEMBERS: usize = 10;
+/// The fewest admins of a multisig.
+const MIN_ADMINS: usize = 1;
+/// The most admins of a multisig.
+const MAX_ADMINS: usize = 10;
+/// 0.01 NEAR in yoctoNEAR, the step of each amount that the grammar can
+/// speak.
+const ONE_HUNDREDTH_NEAR: u128 = 10_000_000_000_000_000_000_000;
 /// `get_proposals` returns at most this many proposals.
 pub const MAX_PROPOSALS_PER_VIEW: u32 = 50;
 /// The network that each request digest names.
@@ -36,13 +41,14 @@ const NETWORK: Network = Network::Testnet;
 const CALLBACK_GAS: Gas = Gas::from_tgas(5);
 
 const EVENT_STANDARD: &str = "voice_multisig";
-const EVENT_VERSION: &str = "1.0.0";
+const EVENT_VERSION: &str = "2.0.0";
 
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
-    /// Members can confirm, and at the threshold execute.
+    /// Admins can approve. When all admins approved, the proposer or an
+    /// admin can execute.
     Open,
     /// The transfer was sent, or is in flight.
     Executed,
@@ -53,10 +59,14 @@ pub enum Status {
 #[derive(Clone, Debug)]
 pub struct Proposal {
     pub commitment: [u8; 32],
+    /// The account whose voice verdict opened the proposal. It is never an
+    /// admin.
     pub proposer: AccountId,
-    /// The proposer first, then each member in the order they confirmed.
-    pub confirmations: Vec<AccountId>,
+    /// Each admin in the order they approved.
+    pub approvals: Vec<AccountId>,
     pub status: Status,
+    /// The block time of `propose`.
+    pub created_at_ms: u64,
     /// Set only after the transfer succeeded.
     pub transfer: Option<(AccountId, u128)>,
 }
@@ -71,8 +81,9 @@ impl Proposal {
             id,
             commitment_hex: to_hex(&self.commitment),
             proposer: self.proposer.clone(),
-            confirmations: self.confirmations.clone(),
+            approvals: self.approvals.clone(),
             status: self.status,
+            created_at_ms: self.created_at_ms,
             receiver,
             amount_yocto,
         }
@@ -87,8 +98,9 @@ pub struct ProposalView {
     pub id: u64,
     pub commitment_hex: String,
     pub proposer: AccountId,
-    pub confirmations: Vec<AccountId>,
+    pub approvals: Vec<AccountId>,
     pub status: Status,
+    pub created_at_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receiver: Option<AccountId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -98,9 +110,9 @@ pub struct ProposalView {
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConfigView {
-    pub members: Vec<AccountId>,
-    pub threshold: u8,
+    pub admins: Vec<AccountId>,
     pub verifier_public_key: String,
+    pub max_amount_yocto: U128,
 }
 
 #[near(serializers = [borsh])]
@@ -112,10 +124,12 @@ enum StorageKey {
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct VoiceMultisig {
-    members: Vec<AccountId>,
-    threshold: u8,
+    /// The accounts that approve each proposal by key.
+    admins: Vec<AccountId>,
     /// The ed25519 key of the verifier, which signs each verdict.
     verifier_key: [u8; 32],
+    /// The largest transfer that `execute` sends.
+    max_amount_yocto: u128,
     /// The id that the next proposal must use. The first is 1.
     next_proposal_id: u64,
     proposals: LookupMap<u64, Proposal>,
@@ -123,37 +137,44 @@ pub struct VoiceMultisig {
 
 #[near]
 impl VoiceMultisig {
-    /// Sets the members, the threshold and the verifier key. Only the
-    /// contract account can call it, in the deploy transaction.
+    /// Sets the admins, the verifier key and the cap of each transfer. Only
+    /// the contract account can call it, in the deploy transaction.
     #[init]
     #[private]
-    pub fn new(members: Vec<AccountId>, threshold: u8, verifier_public_key: String) -> Self {
-        if !(MIN_MEMBERS..=MAX_MEMBERS).contains(&members.len()) {
-            env::panic_str("members must have 2 to 10 accounts");
+    pub fn new(
+        admins: Vec<AccountId>,
+        verifier_public_key: String,
+        max_amount_yocto: U128,
+    ) -> Self {
+        if !(MIN_ADMINS..=MAX_ADMINS).contains(&admins.len()) {
+            env::panic_str("admins must have 1 to 10 accounts");
         }
-        let mut sorted = members.clone();
+        let mut sorted = admins.clone();
         sorted.sort();
         sorted.dedup();
-        if sorted.len() != members.len() {
-            env::panic_str("members must be distinct");
-        }
-        if threshold == 0 || usize::from(threshold) > members.len() {
-            env::panic_str("threshold must be 1 to the number of members");
+        if sorted.len() != admins.len() {
+            env::panic_str("admins must be distinct");
         }
         let verifier_key = verdict::parse_ed25519_key(&verifier_public_key).unwrap_or_else(|| {
             env::panic_str("verifier_public_key must be ed25519:<base58 of 32 bytes>")
         });
+        let cap = max_amount_yocto.0;
+        if cap < ONE_HUNDREDTH_NEAR || !cap.is_multiple_of(ONE_HUNDREDTH_NEAR) {
+            env::panic_str("max_amount_yocto must be a multiple of 0.01 NEAR, at least 0.01 NEAR");
+        }
         Self {
-            members,
-            threshold,
+            admins,
             verifier_key,
+            max_amount_yocto: cap,
             next_proposal_id: 1,
             proposals: LookupMap::new(StorageKey::Proposals),
         }
     }
 
-    /// Opens a proposal with the commitment of a hidden transfer, and
-    /// counts it as the proposer's confirmation. Returns the proposal id.
+    /// Opens a proposal with the commitment of a hidden transfer. The
+    /// caller is the proposer, and the verdict is the caller's spoken
+    /// approval. An admin approves by key, so it cannot also be the voice
+    /// that proposes. Returns the proposal id.
     pub fn propose(
         &mut self,
         proposal_id: u64,
@@ -161,7 +182,10 @@ impl VoiceMultisig {
         verdict_json: String,
         signature_b64: String,
     ) -> u64 {
-        let proposer = self.caller_member();
+        let proposer = env::predecessor_account_id();
+        if self.is_admin(&proposer) {
+            env::panic_str("an admin cannot propose");
+        }
         if proposal_id != self.next_proposal_id {
             env::panic_str(&format!(
                 "proposal_id must be next_proposal_id, {}",
@@ -185,8 +209,9 @@ impl VoiceMultisig {
             Proposal {
                 commitment,
                 proposer: proposer.clone(),
-                confirmations: vec![proposer.clone()],
+                approvals: Vec::new(),
                 status: Status::Open,
+                created_at_ms: env::block_timestamp_ms(),
                 transfer: None,
             },
         );
@@ -201,47 +226,37 @@ impl VoiceMultisig {
         proposal_id
     }
 
-    /// Adds the caller's confirmation to an open proposal. Returns the
-    /// number of confirmations.
-    pub fn confirm(
-        &mut self,
-        proposal_id: u64,
-        verdict_json: String,
-        signature_b64: String,
-    ) -> u32 {
-        let member = self.caller_member();
-        let proposal = self.open_proposal(proposal_id);
-        if proposal.confirmations.contains(&member) {
-            env::panic_str("this member already confirmed the proposal");
+    /// Adds the caller's approval to an open proposal. The caller is an
+    /// admin and signs a plain call, with no verdict. Returns the number of
+    /// admin approvals.
+    pub fn approve(&mut self, proposal_id: u64) -> u32 {
+        let admin = env::predecessor_account_id();
+        if !self.is_admin(&admin) {
+            env::panic_str("the caller is not an admin");
         }
-        let commitment = proposal.commitment;
-        self.check_verdict(
-            &member,
-            proposal_id,
-            &commitment,
-            &verdict_json,
-            &signature_b64,
-        );
+        if self.open_proposal(proposal_id).approvals.contains(&admin) {
+            env::panic_str("this admin already approved the proposal");
+        }
 
         let proposal = self.proposals.get_mut(&proposal_id).expect("checked above");
-        proposal.confirmations.push(member.clone());
-        let confirmations = proposal.confirmations.len() as u32;
+        proposal.approvals.push(admin.clone());
+        let approvals = proposal.approvals.len() as u32;
         emit(
-            "confirmed",
-            Confirmed {
+            "approved",
+            Approved {
                 proposal_id,
-                member: &member,
-                confirmations,
+                admin: &admin,
+                approvals,
             },
         );
-        confirmations
+        approvals
     }
 
-    /// Sends the transfer of a proposal that has enough confirmations. The
-    /// caller is a member who confirmed and who knows the opening: the
-    /// receiver, the amount and the salt. The result is `true` if the
-    /// transfer arrived and `false` if it failed; on a failure the proposal
-    /// is open again.
+    /// Sends the transfer of a proposal that all admins approved. The
+    /// caller is the proposer or an admin, and knows the opening: the
+    /// receiver, the amount and the salt. The amount is at most
+    /// `max_amount_yocto`. The result is `true` if the transfer arrived and
+    /// `false` if it failed; on a failure the proposal is open again.
     pub fn execute(
         &mut self,
         proposal_id: u64,
@@ -249,17 +264,20 @@ impl VoiceMultisig {
         amount_yocto: U128,
         salt_hex: String,
     ) -> Promise {
-        let member = self.caller_member();
-        let threshold = self.threshold;
+        let caller = env::predecessor_account_id();
         let proposal = self.open_proposal(proposal_id);
-        if !proposal.confirmations.contains(&member) {
-            env::panic_str("only a member who confirmed the proposal can execute it");
+        if caller != proposal.proposer && !self.is_admin(&caller) {
+            env::panic_str("only the proposer or an admin can execute the proposal");
         }
-        if proposal.confirmations.len() < usize::from(threshold) {
+        if proposal.approvals.len() < self.admins.len() {
             env::panic_str(&format!(
-                "the proposal has {} of {threshold} confirmations",
-                proposal.confirmations.len()
+                "the proposal has {} of {} admin approvals",
+                proposal.approvals.len(),
+                self.admins.len()
             ));
+        }
+        if amount_yocto.0 > self.max_amount_yocto {
+            env::panic_str("amount_yocto is above max_amount_yocto");
         }
         let spoken_receiver = SpokenAccount::new(receiver.as_str()).unwrap_or_else(|_| {
             env::panic_str("receiver must be a named account that the grammar can speak")
@@ -296,7 +314,7 @@ impl VoiceMultisig {
     }
 
     /// Records the result of the transfer. On a failure the NEAR came back
-    /// to this account, and the proposal is open again.
+    /// to this account, and the proposal is open again with its approvals.
     #[private]
     pub fn on_transfer(
         &mut self,
@@ -349,9 +367,9 @@ impl VoiceMultisig {
 
     pub fn get_config(&self) -> ConfigView {
         ConfigView {
-            members: self.members.clone(),
-            threshold: self.threshold,
+            admins: self.admins.clone(),
             verifier_public_key: verdict::format_ed25519_key(&self.verifier_key),
+            max_amount_yocto: U128(self.max_amount_yocto),
         }
     }
 
@@ -361,12 +379,8 @@ impl VoiceMultisig {
 }
 
 impl VoiceMultisig {
-    fn caller_member(&self) -> AccountId {
-        let caller = env::predecessor_account_id();
-        if !self.members.contains(&caller) {
-            env::panic_str("the caller is not a member");
-        }
-        caller
+    fn is_admin(&self, account: &AccountId) -> bool {
+        self.admins.contains(account)
     }
 
     fn open_proposal(&self, proposal_id: u64) -> &Proposal {
@@ -380,11 +394,11 @@ impl VoiceMultisig {
         proposal
     }
 
-    /// Panics unless the verdict accepts the request of `member` for this
+    /// Panics unless the verdict accepts the request of `owner` for this
     /// proposal and commitment.
     fn check_verdict(
         &self,
-        member: &AccountId,
+        owner: &AccountId,
         proposal_id: u64,
         commitment: &[u8; 32],
         verdict_json: &str,
@@ -392,7 +406,7 @@ impl VoiceMultisig {
     ) {
         let digest = multisig_approval_digest(
             NETWORK,
-            &near_account(member),
+            &near_account(owner),
             &near_account(&env::current_account_id()),
             proposal_id,
             commitment,
@@ -446,10 +460,10 @@ struct Proposed<'a> {
 
 #[derive(Serialize)]
 #[serde(crate = "near_sdk::serde")]
-struct Confirmed<'a> {
+struct Approved<'a> {
     proposal_id: u64,
-    member: &'a AccountId,
-    confirmations: u32,
+    admin: &'a AccountId,
+    approvals: u32,
 }
 
 #[derive(Serialize)]

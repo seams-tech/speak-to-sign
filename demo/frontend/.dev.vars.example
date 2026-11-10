@@ -6,12 +6,23 @@ NEAR_AI_MODEL=
 FAUCET_PRIVATE_KEY=
 # Optional. The default is seams-faucet.testnet.
 FAUCET_ACCOUNT=
+# Optional, for /api/faucet and /api/multisig/approve. The default is https://test.rpc.fastnear.com.
+NEAR_RPC_URL=
 # The voice multisig route /api/voice-verify. Use the OutLayer settings of the Seams staging
 # verify route: the payment key decides where the voice templates are and which key signs.
 VOICE_OUTLAYER_BASE_URL=
 VOICE_OUTLAYER_PROJECT=
-# The WASM hash of a verifier version with the multisig kinds (0.6.0 or later).
+# The WASM hash of a verifier version with multisig_propose (0.6.0 or later).
 VOICE_OUTLAYER_VERSION_KEY=
 VOICE_OUTLAYER_PAYMENT_KEY=
 VOICE_OUTLAYER_SECRETS_PROFILE=
 VOICE_OUTLAYER_SECRETS_ACCOUNT_ID=
+# The two admin signers of /api/multisig/approve: function-call keys (ed25519:...) for approve
+# and execute on the team contract only.
+MULTISIG_ADMIN_A_KEY=
+MULTISIG_ADMIN_B_KEY=
+# Optional. The defaults are admin-a.seams-v1.testnet, admin-b.seams-v1.testnet and
+# team.seams-v1.testnet.
+MULTISIG_ADMIN_A=
+MULTISIG_ADMIN_B=
+MULTISIG_CONTRACT=

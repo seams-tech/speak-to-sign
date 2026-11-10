@@ -54,11 +54,6 @@ export function proposalSentence(proposalId: number, amount: string, receiver: s
   return `Approve proposal ${proposalId}: send ${amount} NEAR to ${receiver}`;
 }
 
-/** The proposal itself, for the proposer to tell the other members. */
-export function transferText(amount: string, receiver: string): string {
-  return `send ${amount} NEAR to ${receiver}`;
-}
-
 /** Lowercase hex of unpadded base64url bytes (the verifier's commitment and salt), or null. */
 export function hexOfBase64Url(text: string, length: number): string | null {
   if (!/^[A-Za-z0-9_-]*$/.test(text)) return null;

@@ -19,8 +19,8 @@ import {
 import { WalletVoiceCard } from './frame';
 
 /**
- * A transaction queue in the style of a multisig wallet app, on NEAR testnet. The amount and
- * the receiver are hidden: a member says them from memory. The live screen is
+ * A transaction queue in the style of a multisig wallet app, on NEAR testnet. A visitor proposes
+ * a transfer by voice, and two admin signers approve it by key. The live screen is
  * src/multisig/LiveMultisigScreen.tsx; this drawing stands in for it without a Seams key.
  */
 export function MultisigScreen() {
@@ -43,15 +43,15 @@ export function MultisigScreen() {
         <span className="sf-pill sf-wallet">
           <span className="sf-identicon sf-identicon-c" />
           <span>
-            <b>bob.testnet</b>
-            <i>Member</i>
+            <b>visitor.testnet</b>
+            <i>Proposer</i>
           </span>
         </span>
       </header>
       <aside className="sf-side">
         <div className="sf-acct">
           <span className="sf-identicon sf-identicon-a">
-            <i className="sf-threshold">2/3</i>
+            <i className="sf-threshold">2/2</i>
           </span>
           <div>
             <b>Team multisig</b>
@@ -60,7 +60,7 @@ export function MultisigScreen() {
             </span>
           </div>
         </div>
-        <p className="sf-total">1,250 NEAR</p>
+        <p className="sf-total">10 NEAR</p>
         <span className="sf-new">New proposal</span>
         <nav className="sf-nav">
           <span>
@@ -73,7 +73,7 @@ export function MultisigScreen() {
             <IconListDetails size={20} stroke={1.6} /> Transactions <i className="sf-count">1</i>
           </span>
           <span>
-            <IconAddressBook size={20} stroke={1.6} /> Members
+            <IconAddressBook size={20} stroke={1.6} /> Admins
           </span>
           <span>
             <IconSettings size={20} stroke={1.6} /> Settings
@@ -95,25 +95,25 @@ export function MultisigScreen() {
               <IconSend size={18} stroke={1.8} /> Send
             </span>
             <span className="sf-amount">
-              <i className="sf-token">N</i> <span className="sf-muted">Hidden until executed</span>
+              <i className="sf-token">N</i> −0.01 NEAR
             </span>
             <span className="sf-time">2:15 PM</span>
             <span className="sf-confs">
-              <IconUserCircle size={16} stroke={1.8} /> 1 out of 2
+              <IconUserCircle size={16} stroke={1.8} /> 1 of 2
             </span>
-            <span className="sf-status">Needs confirmation</span>
+            <span className="sf-status">Needs approvals</span>
           </div>
           <div className="sf-txbody">
             <div className="sf-details">
               <p>
-                Send <b>___</b> NEAR to <b>___</b>
+                Send <b>0.01 NEAR</b> to <b>seams-grants.testnet</b>
               </p>
-              <p className="sf-muted">The chain holds only a salted hash of the transfer. Each member says it from memory.</p>
+              <p className="sf-muted">The chain holds only a salted hash of the transfer until it executes.</p>
               <dl>
                 <dt>Proposal</dt>
                 <dd>7</dd>
                 <dt>Proposer</dt>
-                <dd>alice.testnet</dd>
+                <dd>visitor.testnet</dd>
                 <dt>Commitment</dt>
                 <dd>4f2a6c1e9b…2d91bd</dd>
               </dl>
@@ -123,33 +123,29 @@ export function MultisigScreen() {
                 <span className="sf-stepdot">
                   <IconCheck size={12} stroke={3} />
                 </span>
-                Proposed
-              </p>
-              <p className="sf-step sf-step-done">
-                <span className="sf-stepdot">
-                  <IconCheck size={12} stroke={3} />
-                </span>
-                Confirmations <span className="sf-muted">(1 of 2)</span>
-              </p>
-              <p className="sf-owner">
-                <span className="sf-identicon sf-identicon-a sf-identicon-xs" /> alice.testnet
-              </p>
-              <p className="sf-owner sf-owner-wait">
-                <span className="sf-identicon sf-identicon-c sf-identicon-xs" /> bob.testnet <span className="sf-muted">(you)</span>
+                Your voice approval
               </p>
               <p className="sf-step">
                 <span className="sf-stepdot sf-stepdot-wait" />
-                The proposer executes it at the threshold
+                Admin approvals <span className="sf-muted">(1 of 2)</span>
               </p>
-              <div className="sf-btns">
-                <span className="sf-btn">Confirm by voice</span>
-              </div>
+              <p className="sf-owner">
+                <span className="sf-identicon sf-identicon-a sf-identicon-xs" /> admin-a.seams-v1.testnet
+              </p>
+              <p className="sf-owner sf-owner-wait">
+                <span className="sf-identicon sf-identicon-b sf-identicon-xs" /> admin-b.seams-v1.testnet
+              </p>
+              <p className="sf-step">
+                <span className="sf-stepdot sf-stepdot-wait" />
+                Admin B sends the NEAR
+              </p>
+              <p className="sf-muted">The two admin signers approve automatically in this demo.</p>
             </div>
           </div>
         </div>
       </main>
       <div className="ss-overlay-card">
-        <WalletVoiceCard say="approve proposal seven, send ___ NEAR to ___" compact />
+        <WalletVoiceCard say="approve proposal seven, send zero point zero one NEAR to seams dash grants dot testnet" compact />
       </div>
     </div>
   );

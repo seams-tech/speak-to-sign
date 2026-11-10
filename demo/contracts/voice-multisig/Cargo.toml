@@ -1,10 +1,10 @@
 [package]
 name = "voice-multisig"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2024"
 rust-version = "1.95"
 publish = false
-description = "Voice multisig for the Speak-to-Sign demo: each member confirms a hidden NEAR transfer with a signed voice verdict, checked on chain"
+description = "Voice multisig for the Speak-to-Sign demo: any account proposes a hidden NEAR transfer with a signed voice verdict, checked on chain, and admin accounts approve it"
 repository = "https://github.com/seams-tech/speak-to-sign"
 
 [lib]

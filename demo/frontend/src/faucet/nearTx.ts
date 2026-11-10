@@ -1,6 +1,7 @@
-// A small NEAR transaction signer for the faucet's Pages Function: one function call, signed
-// with an ed25519 key through WebCrypto, encoded with Borsh, sent over JSON-RPC. No NEAR
-// library: the Workers runtime has WebCrypto and fetch. The browser never loads this file.
+// A small NEAR transaction signer for the Pages Functions (the faucet and the multisig admins):
+// one function call, signed with an ed25519 key through WebCrypto, encoded with Borsh, sent over
+// JSON-RPC. No NEAR library: the Workers runtime has WebCrypto and fetch. The browser never
+// loads this file.
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
@@ -125,11 +126,20 @@ async function rpc<T>(rpcUrl: string, method: string, params: unknown): Promise<
   return body.result as T;
 }
 
-/** Calls a view method and parses its JSON answer. */
-export async function viewCall<T>(rpcUrl: string, accountId: string, methodName: string, args: unknown): Promise<T> {
+/**
+ * Calls a view method and parses its JSON answer. `optimistic` reads the newest block, so it
+ * shows a transaction that `signAndSendCall` just waited for; `final` can be a few blocks older.
+ */
+export async function viewCall<T>(
+  rpcUrl: string,
+  accountId: string,
+  methodName: string,
+  args: unknown,
+  finality: 'final' | 'optimistic' = 'final',
+): Promise<T> {
   const result = await rpc<{ result: number[] }>(rpcUrl, 'query', {
     request_type: 'call_function',
-    finality: 'final',
+    finality,
     account_id: accountId,
     method_name: methodName,
     args_base64: base64(new TextEncoder().encode(JSON.stringify(args))),
@@ -164,12 +174,17 @@ export async function signAndSendCall(
   call: FunctionCall,
 ): Promise<CallOutcome> {
   const key = await importNearKey(secretKey);
-  const accessKey = await rpc<{ nonce: number; block_hash: string }>(rpcUrl, 'query', {
-    request_type: 'view_access_key',
-    finality: 'final',
-    account_id: signerId,
-    public_key: key.publicKeyText,
-  });
+  // The nonce comes from the newest block: a key that signs two transactions in a row (an admin's
+  // approve, then execute) must see the first one. The block hash comes from a final block.
+  const [accessKey, block] = await Promise.all([
+    rpc<{ nonce: number }>(rpcUrl, 'query', {
+      request_type: 'view_access_key',
+      finality: 'optimistic',
+      account_id: signerId,
+      public_key: key.publicKeyText,
+    }),
+    rpc<{ header: { hash: string } }>(rpcUrl, 'block', { finality: 'final' }),
+  ]);
 
   const tx = new Writer();
   tx.string(signerId);
@@ -177,7 +192,7 @@ export async function signAndSendCall(
   tx.bytes(key.publicKey);
   tx.uint(BigInt(accessKey.nonce) + 1n, 8);
   tx.string(receiverId);
-  tx.bytes(base58Decode(accessKey.block_hash));
+  tx.bytes(base58Decode(block.header.hash));
   tx.u32(1);
   tx.u8(2); // Action::FunctionCall
   tx.string(call.methodName);

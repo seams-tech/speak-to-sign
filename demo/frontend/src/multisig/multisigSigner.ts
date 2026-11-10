@@ -1,6 +1,7 @@
-// The changes of the voice multisig contract, signed by the Seams Wallet as normal function
-// calls with its confirm step (passkey). The voice check is on chain: `propose` and `confirm`
-// carry the verifier's signed verdict, and the contract checks it. No call attaches NEAR.
+// The visitor's call to the voice multisig contract: `propose`, signed by the Seams Wallet as a
+// normal function call with its confirm step (passkey). The voice check is on chain: `propose`
+// carries the verifier's signed verdict, and the contract checks it. It attaches no NEAR. The
+// admins approve and execute through /api/multisig/approve.
 
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
@@ -8,15 +9,10 @@ import type { SignResult } from '../signer/notesSigner';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 
-const TGAS = 1_000_000_000_000n;
-const CALL_GAS = (30n * TGAS).toString();
-/** `execute`: the transfer and its callback. */
-const EXECUTE_GAS = (50n * TGAS).toString();
+const PROPOSE_GAS = (30n * 1_000_000_000_000n).toString();
 
 export interface MultisigSigner {
   propose(input: { proposalId: number; commitmentHex: string; verdictJson: string; signatureB64: string }): Promise<SignResult>;
-  confirm(input: { proposalId: number; verdictJson: string; signatureB64: string }): Promise<SignResult>;
-  execute(input: { proposalId: number; receiver: string; amountYocto: string; saltHex: string }): Promise<SignResult>;
 }
 
 export function createMultisigSigner(owner: { seams: Seams | null; walletId: string | null; contract: string }): MultisigSigner {
@@ -53,12 +49,8 @@ export function createMultisigSigner(owner: { seams: Seams | null; walletId: str
       send(
         'propose',
         { proposal_id: proposalId, commitment_hex: commitmentHex, verdict_json: verdictJson, signature_b64: signatureB64 },
-        CALL_GAS,
+        PROPOSE_GAS,
       ),
-    confirm: ({ proposalId, verdictJson, signatureB64 }) =>
-      send('confirm', { proposal_id: proposalId, verdict_json: verdictJson, signature_b64: signatureB64 }, CALL_GAS),
-    execute: ({ proposalId, receiver, amountYocto, saltHex }) =>
-      send('execute', { proposal_id: proposalId, receiver, amount_yocto: amountYocto, salt_hex: saltHex }, EXECUTE_GAS),
   };
 }
 

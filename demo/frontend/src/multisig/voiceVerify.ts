@@ -1,18 +1,21 @@
 // The page's call to the voice verifier: POST /api/voice-verify (functions/api/voice-verify.ts)
-// with a `verify` input of the kind `multisig_propose` or `multisig_confirm`. The answer is the
-// verifier output unchanged: `verdict_json` (the signed bytes, a string), `signature_b64`, and
-// on an accept of `multisig_propose` the `multisig` opening (base64url commitment and salt).
+// with a `verify` input of the kind `multisig_propose`. The answer is the verifier output
+// unchanged: `verdict_json` (the signed bytes, a string), `signature_b64`, and on an accept the
+// `multisig` opening (base64url commitment and salt).
 
 import { hexOfBase64Url } from './intent';
 import { base64 } from './wav';
 
-export type MultisigVoiceRequest =
-  | { kind: 'multisig_propose'; multisig: string; proposal_id: number; receiver: string; amount_yocto: string }
-  | { kind: 'multisig_confirm'; multisig: string; proposal_id: number; commitment_hex: string };
+export interface MultisigVoiceRequest {
+  kind: 'multisig_propose';
+  multisig: string;
+  proposal_id: number;
+  receiver: string;
+  amount_yocto: string;
+}
 
 export type VoiceCheck =
-  /** `commitmentHex` and `saltHex` only for `multisig_propose`. */
-  | { kind: 'accepted'; verdictJson: string; signatureB64: string; commitmentHex?: string; saltHex?: string }
+  | { kind: 'accepted'; verdictJson: string; signatureB64: string; commitmentHex: string; saltHex: string }
   /** `heard`: what the verifier heard, on a `words` refusal. */
   | { kind: 'refused'; reason: string; heard?: string }
   | { kind: 'unavailable'; reason: string };
@@ -49,10 +52,10 @@ export async function checkVoice(owner: string, request: MultisigVoiceRequest, w
     const text = typeof body?.error === 'string' ? body.error : `The verify route answered ${response.status}.`;
     return { kind: 'unavailable', reason: text };
   }
-  return readOutput(body, request.kind);
+  return readOutput(body);
 }
 
-function readOutput(output: VerifyOutput, kind: MultisigVoiceRequest['kind']): VoiceCheck {
+function readOutput(output: VerifyOutput): VoiceCheck {
   if (output.kind === 'seams_voice_error_v1') return { kind: 'refused', reason: reasonText(output.reason ?? 'unsupported', null) };
   if (output.kind !== 'seams_voice_verify_output_v2' || typeof output.verdict_json !== 'string') {
     return { kind: 'unavailable', reason: 'The verifier gave an answer that this page cannot read.' };
@@ -75,14 +78,12 @@ function readOutput(output: VerifyOutput, kind: MultisigVoiceRequest['kind']): V
   if (!output.signature_b64) {
     return { kind: 'unavailable', reason: `The verifier accepted, but could not sign the verdict. ${output.detail ?? ''}`.trim() };
   }
-  const accepted = { kind: 'accepted' as const, verdictJson: output.verdict_json, signatureB64: output.signature_b64 };
-  if (kind === 'multisig_confirm') return accepted;
   const commitmentHex = hexOfBase64Url(output.multisig?.commitment ?? '', 32);
   const saltHex = hexOfBase64Url(output.multisig?.salt ?? '', 32);
   if (!commitmentHex || !saltHex) {
     return { kind: 'unavailable', reason: 'The verifier accepted, but gave no proposal commitment. Its version may not have the multisig kinds.' };
   }
-  return { ...accepted, commitmentHex, saltHex };
+  return { kind: 'accepted', verdictJson: output.verdict_json, signatureB64: output.signature_b64, commitmentHex, saltHex };
 }
 
 /** The verifier's refusal reasons, in plain words. */
@@ -100,9 +101,6 @@ const REASONS: Record<string, string> = {
   speaker_unavailable: 'The speaker check service did not answer. Try again.',
   storage: 'The verifier could not read or write its record. Try again.',
   transcriber_unavailable: 'The speech-to-text service did not answer. Try again.',
-  same_speaker: 'This voice matches a member who already approved this proposal. Each approval needs a different person.',
-  attempts_exhausted: 'This account used its three tries for this proposal. The verifier takes no more tries from it.',
-  proposal_missing: 'The verifier has no stored proposal for this commitment. The proposer must propose it again.',
 };
 
 function reasonText(reason: string, detail: string | null): string {

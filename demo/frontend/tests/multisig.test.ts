@@ -1,8 +1,11 @@
-// Unit tests of the pure parts of the multisig screen: the WAV, the resampling and the
-// amount rules. Run with `pnpm test` (Node's own test runner, which strips the types).
+// Unit tests of the pure parts of the multisig screen: the WAV, the resampling, the amount
+// rules and the reading of the approve route's answer. Run with `pnpm test` (Node's own test
+// runner, which strips the types).
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readApproveAnswer } from '../src/multisig/approveClient.ts';
+import { readMultisigConfig, readProposal, readProposalId, readProposals } from '../src/multisig/contractViews.ts';
 import { formatNear, hexOfBase64Url, hundredthsOfYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from '../src/multisig/intent.ts';
 import { base64, encodeWav, MAX_SAMPLES, resampleTo16k, toPcm16, wavFromSamples } from '../src/multisig/wav.ts';
 
@@ -100,4 +103,72 @@ test('the commitment and the salt come as base64url and go to the contract as he
   assert.equal(hexOfBase64Url(url, 31), null);
   assert.equal(hexOfBase64Url(`${url}=`, 32), null);
   assert.equal(hexOfBase64Url('+/', 1), null);
+});
+
+test('the approve answer: a receipt, an earlier execute, or the error of a step', () => {
+  const proposal = {
+    id: 7,
+    commitment_hex: 'cd'.repeat(32),
+    proposer: 'visitor.testnet',
+    approvals: ['admin-a.seams-v1.testnet', 'admin-b.seams-v1.testnet'],
+    status: 'executed',
+    created_at_ms: 1,
+    receiver: 'seams-grants.testnet',
+    amount_yocto: '10000000000000000000000',
+  };
+  assert.deepEqual(readApproveAnswer(200, { proposal, executeTransactionHash: 'H', executed: true }), {
+    kind: 'done',
+    proposal,
+    transactionHash: 'H',
+    executed: true,
+  });
+  assert.deepEqual(readApproveAnswer(200, { proposal: null, executeTransactionHash: 'H', executed: false }), {
+    kind: 'done',
+    proposal: null,
+    transactionHash: 'H',
+    executed: false,
+  });
+  assert.equal(readApproveAnswer(409, { error: 'Proposal 7 is executed already.' }).kind, 'executed_before');
+  assert.deepEqual(readApproveAnswer(502, { error: 'Admin B could not approve: x', step: 'admin_b' }), {
+    kind: 'failed',
+    message: 'Admin B could not approve: x',
+  });
+  assert.deepEqual(readApproveAnswer(500, null), { kind: 'failed', message: 'The approve route answered 500.' });
+  assert.equal(readApproveAnswer(200, { executed: true }).kind, 'failed');
+  // A proposal of another shape is dropped; the page reads the proposal itself.
+  assert.equal(readApproveAnswer(200, { proposal: { id: 7 }, executeTransactionHash: 'H', executed: true }).kind, 'done');
+});
+
+test('the views are read with checks: the old contract shape gives null, not a throw', () => {
+  const config = { admins: ['admin-a.seams-v1.testnet', 'admin-b.seams-v1.testnet'], verifier_public_key: 'ed25519:E8E5', max_amount_yocto: '50000000000000000000000' };
+  assert.deepEqual(readMultisigConfig(config), config);
+  const old = { members: ['alice.testnet', 'bob.testnet', 'carol.testnet'], threshold: 2, verifier_public_key: 'ed25519:E8E5' };
+  assert.doesNotThrow(() => readMultisigConfig(old));
+  assert.equal(readMultisigConfig(old), null);
+  for (const bad of [null, [], 'x', { ...config, admins: [] }, { ...config, admins: [1] }, { ...config, max_amount_yocto: 5 }, { ...config, max_amount_yocto: '05' }]) {
+    assert.equal(readMultisigConfig(bad), null, JSON.stringify(bad));
+  }
+
+  const proposal = {
+    id: 1,
+    commitment_hex: 'ab'.repeat(32),
+    proposer: 'visitor.testnet',
+    approvals: ['admin-a.seams-v1.testnet'],
+    status: 'open',
+    created_at_ms: 1794300000000,
+  };
+  assert.deepEqual(readProposal(proposal), proposal);
+  const executed = { ...proposal, status: 'executed', receiver: 'seams-grants.testnet', amount_yocto: '10000000000000000000000' };
+  assert.deepEqual(readProposal(executed), executed);
+  const oldProposal = { id: 1, commitment_hex: 'ab'.repeat(32), proposer: 'alice.testnet', confirmations: ['alice.testnet'], status: 'open' };
+  assert.equal(readProposal(oldProposal), null);
+  for (const bad of [{ ...proposal, status: 'done' }, { ...proposal, id: 0 }, { ...proposal, commitment_hex: 'AB'.repeat(32) }, { ...proposal, amount_yocto: 1 }]) {
+    assert.equal(readProposal(bad), null, JSON.stringify(bad));
+  }
+  assert.deepEqual(readProposals([proposal]), [proposal]);
+  assert.equal(readProposals([proposal, oldProposal]), null);
+  assert.equal(readProposals({}), null);
+  assert.equal(readProposalId(1), 1);
+  assert.equal(readProposalId('1'), null);
+  assert.equal(readProposalId(0), null);
 });

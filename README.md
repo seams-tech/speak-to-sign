@@ -504,6 +504,7 @@ The code is under the Apache License 2.0 (`LICENSE`).
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |
 | Note market         | `pm-notes.seams-v1.testnet`, code `c75495af180ef0cfaea4084640db101a235e4bf59401b552f8f05ddd3a21b271`. Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 9 is the demo post's context box (note 0), open until 18 Nov 2026 23:59 UTC. |
+| Voice multisig      | `team.seams-v1.testnet`, code `d82479ab988c5f89707274289e08716d71f76bd60f599b4ef58e47af4a55e327`, deployed 2026-11-10 (tx `HQb3jQNDd4CaYxV74apRRadjSeWtHxN2mRCSweVz7rX3`). A visitor proposes by voice (verifier 0.6.0); `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` approve by key. At most 0.05 NEAR for each proposal. |
 | Market resolver     | OutLayer project `seams-v1.testnet/pm-notes-resolver`, version `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`: JEV (`typesafe/jev-1.13`) on NEAR AI, then a NEAR AI chat model. |
 
 ## Trust limits

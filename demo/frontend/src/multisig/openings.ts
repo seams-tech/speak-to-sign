@@ -1,6 +1,7 @@
 // The opening of a proposal: the transfer and the salt behind its on-chain commitment. Only the
-// proposer's browser gets it (the verifier returns the salt only to `multisig_propose`), and
-// `execute` needs it. It stays in localStorage, keyed by contract and proposal id.
+// proposer's browser gets it (the verifier returns the salt to `multisig_propose`), and the
+// approve route needs it for `execute`. It stays in localStorage, keyed by contract and proposal
+// id, until the proposal is executed.
 
 export interface Opening {
   receiver: string;
@@ -42,5 +43,14 @@ export function writeOpening(contract: string, proposalId: number, opening: Open
     return true;
   } catch {
     return false;
+  }
+}
+
+/** The proposal is executed: its opening is not needed again. */
+export function removeOpening(contract: string, proposalId: number): void {
+  try {
+    localStorage.removeItem(key(contract, proposalId));
+  } catch {
+    // No storage.
   }
 }

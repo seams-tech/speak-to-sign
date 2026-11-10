@@ -2,17 +2,20 @@
 //
 // Runs the OutLayer voice verifier for the voice multisig screen, with the demo's own OutLayer
 // payment key, the way the Seams verify route does (/speak-to-sign/v1/verify). It takes only
-// the `verify` op with the request kinds `multisig_propose` and `multisig_confirm`.
+// the `verify` op with the request kind `multisig_propose`.
 //
 // The Seams route checks that the caller owns `owner`; this route cannot. The verifier still
 // checks the voice against the owner's template, and the contract checks that the owner signs
 // the transaction, so a verdict is bound to the owner's voice and key.
 //
 // Over HTTPS, OutLayer derives the verifier's storage cell and its verdict signing key from the
-// owner of the payment key. The members enrolled their voices through the Seams staging server,
+// owner of the payment key. The visitors enroll their voices through the Seams staging server,
 // so this route must use the same payment key, project and secrets profile as that route, and a
 // verifier version with the multisig kinds (0.6.0 or later). With another payment key, every
 // verify refuses `template_missing`, and the verdicts carry a key that the contract does not pin.
+
+import { isObject } from '../../src/guards.ts';
+import { json, readBoundedText, refuseOtherOrigin } from '../lib/http.ts';
 
 interface Env {
   /** For example https://api.outlayer.fastnear.com */
@@ -41,13 +44,10 @@ const MAX_BODY_BYTES = 400 * 1024;
 /** The verifier calls two remote models. */
 const TIMEOUT_MS = 20_000;
 const RESOURCE_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };
-const KINDS = new Set(['multisig_propose', 'multisig_confirm']);
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const origin = request.headers.get('Origin');
-  if (origin && origin !== new URL(request.url).origin) {
-    return json({ error: 'This route takes requests from this site only.' }, 403);
-  }
+  const refused = refuseOtherOrigin(request);
+  if (refused) return refused;
   const outlayer = readConfig(env);
   if (typeof outlayer === 'string') return json({ error: outlayer }, 503);
 
@@ -126,8 +126,8 @@ function parseInput(text: string): Record<string, unknown> | string {
   }
   const { input } = body;
   if (input.op !== 'verify') return 'This route runs only the verify op.';
-  if (!isObject(input.request) || typeof input.request.kind !== 'string' || !KINDS.has(input.request.kind)) {
-    return 'This route takes only the request kinds multisig_propose and multisig_confirm.';
+  if (!isObject(input.request) || input.request.kind !== 'multisig_propose') {
+    return 'This route takes only the request kind multisig_propose.';
   }
   return input;
 }
@@ -150,42 +150,4 @@ function outlayerFailure(status: number): string {
   if (status === 429) return 'The verifier is busy. Try again in a moment.';
   if (status >= 400 && status < 500) return `OutLayer refused the call (${status}).`;
   return `The verifier failed (${status}). Try again.`;
-}
-
-/** The body as text, or null when it is longer than `maximumBytes`. */
-async function readBoundedText(request: Request, maximumBytes: number): Promise<string | null> {
-  const declared = Number(request.headers.get('Content-Length') ?? '0');
-  if (Number.isFinite(declared) && declared > maximumBytes) return null;
-  if (!request.body) return '';
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    length += value.length;
-    if (length > maximumBytes) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return new TextDecoder().decode(bytes);
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers },
-  });
 }

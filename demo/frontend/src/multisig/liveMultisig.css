@@ -1,6 +1,6 @@
 /* Extra rules for LiveMultisigScreen. The look comes from the sf-* classes in
    src/showcase/showcase.css; these add the parts that work: real buttons and fields, the
-   spoken sentence, the recorder and the messages. */
+   spoken sentence, the recorder, the approval ticks, the receipt and the messages. */
 .lms a {
   color: inherit;
   text-decoration: none;
@@ -79,6 +79,25 @@
   align-items: center;
   gap: 6px;
 }
+.lms-members p.lms-admin {
+  align-items: flex-start;
+}
+.lms-admin svg {
+  flex: none;
+  margin-top: 2px;
+}
+.lms-admin span {
+  display: grid;
+  min-width: 0;
+}
+.lms-admin i {
+  overflow: hidden;
+  color: #a1a3a7;
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .lms-main {
   overflow-y: auto;
 }
@@ -98,27 +117,14 @@
 .sf-tx > .lms-txrow:last-child {
   border-bottom: 0;
 }
-.lms-status-ready {
+.sf-status.lms-status-ready {
   color: #00a058;
 }
-.lms-status-done {
+.sf-status.lms-status-done {
   color: #636669;
 }
 .lms .sf-amount .sf-muted {
   font-weight: 400;
-}
-.lms .sf-owner {
-  gap: 8px;
-}
-.lms-ok {
-  color: #00b460;
-}
-.lms-dot {
-  width: 13px;
-  height: 13px;
-  border-radius: 9999px;
-  border: 2px solid #dcdee0;
-  flex: none;
 }
 .lms-panel {
   display: grid;
@@ -140,6 +146,7 @@
 .lms-fields {
   display: grid;
   grid-template-columns: 1fr 160px;
+  align-items: start;
   gap: 12px;
 }
 .lms-field {
@@ -149,6 +156,9 @@
   color: #636669;
 }
 .lms-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   height: 40px;
   padding: 0 12px;
   border: 1px solid #dcdee0;
@@ -166,6 +176,10 @@
   font-style: normal;
   color: #d1242f;
 }
+.lms-field small {
+  color: #a1a3a7;
+  font-size: 12px;
+}
 .lms-say {
   padding: 12px 14px;
   border-radius: 6px;
@@ -176,13 +190,6 @@
 }
 .lms-say-empty {
   color: #a1a3a7;
-}
-.lms-blank {
-  display: inline-block;
-  min-width: 48px;
-  border-bottom: 2px solid #121312;
-  color: transparent;
-  line-height: 1.1;
 }
 .lms-hint {
   color: #636669;
@@ -220,16 +227,10 @@
 .lms .sf-steps .lms-error p {
   display: block;
 }
-.lms .sf-steps .lms-rec {
-  margin: 0;
-}
 .lms-txrow .sf-time {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-.lms-action .lms-say {
-  font-size: 15px;
 }
 .lms-rec {
   display: flex;
@@ -260,15 +261,53 @@
   height: 100%;
   background: #d1242f;
 }
-.lms-done-title,
-.lms-ok-line {
+.lms-done-title {
   display: flex;
   align-items: center;
   gap: 6px;
   font-weight: 700;
 }
-.lms-done a,
-.lms-ok-line a {
+.lms-receipt {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: #effff4;
+}
+.lms-receipt p {
+  margin: 0;
+}
+.lms-receipt a {
+  font-size: 13px;
+  text-decoration: underline;
+}
+/* The voice approval and one tick for each admin. */
+.lms-ticks {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lms-ticks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #636669;
+}
+.lms-ticks li.lms-tick-done {
+  color: #121312;
+  font-weight: 700;
+}
+.lms-ticks li > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+.lms-tick-detail {
+  color: #636669;
+  font-size: 13px;
   font-weight: 400;
+}
+.lms-tick-detail a {
   text-decoration: underline;
 }

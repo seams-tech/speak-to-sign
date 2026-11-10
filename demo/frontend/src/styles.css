@@ -1458,7 +1458,7 @@ code {
   overscroll-behavior: contain;
 }
 .dialog {
-  /* The corner radius, also for the voice button that fills the dialog's foot (--foot-r). */
+  /* The corner radius. */
   --foot-r: 2rem;
   width: 100%;
   max-width: 560px;
@@ -1797,61 +1797,53 @@ fieldset:disabled .choice {
 .speak-btn:disabled .mic {
   opacity: 0.4;
 }
-/* In a dialog's foot, the whole foot is the voice button: the button reaches the foot's edges,
-   and a pointer over any part of it turns the whole foot X's blue, as the primary action
-   (.btn-blue), with white text and a white microphone. The colours are the same on both themes. */
-.dialog-foot {
-  --foot-x: 20px;
-  --foot-top: 12px;
-  --foot-bottom: 16px;
+/* In a dialog's foot, the voice button is the dialog's primary action: an X blue pill, as X's
+   Post button (.btn-blue), with white text and a white microphone. A pointer makes it the darker
+   blue. The colours are the same on both themes. The waits that follow a click keep the pill's
+   shape on the panel grey, so the foot does not change its height. */
+.dialog-foot .speak-btn,
+.dialog-foot .speak-wait {
+  padding: 8px 20px 8px 8px;
+  border-radius: 9999px;
+}
+.dialog-foot .mic {
+  width: 40px;
+  height: 40px;
+}
+.dialog-foot .speak-wait {
+  background: var(--panel);
 }
 .dialog-foot .speak-btn {
-  width: calc(100% + 2 * var(--foot-x));
-  margin: calc(-1 * var(--foot-top)) calc(-1 * var(--foot-x)) calc(-1 * var(--foot-bottom));
-  padding: var(--foot-top) var(--foot-x) var(--foot-bottom);
-  /* The dialog's own bottom corners. */
-  border-radius: 0 0 var(--foot-r, 2rem) var(--foot-r, 2rem);
-  transition:
-    background-color 0.16s,
-    color 0.16s;
-}
-.dialog-foot .speak-btn .muted {
-  transition: color 0.16s;
-}
-/* Keyboard focus lights the foot as a pointer does. */
-.dialog-foot .speak-btn:not(:disabled):focus-visible {
   background: var(--accent);
   color: #fff;
-  outline: none;
+  transition: background-color 0.16s;
 }
-.dialog-foot .speak-btn:not(:disabled):focus-visible .mic {
+.dialog-foot .speak-btn .mic {
   background: #fff;
   color: var(--accent);
 }
-.dialog-foot .speak-btn:not(:disabled):focus-visible .muted {
+.dialog-foot .speak-btn .muted {
   color: rgba(255, 255, 255, 0.85);
+}
+.dialog-foot .speak-btn:disabled {
+  opacity: 0.5;
+}
+.dialog-foot .speak-btn:disabled .mic {
+  opacity: 1;
 }
 @media (hover: hover) and (pointer: fine) {
   .dialog-foot .speak-btn:not(:disabled):hover {
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-ink);
   }
   .dialog-foot .speak-btn:not(:disabled):hover .mic {
     background: #fff;
-    color: var(--accent);
-  }
-  .dialog-foot .speak-btn:not(:disabled):hover .muted {
-    color: rgba(255, 255, 255, 0.85);
   }
   /* Outside a dialog's foot, only the microphone answers the pointer. */
   .speak-btn:not(:disabled):hover .mic {
     background: var(--ink-hover);
   }
 }
-.dialog-foot .speak-btn:not(:disabled):active {
-  background: var(--accent-ink);
-}
-/* A press shrinks the microphone: the foot itself keeps the dialog's edges. */
+/* A press shrinks the microphone. */
 @media (prefers-reduced-motion: no-preference) {
   .speak-btn:not(:disabled):active .mic {
     scale: 0.96;
@@ -2120,7 +2112,6 @@ fieldset:disabled .choice {
     padding-bottom: 16px;
   }
   .dialog-foot {
-    --foot-x: 16px;
     padding: 12px 16px 16px;
   }
 }

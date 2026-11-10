@@ -43,9 +43,73 @@ pub const SPEAKER_PINNED_KEY_HEX: &str = "1f704027a643874bc8f4d9391065881cf66c9c
 /// The prefix of the preimage that the speaker service signs.
 pub const SPEAKER_EMBED_DOMAIN: &[u8] = b"seams:speaker-embedding:v1";
 
-/// ReDimNet B1: the model that the speaker service must name (lowercase hex
-/// SHA-256). A template records it.
-pub const REDIMNET_SHA256_HEX: &str = "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269";
+/// The host of the model file for the `local-speaker` build, which fetches
+/// the model on each run. The worker refuses the bytes unless their SHA-256
+/// is the pinned digest, so the host is not trusted for the model. To move
+/// the file, change this name and the same `host` in
+/// `manifest/outlayer-local-speaker.json` (a test checks that the two agree).
+macro_rules! model_host {
+    () => {
+        "test.sign.seams.sh"
+    };
+}
+
+/// One speaker model: every value that changes with the model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SpeakerModel {
+    /// A short name, for people.
+    pub name: &'static str,
+    /// Lowercase hex SHA-256 of the ONNX file. The speaker service must name
+    /// it, the `local-speaker` build refuses any other bytes, and a template
+    /// records it.
+    pub sha256_hex: &'static str,
+    /// Where the `local-speaker` build fetches the file.
+    pub url: &'static str,
+    /// The size of the file. A larger download is an error.
+    pub bytes: usize,
+    /// The number of values of one embedding.
+    pub embedding_dim: usize,
+    /// The speaker cutoff in thousandths of cosine. It belongs to the
+    /// model: another model needs its own measured cutoff.
+    pub cutoff_milli: i32,
+    /// The name of the ONNX output node with the embedding.
+    pub output: &'static str,
+}
+
+/// ReDimNet B1, the model of the Wallet (`@seams/voiceid`) and of the
+/// speaker service. The Wallet uses the cutoff 0.45
+/// (`VOICE_MATCH_THRESHOLD`).
+pub const REDIMNET_B1: SpeakerModel = SpeakerModel {
+    name: "redimnet-b1",
+    sha256_hex: "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269",
+    url: concat!("https://", model_host!(), "/sdk/voiceid/redimnet-b1.onnx"),
+    bytes: 8_859_593,
+    embedding_dim: 192,
+    cutoff_milli: 450,
+    output: "embedding",
+};
+
+/// The speaker model of this build. To use another model (for example
+/// another ReDimNet size), add its [`SpeakerModel`] and name it here. The
+/// speaker service must run the same file. A template of another model is
+/// not read: its owner enrolls again. See README.md, "Another speaker
+/// model".
+pub const SPEAKER_MODEL: SpeakerModel = REDIMNET_B1;
+
+/// The digest of [`SPEAKER_MODEL`].
+pub const REDIMNET_SHA256_HEX: &str = SPEAKER_MODEL.sha256_hex;
+
+/// [`SPEAKER_MODEL`] values for the `local-speaker` build.
+pub const REDIMNET_BYTES: usize = SPEAKER_MODEL.bytes;
+pub const REDIMNET_URL: &str = SPEAKER_MODEL.url;
+pub const REDIMNET_TIMEOUT_SECS: u64 = 30;
+#[cfg(test)]
+const MODEL_HOST: &str = model_host!();
+
+/// The manifest of the `local-speaker` build. `main.rs` links it in place of
+/// `manifest/outlayer.json`.
+#[cfg(test)]
+const LOCAL_SPEAKER_MANIFEST_JSON: &str = include_str!("../manifest/outlayer-local-speaker.json");
 
 /// The NEAR AI Cloud host, endpoint, model and language.
 #[cfg(test)]
@@ -87,12 +151,11 @@ pub const ENROLLMENT_RECIPIENT: &str = "seams-v1.testnet/voice-verifier";
 /// before the Borsh payload, so the signed bytes are never a transaction.
 pub const NEP413_TAG: u32 = 2_147_484_061;
 
-/// The speaker cutoff in thousandths of cosine. The Wallet uses 0.45
-/// (`VOICE_MATCH_THRESHOLD`).
-pub const SPEAKER_CUTOFF_MILLI: i32 = 450;
+/// The speaker cutoff of [`SPEAKER_MODEL`], in thousandths of cosine.
+pub const SPEAKER_CUTOFF_MILLI: i32 = SPEAKER_MODEL.cutoff_milli;
 
-/// ReDimNet embedding size.
-pub const EMBEDDING_DIM: usize = 192;
+/// The embedding size of [`SPEAKER_MODEL`].
+pub const EMBEDDING_DIM: usize = SPEAKER_MODEL.embedding_dim;
 
 /// Audio sample rate.
 pub const SAMPLE_RATE: u32 = 16_000;
@@ -166,6 +229,20 @@ mod tests {
         );
         assert!(SPEAKER_EMBED_URL.starts_with(&format!("https://{SPEAKER_HOST}/")));
         assert!(NEAR_AI_TRANSCRIPTIONS_URL.starts_with(&format!("https://{NEAR_AI_HOST}/")));
+    }
+
+    /// The `local-speaker` manifest is the default manifest with the model
+    /// host in place of the speaker service host.
+    #[test]
+    fn local_speaker_manifest_differs_only_in_the_first_host() {
+        let mut manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
+        let local: Value = serde_json::from_str(LOCAL_SPEAKER_MANIFEST_JSON).unwrap();
+        assert_eq!(local["capabilities"]["network"][0]["host"], MODEL_HOST);
+        assert_eq!(local["capabilities"]["network"][0]["timeout_secs"], REDIMNET_TIMEOUT_SECS);
+        assert!(REDIMNET_URL.starts_with(&format!("https://{MODEL_HOST}/")));
+        manifest["capabilities"]["network"][0] = local["capabilities"]["network"][0].clone();
+        manifest["display"] = local["display"].clone();
+        assert_eq!(manifest, local);
     }
 
     #[test]

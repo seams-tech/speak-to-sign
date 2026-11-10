@@ -5,6 +5,7 @@
 mod bets;
 mod enroll;
 mod fake;
+mod local_speaker;
 mod merges;
 mod multisig;
 mod notes;

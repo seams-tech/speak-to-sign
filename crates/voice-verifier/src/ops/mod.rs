@@ -34,12 +34,20 @@ pub use request::transfer_request;
 /// because their fake service signs with its own key.
 #[derive(Clone, Copy, Debug)]
 pub struct Pins {
+    /// The key of the speaker service. Not used with `local_speaker`.
     pub speaker_key: [u8; 32],
+    /// `true`: the embeddings come from the model inside the worker
+    /// ([`Host::embed_local`]), and no request goes to the speaker service.
+    /// The release value is the feature `local-speaker`.
+    pub local_speaker: bool,
 }
 
 impl Pins {
     fn production() -> Self {
-        Self { speaker_key: from_hex::<32>(SPEAKER_PINNED_KEY_HEX).expect("pinned hex") }
+        Self {
+            speaker_key: from_hex::<32>(SPEAKER_PINNED_KEY_HEX).expect("pinned hex"),
+            local_speaker: cfg!(feature = "local-speaker"),
+        }
     }
 }
 

@@ -4,7 +4,9 @@ OutLayer worker (`wasm32-wasip2`) for Speak-to-Sign (plan
 `seams-wallet/docs/refactor-227-speak-to-sign-without-passkey.md`). The Seams
 verify route calls it with
 `POST https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`.
-Operations: `enroll` and `verify`. No `tract`, no ReDimNet in the worker.
+Operations: `enroll` and `verify`. The default worker has no `tract` and no
+ReDimNet: the speaker model runs in a service on Phala. The variant
+`local-speaker` runs ReDimNet inside the worker (see "Two variants").
 
 The verdict authorizes a payment from the owner's own account: the Wallet
 checks it against the key that it pins and signs the transaction itself.
@@ -114,6 +116,79 @@ another machine cannot build them again.
 - NEAR RPC: `https://test.rpc.fastnear.com` (`config::NEAR_RPC_URL`), for the
   owner's access key at enrollment only.
 - `verify` sends both requests at once (`wasi:http`, one poll loop).
+
+## Two variants
+
+One source gives two workers. The verdict, the inputs, the template record
+and the storage keys are the same. So a voice that one variant enrolled
+passes in the other, if both use the same storage cell (the same project and
+payment key).
+
+| | Default | `local-speaker` |
+| --- | --- | --- |
+| Build | `./build.sh` | `./build.sh --local-speaker` |
+| Speaker model | In the speaker service (Phala), signed embeddings | Inside the worker, in `tract` (`src/local_model.rs`) |
+| Manifest | `manifest/outlayer.json` | `manifest/outlayer-local-speaker.json` |
+| Hosts | Phala, NEAR AI, NEAR RPC | the model host, NEAR AI, NEAR RPC |
+| WASM (macOS arm64 build of this commit) | 434,778 bytes | 8,242,295 bytes |
+| Trust for the speaker | The Phala app and its pinned key | Only the worker and the pinned model digest |
+| Cost | A second service to operate and pay | More worker time for each call |
+
+How the `local-speaker` variant works:
+
+- The model is 8,859,593 bytes, and OutLayer refuses a WASM of 10 MB or
+  more. So the model is not in the WASM. The worker fetches it on each run
+  from `config::REDIMNET_URL` and refuses bytes with another SHA-256 than
+  `config::SPEAKER_MODEL.sha256_hex`. The host of the file is not trusted.
+- `verify` sends only the NEAR AI request. After the storage calls, it runs
+  the model while that request is in flight (`Host::embed_local`). `enroll`
+  runs the model three times while the access-key request is in flight.
+- A failure of the download or of the model refuses with
+  `speaker_unavailable`.
+- The stage times have `model_fetch` and `redimnet` (the model runs), and no
+  `speaker`.
+
+Not measured yet: this variant did not run on OutLayer. The Gate 0 probe of
+the same design (`research/gate0/voice-probe`, same `tract` version, same
+model) measured on OutLayer testnet: 0.26 to 0.83 s for the download, 1.1 to
+1.7 s for the model on 8 s of audio, and 8 to 13 s of fixed time for a worker
+of 8 MB, against about 0.7 s for a small worker. Expect the same order here.
+
+Both variants declare the same signing key (`verdict`, `bind: "project"`).
+As two versions of one project, they sign with the same key. A verdict does
+not show which variant made it.
+
+Tests: `cargo test` covers both paths with the fake host
+(`tests/ops/local_speaker.rs`). With the model file, this runs the real
+model natively:
+
+```sh
+SEAMS_REDIMNET_PATH=/path/to/redimnet-b1.onnx cargo test --release --features local-speaker --lib local_model
+```
+
+## Another speaker model
+
+`config::SPEAKER_MODEL` holds every value that changes with the model: the
+SHA-256 of the ONNX file, its URL and size, the embedding size, the cutoff
+and the name of the output node. Today it is `REDIMNET_B1`.
+
+To use another model (for example another ReDimNet size):
+
+1. Measure the cutoff of the model on real recordings. Do not copy 0.45.
+2. Add a `SpeakerModel` constant in `src/config.rs` and set `SPEAKER_MODEL`
+   to it.
+3. For the default variant, build the speaker service with the same file
+   (`MODEL_SHA256` and `EMBEDDING_DIM` in `crates/speaker-service/src/lib.rs`)
+   and pin its new key.
+4. For the `local-speaker` variant, serve the file at the URL and put its
+   host in `manifest/outlayer-local-speaker.json`. Check that `tract` loads
+   the model: ReDimNet B1 needs the typed plan with no declutter pass.
+5. Build. The WASM hash changes.
+
+A template records the digest of its model. A worker with another model does
+not read it and refuses with `template_missing`, so each owner enrolls
+again. One build has one model: the model is part of the code that a WASM
+hash names.
 
 ## Overlap of network and storage
 

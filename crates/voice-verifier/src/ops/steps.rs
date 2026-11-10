@@ -7,7 +7,8 @@ use super::{Pins, Refusal};
 use crate::audio::{decode_wav, wav_bytes};
 use crate::config::audio_used_key;
 use crate::digest::{from_b64, sha256};
-use crate::host::{Host, PostRequest, Timed};
+use crate::embedding::Embedding;
+use crate::host::{Host, LocalEmbeddings, PostRequest, Timed};
 use crate::output::{short, Reason, Stages};
 use crate::speaker_client::{check_service_reply, ServiceReply};
 
@@ -26,16 +27,30 @@ pub(super) fn decode_clip(b64_text: &str) -> Result<Clip, Refusal> {
     Ok(Clip { pcm, wav, digest })
 }
 
+/// What [`in_flight`] gives back: the value of the storage step, the
+/// responses in request order, and the result of the model inside the
+/// worker if `local` clips were given.
+pub(super) struct Flight<T> {
+    pub(super) value: T,
+    pub(super) results: Vec<Timed>,
+    pub(super) local: Option<Result<LocalEmbeddings, String>>,
+}
+
 /// Starts `requests` and sends their bodies, runs `storage` while they are
 /// in flight, then waits for every response. A storage refusal drops the
 /// requests without a wait. Records the stages `send`, `storage`, `wait`
 /// and `parallel`; `storage` can record its own stages inside.
+///
+/// With `local` clips (the `local-speaker` build), the model inside the
+/// worker runs on them after the storage step, while the requests are still
+/// in flight. It records the stages `model_fetch` and `redimnet`.
 pub(super) fn in_flight<T>(
     host: &mut dyn Host,
     ms: &mut Stages,
     requests: Vec<PostRequest>,
+    local: Option<&[&Clip]>,
     storage: impl FnOnce(&mut dyn Host, &mut Stages) -> Result<T, Reason>,
-) -> Result<(T, Vec<Timed>), Reason> {
+) -> Result<Flight<T>, Reason> {
     let flight = Instant::now();
     host.post_start(requests);
     ms.since("send", flight);
@@ -48,9 +63,33 @@ pub(super) fn in_flight<T>(
         }
     };
     ms.since("storage", stored);
+    let local = local.map(|clips| {
+        let pcm: Vec<&[i16]> = clips.iter().map(|clip| clip.pcm.as_slice()).collect();
+        let embedded = host.embed_local(&pcm);
+        if let Ok(done) = &embedded {
+            ms.record("model_fetch", done.fetch_ms);
+            ms.record("redimnet", done.run_ms);
+        }
+        embedded
+    });
     let results = ms.time("wait", || host.post_wait());
     ms.since("parallel", flight);
-    Ok((value, results))
+    Ok(Flight { value, results, local })
+}
+
+/// The embedding of clip `index` from the model inside the worker. A
+/// failure of the model refuses with `speaker_unavailable`.
+pub(super) fn local_embedding(
+    local: Option<&Result<LocalEmbeddings, String>>,
+    index: usize,
+) -> Result<Embedding, Refusal> {
+    let unavailable = |error: &str| Refusal::new(Reason::SpeakerUnavailable, short(&format!("speaker: {error}")));
+    let embeddings = match local {
+        Some(Ok(done)) => &done.embeddings,
+        Some(Err(error)) => return Err(unavailable(error)),
+        None => return Err(unavailable("no_result")),
+    };
+    embeddings.get(index).and_then(|raw| Embedding::from_raw(raw)).ok_or_else(|| unavailable("bad_embedding"))
 }
 
 /// The checked reply of one request of the batch: `check` reads a

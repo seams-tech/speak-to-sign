@@ -6,7 +6,7 @@ use serde_json::Value;
 use spoken_intent::NearAccount;
 
 use super::request::unsupported;
-use super::steps::{consume, decode_clip, in_flight, reply, speaker_reply};
+use super::steps::{consume, decode_clip, in_flight, local_embedding, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
 use crate::authorization::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
@@ -81,10 +81,18 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| Reason::SpeakerUnavailable)?;
     let mut requests = vec![access_key_request(owner.as_str(), &public_key)];
-    requests.extend(clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)));
+    if !pins.local_speaker {
+        requests.extend(clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)));
+    }
     let key = template_key(owner.as_str());
-    let (previous, results) =
-        in_flight(host, &mut output.ms, requests, |host, _| enroll_storage(host, &key, &output.audio_digests))?;
+    // The `local-speaker` build runs the model inside the worker on the
+    // three clips, while the access-key request is in flight.
+    let local: Vec<&_> = clips.iter().collect();
+    let flight =
+        in_flight(host, &mut output.ms, requests, pins.local_speaker.then_some(&local[..]), |host, _| {
+            enroll_storage(host, &key, &output.audio_digests)
+        })?;
+    let (previous, results) = (flight.value, flight.results);
     if let Some(timed) = results.first() {
         output.ms.record("rpc", timed.ms);
     }
@@ -105,7 +113,11 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
 
     let mut embeddings = Vec::with_capacity(ENROLL_RECORDINGS);
     for (index, (clip, nonce)) in clips.iter().zip(&nonces).enumerate() {
-        embeddings.push(speaker_reply(results.get(index + 1), clip, nonce, pins)?.embedding);
+        embeddings.push(if pins.local_speaker {
+            local_embedding(flight.local.as_ref(), index)?
+        } else {
+            speaker_reply(results.get(index + 1), clip, nonce, pins)?.embedding
+        });
     }
     let template = match agreement(&embeddings) {
         Agreement::Agreed { template, agreement_milli } => {

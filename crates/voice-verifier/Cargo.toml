@@ -23,6 +23,16 @@ serde_json = "1"
 # Checks the speaker service signature over each embedding.
 ed25519-dalek = { version = "2", default-features = false }
 
+# ReDimNet B1 inside the worker (the feature `local-speaker`).
+tract-onnx = { version = "=0.23.10", optional = true }
+
+[features]
+# The speaker model runs inside the worker: `tract` is in the WASM, and the
+# worker fetches the model with its pinned digest on each run. Without the
+# feature, the embeddings come from the speaker service (Phala). See
+# README.md, "Two variants".
+local-speaker = ["dep:tract-onnx"]
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 outlayer = { version = "=0.2.1", features = ["signing-keys"] }
 # The `wasi:http` bindings for the parallel POSTs (see src/wasm_host/http_batch.rs).

@@ -13,6 +13,12 @@ resolver = "2"
 members = ["voice-verifier"]
 exclude = ["spoken-intent", "speaker-service"]
 
+# `tract-onnx` (the feature `local-speaker` of voice-verifier) needs bit-vec.
+# The vendored copy removes an optional borsh 1.7 requirement that conflicts
+# with the borsh =1.6.1 pin of spoken-intent.
+[patch.crates-io]
+bit-vec = { path = "voice-verifier/vendor/bit-vec" }
+
 [profile.release]
 opt-level = "z"
 lto = true

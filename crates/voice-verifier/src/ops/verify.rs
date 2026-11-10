@@ -7,7 +7,7 @@ use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest};
 
 use super::multisig::{self, Prepared};
 use super::request::{known_accounts, typed_request, unsupported, SERVED_NETWORK};
-use super::steps::{consume, decode_clip, in_flight, reply, speaker_reply};
+use super::steps::{consume, decode_clip, in_flight, local_embedding, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
 use crate::config::{template_key, MAX_CONTACTS, NEAR_AI_API_KEY_ENV, VERDICT_TTL_MS};
@@ -107,36 +107,51 @@ fn verify_steps(
     else {
         return Err(Refusal::new(Reason::TranscriberUnavailable, "transcriber: no_api_key"));
     };
+    // The `local-speaker` build sends only the NEAR AI request, and runs the
+    // model inside the worker while that request is in flight.
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
-    let requests = vec![service_request(&clip.wav, &nonce), transcription_request(&api_key, &clip.wav)];
+    let mut requests = Vec::with_capacity(2);
+    if !pins.local_speaker {
+        requests.push(service_request(&clip.wav, &nonce));
+    }
+    let words_at = requests.len();
+    requests.push(transcription_request(&api_key, &clip.wav));
 
     // 4. The template and the used-audio mark, while the requests are in
     //    flight. A refusal here drops them.
-    let (record, results) =
-        in_flight(host, ms, requests, |host, ms| verify_storage(host, &input.owner, &digest_b64u, ms))?;
-    if let Some(timed) = results.first() {
+    let local = [&clip];
+    let flight = in_flight(host, ms, requests, pins.local_speaker.then_some(&local[..]), |host, ms| {
+        verify_storage(host, &input.owner, &digest_b64u, ms)
+    })?;
+    let (record, results) = (flight.value, flight.results);
+    if let Some(timed) = results.first().filter(|_| !pins.local_speaker) {
         ms.record("speaker", timed.ms);
     }
-    if let Some(timed) = results.get(1) {
+    if let Some(timed) = results.get(words_at) {
         ms.record("transcribe", timed.ms);
     }
 
     // 5. Speaker.
-    let speaker = speaker_reply(results.first(), &clip, &nonce, pins)?;
-    if let Some(model_ms) = speaker.model_ms {
-        ms.record("redimnet", model_ms);
-    }
-    let score = similarity_milli(&speaker.embedding, &record.template);
+    let embedding = if pins.local_speaker {
+        local_embedding(flight.local.as_ref(), 0)?
+    } else {
+        let speaker = speaker_reply(results.first(), &clip, &nonce, pins)?;
+        if let Some(model_ms) = speaker.model_ms {
+            ms.record("redimnet", model_ms);
+        }
+        speaker.embedding
+    };
+    let score = similarity_milli(&embedding, &record.template);
     verdict.speaker_score_milli = Some(score);
     if !speaker_passes(score) {
         return Err(Reason::Speaker.into());
     }
     if let Some(ready) = &prepared {
-        ms.time("voices", || multisig::check_other_voices(host, ready, &speaker.embedding))?;
+        ms.time("voices", || multisig::check_other_voices(host, ready, &embedding))?;
     }
 
     // 6. The transcript.
-    let transcript = reply(results.get(1), "transcriber", Reason::TranscriberUnavailable, parse_reply)?;
+    let transcript = reply(results.get(words_at), "transcriber", Reason::TranscriberUnavailable, parse_reply)?;
 
     // 7. Words: the heard tokens must equal the rendered tokens (a note
     //    summary may differ by one word, see `words_pass`).

@@ -34,7 +34,37 @@ struct Flight {
     ms: u64,
 }
 
+/// One blocking HTTPS GET: the status and the body. A batch that is in
+/// flight stays in flight: this call waits only on its own response.
+#[cfg(feature = "local-speaker")]
+pub fn get(url: &str, timeout_secs: u64, max_response_bytes: usize) -> Result<(u16, Vec<u8>), String> {
+    let request = PostRequest {
+        url: url.to_string(),
+        headers: Vec::new(),
+        body: Vec::new(),
+        timeout_secs,
+        max_response_bytes,
+    };
+    let (future, body, stream) = start_with(&request, &Method::Get)?;
+    drop(stream);
+    OutgoingBody::finish(body, None).map_err(|error| format!("finish: {error:?}"))?;
+    future.subscribe().block();
+    match future.get() {
+        Some(Ok(Ok(response))) => read(response, max_response_bytes),
+        Some(Ok(Err(error))) => Err(format!("{error:?}")),
+        Some(Err(())) => Err("response taken".into()),
+        None => Err("no response".into()),
+    }
+}
+
 fn start(request: &PostRequest) -> Result<(FutureIncomingResponse, OutgoingBody, OutputStream), String> {
+    start_with(request, &Method::Post)
+}
+
+fn start_with(
+    request: &PostRequest,
+    method: &Method,
+) -> Result<(FutureIncomingResponse, OutgoingBody, OutputStream), String> {
     let rest = request.url.strip_prefix("https://").ok_or("not an https URL")?;
     let (authority, path) = match rest.find('/') {
         Some(index) => rest.split_at(index),
@@ -44,7 +74,7 @@ fn start(request: &PostRequest) -> Result<(FutureIncomingResponse, OutgoingBody,
         request.headers.iter().map(|(name, value)| (name.clone(), value.as_bytes().to_vec())).collect();
     let headers = Fields::from_list(&entries).map_err(|error| format!("headers: {error:?}"))?;
     let outgoing = OutgoingRequest::new(headers);
-    outgoing.set_method(&Method::Post).map_err(|()| "method")?;
+    outgoing.set_method(method).map_err(|()| "method")?;
     outgoing.set_scheme(Some(&Scheme::Https)).map_err(|()| "scheme")?;
     outgoing.set_authority(Some(authority)).map_err(|()| "authority")?;
     outgoing.set_path_with_query(Some(path)).map_err(|()| "path")?;

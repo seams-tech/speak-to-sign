@@ -14,7 +14,7 @@ use seams_voice_verifier::config::{
     NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
 };
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
-use seams_voice_verifier::host::{Host, PostRequest, Timed};
+use seams_voice_verifier::host::{Host, LocalEmbeddings, PostRequest, Timed};
 use seams_voice_verifier::output::{verdict_message, Verdict};
 use seams_voice_verifier::speaker_client::service_message;
 use seams_voice_verifier::{run_with, Pins};
@@ -64,12 +64,14 @@ pub(crate) struct Fake {
     pub(crate) transcript: Option<String>,
     pub(crate) speaker_down: bool,
     pub(crate) speaker_tamper: bool,
+    /// The model inside the worker fails (the `local-speaker` build).
+    pub(crate) local_model_down: bool,
     pub(crate) access: Access,
     /// The accounts whose full-access key is `OWNER_SEED`.
     pub(crate) accounts: Vec<String>,
     pub(crate) posts: Vec<String>,
     /// Host calls in order: "start", "wait", "cancel", "get", "marker_get",
-    /// "marker_set", "set".
+    /// "marker_set", "set", "embed_local".
     pub(crate) events: Vec<&'static str>,
     batch: Option<Vec<Timed>>,
 }
@@ -210,6 +212,21 @@ impl Host for Fake {
         self.events.push("cancel");
         self.batch = None;
     }
+    /// The model inside the worker: the same voices as the fake service.
+    fn embed_local(&mut self, clips: &[&[i16]]) -> Result<LocalEmbeddings, String> {
+        self.events.push("embed_local");
+        if self.local_model_down {
+            return Err("model fetch: status_503".into());
+        }
+        let embeddings = clips
+            .iter()
+            .map(|pcm| {
+                let digest: [u8; 32] = Sha256::digest(wav_bytes(pcm)).into();
+                self.voices.get(&digest).cloned().unwrap_or_else(|| embedding(0, 0.0))
+            })
+            .collect();
+        Ok(LocalEmbeddings { embeddings, fetch_ms: 300, run_ms: 1_500 })
+    }
     fn random32(&mut self) -> Result<[u8; 32], String> {
         Ok([0x5a; 32])
     }
@@ -225,11 +242,20 @@ impl Host for Fake {
 }
 
 fn pins() -> Pins {
-    Pins { speaker_key: SigningKey::from_bytes(&SPEAKER_SEED).verifying_key().to_bytes() }
+    Pins { speaker_key: SigningKey::from_bytes(&SPEAKER_SEED).verifying_key().to_bytes(), local_speaker: false }
 }
 
 pub(crate) fn call(fake: &mut Fake, input: Value) -> Value {
-    let bytes = run_with(input.to_string().as_bytes(), fake, &pins());
+    call_with(fake, input, &pins())
+}
+
+/// A call of the `local-speaker` build: the model runs inside the worker.
+pub(crate) fn call_local(fake: &mut Fake, input: Value) -> Value {
+    call_with(fake, input, &Pins { local_speaker: true, ..pins() })
+}
+
+fn call_with(fake: &mut Fake, input: Value, pins: &Pins) -> Value {
+    let bytes = run_with(input.to_string().as_bytes(), fake, pins);
     assert!(bytes.len() < MAX_OUTPUT_BYTES, "{} bytes", bytes.len());
     serde_json::from_slice(&bytes).unwrap()
 }

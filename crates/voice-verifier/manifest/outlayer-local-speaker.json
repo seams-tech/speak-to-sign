@@ -1,0 +1,14 @@
+{
+  "display": { "name": "Seams voice verifier (speaker model in the worker)" },
+  "operations": ["enroll", "verify"],
+  "capabilities": {
+    "network": [
+      { "host": "test.sign.seams.sh", "timeout_secs": 30 },
+      { "host": "cloud-api.near.ai", "timeout_secs": 30 },
+      { "host": "test.rpc.fastnear.com", "timeout_secs": 10 }
+    ]
+  },
+  "signing_keys": [
+    { "path": "verdict", "type": "ed25519", "bind": "project" }
+  ]
+}

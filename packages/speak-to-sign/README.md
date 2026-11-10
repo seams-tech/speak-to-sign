@@ -196,6 +196,41 @@ const bet = await seams.speakToSign.requestBet({
   the outcome or the amount), `verdict_mismatch` and `transaction_failed`.
 - Bets need verifier 0.8.0 or later, and Wallet host API 10.
 
+## Any transaction
+
+`requestTransaction` signs and sends any NEAR transaction by voice: any
+receiver and any actions, as `signAndSendTransaction` takes them. It is not
+tied to a contract or a method.
+
+```ts
+import { functionCall } from '@seams/wallet';
+
+const sent = await seams.speakToSign.requestTransaction({
+  walletId,
+  transaction: {
+    receiverId: 'guest-book.testnet',
+    actions: [functionCall({ method: 'add_message', args: { text: 'hello' } })],
+  },
+  summary: 'Sign the guest book.',
+});
+```
+
+- The owner reads the summary aloud. It has the rules of a note summary: 1 to
+  12 plain words (`summaryRefusal`).
+- The verdict binds the receiver and the SHA-256 of the Borsh of the actions.
+  The Seams co-signer computes that digest from the transaction that it signs,
+  so one verdict approves exactly one list of actions for one receiver.
+- The application writes the summary. The voice proves who approves and which
+  words this person said. It does not prove that the summary describes the
+  transaction. Use the typed calls (`requestTransfer`, `requestBet` and the
+  others) when one fits: their sentence comes from the request fields.
+- The voice limits of `requestTransfer` (10 NEAR for one payment, 20 NEAR in 24
+  hours) do not apply to this call.
+- The refusals are the verifier's, `summary_not_speakable`,
+  `transaction_not_valid` (the receiver, or no action), `verdict_mismatch` and
+  `transaction_failed`.
+- It needs verifier 0.8.0 or later, and Wallet host API 10.
+
 ## Wallet host setup
 
 The operator of `walletOrigin` installs the same three packages. Then the

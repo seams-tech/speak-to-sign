@@ -105,9 +105,10 @@ export async function runSpokenTransfer(
 }
 
 /**
- * One spoken community note, note rating, merge approval or market bet, as a payment: the owner
- * says the note's summary or the sentence of the request, and core signs its one call on an
- * approved verdict. A bet is the token's `ft_transfer_call` to the market, with the verdict.
+ * One spoken community note, note rating, merge approval, market bet or general transaction, as
+ * a payment: the owner says the summary or the sentence of the request, and core signs its
+ * transaction on an approved verdict. A bet is the token's `ft_transfer_call` to the market,
+ * with the verdict. A general transaction is the application's own transaction.
  */
 export async function runSpokenNote(
   input: Pick<NoteInput, 'network' | 'signal' | 'note'>,
@@ -275,7 +276,7 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
 }
 
-/** The card copy of a spoken note, rating, merge approval or bet. */
+/** The card copy of a spoken note, rating, merge approval, bet or general transaction. */
 function noteCopy(
   action: NoteInput['note']['action'],
   displayText: string,
@@ -289,5 +290,11 @@ function noteCopy(
       return { noun: 'approval', doneHeadline: 'Merge approved', doneCaption: displayText };
     case 'market_bet':
       return { noun: 'bet', doneHeadline: 'Bet placed', doneCaption: displayText };
+    case 'transaction':
+      return {
+        noun: 'transaction',
+        doneHeadline: 'Transaction sent',
+        doneCaption: `To ${action.transaction.receiverId}`,
+      };
   }
 }

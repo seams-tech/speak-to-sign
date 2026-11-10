@@ -13,6 +13,7 @@ import { useDemo } from '../demoContext';
 import { useMarketSource } from '../market/contractSource';
 import { amountText, jevSentence, percentText, timeLeftText, yesShareBps } from '../market/math';
 import { NoteMarketStrip } from '../market/NoteMarket';
+import { useBetVoice } from '../market/SayBet';
 import { marketContext } from '../market/noteContext';
 import type { NoteMarket } from '../market/types';
 import type { Note } from '../notes/types';
@@ -252,6 +253,7 @@ function NoteBox({
 }) {
   const { account, prepare, freshNoteId } = useDemo();
   const source = useMarketSource();
+  const betVoice = useBetVoice(source);
   const [expanded, setExpanded] = useState(false);
   const state = marketTab(market, Date.now());
   const pool = market ? amountText(market.yesPool + market.noPool, source.currency) : '';
@@ -284,7 +286,7 @@ function NoteBox({
           noteId={note.marketNoteId}
           source={source}
           account={account}
-          onSignIn={() => prepare({ funds: 'bet' }).then((ready) => ready.ok)}
+          onSignIn={() => prepare({ funds: 'bet', voice: betVoice !== null }).then((ready) => ready.ok)}
           context={marketContext(note.note)}
           openBet={betRequest}
         />

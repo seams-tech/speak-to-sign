@@ -4,6 +4,7 @@
 
 import type {
   SpeakToSignHostOperations,
+  SpeakToSignNoteSigning,
   SpeakToSignPayment,
   SpeakToSignPrompt,
   SpokenNoteAction,
@@ -13,6 +14,7 @@ type Clip = Awaited<ReturnType<SpeakToSignPrompt['record']>>;
 type PhraseView = Parameters<SpeakToSignPrompt['show']>[0];
 type PhraseChoice = Awaited<ReturnType<SpeakToSignPrompt['show']>>;
 type VerifyReply = Awaited<ReturnType<SpeakToSignHostOperations['verify']>>;
+type MessageAction = Parameters<SpeakToSignHostOperations['signMessageWithVerdict']>[0];
 type Authorization = Awaited<ReturnType<SpeakToSignHostOperations['authorizeEnrollment']>>;
 
 /** The flow sends the recorded bytes as they are, so distinct bytes stand for each recording. */
@@ -44,6 +46,8 @@ export type FakeHostOptions = {
   reply?: VerifyReply;
   /** Core's outcome of each payment or note, in order. The default sends it on the voice alone. */
   outcomes?: readonly SpeakToSignPayment[];
+  /** Core's outcome of each note action that is not a payment: a signature that it did not send. */
+  signatures?: readonly SpeakToSignNoteSigning[];
   /** The accounts that do not exist on the network. */
   missing?: readonly string[];
   /** Core's enrollment authorization. A flow that asks for one without it fails. */
@@ -59,7 +63,7 @@ export type FakeHost = {
   /**
    * What happened on each card and in core, in order: `open <n>`, `record <n>`,
    * `show <n>: <check caption or result headline>` and `close <n>` for the nth prompt, and
-   * `receiver <account>`, `verify`, `pay`, `sign note` and `authorize` for core.
+   * `receiver <account>`, `verify`, `pay`, `sign note`, `sign message` and `authorize` for core.
    */
   events: string[];
   /** Each view, as `check:<caption>` or `result:<label>:<headline>:<action label>`. */
@@ -70,6 +74,7 @@ export type FakeHost = {
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
   payments: Array<{ receiver: string; amountYocto: bigint; output: unknown }>;
   notes: Array<{ action: SpokenNoteAction; output: unknown }>;
+  messages: Array<{ action: MessageAction; output: unknown }>;
   authorized: Array<readonly Uint8Array[]>;
 };
 
@@ -77,6 +82,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
   const clips = [...(options.clips ?? [])];
   const choices = [...(options.choices ?? [])];
   const outcomes = [...(options.outcomes ?? [])];
+  const signatures = [...(options.signatures ?? [])];
   let recordings = 0;
   const host: FakeHost = {
     sentences: [],
@@ -87,6 +93,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     verifyInputs: [],
     payments: [],
     notes: [],
+    messages: [],
     authorized: [],
     operations: {
       async openPrompt(request) {
@@ -149,10 +156,25 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
         host.events.push('sign note');
         host.notes.push({ action, output });
         const payment =
+          signatures.shift() ??
           outcomes.shift() ??
           ({ kind: 'executed', transactionHash: 'tx-note', approval: 'voice' } as const);
-        if (payment.kind === 'executed') hooks.accepted();
+        if (payment.kind !== 'refused' && payment.kind !== 'unavailable') hooks.accepted();
         return payment;
+      },
+      async signMessageWithVerdict(action, output, _signal, hooks) {
+        if (options.enrollment) throw new Error('An enrollment signs no message.');
+        host.events.push('sign message');
+        host.messages.push({ action, output });
+        hooks.accepted();
+        return {
+          kind: 'signed',
+          approval: 'voice',
+          accountId: 'owner.testnet',
+          publicKey: 'ed25519:owner',
+          signature: 'c2lnbmF0dXJl',
+          nonce: action.nonce,
+        };
       },
       async authorizeEnrollment(recorded) {
         host.events.push('authorize');

@@ -258,3 +258,23 @@
     animation-duration: 2.4s;
   }
 }
+/* The "say it" step of a bet: the sentence, then the record button. */
+.nm-saybet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.nm-saybet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nm-saybet-btn {
+  flex: 1;
+  gap: 8px;
+}
+.nm-saybet-stop {
+  background: var(--red);
+  border-color: var(--red);
+}

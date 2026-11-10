@@ -7,7 +7,7 @@
 // starts while signed out runs after the sign-in.
 
 import { useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { IconChartBar, IconChevronDown, IconMicrophone, IconScale, IconX } from '@tabler/icons-react';
+import { IconChartBar, IconChevronDown, IconScale, IconX } from '@tabler/icons-react';
 import { Modal, type ModalHandle } from '../components/Modal';
 import { Morph, MorphView } from '../components/Morph';
 import { SignInStep } from '../components/SignInModal';
@@ -15,7 +15,6 @@ import { DemoContext } from '../demoContext';
 import type { SignResult } from '../signer/notesSigner';
 import {
   amountText,
-  betSentence,
   chipText,
   estimatePayout,
   jevSentence,
@@ -28,6 +27,7 @@ import {
 import {
   MARKET_QUESTION,
   NEAR_CURRENCY,
+  type BetVerdict,
   type Currency,
   type MarketPosition,
   type MarketSource,
@@ -37,6 +37,7 @@ import {
   type Side,
   type SignStage,
 } from './types';
+import { SayBet, useBetVoice } from './SayBet';
 import './market.css';
 
 const EMPTY_POSITION: MarketPosition = { yes: 0n, no: 0n, claimed: false };
@@ -64,7 +65,7 @@ interface Notice {
 
 type Action =
   | { kind: 'open'; seed: bigint; durationMs: number }
-  | { kind: 'bet'; side: Side }
+  | { kind: 'bet'; side: Side; verdict?: BetVerdict }
   | { kind: 'ask' }
   | { kind: 'close-ask' }
   | { kind: 'claim' };
@@ -139,6 +140,10 @@ export function NoteMarketStrip({
   const [position, setPosition] = useState<MarketPosition>(EMPTY_POSITION);
   const [history, setHistory] = useState<OddsPoint[]>([]);
   const [betSide, setBetSide] = useState<Side | null>(null);
+  // The spoken bet, when the contract needs it. A one-tap bet then shows its "say it" step in
+  // the strip, in place of the two buttons.
+  const voice = useBetVoice(source);
+  const [saying, setSaying] = useState<Side | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
   const [pendingBet, setPendingBet] = useState<PendingBet | null>(null);
@@ -201,6 +206,9 @@ export function NoteMarketStrip({
     return () => clearInterval(timer);
   }, [liveStatus]);
 
+  /** The stake of a one-tap bet. */
+  const directAmount = typeof directBet === 'bigint' ? directBet : (currency.chips[1] ?? currency.chips[0] ?? 0n);
+
   /** Runs one action. Signed out, it asks for the sign-in and runs after it. */
   const run = async (action: Action): Promise<string | null> => {
     setNotice(null);
@@ -255,9 +263,14 @@ export function NoteMarketStrip({
     if (!market) return null;
 
     if (action.kind === 'bet') {
-      const amount = typeof directBet === 'bigint' ? directBet : (currency.chips[1] ?? currency.chips[0] ?? 0n);
+      const amount = directAmount;
+      // The bettor says the bet first. The verdict of the recording comes back in `action`.
+      if (voice && !action.verdict) {
+        setSaying(action.side);
+        return null;
+      }
       start();
-      const result = await source.bet({ marketId: market.id, side: action.side, amount }, (stage) => {
+      const result = await source.bet({ marketId: market.id, side: action.side, amount, verdict: action.verdict }, (stage) => {
         progress(stage);
         if (stage === 'sent') setPendingBet({ side: action.side, amount });
       });
@@ -463,7 +476,20 @@ export function NoteMarketStrip({
           </div>
           {history.length > 1 && <Sparkline points={history} />}
           {(asking || status === 'resolving') && <JevWorking stage={askStage ?? 'sent'} />}
-          {status === 'open' && !asking && (
+          {status === 'open' && !asking && saying && voice && account && market && (
+            <SayBet
+              voice={voice}
+              account={account}
+              bet={{ marketId: market.id, side: saying, amount: directAmount }}
+              onCancel={() => setSaying(null)}
+              onVerdict={(verdict) => {
+                const side = saying;
+                setSaying(null);
+                void run({ kind: 'bet', side, verdict });
+              }}
+            />
+          )}
+          {status === 'open' && !asking && !(saying && voice && account) && (
             <>
               <div className="nm-buttons">
                 {(['yes', 'no'] as const).map((side) => (
@@ -813,10 +839,11 @@ function BetSheet({
   const share = yesShareBps(market.yesPool, market.noPool);
   const win = estimatePayout(market, side, amount, side === 'yes' ? 10_000 : 0);
 
-  const place = async (close: () => void) => {
+  const voice = useBetVoice(source);
+  const place = async (close: () => void, verdict?: BetVerdict) => {
     setStage('confirm');
     setError(null);
-    const result = await source.bet({ marketId: market.id, side, amount }, setStage);
+    const result = await source.bet({ marketId: market.id, side, amount, verdict }, setStage);
     setStage(null);
     if (result.kind === 'sent') close();
     if (result.kind === 'sent') onDone(`Your bet of ${amountText(amount, currency)} on ${side} is in.`);
@@ -824,7 +851,8 @@ function BetSheet({
     else setError(result.reason);
   };
   const closeRef = useRef<() => void>(() => undefined);
-  const signIn = useSignInThen(account, onSignIn, () => place(closeRef.current));
+  // With a spoken bet, the sign-in ends at the "say it" step: nothing is placed without a voice.
+  const signIn = useSignInThen(account, onSignIn, () => (voice ? Promise.resolve() : place(closeRef.current)));
 
   return (
     <SheetDialog titleId={titleId} locked={stage !== null} onClose={onClose}>
@@ -869,14 +897,6 @@ function BetSheet({
               <p>
                 Win about <b>{amountText(win, currency)}</b> if JEV says {side} fully, and the pool stays as it is.
               </p>
-              {source.signsByVoice && (
-                <div className="nm-say">
-                  <span className="nm-muted">
-                    <IconMicrophone size={14} stroke={2} aria-hidden="true" /> Say this to sign
-                  </span>
-                  <b>“{betSentence(side, amount, currency)}”</b>
-                </div>
-              )}
               <Morph view={account ? (short ? 'short' : 'balance') : 'signed-out'}>
                 {!account ? (
                   <p className="nm-muted">You sign in first. A new wallet gets test USDC from the faucet.</p>
@@ -895,24 +915,31 @@ function BetSheet({
                 </p>
               )}
             </div>
-            <div className="dialog-foot dialog-foot-end">
-              <button
-                type="button"
-                className="btn btn-dark"
-                onClick={() => void (account ? place(close) : signIn.start())}
-                disabled={stage !== null || signIn.waiting || short}
-              >
-                <Morph view={stage ?? (signIn.waiting ? 'signin' : 'idle')}>
-                  {stage
-                    ? stageText(stage, 'Placing your bet…')
-                    : signIn.waiting
-                      ? SETTING_UP
-                      : source.signsByVoice
-                        ? 'Say it to bet'
-                        : `Bet ${amountText(amount, currency)} on ${side}`}
-                </Morph>
-              </button>
-            </div>
+            {voice && account && stage === null ? (
+              // The bettor says the bet. Its verdict goes with the bet, and the Wallet then sends it.
+              <div className="dialog-foot">
+                <SayBet voice={voice} account={account} bet={{ marketId: market.id, side, amount }} disabled={short} onVerdict={(verdict) => void place(close, verdict)} />
+              </div>
+            ) : (
+              <div className="dialog-foot dialog-foot-end">
+                <button
+                  type="button"
+                  className="btn btn-dark"
+                  onClick={() => void (account ? place(close) : signIn.start())}
+                  disabled={stage !== null || signIn.waiting || short}
+                >
+                  <Morph view={stage ?? (signIn.waiting ? 'signin' : 'idle')}>
+                    {stage
+                      ? stageText(stage, 'Placing your bet…')
+                      : signIn.waiting
+                        ? SETTING_UP
+                        : voice
+                          ? 'Sign in to say your bet'
+                          : `Bet ${amountText(amount, currency)} on ${side}`}
+                  </Morph>
+                </button>
+              </div>
+            )}
           </>
         );
       }}

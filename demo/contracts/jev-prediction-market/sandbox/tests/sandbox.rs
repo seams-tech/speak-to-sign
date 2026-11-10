@@ -136,6 +136,9 @@ async fn a_usdc_market_from_create_to_claim_in_the_sandbox() -> anyhow::Result<(
         .transact()
         .await?;
     assert!(result.is_success(), "new failed: {:#?}", result.failures());
+    // This test is about the market rules, so its bets have no voice. `spoken_bet.rs` tests the
+    // voice rule.
+    admin.call(market.id(), "set_voice_required").args_json(json!({ "required": false })).transact().await?.into_result()?;
     // The market must be registered with the token, as on testnet (storage_deposit).
     usdc.call("storage_deposit").args_json(json!({ "account_id": market.id() })).transact().await?.into_result()?;
     for account in [&maya, &kenji, &ana, &zed] {

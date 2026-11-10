@@ -38,6 +38,8 @@ function Preview() {
       delayMs: 600,
       currency: usdc ? USDC_CURRENCY : undefined,
       account: ACCOUNT,
+      // `?voice`: a bet needs a spoken sentence (the mock accepts every recording).
+      spokenBets: new URLSearchParams(window.location.search).has('voice'),
     });
     mock.close(2);
     // Note 3: a bet of 0.5 NEAR on yes, then JEV says 72%.

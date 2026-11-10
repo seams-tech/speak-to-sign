@@ -57,7 +57,10 @@ fn setup() -> PredictionMarkets {
     // The mocked storage lives on between contracts in one test: start empty.
     near_sdk::mock::with_mocked_blockchain(|b| drop(b.take_storage()));
     call("admin", T0, 0);
-    PredictionMarkets::new(account("admin"), Some(token()), None)
+    let mut contract = PredictionMarkets::new(account("admin"), Some(token()), None);
+    // The tests of the market rules bet without a voice. `setup_voice` keeps the voice rule.
+    contract.set_voice_required(false);
+    contract
 }
 
 /// The test USDC contract.
@@ -1166,4 +1169,207 @@ fn random_bets_stay_solvent_for_any_weight() {
         assert!(paid_in - paid <= 2 * claims, "seed {seed}: dust {} for {claims} claims", paid_in - paid);
         assert_eq!(stored(&contract, 1).paid_out, paid);
     }
+}
+
+// --- spoken bets: the voice verdict of a bet ---
+
+use ed25519_dalek::{Signer, SigningKey};
+use near_sdk::base64::Engine;
+use near_sdk::base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
+
+/// The test key of the voice verifier.
+fn verifier() -> SigningKey {
+    SigningKey::from_bytes(&[0x2a; 32])
+}
+
+fn public_key(key: &SigningKey) -> String {
+    format!("ed25519:{}", near_sdk::bs58::encode(key.verifying_key().to_bytes()).into_string())
+}
+
+/// A contract with the voice rule on and the test verifier key.
+fn setup_voice() -> PredictionMarkets {
+    let mut contract = setup();
+    call("admin", T0, 0);
+    contract.set_voice_required(true);
+    contract.set_voice_verifier_key(public_key(&verifier()));
+    contract
+}
+
+/// The request digest of a spoken bet, as the verifier computes it.
+fn bet_digest(who: &str, market_id: u64, outcome: BetOutcomeV1, amount: u128) -> [u8; 32] {
+    request_digest(&SpokenRequestV1::MarketBet {
+        network: Network::Testnet,
+        owner: NearAccount::new(account(who).as_str()).unwrap(),
+        market: NearAccount::new(contract_id().as_str()).unwrap(),
+        token: NearAccount::new(token().as_str()).unwrap(),
+        market_id,
+        outcome,
+        amount: UsdcAmount::from_units(amount).unwrap(),
+    })
+}
+
+/// A verdict as the verifier serializes it. `audio` makes two verdicts of one bet differ, as
+/// two recordings do.
+fn verdict_json(digest: &[u8; 32], outcome: &str, expires_at_ms: u64, audio: u8) -> String {
+    format!(
+        r#"{{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.8.0","request_digest":"{}","spoken_text_digest":"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys","audio_digest":"{}","outcome":"{outcome}","reason":null,"policy_rule":null,"expires_at_ms":{expires_at_ms},"speaker_score_milli":655,"word_margin_milli":142,"heard":"bet zero point five usdc yes on market one"}}"#,
+        URL_SAFE_NO_PAD.encode(digest),
+        URL_SAFE_NO_PAD.encode([audio; 32]),
+    )
+}
+
+fn sign(key: &SigningKey, verdict_json: &str) -> String {
+    let mut preimage = verdict::VERDICT_DOMAIN.to_vec();
+    preimage.extend_from_slice(verdict_json.as_bytes());
+    STANDARD.encode(key.sign(&env::sha256_array(&preimage)).to_bytes())
+}
+
+/// The `msg` of a spoken bet on market 1: the bet, its verdict and the signature.
+fn spoken_msg(outcome: &str, verdict_json: &str, signature_b64: &str) -> Value {
+    json!({ "action": "bet", "market_id": 1, "outcome": outcome, "verdict_json": verdict_json, "signature_b64": signature_b64 })
+}
+
+/// Kenji says "bet zero point five usdc yes on market one" and the verifier accepts it.
+fn kenji_yes_half(audio: u8) -> (String, String) {
+    let json = verdict_json(&bet_digest("kenji", 1, BetOutcomeV1::Yes, USDC / 2), "accept", T0 + 120_000, audio);
+    let signature = sign(&verifier(), &json);
+    (json, signature)
+}
+
+#[test]
+fn a_spoken_bet_with_its_verdict_is_taken_once() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    let (json, signature) = kenji_yes_half(7);
+    send(&mut contract, "kenji", T0 + 1, USDC / 2, spoken_msg("yes", &json, &signature));
+    assert_eq!(contract.stakes.get(&(1, account("kenji"))).copied().unwrap().yes, USDC / 2);
+    // A second recording of the same sentence is a new verdict, and a new bet.
+    let (again, again_signature) = kenji_yes_half(8);
+    send(&mut contract, "kenji", T0 + 2, USDC / 2, spoken_msg("yes", &again, &again_signature));
+    assert_eq!(contract.stakes.get(&(1, account("kenji"))).copied().unwrap().yes, USDC);
+    let config = contract.get_voice_config();
+    assert!(config.required);
+    assert_eq!(config.verifier_public_key, public_key(&verifier()));
+}
+
+#[test]
+#[should_panic(expected = "this verdict was used for a bet before")]
+fn a_verdict_passes_only_once() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    let (json, signature) = kenji_yes_half(7);
+    send(&mut contract, "kenji", T0 + 1, USDC / 2, spoken_msg("yes", &json, &signature));
+    send(&mut contract, "kenji", T0 + 2, USDC / 2, spoken_msg("yes", &json, &signature));
+}
+
+#[test]
+#[should_panic(expected = "say the bet: it needs verdict_json and signature_b64")]
+fn a_bet_without_a_verdict_is_refused() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    send(&mut contract, "kenji", T0 + 1, USDC / 2, bet_msg(1, "yes"));
+}
+
+/// Sends Kenji's verdict (0.5 USDC on yes in market 1) with another bet, and gives the panic.
+fn mismatch(who: &str, amount: u128, outcome: &str) -> String {
+    let result = std::panic::catch_unwind(|| {
+        let mut contract = setup_voice();
+        open_market(&mut contract);
+        // A second market, so that market 2 exists.
+        send(&mut contract, "maya", T0, TEN, create_msg(QUESTION, None, Some(3), T0 + HOUR));
+        let (json, signature) = kenji_yes_half(7);
+        let mut msg = spoken_msg(outcome, &json, &signature);
+        if who == "market-two" {
+            msg["market_id"] = json!(2);
+        }
+        let sender = if who == "market-two" { "kenji" } else { who };
+        send(&mut contract, sender, T0 + 1, amount, msg);
+    });
+    let panic = result.expect_err("the bet is refused");
+    panic.downcast_ref::<String>().cloned().or_else(|| panic.downcast_ref::<&str>().map(|text| text.to_string())).unwrap_or_default()
+}
+
+#[test]
+fn a_verdict_is_for_one_account_market_outcome_and_amount() {
+    for (who, amount, outcome) in [
+        ("kenji", USDC / 2, "no"),
+        ("kenji", USDC, "yes"),
+        ("kenji", USDC / 2 + 10_000, "yes"),
+        ("priya", USDC / 2, "yes"),
+        ("market-two", USDC / 2, "yes"),
+    ] {
+        assert!(mismatch(who, amount, outcome).contains("the verdict is for another request"), "{who} {amount} {outcome}");
+    }
+    // An amount that the grammar cannot say has no verdict at all.
+    assert!(mismatch("kenji", USDC / 2 + 1, "yes").contains("a spoken bet is a whole number of cents"));
+}
+
+#[test]
+#[should_panic(expected = "the verdict signature does not match the verifier key")]
+fn a_verdict_of_another_key_is_refused() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    let (json, _) = kenji_yes_half(7);
+    let signature = sign(&SigningKey::from_bytes(&[0x07; 32]), &json);
+    send(&mut contract, "kenji", T0 + 1, USDC / 2, spoken_msg("yes", &json, &signature));
+}
+
+#[test]
+#[should_panic(expected = "the verdict signature does not match the verifier key")]
+fn a_changed_verdict_is_refused() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    let (json, signature) = kenji_yes_half(7);
+    let later = json.replace(&format!("\"expires_at_ms\":{}", T0 + 120_000), &format!("\"expires_at_ms\":{}", T0 + 999_000));
+    send(&mut contract, "kenji", T0 + 1, USDC / 2, spoken_msg("yes", &later, &signature));
+}
+
+#[test]
+#[should_panic(expected = "the verdict has expired")]
+fn an_old_verdict_is_refused() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    let (json, signature) = kenji_yes_half(7);
+    send(&mut contract, "kenji", T0 + 120_001, USDC / 2, spoken_msg("yes", &json, &signature));
+}
+
+#[test]
+#[should_panic(expected = "the verdict outcome must be accept")]
+fn a_refused_voice_is_not_a_bet() {
+    let mut contract = setup_voice();
+    open_market(&mut contract);
+    let json = verdict_json(&bet_digest("kenji", 1, BetOutcomeV1::Yes, USDC / 2), "refuse", T0 + 120_000, 7);
+    let signature = sign(&verifier(), &json);
+    send(&mut contract, "kenji", T0 + 1, USDC / 2, spoken_msg("yes", &json, &signature));
+}
+
+#[test]
+fn the_default_key_is_the_seams_verifier_and_only_the_admin_changes_the_rule() {
+    call("admin", T0, 0);
+    near_sdk::mock::with_mocked_blockchain(|b| drop(b.take_storage()));
+    call("admin", T0, 0);
+    let mut contract = PredictionMarkets::new(account("admin"), Some(token()), None);
+    let config = contract.get_voice_config();
+    assert!(config.required, "a bet needs a voice by default");
+    assert_eq!(config.verifier_public_key, DEFAULT_VOICE_VERIFIER_KEY);
+    contract.set_voice_required(false);
+    assert!(!contract.get_voice_config().required);
+    contract.set_voice_required(true);
+    assert!(contract.get_voice_config().required);
+    for change in [
+        (|contract: &mut PredictionMarkets| contract.set_voice_required(false)) as fn(&mut PredictionMarkets),
+        |contract: &mut PredictionMarkets| contract.set_voice_verifier_key(DEFAULT_VOICE_VERIFIER_KEY.to_string()),
+    ] {
+        call("kenji", T0, 0);
+        let refused = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| change(&mut contract)));
+        assert!(refused.is_err(), "only the admin");
+    }
+}
+
+#[test]
+#[should_panic(expected = "verifier_public_key must be ed25519:<base58 of 32 bytes>")]
+fn the_verifier_key_must_be_an_ed25519_key() {
+    let mut contract = setup();
+    call("admin", T0, 0);
+    contract.set_voice_verifier_key("ed25519:abc".to_string());
 }

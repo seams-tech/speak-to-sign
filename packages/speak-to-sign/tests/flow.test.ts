@@ -4,7 +4,12 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import type { SpeakToSignPayment, SpokenNoteAction } from '@seams/wallet/speak-to-sign-host';
-import { runSpokenNote, runSpokenTransfer, type HostTransfer } from '../src/host/flow';
+import {
+  runSpokenMessage,
+  runSpokenNote,
+  runSpokenTransfer,
+  type HostTransfer,
+} from '../src/host/flow';
 import { heardCaption } from '../src/host/heardWords';
 import { clip, fakeHost, routeFailure, type FakeHost, type FakeHostOptions } from './fakeHost';
 
@@ -233,11 +238,6 @@ const CORE_OUTCOMES: Array<[string, SpeakToSignPayment, object]> = [
     { kind: 'unavailable', reason: 'not_submitted', detail: 'closed' },
   ],
   [
-    'the voice limit',
-    { kind: 'refused', reason: 'voice_limit', detail: 'over_daily_limit' },
-    { kind: 'refused', reason: 'voice_limit', detail: 'over_daily_limit' },
-  ],
-  [
     'a co-signer refusal',
     { kind: 'refused', reason: 'cosigner_refused', detail: 'reused' },
     { kind: 'refused', reason: 'cosigner_refused', detail: 'reused' },
@@ -259,15 +259,6 @@ for (const [name, outcome, expected] of CORE_OUTCOMES) {
     expect(await runSpokenTransfer(transferInput(host))).toEqual(expected);
   });
 }
-
-test('over the voice limit, the card offers only Close', async () => {
-  // Over the limit, another recording cannot help.
-  const host = fakeHost({
-    outcomes: [{ kind: 'refused', reason: 'voice_limit', detail: 'over_daily_limit' }],
-  });
-  await runSpokenTransfer(transferInput(host));
-  expect(host.views.at(-1)).toBe('result:Nothing was sent:Over your voice limit:Close');
-});
 
 test('the card names a refusal of the co-signer', async () => {
   const host = fakeHost({
@@ -316,4 +307,79 @@ test('a note with an unspeakable summary is refused before a prompt opens', asyn
     { kind: 'refused', reason: 'summary_not_speakable' },
   );
   expect(host.sentences).toEqual([]);
+});
+
+test('a spoken message verifies the summary and lets core sign the message', async () => {
+  const host = fakeHost();
+  const action = {
+    message: 'Log in to example.app',
+    recipient: 'example.app',
+    nonce: 'BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU=',
+    callbackUrl: null,
+    state: null,
+    payloadSha256: new Uint8Array(32).fill(0x41),
+    summary: 'Log in to the example app',
+  };
+  const result = await runSpokenMessage({
+    network: 'testnet',
+    signal: new AbortController().signal,
+    message: {
+      ownerAccountId: 'owner.testnet',
+      action,
+      surfaceMeasurementBinding: { kind: 'disabled' },
+      operations: host.operations,
+    },
+  });
+  expect(result).toMatchObject({
+    kind: 'signed',
+    signature: 'c2lnbmF0dXJl',
+    nonce: action.nonce,
+    approval: 'voice',
+  });
+  expect(host.sentences).toEqual(['Log in to the example app']);
+  expect(host.verifyInputs[0]?.request).toEqual({
+    kind: 'signed_message',
+    payload_sha256_hex: '41'.repeat(32),
+    summary: 'Log in to the example app',
+  });
+  expect(host.messages).toEqual([{ action, output: { verdict: 'opaque' } }]);
+  expect(host.views.at(-1)).toBe('result::Message signed:Done');
+  expect(
+    await runSpokenMessage({
+      network: 'testnet',
+      signal: new AbortController().signal,
+      message: {
+        ownerAccountId: 'owner.testnet',
+        action: { ...action, summary: 'Log in at 9' },
+        surfaceMeasurementBinding: { kind: 'disabled' },
+        operations: host.operations,
+      },
+    }),
+  ).toEqual({ kind: 'refused', reason: 'summary_not_speakable' });
+});
+
+test('a general transaction that core signs and does not send ends with the signature', async () => {
+  const action: SpokenNoteAction = {
+    kind: 'transaction',
+    transaction: { receiverId: 'guest-book.testnet', actions: [{ type: 'CreateAccount' } as never] },
+    actionsSha256: new Uint8Array(32).fill(3),
+    summary: 'Sign the guest book.',
+    delivery: 'sign',
+  };
+  const signed = { signedTransaction: {}, nearAccountId: 'owner.testnet' } as never;
+  const host = fakeHost({
+    signatures: [{ kind: 'signed_transaction', signed, approval: 'voice' }],
+  });
+  expect(await runSpokenNote(noteInput(host, action))).toMatchObject({
+    kind: 'signed_transaction',
+    signed,
+    approval: 'voice',
+  });
+  expect(host.verifyInputs[0]?.request).toEqual({
+    kind: 'transaction',
+    receiver: 'guest-book.testnet',
+    actions_sha256_hex: '03'.repeat(32),
+    summary: 'Sign the guest book.',
+  });
+  expect(host.views.at(-1)).toBe('result::Transaction signed:Done');
 });

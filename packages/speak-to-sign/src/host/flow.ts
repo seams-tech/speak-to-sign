@@ -1,13 +1,17 @@
 import {
   isSpeakableAccount,
+  messageActionRefusal,
+  messageVerifyRequest,
   noteActionRefusal,
   noteVerifyRequest,
   parseSpeakableNear,
+  renderMessage,
   renderNoteAction,
   renderTransfer,
   type SpeakToSignHostOperations,
   type SpeakToSignHostPlugin,
-  type SpeakToSignNoteResult,
+  type SpeakToSignMessageResult,
+  type SpeakToSignNoteActionResult,
   type SpeakToSignPayment,
   type SpeakToSignPaymentHooks,
   type SpeakToSignPrompt,
@@ -17,17 +21,22 @@ import {
   failureView,
   paidView,
   sendingView,
+  signedView,
   stepUpView,
   verifyingView,
   type CardInput,
 } from './card';
 import { recordClip, withPrompt } from './prompt';
 import {
+  mapMessage,
+  mapNoteSigning,
   mapPayment,
   shortDetail,
   stageTimes,
   verifierUnavailable,
   type FailedResult,
+  type MessageFailedResult,
+  type SignedNoteResult,
   type SpokenResult,
 } from './result';
 import { verifyInput } from './verifier';
@@ -35,24 +44,51 @@ import { verifyInput } from './verifier';
 type TransferInput = Parameters<SpeakToSignHostPlugin['requestTransfer']>[0];
 export type HostTransfer = NonNullable<TransferInput['transfer']>;
 type NoteInput = Parameters<SpeakToSignHostPlugin['requestNoteAction']>[0];
+type MessageInput = Parameters<SpeakToSignHostPlugin['requestMessage']>[0];
+type StageTimes = ReturnType<typeof stageTimes>;
+type Cancelled = Readonly<{ kind: 'cancelled' }>;
+
+/** What core's outcome means for the request: its success, a cancel or a failure. */
+type Settled<Done, Failed> = Readonly<{ kind: 'done'; done: Done }> | Cancelled | Failed;
 
 /**
  * One spoken request on the VoiceID card: the sentence to say, the request that the verifier
- * checks, the card copy, and the core operation that checks the verdict and signs.
+ * checks, the card copy, and the core operation that checks the verdict and signs. `Done` is
+ * the success of the request and `Failed` its failures.
  */
-type SpokenRequest = Readonly<{
+type SpokenRequest<Done, Failed extends FailedResult> = Readonly<{
   operations: SpeakToSignHostOperations;
   ownerAccountId: string;
   surfaceMeasurementBinding: HostTransfer['surfaceMeasurementBinding'];
   sentence: string;
   verifyRequest: Readonly<Record<string, unknown>>;
   card: CardInput;
+  /** Checks the verdict and signs, then names core's outcome as the result of the request. */
   sign(
     output: unknown,
     signal: AbortSignal,
     hooks: SpeakToSignPaymentHooks,
-  ): Promise<SpeakToSignPayment>;
+    times: () => StageTimes,
+  ): Promise<Settled<Done, Failed>>;
+  /** Shows the success on the card and waits for "Done" there. */
+  showDone(done: Done, onCard: PaymentHooks): Promise<unknown>;
 }>;
+
+type SentResult = Extract<SpokenResult, { kind: 'sent' }>;
+type SignedMessage = Extract<SpeakToSignMessageResult, { kind: 'signed' }>;
+
+/** A signed transaction: the result of a payment, and the paid card with its link. */
+function settlePayment(
+  payment: SpeakToSignPayment,
+  times: StageTimes,
+): Settled<SentResult, FailedResult> {
+  const result = mapPayment(payment, times);
+  return result.kind === 'sent' ? { kind: 'done', done: result } : result;
+}
+
+function showPaid(done: SentResult, onCard: PaymentHooks): Promise<unknown> {
+  return onCard.paid(done.transactionHash);
+}
 
 /**
  * One spoken payment: record the sentence on the VoiceID surface, verify it on the Seams server,
@@ -92,28 +128,34 @@ export async function runSpokenTransfer(
         doneCaption: `To ${transfer.receiver}`,
         spokenText: rendered.spokenText,
       },
-      sign: (output, signal, hooks) =>
-        transfer.operations.payWithVerdict(
-          { receiver: transfer.receiver, amountYocto },
-          output,
-          signal,
-          hooks,
+      sign: async (output, signal, hooks, times) =>
+        settlePayment(
+          await transfer.operations.payWithVerdict(
+            { receiver: transfer.receiver, amountYocto },
+            output,
+            signal,
+            hooks,
+          ),
+          times(),
         ),
+      showDone: showPaid,
     },
     signal,
   );
 }
 
 /**
- * One spoken community note or note rating, as a payment: the owner says the note's summary or
- * the rating sentence, and core signs `add_note` or `rate_note` on an approved verdict.
+ * One spoken community note, note rating, merge approval, market bet or general transaction, as
+ * a payment: the owner says the summary or the sentence of the request, and core signs its
+ * transaction on an approved verdict. A bet is the token's `ft_transfer_call` to the market,
+ * with the verdict. A general transaction is the application's own transaction.
  */
 export async function runSpokenNote(
   input: Pick<NoteInput, 'network' | 'signal' | 'note'>,
-): Promise<SpeakToSignNoteResult> {
+): Promise<SpeakToSignNoteActionResult> {
   const { note, signal } = input;
   const { action } = note;
-  const refusal = noteActionRefusal(action);
+  const refusal = noteActionRefusal(input.network, action);
   if (refusal) return { kind: 'refused', reason: refusal };
   const rendered = renderNoteAction(action);
   const verifyRequest = await noteVerifyRequest(action);
@@ -130,8 +172,59 @@ export async function runSpokenNote(
         ...noteCopy(action, rendered.displayText),
         spokenText: rendered.spokenText,
       },
-      sign: (output, signal, hooks) =>
-        note.operations.signNoteWithVerdict(action, output, signal, hooks),
+      sign: async (output, signal, hooks, times) => {
+        const result = mapNoteSigning(
+          await note.operations.signNoteWithVerdict(action, output, signal, hooks),
+          times(),
+        );
+        return result.kind === 'sent' ||
+          result.kind === 'signed_transaction' ||
+          result.kind === 'signed_delegate'
+          ? { kind: 'done', done: result }
+          : result;
+      },
+      // A signature that core did not send has no transaction to show.
+      showDone: (done: SentResult | SignedNoteResult, onCard) =>
+        done.kind === 'sent' ? onCard.paid(done.transactionHash) : onCard.signed(),
+    },
+    signal,
+  );
+}
+
+/**
+ * One spoken NEP-413 message: the owner says the summary, and core signs the message with the
+ * key of the account on an accepted verdict. Nothing goes to the chain.
+ */
+export async function runSpokenMessage(
+  input: Pick<MessageInput, 'network' | 'signal' | 'message'>,
+): Promise<SpeakToSignMessageResult> {
+  const { message, signal } = input;
+  const { action } = message;
+  const refusal = messageActionRefusal(action);
+  if (refusal) return { kind: 'refused', reason: refusal };
+  const rendered = renderMessage(action);
+  return await runSpoken<SignedMessage, MessageFailedResult>(
+    {
+      operations: message.operations,
+      ownerAccountId: message.ownerAccountId,
+      surfaceMeasurementBinding: message.surfaceMeasurementBinding,
+      sentence: rendered.displayText,
+      verifyRequest: messageVerifyRequest(action),
+      card: {
+        network: input.network,
+        noun: 'message',
+        doneHeadline: 'Message signed',
+        doneCaption: `For ${action.recipient}`,
+        spokenText: rendered.spokenText,
+      },
+      sign: async (output, signal, hooks, times) => {
+        const result = mapMessage(
+          await message.operations.signMessageWithVerdict(action, output, signal, hooks),
+          times(),
+        );
+        return result.kind === 'signed' ? { kind: 'done', done: result } : result;
+      },
+      showDone: (_, onCard) => onCard.signed(),
     },
     signal,
   );
@@ -140,13 +233,16 @@ export async function runSpokenNote(
 /** Each "Try again" is a new verify call, so one request has at most this many recordings. */
 const MAX_RECORDINGS = 5;
 
-async function runSpoken(request: SpokenRequest, signal: AbortSignal): Promise<SpokenResult> {
+async function runSpoken<Done, Failed extends FailedResult>(
+  request: SpokenRequest<Done, Failed>,
+  signal: AbortSignal,
+) {
   const { sentence, surfaceMeasurementBinding } = request;
   return await withPrompt(
     request.operations,
     { sentence, signal, surfaceMeasurementBinding },
     async (prompt) => {
-      const run: Run = { request, signal, prompt };
+      const run: Run<Done, Failed> = { request, signal, prompt };
       for (let recording = 1; ; recording += 1) {
         const attempt = await signOnce(run, recording < MAX_RECORDINGS);
         if (attempt.kind === 'final') return attempt.result;
@@ -155,21 +251,24 @@ async function runSpoken(request: SpokenRequest, signal: AbortSignal): Promise<S
   );
 }
 
-type Run = Readonly<{
-  request: SpokenRequest;
+type Run<Done, Failed extends FailedResult> = Readonly<{
+  request: SpokenRequest<Done, Failed>;
   signal: AbortSignal;
   prompt: SpeakToSignPrompt;
 }>;
 
-type Attempt =
-  | Readonly<{ kind: 'final'; result: SpokenResult }>
-  | Readonly<{ kind: 'again' }>;
+type Attempt<Result> = Readonly<{ kind: 'final'; result: Result }> | Readonly<{ kind: 'again' }>;
 
 /**
- * One recording, one verdict and at most one signed transaction, then the result on the card.
+ * One recording, one verdict and at most one signature, then the result on the card.
  * `canRetry` is false for the last recording, whose refusal offers only "Close".
  */
-async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
+async function signOnce<Done, Failed extends FailedResult>(
+  run: Run<Done, Failed>,
+  canRetry: boolean,
+): Promise<
+  Attempt<Done | Cancelled | Failed | Exclude<Awaited<ReturnType<typeof recordClip>>, { kind: 'captured' }> | ReturnType<typeof verifierUnavailable>>
+> {
   const { request, prompt, signal } = run;
   const clip = await recordClip(prompt);
   if (clip.kind !== 'captured') return { kind: 'final', result: clip };
@@ -186,21 +285,21 @@ async function signOnce(run: Run, canRetry: boolean): Promise<Attempt> {
   }
 
   const onCard = paymentHooks(prompt, request.card, clip.endOfSpeechAt);
-  const payment = await request.sign(reply.output, signal, onCard.hooks);
-  const times = stageTimes({
-    speechMs: clip.speechMs,
-    endOfSpeechAt: clip.endOfSpeechAt,
-    verifyStartedAt,
-    verifiedAt,
-    receiptAt: performance.now(),
-  });
-  const result = mapPayment(payment, times);
-  if (result.kind === 'cancelled') return { kind: 'final', result };
-  if (result.kind === 'sent') {
-    await onCard.paid(result.transactionHash);
-    return { kind: 'final', result };
+  const times = () =>
+    stageTimes({
+      speechMs: clip.speechMs,
+      endOfSpeechAt: clip.endOfSpeechAt,
+      verifyStartedAt,
+      verifiedAt,
+      receiptAt: performance.now(),
+    });
+  const settled = await request.sign(reply.output, signal, onCard.hooks, times);
+  if (settled.kind === 'cancelled') return { kind: 'final', result: settled };
+  if (settled.kind === 'done') {
+    await request.showDone(settled.done, onCard);
+    return { kind: 'final', result: settled.done };
   }
-  return await showFailure(run, result, canRetry);
+  return await showFailure(run, settled, canRetry);
 }
 
 /**
@@ -213,6 +312,8 @@ type PaymentHooks = Readonly<{
   hooks: SpeakToSignPaymentHooks;
   /** Shows the paid card, unless a block already showed it, and waits for "Done" there. */
   paid(transactionHash: string): Promise<unknown>;
+  /** Shows the card of a signed message and waits for "Done" there. */
+  signed(): Promise<unknown>;
 }>;
 
 /**
@@ -226,10 +327,12 @@ function paymentHooks(
 ): PaymentHooks {
   let approval: Approval = { kind: 'voice' };
   let paidCard: Promise<unknown> | null = null;
-  const showPaid = (transactionHash: string) => {
+  const seconds = () => {
     const from = approval.kind === 'passkey' ? approval.approvedAt : endOfSpeechAt;
-    return prompt.show(paidView(card, transactionHash, (performance.now() - from) / 1_000));
+    return (performance.now() - from) / 1_000;
   };
+  const showPaid = (transactionHash: string) =>
+    prompt.show(paidView(card, transactionHash, seconds()));
   return {
     hooks: {
       accepted: () => void prompt.show(sendingView(card, 'voice')),
@@ -248,10 +351,15 @@ function paymentHooks(
       },
     },
     paid: (transactionHash) => paidCard ?? showPaid(transactionHash),
+    signed: () => prompt.show(signedView(card, seconds())),
   };
 }
 
-async function showFailure(run: Run, result: FailedResult, canRetry: boolean): Promise<Attempt> {
+async function showFailure<Done, Failed extends FailedResult, Result extends FailedResult>(
+  run: Run<Done, Failed>,
+  result: Result,
+  canRetry: boolean,
+): Promise<Attempt<Result>> {
   const failure = failureView(run.request.card, result, canRetry);
   const choice = await run.prompt.show(failure.view);
   return choice === 'action' && failure.retry ? { kind: 'again' } : { kind: 'final', result };
@@ -274,7 +382,7 @@ async function receiverExists(transfer: HostTransfer, signal: AbortSignal): Prom
   return { kind: 'failed', result: { kind: 'refused', reason: 'receiver_missing' } };
 }
 
-/** The card copy of a spoken note, rating or merge approval. */
+/** The card copy of a spoken note, rating, merge approval, bet or general transaction. */
 function noteCopy(
   action: NoteInput['note']['action'],
   displayText: string,
@@ -286,5 +394,18 @@ function noteCopy(
       return { noun: 'rating', doneHeadline: 'Rating saved', doneCaption: displayText };
     case 'merge_approval':
       return { noun: 'approval', doneHeadline: 'Merge approved', doneCaption: displayText };
+    case 'market_bet':
+      return { noun: 'bet', doneHeadline: 'Bet placed', doneCaption: displayText };
+    case 'transaction': {
+      const receiver = action.transaction.receiverId;
+      if (action.delivery === 'send') {
+        return { noun: 'transaction', doneHeadline: 'Transaction sent', doneCaption: `To ${receiver}` };
+      }
+      return {
+        noun: 'signature',
+        doneHeadline: action.delivery === 'sign' ? 'Transaction signed' : 'Delegate action signed',
+        doneCaption: `For ${receiver}`,
+      };
+    }
   }
 }

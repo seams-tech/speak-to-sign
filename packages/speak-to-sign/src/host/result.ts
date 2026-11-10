@@ -1,4 +1,8 @@
 import type {
+  SpeakToSignMessageResult,
+  SpeakToSignMessageSigning,
+  SpeakToSignNoteActionResult,
+  SpeakToSignNoteSigning,
   SpeakToSignPayment,
   SpeakToSignTransferResult,
   VerifierRefusal,
@@ -11,7 +15,6 @@ export type FailedResult =
       reason:
         | VerifierRefusal
         | 'verdict_mismatch'
-        | 'voice_limit'
         | 'cosigner_refused'
         | 'transaction_failed';
       detail?: string;
@@ -57,6 +60,55 @@ export function stageTimes(marks: StageMarks): SentResult['times'] {
     transactionMs: Math.round(marks.receiptAt - marks.verifiedAt),
     endOfSpeechToReceiptMs: Math.round(marks.receiptAt - marks.endOfSpeechAt),
   };
+}
+
+/** A transaction or a delegate action that core signed and did not send. */
+export type SignedNoteResult = Extract<
+  SpeakToSignNoteActionResult,
+  { kind: 'signed_transaction' | 'signed_delegate' }
+>;
+
+/** The result of a note action: a payment result, or a signature with its times. */
+export function mapNoteSigning(
+  signing: SpeakToSignNoteSigning,
+  times: SentResult['times'],
+): SpokenResult | SignedNoteResult {
+  if (signing.kind === 'signed_transaction' || signing.kind === 'signed_delegate') {
+    return { ...signing, times };
+  }
+  return mapPayment(signing, times);
+}
+
+/** A failure of a spoken message after the card opened. Core signs a message or signs nothing. */
+export type MessageFailedResult =
+  | Extract<SpeakToSignMessageSigning, { kind: 'refused' }>
+  | Readonly<{
+      kind: 'unavailable';
+      reason: 'verifier_unavailable' | 'not_submitted';
+      detail?: string;
+    }>;
+type SignedResult = Extract<SpeakToSignMessageResult, { kind: 'signed' }>;
+
+export function mapMessage(
+  signing: SpeakToSignMessageSigning,
+  times: SentResult['times'],
+): SignedResult | Readonly<{ kind: 'cancelled' }> | MessageFailedResult {
+  switch (signing.kind) {
+    case 'signed':
+      return { ...signing, times };
+    case 'refused':
+      return signing.detail === undefined
+        ? { kind: 'refused', reason: signing.reason }
+        : { kind: 'refused', reason: signing.reason, detail: signing.detail };
+    case 'cancelled':
+      return signing;
+    case 'unavailable':
+      return verifierUnavailable(signing.detail);
+    case 'not_signed':
+      return { kind: 'unavailable', reason: 'not_submitted', detail: signing.error };
+    default:
+      return signing satisfies never;
+  }
 }
 
 export function mapPayment(payment: SpeakToSignPayment, times: SentResult['times']): SpokenResult {

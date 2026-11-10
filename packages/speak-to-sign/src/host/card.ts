@@ -44,7 +44,15 @@ const NETWORKS: Readonly<
 };
 
 /** What the card calls the request it signs. */
-export type CardNoun = 'payment' | 'note' | 'rating' | 'approval';
+export type CardNoun =
+  | 'payment'
+  | 'note'
+  | 'rating'
+  | 'approval'
+  | 'bet'
+  | 'transaction'
+  | 'signature'
+  | 'message';
 
 export type CardInput = Readonly<{
   network: SpeakToSignNetwork;
@@ -85,6 +93,30 @@ const NOUN_COPY: Readonly<
     failedLabel: 'Not approved',
     failedDetail: 'Check the pull request and your balance, then try again.',
     unknownLabel: 'Check before you approve again',
+  },
+  bet: {
+    done: 'placed',
+    failedLabel: 'Not placed',
+    failedDetail: 'Check the market and your USDC balance, then try again.',
+    unknownLabel: 'Check before you bet again',
+  },
+  transaction: {
+    done: 'sent',
+    failedLabel: 'Not sent',
+    failedDetail: 'Check the transaction and your balance, then try again.',
+    unknownLabel: 'Check before you send again',
+  },
+  signature: {
+    done: 'signed',
+    failedLabel: 'Not signed',
+    failedDetail: 'Nothing was signed. Try again.',
+    unknownLabel: 'Check before you sign again',
+  },
+  message: {
+    done: 'signed',
+    failedLabel: 'Not signed',
+    failedDetail: 'Nothing was signed. Try again.',
+    unknownLabel: 'Check before you sign again',
   },
 };
 
@@ -127,7 +159,10 @@ export function sendingView(
   return {
     kind: 'check',
     label: 'Checking',
-    caption: 'Sending from your account',
+    caption:
+      input.noun === 'message' || input.noun === 'signature'
+        ? 'Signing with your account'
+        : 'Sending from your account',
     details: [
       `${approval === 'voice' ? 'Signed by your Seams Wallet' : 'Approved with your passkey'} · ${NETWORKS[input.network].name}`,
     ],
@@ -164,6 +199,19 @@ export function paidView(input: CardInput, hash: string, seconds: number): Phras
     caption: input.doneCaption,
     detail: `Checked and ${NOUN_COPY[input.noun].done} in ${seconds.toFixed(1)} s ·`,
     link: { text: 'View transaction', href: `${explorer}${encodeURIComponent(hash)}` },
+    action: { label: 'Done' },
+    line: 'seal',
+  };
+}
+
+/** A signed message has no transaction to link to. */
+export function signedView(input: CardInput, seconds: number): PhraseResultView {
+  return {
+    kind: 'result',
+    label: '',
+    headline: input.doneHeadline,
+    caption: input.doneCaption,
+    detail: `Checked and ${NOUN_COPY[input.noun].done} in ${seconds.toFixed(1)} s`,
     action: { label: 'Done' },
     line: 'seal',
   };
@@ -346,17 +394,6 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         detail: 'Record the sentence again.',
         at: 'verdict',
         retry: true,
-      };
-    case 'voice_limit':
-      return {
-        headline: 'Over your voice limit',
-        caption:
-          result.detail === 'over_daily_limit'
-            ? 'Your voice payments in the last 24 hours reached the limit.'
-            : 'This amount is over the limit for one voice payment.',
-        detail: 'Pay with the normal confirm instead.',
-        at: 'policy',
-        retry: false,
       };
     case 'cosigner_refused':
       return {

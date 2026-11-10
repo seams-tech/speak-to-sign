@@ -2,7 +2,7 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary};
+use crate::{NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary, UsdcAmount};
 
 /// The NEAR network of a request. It is part of the request digest, not of
 /// the spoken text.
@@ -123,6 +123,100 @@ pub enum SpokenRequestV1 {
         /// text does not say it.
         head_commit: [u8; 20],
     } = 6,
+    /// A bet on one outcome of a prediction market, paid in USDC from the
+    /// owner's own account. The text says the amount, the outcome and the
+    /// market id: "bet zero point five usdc yes on market nine".
+    ///
+    /// This kind moves value, as a transfer does: the owner sends `amount`
+    /// of `token` to the `market` contract. The market contract checks the
+    /// verdict of this request before it takes the bet, so the sentence that
+    /// the owner said is the bet that the contract books.
+    MarketBet {
+        /// The network of the market.
+        network: Network,
+        /// The account that bets, named or implicit. The text does not say
+        /// it.
+        owner: NearAccount,
+        /// The market contract. The text does not say it.
+        market: NearAccount,
+        /// The token contract of the stake. The text says only "usdc"; the
+        /// digest binds the contract.
+        token: NearAccount,
+        /// The market id that the text says.
+        market_id: u64,
+        /// The outcome that the text says.
+        outcome: BetOutcomeV1,
+        /// The stake that the text says.
+        amount: UsdcAmount,
+    } = 7,
+    /// Any NEAR transaction from the owner's own account: any number of
+    /// actions of any kind, for any receiver. Only the summary is said. The
+    /// actions are bound by their SHA-256, so the verdict approves exactly
+    /// one list of actions for one receiver.
+    ///
+    /// The summary is free text from the application. The voice proves who
+    /// approves and that this person said the summary; it does not prove
+    /// that the summary describes the actions. The Wallet shows the
+    /// transaction itself with the summary.
+    Transaction {
+        /// The network of the transaction.
+        network: Network,
+        /// The signer, named or implicit. The text does not say it.
+        owner: NearAccount,
+        /// The receiver of the transaction. The text does not say it.
+        receiver: NearAccount,
+        /// SHA-256 of the Borsh of the transaction's `Vec<Action>`, as the
+        /// bytes stand in the unsigned transaction (the length, then each
+        /// action).
+        actions_sha256: [u8; 32],
+        /// The summary that the owner says.
+        summary: SpokenSummary,
+    } = 8,
+    /// A NEP-413 message that the owner signs with the key of the account.
+    /// Only the summary is said, as for [`SpokenRequestV1::Transaction`].
+    SignedMessage {
+        /// The network of the account.
+        network: Network,
+        /// The signer, named or implicit. The text does not say it.
+        owner: NearAccount,
+        /// The 32 bytes that the key signs: SHA-256 of the Borsh of the
+        /// NEP-413 tag (2^31 + 413, a `u32`) and of the payload (message,
+        /// nonce, recipient, callback URL).
+        payload_sha256: [u8; 32],
+        /// The summary that the owner says.
+        summary: SpokenSummary,
+    } = 9,
+}
+
+/// The outcome of a market that a bet backs.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize,
+)]
+#[borsh(use_discriminant = true)]
+#[repr(u8)]
+pub enum BetOutcomeV1 {
+    /// "yes"
+    Yes = 0,
+    /// "no"
+    No = 1,
+}
+
+impl BetOutcomeV1 {
+    /// The other outcome.
+    pub fn other(self) -> Self {
+        match self {
+            Self::Yes => Self::No,
+            Self::No => Self::Yes,
+        }
+    }
+
+    /// The word that the text says.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Yes => "yes",
+            Self::No => "no",
+        }
+    }
 }
 
 /// The rating of a community note.

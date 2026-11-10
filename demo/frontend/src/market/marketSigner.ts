@@ -6,7 +6,7 @@
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
-import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
+import { type BetVerdict, YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 
@@ -30,7 +30,7 @@ export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 100n;
 
 export interface MarketSigner {
   createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }, progress?: SignProgress): Promise<SignResult>;
-  bet(input: { marketId: number; side: Side; amount: bigint }, progress?: SignProgress): Promise<SignResult>;
+  bet(input: { marketId: number; side: Side; amount: bigint; verdict?: BetVerdict }, progress?: SignProgress): Promise<SignResult>;
   closeMarket(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /** A sent request whose AI answer did not count is `refused`, with the contract's reason. */
   requestResolution(marketId: number, progress?: SignProgress): Promise<SignResult>;
@@ -157,10 +157,13 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
         { title: `Open a market with ${usdc(seed)}`, body: 'Half of your seed goes on yes and half on no. It pays like any other bet.' },
         progress,
       ),
-    bet: ({ marketId, side, amount }, progress) =>
+    bet: ({ marketId, side, amount, verdict }, progress) =>
       sendUsdc(
         amount,
-        { action: 'bet', market_id: marketId, outcome: side },
+        // The verdict of the spoken bet goes with the bet, byte for byte: the contract checks it.
+        verdict
+          ? { action: 'bet', market_id: marketId, outcome: side, verdict_json: verdict.verdictJson, signature_b64: verdict.signatureB64 }
+          : { action: 'bet', market_id: marketId, outcome: side },
         'bet',
         { title: `Bet ${usdc(amount)} on ${side}`, body: 'JEV decides at the close. Its answer splits the pool.' },
         progress,

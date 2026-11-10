@@ -42,7 +42,7 @@ mod token;
 use sha2::{Digest, Sha256};
 
 pub use account::{InvalidAccountId, NearAccount, SpokenAccount};
-pub use amount::NearAmount;
+pub use amount::{NearAmount, UsdcAmount};
 pub use branch::{InvalidBranch, SpokenBranch, MAX_BRANCH_LETTERS};
 pub use confusion::confusion_set;
 pub use normalize::normalize;
@@ -50,7 +50,7 @@ pub use parse::{parse_transfer, ParseRefusal, ParseResult, ParsedTransfer};
 pub use phonetic::{phonetic_key, PhoneticKey};
 pub use punctuated::{normalize_punctuated, PunctuatedRefusal, PUNCTUATED_ALIASES};
 pub use render::{render, RenderedIntentV1};
-pub use request::{Network, NoteRatingV1, ProposalV1, SpokenRequestV1};
+pub use request::{BetOutcomeV1, Network, NoteRatingV1, ProposalV1, SpokenRequestV1};
 pub use summary::{InvalidSummary, SpokenSummary, MAX_SUMMARY_BYTES, MAX_SUMMARY_WORDS};
 pub use token::{spoken_text, SpokenToken};
 

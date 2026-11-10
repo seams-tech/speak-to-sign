@@ -51,6 +51,8 @@ async fn ui_demo_sandbox() -> anyhow::Result<()> {
         .transact()
         .await?
         .into_result()?;
+    // The seeded bets of this demo data have no voice.
+    admin.call(market.id(), "set_voice_required").args_json(json!({ "required": false })).transact().await?.into_result()?;
     usdc.call("storage_deposit").args_json(json!({ "account_id": market.id() })).transact().await?.into_result()?;
     let mut people = Vec::new();
     for _ in 0..5 {

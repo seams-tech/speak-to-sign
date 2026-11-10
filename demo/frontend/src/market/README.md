@@ -168,9 +168,16 @@ local sandbox with seeded markets for a check before the deploy.
 
 ### Spoken bets
 
-When `signsByVoice` is true, the sheet shows the sentence to say, for example
-"bet zero point five near yes on this note" (`betSentence` in `math.ts`), and
-the button is "Say it to bet". A spoken bet needs a new spoken request kind in
-the Seams Wallet, as `MergeApproval` was for merges. Until the Wallet has
-one, set `signsByVoice: false`. Then sign `bet` as a plain Wallet transaction
-with a passkey, and the button is "Bet 0.50 NEAR on yes".
+When the contract needs a voice for a bet (`get_voice_config().required`),
+`source.voice` is on (`useBetVoice` in `SayBet.tsx`). A bet then has a "say
+it" step (`<SayBet>`): the sentence ("Bet 0.5 USDC yes on market 9",
+`spokenBetSentence` in `spokenBet.ts`), a Record button, and the verifier's
+answer. The page sends the recording to `/api/voice-verify` (request kind
+`market_bet`). An accepted recording gives a verdict, and the bet carries it
+(`verdict_json`, `signature_b64` in the `msg`). The Seams Wallet then sends
+the transaction with its own confirm step, because it has no spoken request
+kind for a bet yet. A one-tap bet shows the step in the strip, and the bet
+sheet shows it in its foot. Before the step, the page asks for the sign-in,
+the voice setup and the test USDC. A contract from before the voice rule has
+no `get_voice_config`, and its bets stay plain. `/market-preview.html?voice`
+shows the step with a mock that accepts every recording.

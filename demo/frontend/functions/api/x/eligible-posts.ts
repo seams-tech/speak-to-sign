@@ -12,11 +12,14 @@
 //
 // The posts are about what people on X dispute, so most are about politics or war. A NEAR AI
 // model sorts each new post by subject once (functions/lib/topicFilter.ts), and the route gives
-// only the posts with an allowed subject. The snapshot collects them over time.
+// only the posts with an allowed subject. The snapshot collects them over time. The same model
+// writes the draft of a note for each post (functions/lib/noteDrafts.ts), for the write dialog.
 
 import { json, refuseOtherOrigin } from '../../lib/http.ts';
 import { oauth1Header, queryString, type OAuth1Keys } from '../../lib/oauth1.ts';
 import type { XAuthor, XMedia, XPost } from '../../../src/x/types.ts';
+import { fallbackDraft, validDraft } from '../../../src/x/noteDrafts.ts';
+import { draftNotes } from '../../lib/noteDrafts.ts';
 import { classifyPosts, DEFAULT_ALLOWED_TOPICS, DEFAULT_TOPIC_MODEL, isTopic, type Topic } from '../../lib/topicFilter.ts';
 
 export interface Env {
@@ -172,6 +175,17 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
   const posts = [...shown, ...kept]
     .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0))
     .slice(0, MAX_KEPT_POSTS);
+  // Each post gets the draft of a note once: from the model when the route has its key, and the
+  // careful draft of its subject if not. A post keeps the draft that it has.
+  const oldDrafts = new Map((old?.posts ?? []).map((post) => [post.id, post.draft]));
+  for (const post of posts) post.draft ??= oldDrafts.get(post.id) ?? null;
+  const undrafted = posts.filter((post) => !validDraft(post.draft));
+  if (undrafted.length > 0) {
+    const drafts = settings.filter
+      ? await draftNotes(undrafted, { apiKey: settings.filter.apiKey, model: settings.filter.model, fetch: deps.fetch })
+      : {};
+    for (const post of undrafted) post.draft = drafts[post.id] ?? fallbackDraft(post.topic);
+  }
   const entries = Object.entries(topics);
   return { ok: true, posts, topics: Object.fromEntries(entries.slice(Math.max(0, entries.length - MAX_KEPT_TOPICS))) };
 }

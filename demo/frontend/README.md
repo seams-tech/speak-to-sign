@@ -397,12 +397,22 @@ mode and never sends a note to X.
   does not answer for is `other`. If the model fails, the refresh fails: no
   post shows without a subject. Without `NEAR_AI_API_KEY` the route answers
   503, unless `X_ELIGIBLE_TOPICS` is `all`.
+- **Draft notes.** The same model writes the draft of a Community Note for
+  each shown post, once: the note and the short sentence to read aloud
+  (`functions/lib/noteDrafts.ts`). The write dialog starts with the draft and
+  types it in, so a visitor only presses the button and speaks. The model
+  cannot check a fact, so the draft says what the post leaves out (a source,
+  a date, a fair comparison) and adds no fact of its own. A draft with a
+  link, a note over 280 characters or a sentence that the Wallet cannot take
+  is not used: the post then gets the careful draft of its subject
+  (`fallbackDraft` in `src/x/noteDrafts.ts`). The five example posts have
+  hand-written drafts.
 - **Collection.** About 1 post in 4 passes the default filter. The snapshot
   therefore keeps the passed posts of earlier calls, 30 at most, newest first.
 - **Checks.** The route drops posts that X marks as sensitive. It checks each
   field of X's answer, and keeps only image URLs on `twimg.com`.
 
-Each post is `{ id, text, createdAt, lang, url, author, media, metrics, topic }`
+Each post is `{ id, text, createdAt, lang, url, author, media, metrics, topic, draft }`
 (`XPost` in the function file). The tests are in
 `tests/x-eligible-posts.test.ts`, with a fake X API. A local run against the
 real X API on 10 Nov 2026 gave 10 English posts, from 2 hours to 2 days old.

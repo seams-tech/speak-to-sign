@@ -14,5 +14,5 @@
     "types": ["@cloudflare/workers-types"],
     "noEmit": true
   },
-  "include": ["./**/*.ts", "../src/summaryRules.ts", "../src/faucet/nearTx.ts", "../src/multisig/intent.ts", "../src/guards.ts", "../src/multisig/contractViews.ts", "../src/x/types.ts"]
+  "include": ["./**/*.ts", "../src/summaryRules.ts", "../src/faucet/nearTx.ts", "../src/multisig/intent.ts", "../src/guards.ts", "../src/multisig/contractViews.ts", "../src/x/types.ts", "../src/x/noteDrafts.ts"]
 }

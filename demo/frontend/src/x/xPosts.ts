@@ -3,6 +3,7 @@
 
 import type { Post } from '../data/posts';
 import { FIXTURE_FETCHED_AT_MS, FIXTURE_POSTS } from './fixture.ts';
+import { fallbackDraft, validDraft } from './noteDrafts.ts';
 import type { XPost } from './types';
 
 /**
@@ -62,6 +63,10 @@ export function toPost(x: XPost, nowMs: number): Post {
   if (x.author?.verified) post.author.badge = 'blue';
   if (photo) post.image = { url: photo.url, alt: photo.alt ?? '' };
   if (x.topic) post.topic = x.topic;
+  // The write dialog starts with a draft, so a demo needs no typing. A post of an older
+  // snapshot has no draft from the route: it gets the careful draft of its subject.
+  const draft = validDraft(x.draft) ?? fallbackDraft(x.topic);
+  post.noteDraft = { classification: 'misleading', reasons: [], text: draft.text, sources: 'no', summary: draft.summary };
   if (x.metrics) {
     post.stats = {
       replies: compactCount(x.metrics.replies),

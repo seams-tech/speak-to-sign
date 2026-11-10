@@ -12,9 +12,14 @@ import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } fr
 
 const MAX_NOTE_CHARS = 280;
 const MAX_SUMMARY_CHARS = 120;
-/** The prefilled sentence types itself in, so it is clear that the page filled it in. */
+/** The prefilled note and sentence type themselves in, so it is clear that the page filled them in. */
 const TYPE_START_MS = 450;
 const TYPE_STEP_MS = 26;
+/** The note is longer than the sentence, so it types several letters for each step: about a second in all. */
+const NOTE_TYPE_MS = 1_000;
+const NOTE_STEP_MS = 16;
+/** The pause between the note and the sentence. */
+const TYPE_GAP_MS = 220;
 
 function prefersLessMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -30,9 +35,9 @@ interface Props {
 }
 
 /**
- * One short dialog: the note, the sentence to read aloud, and the button that reads it. The demo
- * post has both filled in (Post.noteDraft), so a visitor only presses the button and speaks. Both
- * stay editable. The contract stores the note and the spoken summary; nothing else is asked.
+ * One short dialog: the note, the sentence to read aloud, and the button that reads it. Each
+ * post has both filled in (Post.noteDraft), and they type themselves in, so a visitor only
+ * presses the button and speaks. Both stay editable. The contract stores the note and the spoken summary; nothing else is asked.
  *
  * The button also runs what is still missing first: sign in, set up the voice, testnet NEAR. After
  * the note posts, the dialog shows the result for a moment and closes by itself.
@@ -45,8 +50,11 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
   const titleId = useId();
   const signInTitleId = useId();
   const draft = post.noteDraft;
-  const [text, setText] = useState(draft?.text ?? '');
+  const prefillNote = draft?.text ?? '';
   const prefill = draft?.summary ?? '';
+  // First the note types itself in, then the sentence. With reduced motion, both are there at once.
+  const [typingNote, setTypingNote] = useState(() => prefillNote !== '' && !prefersLessMotion());
+  const [text, setText] = useState(() => (typingNote ? '' : prefillNote));
   const [typing, setTyping] = useState(() => prefill !== '' && !prefersLessMotion());
   const [summary, setSummary] = useState(() => (typing ? '' : prefill));
   const [phase, setPhase] = useState<SignPhase>({ state: 'idle' });
@@ -59,9 +67,26 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
   const locked = phase.state === 'pending' || phase.state === 'preparing';
   const signing = phase.state !== 'idle';
 
-  // Type the prefilled sentence in, one letter at a time. A key from the visitor stops it.
+  // Type the prefilled note in, a few letters at a time. A key from the visitor stops it.
   useEffect(() => {
-    if (!typing) return;
+    if (!typingNote) return;
+    const letters = [...prefillNote];
+    const stride = Math.max(1, Math.ceil(letters.length / (NOTE_TYPE_MS / NOTE_STEP_MS)));
+    let shown = 0;
+    let timer = 0;
+    const step = () => {
+      shown = Math.min(letters.length, shown + stride);
+      setText(letters.slice(0, shown).join(''));
+      if (shown < letters.length) timer = window.setTimeout(step, NOTE_STEP_MS);
+      else setTypingNote(false);
+    };
+    timer = window.setTimeout(step, TYPE_START_MS);
+    return () => window.clearTimeout(timer);
+  }, [typingNote, prefillNote]);
+
+  // Then type the prefilled sentence in, one letter at a time. A key from the visitor stops it.
+  useEffect(() => {
+    if (!typing || typingNote) return;
     let shown = 0;
     let timer = 0;
     const step = () => {
@@ -70,9 +95,9 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
       if (shown < prefill.length) timer = window.setTimeout(step, TYPE_STEP_MS);
       else setTyping(false);
     };
-    timer = window.setTimeout(step, TYPE_START_MS);
+    timer = window.setTimeout(step, prefillNote === '' ? TYPE_START_MS : TYPE_GAP_MS);
     return () => window.clearTimeout(timer);
-  }, [typing, prefill]);
+  }, [typing, typingNote, prefill, prefillNote]);
 
   const startSigning = async () => {
     const note = { postId: post.id, text: text.trim(), summary: check.spoken };
@@ -109,11 +134,14 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
             </label>
             <textarea
               id={`${titleId}-text`}
-              className="wn-note"
+              className={`wn-note ${typingNote ? 'summary-typing' : ''}`}
               rows={5}
               value={text}
               disabled={signing}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => {
+                setTypingNote(false);
+                setText(event.target.value);
+              }}
               aria-invalid={!noteOk}
             />
             {noteChars > MAX_NOTE_CHARS && (
@@ -152,8 +180,8 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
               sentence={check.spoken}
               buttonLabel="Read it aloud to post"
               hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the note. No confirm tap.')}
-              disabled={typing || !speakable || !noteOk}
-              disabledHint={typing ? 'Filling in the sentence…' : !noteOk ? 'Write the note first.' : 'Write the sentence to read first.'}
+              disabled={typingNote || typing || !speakable || !noteOk}
+              disabledHint={typingNote ? 'Filling in the note…' : typing ? 'Filling in the sentence…' : !noteOk ? 'Write the note first.' : 'Write the sentence to read first.'}
               accountId={account}
               wordsLine="Words matched the summary"
               signedLine="Note signed and submitted"

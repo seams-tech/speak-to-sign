@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FIXTURE_FETCHED_AT_MS, FIXTURE_POSTS } from '../src/x/fixture.ts';
+import { fallbackDraft, validDraft } from '../src/x/noteDrafts.ts';
 import { ageText, compactCount, notePostId, readXPosts, toPost } from '../src/x/xPosts.ts';
 
 test('notePostId fits the Wallet limit and keeps posts apart', () => {
@@ -39,6 +40,11 @@ test('toPost gives a post of the notes app', () => {
   assert.deepEqual(post.stats, { replies: '30', reposts: '454', likes: '3.1K', bookmarks: '', views: '444K' });
   assert.equal(post.history.source.url, 'https://x.com/Theveripost/status/2119918368736088126');
   assert.equal(post.context, undefined);
+  // The write dialog's draft: the one that the post brings, or the careful draft of its subject.
+  assert.equal(post.noteDraft?.summary, 'this story names no source for its claim');
+  assert.ok(post.noteDraft!.text.includes('Marthe Gautier'));
+  for (const fixture of FIXTURE_POSTS) assert.deepEqual(validDraft(fixture.draft), fixture.draft);
+  assert.equal(toPost({ ...FIXTURE_POSTS[0]!, draft: null }, 0).noteDraft?.summary, fallbackDraft('sport').summary);
 
   const bare = toPost({ id: '5000000', text: 'Text', createdAt: null, lang: null, url: 'https://x.com/i/status/5000000', author: null, media: [], metrics: null, topic: null }, 0);
   assert.deepEqual([bare.author.name, bare.author.handle, bare.age, bare.postedAt, bare.stats, bare.image, bare.topic], ['X user', 'unknown', '', 'On X', undefined, undefined, undefined]);

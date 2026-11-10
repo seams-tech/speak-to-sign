@@ -1,6 +1,7 @@
 // The shape of a post from /api/x/eligible-posts. The route and the page share it.
 
 import type { Topic } from '../../functions/lib/topicFilter.ts';
+import type { NoteDraftText } from './noteDrafts.ts';
 
 export interface XAuthor {
   id: string;
@@ -28,4 +29,6 @@ export interface XPost {
   metrics: { likes: number; reposts: number; replies: number; views: number } | null;
   /** The subject from the filter. Null when the filter is off. */
   topic: Topic | null;
+  /** The draft of a note for the write dialog. A post of an older snapshot has none. */
+  draft?: NoteDraftText | null;
 }

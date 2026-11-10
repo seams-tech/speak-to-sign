@@ -1559,7 +1559,7 @@ h1.ss-display {
   height: 100%;
   padding-top: 0;
   padding-bottom: 0;
-  gap: 12px;
+  gap: 8px;
 }
 
 .ss-spa .ss-brand {
@@ -1831,9 +1831,11 @@ h1.ss-display {
   transform-origin: 0 0;
 }
 
-/* "Built on NEAR" before GitHub, in the same glass pill: the words and NEAR's wordmark, in
-   white, as on tatchi.xyz. GitHub follows it with no gap of its own. */
-.ss-near {
+/* "Built on NEAR" and Seams before GitHub, in the same glass pills: the words and NEAR's
+   wordmark as on tatchi.xyz, and the Seams logo as on wallet.seams.sh, in white. GitHub follows
+   them with no gap of its own. */
+.ss-near,
+.ss-seams {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1857,6 +1859,32 @@ h1.ss-display {
   margin-left: 0;
 }
 
+/* As wide as NEAR's wordmark, so the two logos weigh the same. */
+.ss-seams-wordmark {
+  width: 48px;
+  height: auto;
+}
+
+/* On a phone, the Seams pill is the mark alone, round like GitHub's. */
+.ss-seams-mark {
+  display: none;
+  width: 13px;
+  height: auto;
+}
+
+@media (max-width: 720px) {
+  .ss-seams {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+  }
+  .ss-seams-wordmark {
+    display: none;
+  }
+  .ss-seams-mark {
+    display: block;
+  }
+}
 
 .ss-near svg {
   width: 48px;
@@ -1866,7 +1894,8 @@ h1.ss-display {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .ss-near:hover {
+  .ss-near:hover,
+  .ss-seams:hover {
     background: rgba(10, 10, 10, 0.42);
   }
 }
@@ -1882,10 +1911,10 @@ h1.ss-display {
   }
 }
 
-/* From 861px to 1139px the three steps would run under the pills at the right (they need
-   about 1080px with Built on NEAR): the nav shows one step, the first that is not done, as on a
+/* From 861px to 1199px the three steps would run under the pills at the right (with all three
+   pills they need about 1145px): the nav shows one step, the first that is not done, as on a
    phone. The name stays. */
-@media (min-width: 861px) and (max-width: 1139px) {
+@media (min-width: 861px) and (max-width: 1199px) {
   .ss-nav-setup .step-done,
   .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
     display: none;

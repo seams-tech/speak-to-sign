@@ -7,9 +7,10 @@
  * WASM hash, the input hash, the output hash, the caller, the project and the time. So the quote
  * says: this worker ran this WASM on this input and gave this output.
  *
- * `checkAttestationBinding` checks every link that needs no Intel collateral. Two checks stay
- * with the caller, and the result names them:
- * - the signature chain of the quote to Intel (use a DCAP verifier, or `outlayer-verify`);
+ * `checkAttestationBinding` checks the links from the quote to the record, the output and the
+ * WASM. Two checks are separate, and the result names them:
+ * - the signature chain of the quote to Intel (`checkQuoteSignature`, or with Intel's
+ *   collateral `checkQuoteCollateral`, in `dcap.ts`);
  * - the approval of the five measurements (`measurementsApproved` asks the NEAR contract).
  */
 
@@ -66,7 +67,7 @@ export type AttestationCheck =
       wasmHash: string;
       /** The measurements of the quote. They mean nothing until they are approved. */
       measurements: Measurements;
-      /** The raw quote, for a DCAP verifier. */
+      /** The raw quote, for `checkQuoteSignature` or `checkQuoteCollateral`. */
       quote: Uint8Array<ArrayBuffer>;
       /** The checks that this function did not do. */
       notChecked: ['quote_signature', 'measurements_approved'];
@@ -180,8 +181,10 @@ export function parseTdxQuote(
   const view = new DataView(quote.buffer);
   const version = view.getUint16(0, true);
   if (view.getUint32(4, true) !== 0x81) return null;
-  // Version 5 has a body type (u16) and a body size (u32) before the TD report.
-  const body = version === 4 ? 48 : version === 5 && view.getUint16(48, true) === 2 ? 54 : -1;
+  // Version 5 has a body type (u16: 2 for TDX 1.0, 3 for TDX 1.5) and a body size (u32) before
+  // the TD report. The fields below have the same offsets in both reports.
+  const bodyType = version === 5 ? view.getUint16(48, true) : 0;
+  const body = version === 4 ? 48 : bodyType === 2 || bodyType === 3 ? 54 : -1;
   if (body < 0 || quote.length < body + 584) return null;
   const hex = (offset: number, length: number) => toHex(quote.subarray(body + offset, body + offset + length));
   return {

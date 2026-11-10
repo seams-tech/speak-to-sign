@@ -475,7 +475,7 @@ pushed, published or deployed.
 | Variant `local-speaker` (ReDimNet in the worker) | `crates/voice-verifier/src/local_model.rs`, `build.sh --local-speaker` | Fake host, and the real model in a native run |
 | One constant for the speaker model | `config::SPEAKER_MODEL` | Existing tests |
 | Request builder, verifier client, transcript check | `packages/voice-verdict/src/request.ts`, `client.ts`, `verdict.ts` | Golden vectors, fake OutLayer |
-| TDX quote of a call | `packages/voice-verdict/src/attestation.ts` | A real testnet attestation |
+| TDX quote of a call | `packages/voice-verdict/src/attestation.ts`, and in Rust `crates/voice-verdict/src/attestation.rs` (2026-11-11) | Two real testnet attestations (0.5.2, and 0.11.0 with an input in unsorted key order) |
 | Web2 example with no wallet | `examples/voice-confirm` | Run with its fake verifier |
 
 ### 4.3 The TDX quote: what the probe measured
@@ -511,9 +511,11 @@ Consequences:
   HTTPS API runs only projects.
 - The quote is optional for the consumer. The verdict check stays the fast
   path.
-- Not done in the package: the check of the quote's signature chain to
-  Intel. It needs a DCAP verifier and Intel's collateral. `outlayer-verify`
-  does it.
+- The package checks the quote's signature chain to Intel after 0.66.0:
+  `checkQuoteSignature` with the quote only, and `checkQuoteCollateral` with
+  Intel's collateral, which OutLayer keeps on NEAR (`fetchCollateral`). For
+  the test quote, its result is the same as the result of `dcap-qvl` 0.5.2,
+  the library of `outlayer-verify`.
 - Not covered by the quote: the transcript of NEAR AI (no signature), and,
   for the default variant, the Phala service (its own quote, fact 16). The
   `local-speaker` variant has no Phala service: its speaker model is inside
@@ -624,7 +626,7 @@ owner. So the verifier call is on the developer's server.
 | 2 | Enroll: three recordings, owner `app:<id>`, no key | Server | top layer | The verifier source has it (0.8.0). The call exists (`callVerifier`) | Done in source | **Yes** |
 | 3 | Confirm: `verify` for one request, or `select` for 2 to 16 | Server | top layer and `voice-verdict` (request) | The verifier source has both. The request builder exists | Done in source | **Yes** |
 | 4 | Check the verdict: key, digest, expiry, audio digest | Server | `voice-verdict` | Yes | No | No |
-| 5 | Optional: check the TDX quote of the call | Server or third party | `voice-verdict` | Yes, except the signature chain to Intel | No | No |
+| 5 | Optional: check the TDX quote of the call | Server or third party | `voice-verdict` | Yes. The signature chain to Intel is in the source after 0.66.0 | No | No |
 
 What each need of the flow is, and its state:
 
@@ -852,8 +854,11 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
 5. **The demo contracts keep their own `verdict.rs`.** A change of their
    dependencies changes their code hash, and the root README pins the hash
    of each deployed contract. So this needs a new deploy of each contract.
-6. **The check of the quote's signature chain to Intel** is not in the
-   package. `outlayer-verify` does it.
+6. **The check of the quote's signature chain to Intel** is in the source
+   of `@seams/voice-verdict` after 0.66.0 (`checkQuoteSignature`,
+   `checkQuoteCollateral`). The Rust crate leaves it to a DCAP crate:
+   `crates/voice-verdict/tests/dcap.rs` checks both real quotes with
+   `dcap-qvl` 0.7.1 and the stored Intel collateral.
 7. **npm.** No package of this work is on npm. `@seams/speak-to-sign` is
    `private` in its `package.json`, so that no release can publish the
    library under the name of the plugin by accident.

@@ -45,7 +45,10 @@ On OutLayer testnet, project `seams-v1.testnet/voice-verifier`. 0.11.0 is the
 active version since 2026-11-11 (`set_active_version` tx
 `69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`), so a call with no `version_key` runs it.
 Before, 0.5.2 was active. Every known caller (the Wallet server, the demo
-routes) sends its own `version_key`, so none of them changed.
+routes) sends its own `version_key`, so none of them changed. The staging
+Wallet server moves from 0.9.0 to 0.11.0 with
+[seams-monorepo#72](https://github.com/seams-tech/seams-monorepo/pull/72)
+and the next staging deploy.
 
 | Build | Version key | Has |
 | --- | --- | --- |
@@ -94,9 +97,12 @@ than the Seams staging account.
 - **seams-monorepo, at 0.67.0:** pin `@seams/wallet-voice-sign`. The command
   `seams-speak-to-sign-host` of the staging deploy keeps its name.
 
-- **seams-wallet, the TypeScript port of `spoken-intent`:** add request tag
-  10 (`Confirmation`), and read `$40` as "forty dollars" and `10%` as "ten
-  percent" in a transcript. The golden file has vectors for both.
+- **seams-wallet, the TypeScript port of `spoken-intent`:** no port is
+  necessary. Wallet core builds no `Confirmation` (tag 10), and the verifier,
+  not the Wallet, reads `$40` and `10%` in a transcript. The Wallet's copy of
+  the golden file is now the file of 0.66.0, and a new test names each tag
+  that the Wallet ports or does not port
+  ([seams-wallet#66](https://github.com/seams-tech/seams-wallet/pull/66)).
 
 ## 7. Known limits of 0.66.0
 
@@ -108,5 +114,7 @@ than the Seams staging account.
 - `detect` is a proposal, and its call takes 6 to 10 s.
 - The `local-speaker` build is at least 8 times slower, and three of twelve
   of its calls failed in one test run.
-- `@seams/voice-verdict` does not check the signature chain of a TDX quote
-  to Intel. `outlayer-verify` does.
+- `@seams/voice-verdict` 0.66.0 does not check the signature chain of a TDX
+  quote to Intel. The next release does: `checkQuoteSignature` (the quote
+  only) and `checkQuoteCollateral` (with Intel's collateral and the TCB
+  status, the same result as `dcap-qvl` 0.5.2 for the test quote).

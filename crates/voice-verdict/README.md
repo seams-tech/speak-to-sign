@@ -42,6 +42,11 @@ let verdict = voice_verdict::check_verdict_with(
 );
 ```
 
+The two demo contracts do this (`demo/contracts/voice-multisig/src/verdict.rs`
+and `demo/contracts/jev-prediction-market/src/verdict.rs`). They panic with
+the text of the `Refusal` (its `Display`), for example "the verdict has
+expired".
+
 A contract needs:
 
 - the 32-byte verifier key in its state, and a guarded method to change it;
@@ -58,7 +63,55 @@ A contract needs:
 - `check_transcript(...)`: the check of a signed transcript of the operation
   `transcribe`. A transcript approves no request.
 
-The check of the TDX quote of a call is only in the TypeScript package.
+## The TDX quote of a call (optional)
+
+`check_attestation_binding` is the Rust form of `checkAttestationBinding` of
+the TypeScript package. It checks that the TDX quote of an OutLayer call
+commits to the attestation record, that the record is for the output that
+you hold, and that the WASM that ran is one that you accept.
+
+```rust
+use voice_verdict::{check_attestation_binding, parse_attestation_record, Binding};
+
+// The record of GET <api>/attestations/by-call/<call_id>, and the output of the call.
+let record = parse_attestation_record(&record_json)?;
+let bound = check_attestation_binding(
+    &record,
+    &Binding::new(&output_json, &[MY_VERIFIER_WASM_SHA256])
+        .input(&input_json) // optional: the compact JSON of the input, as you sent it
+        .project("seams-v1.testnet/voice-verifier"),
+)?;
+// bound.measurements.view_args() are the arguments of
+// `is_measurements_approved` on worker.outlayer.testnet.
+```
+
+- The output hash is over the compact JSON of the output with sorted keys.
+  So the key order and the spaces of `output_json` do not matter.
+- The input hash is over the compact JSON of the input in the order that you
+  sent it. So pass the exact text, for example `JSON.stringify(input)`.
+- It does not check the signature chain of the quote to Intel, or the
+  approval of the measurements (`attestation::NOT_CHECKED`). The TypeScript
+  package explains both.
+
+For the signature chain in Rust, pass `bound.quote` to a DCAP verifier, for
+example the crate `dcap-qvl` (Phala, MIT). On a server with a network:
+
+```rust
+use dcap_qvl::collateral::{CollateralClient, INTEL_PCS_URL};
+
+let collateral = CollateralClient::with_default_http(INTEL_PCS_URL)?
+    .fetch(&bound.quote)
+    .await?;
+let verified = dcap_qvl::verify::verify(&bound.quote, &collateral, now_secs)?;
+// verified.status is the TCB status of the platform, for example "UpToDate".
+```
+
+`tests/dcap.rs` does this with no network: it checks both real quotes of the
+fixtures with `dcap-qvl` 0.7.1 and the collateral that Intel PCS gave on
+2026-11-10 (`intel_pcs_collateral_*.json` in the fixtures). Both are `UpToDate`,
+and the report that the chain covers has the task hash of its record. This
+crate has `dcap-qvl` only as a test dependency, so a contract build does not
+change.
 
 ## Test
 
@@ -66,5 +119,6 @@ The check of the TDX quote of a call is only in the TypeScript package.
 cargo test
 ```
 
-The tests read `../voice-verifier/testdata/signed_verdict_v2.json` and
-`../spoken-intent/fixtures/spoken_intent_vectors_v1.json`.
+The tests read `../voice-verifier/testdata/signed_verdict_v2.json`,
+`../spoken-intent/fixtures/spoken_intent_vectors_v1.json` and the two real
+attestations in `../../packages/voice-verdict/tests/fixtures/`.

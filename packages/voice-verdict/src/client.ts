@@ -20,6 +20,13 @@ export interface VerifierConfig {
   timeoutMs?: number;
   /** Default: 10 billion instructions, 128 MB, 15 s. The `local-speaker` variant needs more. */
   resourceLimits?: { max_instructions: number; max_memory_mb: number; max_execution_seconds: number };
+  /**
+   * The most that one call can cost, in the units of OutLayer's `compute_cost` (the header
+   * `X-Compute-Limit`). Without it, OutLayer stops a run at its default limit: about 8.9 billion
+   * instructions on testnet. The default variant uses far less. The `local-speaker` variant needs
+   * more: an enrollment used 19.8 billion instructions and cost 20,843.
+   */
+  computeLimit?: number;
   /** Default: the global `fetch`. */
   fetch?: typeof fetch;
 }
@@ -103,6 +110,12 @@ export interface VerifierCall<Output> {
   callId: string | null;
   /** A path of the OutLayer API, for `fetchAttestation`. `null` if OutLayer gave none. */
   attestationUrl: string | null;
+  /** The time of the run that OutLayer reports, in ms. It is longer than the worker's own `ms.total`. */
+  timeMs: number | null;
+  /** The instructions that the worker used. */
+  instructions: number | null;
+  /** The cost of the call, in OutLayer's units. */
+  computeCost: string | null;
 }
 
 /** Runs one operation of the verifier and returns its output JSON. */
@@ -147,7 +160,11 @@ export async function callVerifierWithAttestation(
   try {
     response = await (config.fetch ?? fetch)(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Payment-Key': config.paymentKey },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Payment-Key': config.paymentKey,
+        ...(config.computeLimit === undefined ? {} : { 'X-Compute-Limit': String(config.computeLimit) }),
+      },
       body: JSON.stringify({
         input,
         async: false,
@@ -172,7 +189,11 @@ export async function callVerifierWithAttestation(
   const completed = reply.error == null && (typeof reply.status !== 'string' || reply.status === 'completed');
   const output = reply.output;
   if (!completed || typeof output !== 'object' || output === null) {
-    throw new VerifierCallError('output', 'the verifier run did not complete');
+    throw new VerifierCallError(
+      'output',
+      // A run that OutLayer stops at the compute limit fails with a trap and no reason.
+      `the verifier run did not complete (status ${String(reply.status)}, ${String(reply.instructions)} instructions)`,
+    );
   }
   const kind = (output as { kind?: unknown }).kind;
   const kinds = ['seams_voice_verify_output_v2', 'seams_voice_enrollment_v3', 'seams_voice_transcript_output_v1'];
@@ -184,5 +205,8 @@ export async function callVerifierWithAttestation(
     output: output as EnrollOutput | VerifyOutput | TranscribeOutput,
     callId: typeof reply.call_id === 'string' ? reply.call_id : null,
     attestationUrl: typeof reply.attestation_url === 'string' ? reply.attestation_url : null,
+    timeMs: typeof reply.time_ms === 'number' ? reply.time_ms : null,
+    instructions: typeof reply.instructions === 'number' ? reply.instructions : null,
+    computeCost: typeof reply.compute_cost === 'string' ? reply.compute_cost : null,
   };
 }

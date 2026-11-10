@@ -27,7 +27,8 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
 | 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route selects it by `version_key`. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
 | 0.7.0   | not built for OutLayer yet | The source on this branch. It adds `multisig_hide_note` for the voice multisig page ("hide note N"). The other kinds are unchanged, except the version in the verdict. Build it with `build.sh --docker`, add it to the OutLayer project, and set its hash as `VOICE_OUTLAYER_VERSION_KEY` of the demo site. |
-| 0.8.0   | not built for OutLayer yet | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Not on OutLayer yet. |
+| 0.8.0   | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Added to the OutLayer project on 2026-11-11 (458,081 bytes, `build.sh --docker`, commit `21ad633`, FastFS tx `GPDF3s9pNwA8rxu7pbRjjvtFbBEW7hc1Sz7H2Xf1Ryg`, `add_version` tx `BSFZLLgM5PQ4v5bS8MJC7VKe2fR7MZ4YEDVS4kYaEYwN`). **Not active**: a call reaches it only with `version_key`. |
+| 0.8.0 `local-speaker` | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -180,20 +181,39 @@ Then send each chunk file as the arguments of `__fastdata_fastfs` on
 chunks/chunk-000.bin`). Each transaction fails with `MethodNotFound` by
 design: FastFS reads the arguments.
 
-Not measured yet: this variant did not run on OutLayer. Three points need a
-run there:
+Measured on OutLayer testnet on 2026-11-11, one run of each operation for
+each variant, with a synthetic voice (macOS `say`) and the same sentences:
 
-- the size of one record that the worker storage accepts (the code uses
-  1 MiB; if the storage refuses it, each run downloads);
-- the time to read the 9 records, against the download. A download of the
-  file from FastFS took 3.3 to 4.7 s from a desktop computer;
-- if the worker storage is one for the project or one for each caller. With
-  one for each caller, the first run of each developer downloads.
+| | Default | `local-speaker` |
+| --- | --- | --- |
+| `verify` or `select`: OutLayer `time_ms` | 1.35 to 1.46 s | 10.6 to 12.5 s |
+| `verify` or `select`: time at the client | 2.6 to 2.9 s | 12 to 15 s |
+| `verify` or `select`: the worker's own `total` | 0.36 to 0.48 s | 2.2 to 2.7 s |
+| `verify` or `select`: instructions | 17 to 27 million | 4.4 to 6.5 billion |
+| `verify` or `select`: OutLayer `compute_cost` | about 1,020 | 5,400 to 7,500 |
+| `enroll` (three clips): OutLayer `time_ms`, cost | 3.3 s, 1,079 | 14.9 s, 22,364 |
+| A call that refuses before any work: `time_ms` | 0.8 s | 11.2 s |
 
-The Gate 0 probe of the same design (`research/gate0/voice-probe`, same
-`tract` version, same model) measured on OutLayer testnet: 1.1 to 1.7 s for
-the model on 8 s of audio, and 8 to 13 s of fixed time for a worker of 8 MB,
-against about 0.7 s for a small worker. Expect the same order here.
+So the `local-speaker` variant is about 8 times slower and 5 to 7 times
+more expensive for each call. Where its time goes:
+
+- About 9 s is the fixed time of OutLayer for a WASM of 8 MB (`time_ms`
+  less the worker's own `total`). The default variant has about 1 s.
+- 1.8 to 1.9 s is the read of the model from the storage with its SHA-256
+  (`model_fetch`, with `model_cached` 1).
+- 0.3 to 0.7 s is the model run for one clip (`redimnet`).
+
+Other facts of that run:
+
+- The worker storage accepts records of 1 MiB. After the first run, each
+  run had `model_cached` 1.
+- OutLayer stops a call at about 8.9 billion instructions unless the caller
+  sends the header `X-Compute-Limit`. The stopped run fails with a trap and
+  no reason. An enrollment of this variant needs about 20 billion.
+- A template of one variant passed in the other: both use one storage cell.
+- Not measured: the time of the first run, which downloads the model; and
+  if the worker storage is one for the project or one for each caller (the
+  runs had one caller).
 
 Both variants declare the same signing key (`verdict`, `bind: "project"`).
 As two versions of one project, they sign with the same key. A verdict does
@@ -329,6 +349,12 @@ Stage times (`ms`, not signed), in ms:
       summary. The verdict binds the owner, the context (1 to 64 characters
       of `a-z`, `0-9`, `.`, `_`, `-`, `:`, `/`) and the SHA-256 of the
       payload. The application defines the payload bytes.
+    - A summary with a number or an amount of money is not reliable (all
+      summary kinds). On testnet, the model wrote "pay 40 for two books" for
+      the summary "Pay forty dollars for two books", and the word check
+      refused it. The summary has only letters, and the worker does not turn
+      "$40" into "forty dollars". Write summaries with no numbers, or use a
+      typed kind for an amount.
     - The contract `demo/contracts/voice-multisig` checks each verdict of
       these kinds on chain. `Transfer` and `HideNote` proposals exist. A
       0.6 record of a transfer still reads in 0.7.0.
@@ -384,6 +410,8 @@ Stage times (`ms`, not signed), in ms:
     verdict, so no checker of verdicts accepts a transcript.
   - The speaker check, the energy gate and the used-audio mark are those of
     `verify`. No words refuse with `words`.
+  - The model writes numbers in different ways. In two runs of one sentence
+    it gave "8" and "eight".
   - A transcript is weaker than a verdict. No sentence is expected, so the
     worker makes no word check and no near-miss check. NEAR AI gives the
     text with no signature. Do not let a transcript approve an action with

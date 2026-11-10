@@ -691,3 +691,95 @@ built yet.
 5. Which other speaker models do you want first?
 6. For `detect`: which chat model on NEAR AI?
 7. Does `@seams/voice-verdict` go to npm now, or after the first deploy?
+
+## 6. Verifier 0.8.0 on OutLayer testnet (2026-11-11)
+
+Where this section differs from the sections above, this section is correct.
+
+### 6.1 What is deployed
+
+The owner approved the deploy. Both builds are versions of the project
+`seams-v1.testnet/voice-verifier`. **Neither is active**: version 0.5.2
+stays the active version, so the Wallet staging route did not change. A
+caller selects a build with `version_key`.
+
+| Build | Version key (SHA-256 of the WASM) | Bytes |
+| --- | --- | --- |
+| Default (speaker model on Phala) | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | 458,081 |
+| `local-speaker` (speaker model in the worker) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | 8,266,175 |
+
+Both are from commit `21ad633`, built with `build.sh --docker`. The
+transactions are in `crates/voice-verifier/README.md`, "Versions". The
+speaker model is on FastFS (section 4.4).
+
+### 6.2 What ran, with a synthetic voice
+
+A script enrolled a new application owner and then called each operation,
+for each build. The voice was the macOS speech synthesizer, so this is a
+test of the path and not of a real person.
+
+| Step | Result, both builds |
+| --- | --- |
+| `enroll` of `app:<id>` with no key | Accepted. The three clips agreed (761 to 804) |
+| `select` among three confirmations, "Cancel my order" | Selected index 1. `checkVerdict` passed with the request digest and the audio digest |
+| `verify` with other words | Refused with `words` |
+| `select` with another synthetic voice | Refused with `speaker` (score 116 to 174) |
+| `transcribe` | A signed transcript. `checkTranscript` passed |
+| The TDX quote of the `select` call | `checkAttestationBinding` passed for the version key. `worker.outlayer.testnet` approved the measurements |
+| A template of the default build, used by `local-speaker` | Passed: both builds use one storage cell |
+
+### 6.3 Two faults that the run found
+
+1. **The audio digest.** The SHA-256 of the bytes that the client sent was
+   not the audio digest of the verdict, because the recorder wrote other
+   chunks in the WAV. `@seams/voice-verdict` now has `audioDigest`, which
+   hashes the canonical WAV as the verifier does. Fixed and run again.
+2. **Numbers in a summary.** The summary "Pay forty dollars for two books"
+   was refused with `words`: the speech-to-text model wrote "pay 40 for two
+   books". This holds for every summary kind (`community_note`,
+   `transaction`, `signed_message`, `confirmation`). Not fixed. A fix is a
+   change of the transcript rules in `spoken-intent`, with new vectors. For
+   now the documents say: a summary has no numbers.
+
+### 6.4 The two variants, compared
+
+The owner's rule: if the model in OutLayer is comparable in speed to the
+model on Phala, the project changes to it. The measurement says that it is
+not comparable.
+
+| | Default (Phala) | `local-speaker` |
+| --- | --- | --- |
+| `verify` or `select`, OutLayer time | 1.35 to 1.46 s | 10.6 to 12.5 s |
+| `verify` or `select`, time at the client | 2.6 to 2.9 s | 12 to 15 s |
+| Instructions | 17 to 27 million | 4.4 to 6.5 billion |
+| OutLayer cost of one call | about 1,020 | 5,400 to 7,500 |
+| `enroll` | 3.3 s | 14.9 s |
+
+About 9 s of each `local-speaker` call is the fixed time of OutLayer for a
+WASM of 8 MB. The read of the model from the storage is 1.8 to 1.9 s. The
+model run is 0.3 to 0.7 s. So the size of `tract` in the WASM is the main
+cost, not the model and not the download.
+
+**Recommendation:** keep the default variant (Phala) as the main path. Keep
+`local-speaker` as the option with no Phala dependency, for a developer who
+accepts 12 s for each call.
+
+Ways to make `local-speaker` faster, not tried:
+
+- Ask OutLayer if the 9 s is a compile of the WASM for each call, and if a
+  compile cache exists or can exist. The Gate 0 runner compiles the same
+  component in 0.6 s on a desktop computer, so 9 s is not the compile alone.
+- A smaller inference engine than `tract`, for only the operators of
+  ReDimNet.
+- One SHA-256 in place of the read of 9 records: not possible, the storage
+  is not trusted.
+
+### 6.5 Open after this run
+
+1. One run of each operation is not a distribution. A latency claim needs
+   more runs, at other times of day.
+2. No real voice was used.
+3. The first `local-speaker` run, which downloads the model from FastFS, was
+   not timed: the first runs stopped at the default compute limit.
+4. The summary fault of 6.3.
+5. Slice 3 (the top layer `@seams/speak-to-sign`) is not started.

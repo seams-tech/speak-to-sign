@@ -96,6 +96,7 @@ test('the client sends the input with the payment key in a header', async () => 
       fetch: fakeFetch(({ url, headers, body }) => {
         assert.equal(url, 'https://outlayer.test/call/dev.testnet/voice-verifier');
         assert.equal(headers.get('X-Payment-Key'), 'test-payment-key');
+        assert.equal(headers.get('X-Compute-Limit'), null);
         seen = body;
         return Response.json({ status: 'completed', output });
       }),
@@ -113,12 +114,34 @@ test('the client sends the input with the payment key in a header', async () => 
 
 test('the client gives the attestation URL of the call', async () => {
   const output = { kind: 'seams_voice_enrollment_v3', outcome: 'accept' };
-  const reply = { call_id: 'c-1', status: 'completed', output, attestation_url: '/attestations/by-call/c-1' };
+  const reply = {
+    call_id: 'c-1',
+    status: 'completed',
+    output,
+    attestation_url: '/attestations/by-call/c-1',
+    time_ms: 823,
+    instructions: 24078,
+    compute_cost: '1000',
+  };
   const call = await callVerifierWithAttestation(
-    { ...CONFIG, fetch: fakeFetch(() => Response.json(reply)) },
+    {
+      ...CONFIG,
+      computeLimit: 50_000,
+      fetch: fakeFetch(({ headers }) => {
+        assert.equal(headers.get('X-Compute-Limit'), '50000');
+        return Response.json(reply);
+      }),
+    },
     { op: 'enroll', owner: 'app:u', audio_wav_b64: ['a', 'b', 'c'] },
   );
-  assert.deepEqual(call, { output, callId: 'c-1', attestationUrl: '/attestations/by-call/c-1' });
+  assert.deepEqual(call, {
+    output,
+    callId: 'c-1',
+    attestationUrl: '/attestations/by-call/c-1',
+    timeMs: 823,
+    instructions: 24078,
+    computeCost: '1000',
+  });
 });
 
 test('the client reports a call that gave no verifier output', async () => {

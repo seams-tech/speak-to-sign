@@ -44,10 +44,11 @@ pays for its own runs:
 1. An OutLayer payment key (`https://outlayer.ai`).
 2. A NEAR AI Cloud API key, stored as the OutLayer secret `NEAR_AI_API_KEY`
    in a secrets profile of your account.
-3. A verifier version with the operation `select` and application owners
-   (source version 0.8.0 of `crates/voice-verifier` or later). Build it with
-   `crates/voice-verifier/build.sh --docker` and compare its SHA-256 with
-   the version key that you call.
+3. A verifier version with the operation `select` and application owners:
+   version 0.8.0, `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f`,
+   in the project `seams-v1.testnet/voice-verifier` on testnet. To check it,
+   build it with `crates/voice-verifier/build.sh --docker` and compare the
+   SHA-256.
 
 Your payment key gives you your own storage cell and your own verdict key.
 So you have your own users, and no other developer can enroll a voice for
@@ -71,8 +72,12 @@ that you check.
 
 ## Limits
 
-- This example was run only with the fake verifier. No verifier version with
-  `select` is on OutLayer yet.
+- The same calls and checks ran against verifier 0.8.0 on OutLayer testnet
+  from a script, with a synthetic voice: `enroll`, `select`, the verdict
+  check with the audio digest, and the TDX quote check. The page and this
+  server ran only with the fake verifier.
+- The sentences have no numbers. The speech-to-text model writes "forty
+  dollars" as "40", and the word check then refuses the sentence.
 - The microphone path of the page was not run in a test. `record.js` has no
   speech detection and no quality check: the verifier refuses bad audio with
   the reason `quality`, and that recording is then used up.

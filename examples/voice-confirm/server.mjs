@@ -23,7 +23,7 @@ const MAX_BODY_BYTES = 1_200_000;
 
 /** The actions that a user can confirm now. In a real application they come from the session. */
 const ACTIONS = [
-  { id: 'pay', context: 'shop.example/order', summary: 'Pay forty dollars for two books', order: { id: 1001, total_cents: 4000 } },
+  { id: 'pay', context: 'shop.example/order', summary: 'Pay for my order', order: { id: 1001, total_cents: 4000 } },
   { id: 'cancel', context: 'shop.example/order', summary: 'Cancel my order', order: { id: 1001, cancel: true } },
   { id: 'address', context: 'shop.example/address', summary: 'Deliver it to my office', order: { id: 1001, address: 'office' } },
 ];

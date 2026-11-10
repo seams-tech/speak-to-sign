@@ -2134,11 +2134,9 @@ h1.ss-display {
 .ss-hero-inner {
   max-width: var(--col);
   margin: 0 auto;
-  padding: 56px 24px 84px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 56px;
-  align-items: center;
+  /* The hero is the title, one sentence and the setup steps. The live app under it shows what
+     a voice signature does, so the hero has no example of its own. */
+  padding: 76px 24px 124px;
   transform-origin: 50% 20%;
   transform: translateY(calc(var(--cover) * -14px)) scale(calc(1 - var(--cover) * 0.07));
   filter: blur(calc(var(--cover) * 7px));
@@ -2148,7 +2146,7 @@ h1.ss-display {
 
 .ss-hero-text {
   display: grid;
-  gap: 14px;
+  gap: 20px;
 }
 
 .ss-hero-title {
@@ -2163,180 +2161,6 @@ h1.ss-display {
   font-size: 17px;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.92);
-}
-
-/* The card on the hero: the notes app's own "Write a Community Note" dialog (the .dialog classes
-   of src/styles.css), as it goes through one voice signature. data-step says where it is. The
-   card has the app's own colours and type, not the page's, and it keeps one size through
-   every step. */
-.ss-wn {
-  /* The notes app's theme (src/styles.css): .ss-page gives these names other values. */
-  --ink: #0f1419;
-  --muted: #536471;
-  --line: #eff3f4;
-  --line-strong: #cfd9de;
-  --accent: #1d9bf0;
-  --accent-ink: #1a8cd8;
-  --accent-bg: #e8f5fd;
-  --panel: #f7f9f9;
-  --green: #00ba7c;
-  justify-self: end;
-  width: 440px;
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.35;
-  text-align: left;
-  box-shadow:
-    0 36px 70px -30px rgba(6, 24, 38, 0.6),
-    0 8px 20px -10px rgba(6, 24, 38, 0.3);
-  /* Nothing in the card takes a click: the real dialog opens from a post. */
-  pointer-events: none;
-  user-select: none;
-}
-
-/* On a phone the app's dialog fills the screen. The card on the hero stays a card. */
-.ss-wn.dialog {
-  min-height: 0;
-  max-height: none;
-  border-radius: 28px;
-}
-
-.ss-wn-inner {
-  display: flex;
-  flex-direction: column;
-}
-
-.ss-wn .dialog-head h2 {
-  margin: 0;
-  font-size: 19px;
-}
-
-.ss-wn .dialog-body {
-  overflow: hidden;
-}
-
-/* The two fields are boxes, not inputs. Each has the height of its longest text, so the card
-   does not grow while a text types itself in. */
-/* Whole lines only: 3 lines of 20px for the note, 2 lines of 23px for the sentence. */
-.ss-wn-lines {
-  display: block;
-  height: 100%;
-  overflow: hidden;
-}
-
-.ss-wn-note {
-  height: 82px;
-  resize: none;
-}
-
-.ss-wn-say {
-  height: 68px;
-  line-height: 23px;
-  resize: none;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-
-.ss-wn-note {
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-
-.ss-wn-caret {
-  display: inline-block;
-  width: 1.5px;
-  height: 1.1em;
-  margin-left: 1px;
-  vertical-align: -0.18em;
-  background: var(--accent-ink);
-  animation: ss-blink 0.9s steps(1) infinite;
-}
-
-/* The foot is the voice button. It turns black for a moment when it is "pressed". */
-.ss-wn-foot {
-  transition:
-    background-color 0.18s,
-    color 0.18s;
-}
-
-.ss-wn-foot .speak-wait {
-  min-height: 44px;
-}
-
-.ss-wn[data-step='press'] .ss-wn-foot {
-  background: var(--ink);
-  color: #ffffff;
-}
-
-.ss-wn[data-step='press'] .ss-wn-foot .mic {
-  background: #ffffff;
-  color: var(--ink);
-}
-
-.ss-wn[data-step='press'] .ss-wn-foot .muted {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.ss-wn-mic-off {
-  opacity: 0.4;
-}
-
-.ss-wn .ss-wn-mic-done {
-  background: var(--green);
-}
-
-.ss-wn-title {
-  animation: ss-wn-in 0.25s ease-out;
-}
-
-/* It starts visible enough to read, in case the browser holds the animation. */
-@keyframes ss-wn-in {
-  from {
-    opacity: 0.35;
-    transform: translateY(3px);
-  }
-}
-
-.ss-wn-hint {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Sound bars at the end of the foot, while the wallet listens. */
-.ss-wn-wave {
-  flex: none;
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 22px;
-}
-
-.ss-wn-wave i {
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  animation: ss-wn-wave 0.7s ease-in-out infinite alternate;
-}
-
-@keyframes ss-wn-wave {
-  from {
-    transform: scaleY(0.35);
-  }
-  to {
-    transform: scaleY(1);
-  }
-}
-
-.ss-wn .spinner {
-  flex: none;
-  margin-left: auto;
 }
 
 /* The sheet: the notes app, as a part of the page. The page is the one scroll area: one
@@ -2531,22 +2355,12 @@ h1.ss-display {
       linear-gradient(160deg, #067aa5 0%, #1c84ad 55%, #5e8fad 85%, #a6a0bd 100%);
   }
   .ss-hero-inner {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-    padding: 28px 16px 56px;
+    padding: 36px 16px 64px;
   }
   .ss-hero-sub {
     font-size: 15px;
   }
-  /* One column: the card is as wide as the text, and shorter, so the feed still shows under
-     the hero: the note box has two lines. */
-  .ss-wn {
-    justify-self: stretch;
-    width: auto;
-  }
-  .ss-wn-note {
-    height: 62px;
-  }
+
   .ss-spa {
     --sheet-r: 22px;
   }
@@ -2614,9 +2428,5 @@ h1.ss-display {
   .ss-nav-setup .step {
     animation: none;
   }
-  .ss-wn-title,
-  .ss-wn-caret,
-  .ss-wn-wave i {
-    animation: none;
-  }
+
 }

@@ -25,7 +25,6 @@ import { grainFieldSource } from './grain/fields';
 import { fieldScrim, useHeroField } from './heroField';
 import { LiveApps, LiveSlot } from './live';
 import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
-import { SignatureCard } from './SignatureCard';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
 const NEAR_URL = 'https://near.org';
@@ -150,7 +149,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
                 what you did not say.
               </p>
             </div>
-            <SignatureCard />
           </div>
           {/* The multisig page sends a visitor here (#setup) to set up the voice and get testnet NEAR. */}
           <div className="ss-setup-strip" id="setup">

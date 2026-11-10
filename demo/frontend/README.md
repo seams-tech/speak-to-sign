@@ -452,10 +452,7 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   black button. A done step is a green check, and a later step is glass.
   A screen narrower than 1200 pixels shows only the next step.
 - **The hero**, about voice signatures, on a moving grain field of the Seams
-  site: the title, one sentence, the signature card (`SignatureCard.tsx`: the
-  app's own "Write a Community Note" dialog, with its own classes, as the
-  note and the sentence type in, the voice button is pressed, and the note is
-  signed, as a loop) and the setup
+  site: the title, one sentence, and the setup
   steps as one strip (`#setup`). The field is the `GrainField` of
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
@@ -467,7 +464,7 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   (`localStorage`), and `?field=<name>` picks one for a link. A light field gets a soft dark shade
   on the left (`--field-scrim`), so the white text stays readable. NEAR's N
   mark (`nearMarks.tsx`, as on tatchi.xyz) lies big and faint over the field
-  at the right, turned 30 degrees, behind the signature card.
+  at the right, turned 30 degrees, behind the hero's text.
 - **The sheet**, with the notes app in the page itself, not in a window. The
   app's layout is white, and the empty space at its sides has light grey
   diagonal stripes.

@@ -1,5 +1,5 @@
-// The theme of the Community Notes page: light, or one of two dark ones as on X. Each theme has
-// one of the Seams site's grain fields (./grain) for the hero, and colours for the notes app.
+// The theme of the Community Notes page: light, or dark as on X. Each theme has one of the Seams
+// site's grain fields (./grain) for the hero, and colours for the notes app.
 // The nav has a picker for the themes (ThemePicker). The choice is a per-visitor convenience: it
 // stays in this browser's localStorage, and `?theme=<name>` in the address picks one for a shared
 // link. The page puts the theme on the root element as `data-theme`, so the notes app's dialogs,
@@ -8,11 +8,10 @@
 import { useSyncExternalStore } from 'react';
 import { grainFieldSource, type GrainFieldName } from './grain/fields';
 
-/** The themes, in the picker's order. "Dark mode" is X's dark blue (Dim), and "Onyx Black" is X's black (Lights out). */
+/** The themes, in the picker's order. "Dark mode" is the dark blue of Twitter's dark mode (X's Dim). */
 export const THEMES = {
   light: { label: 'Light mode', field: 'apricot-beam' },
   dark: { label: 'Dark mode', field: 'aqua-evergreen' },
-  onyx: { label: 'Onyx Black', field: 'onyx-black' },
 } as const satisfies Record<string, { label: string; field: GrainFieldName }>;
 
 export type ThemeName = keyof typeof THEMES;

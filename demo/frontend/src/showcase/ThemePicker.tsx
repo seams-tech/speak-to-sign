@@ -1,5 +1,5 @@
 // The theme picker, in the nav's brand pill: a small round button with a picture of the hero's
-// grain field, which opens a menu of the page's three themes, each with a picture of its field.
+// grain field, which opens a menu of the page's themes, each with a picture of its field.
 // The menu is a listbox: the arrow keys move through it and change the theme at once, Enter or
 // Escape closes it, and a click outside closes it too.
 

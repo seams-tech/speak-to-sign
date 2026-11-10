@@ -1,7 +1,7 @@
-/* Three gradients of the Seams site, as data: named fields of
+/* Two gradients of the Seams site, as data: named fields of
    packages/grain-field-ts in seams-monorepo (commit 3407f157), without the
-   generator of custom fields. The site keeps Apricot Beam, Aqua Evergreen and
-   Onyx Black, in that order. Every field is a 12 x 12 grid of RGB colours,
+   generator of custom fields: Apricot Beam (Light mode) and Aqua Evergreen
+   (Dark mode). Every field is a 12 x 12 grid of RGB colours,
    the cubic B-spline control points of a fitted photograph, in base64 with
    rows top to bottom. The shader (renderer.ts) smooths it, flows it and
    covers it with grain, so no gradient costs an image download. */
@@ -24,8 +24,6 @@ const PHOTO_FIELDS = {
     'EkuIE1aQElWREE+LD0qHEEmIEkuMFU6QFlGMFE1xEj9YDjJGDEmHCkqHC0eECUqECUl/C0iBCUZ9BUZ/A0RxDDNAHhghFxYgCUyJB0aDCEWCC0qHDEqHB0iECEl/DkmJEURvESYvGxEUEA4LCk2LC0uKCkuJB0yJCEqHEEmJEEaHAEiHClF9QT47ijk1WzcvCFGPCFCPCU+ODE6NDUqKAU6KB2SNV4qVvamR7rJ6/5FXmEA7BVaUB1ORCVORBE6NAFuROIKZyauX/8KV/8eM8qNvsklAJig1AFyVAVeTAFWSAGGWUImc8bST/8iT+saM8rl/z2JEWiw2HicyAFyZAFyXAGCWP4Wg6aua+8SR88OM9L6F631ThDk9Ny4yGCY2AGOYAGSaGXuhxp2g97OR7sCK97F34nRQfDI4JSs2IBMaByExAGacDHKeh5Oj66mZ9LeL9qdzzmdSZzA5HCQvFxghCAUTCCs+AGuiPYKh0aCf6KSN6ad93n9Vgjg7IiszHBUdCwsaCA8cCzdKAHingJak5qea756C2IRjpVI+UCQsGxooEQ8fBxAgCR8vCjlN',
   'aqua-evergreen':
     'KWVfQH+JVpWnXZmwa6C4baG5eaa7e6m4f666bp6vW5CjJVdubaaZgr23hr7ClMbUnMfaosbarMrbt87ewNXdss3bl8PTVJSyhbmcncnCn83HpMzZpc3drc3ivNfkxtbjxtngvtPcpcXWaqS9nsivtdjDtNfQsdnYrtPfrtDlwtro1OLp0N/sxtnkstLfe67Jqc6wx9/MxOHOutvXp9HTnM7Yqs3bvtjjzeDkwNXfrMrabqnGocmzyeDMx+DNwN/NptPJiMHBhL+/kcDDmMXGk8HCf7jCS46qkcGus9jDwN7NutvIoM+8gbyqZ6ylYqaYYKGOVZuLPo2BJ250a6udoMy/qdDAqtXAl8atarSlUJ2OR5KBNH1jMHFQIFlDD0dBVZWSgr2tj8Syl8eugbykVaGVPJOPK31vI2tRG1RBFko7CTAqKWJraqufda6fdrCYXZ2IO46CJHF1HWhnElJJEko+CzcxCC8oE0FWPoJ7SJJ+RIZzOXlmJmleHmJhFFNWEUlLCzg6CzIyCSkpBx0uDTNDF0ZIE0I4F0E1EjQsEjEzCzA0CjA5CC8xBB8lBiEd',
-  'onyx-black':
-    'CAgJCAgJCAgJCAgJCAgJCgoLEBARHBweMDA0T1BVdnd+mJqjCAgJCAgJCAgJCQkKDQ0PFRUXHR0fIyMmMTI1UlJXg4SLtLa/CAgJCAgJCgoLDw8RFBQWFRUWGBgaLi4xWVleh4iPpKWtpqiwCAgJCgoLDg4PDw8QDw8QHBweRkZKdHV7gIGIcHB2W1tgT1BVCQkKCwsMCwsMDg4PJicpXl5jeXqAYGFmQEFFMTE1NTU5Q0NICQkKCgoLDw8RMTE0a2xxamtwQkJGKiotJSUoMTI1Ojo+MDAzCQkKEBASNzg7bm91WFleMDA0ISEkJCQnMjI1MDAzICAjExMVEBASOTk9a2txSktPJycqHR0fJSUnLy8yJSUoFhYYDw8QDQ0ONTY4X2BlPj9CIiIkGhocJSUoKiosHBweEBASDg4PDg4QDw8QTk5SMjI1HR0fFxcaJCQmJCQmFRUWDQ0PDQ0ODw8QERESEhITJiYoFxcZFBQWICAiHh4gEBARCwsMDAwNDg4PERESExMVFBQWExMUERESGxsdGBgaDQ0OCgoLCgoMDAwODw8QEhITFBQWFhYY',
 } as const;
 
 export type GrainFieldName = keyof typeof PHOTO_FIELDS;

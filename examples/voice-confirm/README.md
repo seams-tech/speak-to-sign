@@ -4,7 +4,9 @@ A small web page and a small server. A user enrolls a voice, then confirms
 one of three actions of an order by voice. No wallet, no chain, no account
 of the user on NEAR.
 
-- `index.html` records the voice with `@seams/voice-verdict/capture`.
+- `index.html` records the voice with `record.js`, a plain recorder of this
+  example. The capture library of this repository is `@seams/voice-capture`.
+  It is not on this branch yet; the page will use it after the merge.
 - `server.mjs` holds the OutLayer payment key. It calls the Speak-to-Sign
   verifier and checks each signed verdict with `@seams/voice-verdict`. It
   has no dependency.
@@ -71,7 +73,9 @@ that you check.
 
 - This example was run only with the fake verifier. No verifier version with
   `select` is on OutLayer yet.
-- The microphone path of the page was not run in a test.
+- The microphone path of the page was not run in a test. `record.js` has no
+  speech detection and no quality check: the verifier refuses bad audio with
+  the reason `quality`, and that recording is then used up.
 - The page has no login. A real application takes the user id from its
   session, not from a text field.
 - The voice proves that the enrolled person said the sentence. It does not

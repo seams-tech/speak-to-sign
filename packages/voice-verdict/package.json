@@ -15,10 +15,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./capture": {
-      "types": "./dist/capture.d.ts",
-      "import": "./dist/capture.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [

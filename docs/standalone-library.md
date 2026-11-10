@@ -475,7 +475,6 @@ pushed, published or deployed.
 | Variant `local-speaker` (ReDimNet in the worker) | `crates/voice-verifier/src/local_model.rs`, `build.sh --local-speaker` | Fake host, and the real model in a native run |
 | One constant for the speaker model | `config::SPEAKER_MODEL` | Existing tests |
 | Request builder, verifier client, transcript check | `packages/voice-verdict/src/request.ts`, `client.ts`, `verdict.ts` | Golden vectors, fake OutLayer |
-| Browser capture, WAV and energy gate | `packages/voice-verdict/src/capture.ts` | WAV and gate only |
 | TDX quote of a call | `packages/voice-verdict/src/attestation.ts` | A real testnet attestation |
 | Web2 example with no wallet | `examples/voice-confirm` | Run with its fake verifier |
 
@@ -605,7 +604,7 @@ built before decision 3. The plan:
 | `confirmationRequest` (request and digest) | Stays. The checker needs the digest |
 | `checkAttestationBinding`, `measurementsApproved`, `fetchAttestation` | Stay. They check a proof |
 | `callVerifier` (`src/client.ts`) | Moves to the top layer |
-| `src/capture.ts` and the export `./capture` | **Removed.** It is a second capture module. `voice-capture` replaces it |
+| `src/capture.ts` and the export `./capture` | **Removed** (done). It was a second capture module. `voice-capture` replaces it |
 
 `voice-verdict` then has no network call except the two optional fetches of
 the attestation, and no browser API. It keeps zero dependencies.
@@ -648,8 +647,10 @@ deploy of version 0.8.0.
 1. **Merge order (no build).** `voice-capture` and this branch both start
    at `bf04e00` and add separate folders. `voice-capture` goes to `dev`
    first. This branch then takes `dev`.
-2. **Clean `voice-verdict`.** Remove `src/capture.ts`, its tests and the
-   export `./capture`. Move `src/client.ts` out with the top layer.
+2. **Clean `voice-verdict`.** Done: `src/capture.ts`, its tests and the
+   export `./capture` are removed. `examples/voice-confirm` has a plain
+   recorder of its own (`record.js`) until slice 5. `src/client.ts` moves
+   out with the top layer in slice 3.
 3. **The top layer.** Two entry points with no `@seams/wallet`:
    - server: `enroll`, `confirm`, `select`, `transcribe`. Each one calls the
      verifier and returns a checked result, not a raw output;

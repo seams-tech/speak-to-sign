@@ -90,7 +90,7 @@
     </main>
 
     <script type="module">
-      import { recordClip, toBase64 } from './capture.js';
+      import { startRecording } from './record.js';
 
       const $ = (id) => document.getElementById(id);
       const say = (id, text, kind = '') => {
@@ -111,13 +111,13 @@
         $('fake-said').replaceChildren(...options.map(([value, text]) => Object.assign(document.createElement('option'), { value, textContent: text })));
       }
 
-      /** One button that starts a recording, then stops it. `done` gets the clip. */
+      /** One button that starts a recording, then stops it. `done` gets the WAV as base64. */
       function recorder(button, idleLabel, status, done) {
         let recording = null;
         button.addEventListener('click', async () => {
           try {
             if (recording === null) {
-              recording = await recordClip();
+              recording = await startRecording();
               button.textContent = 'Stop';
               say(status, 'Recording. Say the sentence, then select Stop.');
               return;
@@ -125,12 +125,7 @@
             const current = recording;
             recording = null;
             button.disabled = true;
-            const clip = await current.stop();
-            if (!clip.gate.passes) {
-              say(status, 'The recording is too quiet or too short. Record it again.', 'bad');
-            } else {
-              await done(clip);
-            }
+            await done(await current.stop());
           } catch (cause) {
             recording = null;
             say(status, cause?.name === 'NotAllowedError' ? 'Allow the microphone for this page, then record again.' : 'The recording failed. Record it again.', 'bad');
@@ -144,8 +139,8 @@
       }
 
       const clips = [];
-      recorder($('enroll-record'), () => `Record clip ${clips.length + 1} of 3`, 'enroll-status', async (clip) => {
-        clips.push(toBase64(clip.wav));
+      recorder($('enroll-record'), () => `Record clip ${clips.length + 1} of 3`, 'enroll-status', async (wav) => {
+        clips.push(wav);
         if (clips.length < 3) return say('enroll-status', `Clip ${clips.length} of 3 is ready.`);
         say('enroll-status', 'The verifier makes your voice template.');
         const result = await post('/api/enroll', { user: $('user').value, clips: clips.splice(0) });
@@ -153,9 +148,9 @@
         else say('enroll-status', `The enrollment did not pass (${result.reason ?? result.error}). Record three new clips.`, 'bad');
       });
 
-      recorder($('confirm-record'), () => 'Record', 'confirm-status', async (clip) => {
+      recorder($('confirm-record'), () => 'Record', 'confirm-status', async (wav) => {
         say('confirm-status', 'The verifier checks your voice and your words.');
-        const body = { user: $('user').value, audio: toBase64(clip.wav) };
+        const body = { user: $('user').value, audio: wav };
         if (fake) body.fakeSaid = Number($('fake-said').value);
         const result = await post('/api/confirm', body);
         if (result.confirmed) say('confirm-status', `Confirmed: "${result.summary}".`, 'good');

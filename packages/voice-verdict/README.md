@@ -9,10 +9,9 @@ in a Cloudflare Worker.
 | Verdict check | `checkVerdict` | Checks a signed verdict against the key that you pin |
 | Request | `confirmationRequest` | Builds a request for any payload, and its digest |
 | Client | `callVerifier` | Calls the verifier (an OutLayer worker) from your server |
-| Capture | `@seams/voice-verdict/capture` | Records a 16 kHz WAV in a browser, with the energy gate of the verifier |
 | TDX quote | `checkAttestationBinding` | Checks that a TDX quote of OutLayer binds the verifier output to a WASM hash |
 
-A complete application with all four parts is in
+A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).
 
 A verdict is the answer of the Speak-to-Sign verifier to one question: did
@@ -168,20 +167,12 @@ it made no word check. A wrong word of the model is a wrong word of the
 text. Use a transcript for a search, a note or a command with no value. For
 an action with value, show the sentence and use `verify` or `select`.
 
-## Audio in a browser
+## Audio
 
-```ts
-import { recordClip, toBase64 } from '@seams/voice-verdict/capture';
-
-const recording = await recordClip(); // asks for the microphone
-// ... the user says the sentence ...
-const clip = await recording.stop(); // 16 kHz mono, at most 8 s
-if (clip.gate.passes) send(toBase64(clip.wav));
-```
-
-`clip.gate` is the energy gate of the verifier. Run it before the upload:
-the verifier marks a recording as used even if it then refuses it.
-`encodeWav`, `energyGate`, `toPcm16` and `audioDigest` run in any runtime.
+This package records no audio. Record the sentence with
+`@seams/voice-capture` (`recordVoice`, then `pcm16Wav`), and send the WAV to
+your server as standard base64. The verifier takes a 16 kHz mono PCM16 WAV of
+at most 8 s.
 
 ## The TDX quote of a call (optional)
 

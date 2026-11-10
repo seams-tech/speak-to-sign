@@ -194,7 +194,7 @@ async function readJson(request) {
 
 const STATIC = {
   '/': ['index.html', 'text/html; charset=utf-8'],
-  '/capture.js': ['../../packages/voice-verdict/dist/capture.js', 'text/javascript; charset=utf-8'],
+  '/record.js': ['record.js', 'text/javascript; charset=utf-8'],
 };
 
 const server = createServer(async (request, response) => {

@@ -1,4 +1,4 @@
-// A concept screen drawn in the style of the real app (a multisig wallet's transaction queue on
+// A concept screen drawn in the style of the real app (the transactions of a multisig wallet on
 // NEAR), with neutral logo slots. It fills a fixed screen that ScaledScreen shrinks, and sits
 // inside a DrawnFrame so it reads as an example.
 
@@ -19,8 +19,9 @@ import {
 import { WalletVoiceCard } from './frame';
 
 /**
- * A transaction queue in the style of a multisig wallet app, on NEAR testnet. A visitor proposes
- * a transfer by voice, and two admin signers approve it by key. The live screen is
+ * The transactions of a multisig wallet app, on NEAR testnet. A visitor proposes a transfer by
+ * voice, and two admin signers approve it by key. Like the live screen, the drawing shows the
+ * admins as signers, with no words about keys. The live screen is
  * src/multisig/LiveMultisigScreen.tsx; this drawing stands in for it without a Seams key.
  */
 export function MultisigScreen() {
@@ -56,7 +57,7 @@ export function MultisigScreen() {
           <div>
             <b>Team multisig</b>
             <span>
-              team.seams-v1.testnet <IconCopy size={12} stroke={1.8} />
+              multisig.seams-v1.testnet <IconCopy size={12} stroke={1.8} />
             </span>
           </div>
         </div>
@@ -73,7 +74,7 @@ export function MultisigScreen() {
             <IconListDetails size={20} stroke={1.6} /> Transactions <i className="sf-count">1</i>
           </span>
           <span>
-            <IconAddressBook size={20} stroke={1.6} /> Admins
+            <IconAddressBook size={20} stroke={1.6} /> Signers
           </span>
           <span>
             <IconSettings size={20} stroke={1.6} /> Settings
@@ -83,11 +84,9 @@ export function MultisigScreen() {
       <main className="sf-main">
         <h1>Transactions</h1>
         <div className="sf-tabs">
-          <span className="sf-tab-on">Queue</span>
-          <span>History</span>
           <span>New proposal</span>
+          <span className="sf-tab-on">History</span>
         </div>
-        <p className="sf-label">Next proposal</p>
         <div className="sf-tx">
           <div className="sf-txrow">
             <span className="sf-nonce">7</span>
@@ -99,7 +98,7 @@ export function MultisigScreen() {
             </span>
             <span className="sf-time">2:15 PM</span>
             <span className="sf-confs">
-              <IconUserCircle size={16} stroke={1.8} /> 1 of 2
+              <IconUserCircle size={16} stroke={1.8} /> 1 of 2 signers
             </span>
             <span className="sf-status">Needs approvals</span>
           </div>
@@ -123,23 +122,18 @@ export function MultisigScreen() {
                 <span className="sf-stepdot">
                   <IconCheck size={12} stroke={3} />
                 </span>
-                Your voice approval
+                Your approval
+              </p>
+              <p className="sf-step sf-step-done">
+                <span className="sf-stepdot">
+                  <IconCheck size={12} stroke={3} />
+                </span>
+                Admin A <span className="sf-muted">admin-a.seams-v1.testnet</span>
               </p>
               <p className="sf-step">
                 <span className="sf-stepdot sf-stepdot-wait" />
-                Admin approvals <span className="sf-muted">(1 of 2)</span>
+                Admin B <span className="sf-muted">admin-b.seams-v1.testnet</span>
               </p>
-              <p className="sf-owner">
-                <span className="sf-identicon sf-identicon-a sf-identicon-xs" /> admin-a.seams-v1.testnet
-              </p>
-              <p className="sf-owner sf-owner-wait">
-                <span className="sf-identicon sf-identicon-b sf-identicon-xs" /> admin-b.seams-v1.testnet
-              </p>
-              <p className="sf-step">
-                <span className="sf-stepdot sf-stepdot-wait" />
-                Admin B sends the NEAR
-              </p>
-              <p className="sf-muted">The two admin signers approve automatically in this demo.</p>
             </div>
           </div>
         </div>

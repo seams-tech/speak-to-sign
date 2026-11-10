@@ -1,16 +1,14 @@
 // The views of the voice multisig contract (demo/contracts/voice-multisig), read with checks.
 // Each reader gives null for a value of another shape (for example the config of an older
-// contract), so a wrong answer becomes an error message and not a crash. The page and the
-// approve route (functions/api/multisig/approve.ts) use the same readers.
+// contract, with a cap or with members), so a wrong answer becomes an error message and not a
+// crash. The page and the approve route (functions/api/multisig/approve.ts) use the same readers.
 
-import { isDecimalText, isObject, isStringList } from '../guards.ts';
+import { hasExactKeys, isDecimalText, isObject, isStringList } from '../guards.ts';
 
 export interface MultisigConfig {
   /** The key signers. All of them approve a proposal before it can execute. */
   admins: string[];
   verifier_public_key: string;
-  /** The most for one proposal, in yoctoNEAR. */
-  max_amount_yocto: string;
 }
 
 export interface Proposal {
@@ -31,17 +29,18 @@ export interface Proposal {
 export const UNEXPECTED_VIEW = 'The multisig contract answered in an unexpected form.';
 
 const HEX_32 = /^[0-9a-f]{64}$/;
+const CONFIG_KEYS = ['admins', 'verifier_public_key'];
 
 function isProposalId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1;
 }
 
-/** `get_config`: `{ admins, verifier_public_key, max_amount_yocto }`, or null. */
+/** `get_config`: exactly `{ admins, verifier_public_key }`, or null. */
 export function readMultisigConfig(value: unknown): MultisigConfig | null {
-  if (!isObject(value) || !isStringList(value.admins) || value.admins.length === 0) return null;
-  const { verifier_public_key, max_amount_yocto } = value;
-  if (typeof verifier_public_key !== 'string' || !isDecimalText(max_amount_yocto)) return null;
-  return { admins: [...value.admins], verifier_public_key, max_amount_yocto };
+  if (!isObject(value) || !hasExactKeys(value, CONFIG_KEYS)) return null;
+  const { admins, verifier_public_key } = value;
+  if (!isStringList(admins) || admins.length === 0 || typeof verifier_public_key !== 'string') return null;
+  return { admins: [...admins], verifier_public_key };
 }
 
 /** One `ProposalView`, or null. */

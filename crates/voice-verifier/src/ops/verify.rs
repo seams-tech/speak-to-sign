@@ -89,7 +89,7 @@ fn verify_steps(
     if !recalled {
         verdict.spoken_text_digest = Some(text_digest.clone());
     }
-    let contacts = known_accounts(&input.contacts, &request)?;
+    let contacts = known_accounts(&input.contacts, &request, recalled)?;
 
     // 2. The audio.
     let clip = decode_clip(&input.audio_wav_b64)?;

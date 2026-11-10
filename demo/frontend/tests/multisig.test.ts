@@ -139,13 +139,17 @@ test('the approve answer: a receipt, an earlier execute, or the error of a step'
   assert.equal(readApproveAnswer(200, { proposal: { id: 7 }, executeTransactionHash: 'H', executed: true }).kind, 'done');
 });
 
-test('the views are read with checks: the old contract shape gives null, not a throw', () => {
-  const config = { admins: ['admin-a.seams-v1.testnet', 'admin-b.seams-v1.testnet'], verifier_public_key: 'ed25519:E8E5', max_amount_yocto: '50000000000000000000000' };
+test('the views are read with checks: an old contract shape gives null, not a throw', () => {
+  const config = { admins: ['admin-a.seams-v1.testnet', 'admin-b.seams-v1.testnet'], verifier_public_key: 'ed25519:E8E5' };
   assert.deepEqual(readMultisigConfig(config), config);
-  const old = { members: ['alice.testnet', 'bob.testnet', 'carol.testnet'], threshold: 2, verifier_public_key: 'ed25519:E8E5' };
-  assert.doesNotThrow(() => readMultisigConfig(old));
-  assert.equal(readMultisigConfig(old), null);
-  for (const bad of [null, [], 'x', { ...config, admins: [] }, { ...config, admins: [1] }, { ...config, max_amount_yocto: 5 }, { ...config, max_amount_yocto: '05' }]) {
+  // The first deploy had a cap; the design before it had members and a threshold.
+  const withCap = { ...config, max_amount_yocto: '50000000000000000000000' };
+  const withMembers = { members: ['alice.testnet', 'bob.testnet', 'carol.testnet'], threshold: 2, verifier_public_key: 'ed25519:E8E5' };
+  for (const old of [withCap, withMembers]) {
+    assert.doesNotThrow(() => readMultisigConfig(old));
+    assert.equal(readMultisigConfig(old), null, JSON.stringify(old));
+  }
+  for (const bad of [null, [], 'x', { ...config, admins: [] }, { ...config, admins: [1] }, { ...config, verifier_public_key: 1 }, { admins: config.admins }]) {
     assert.equal(readMultisigConfig(bad), null, JSON.stringify(bad));
   }
 

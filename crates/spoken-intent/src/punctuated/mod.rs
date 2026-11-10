@@ -12,6 +12,7 @@ mod text_step;
 
 use alloc::vec::Vec;
 
+use crate::numbers::is_number_word;
 use crate::token::SpokenToken;
 use crate::{normalize, SpokenAccount};
 
@@ -98,26 +99,64 @@ pub enum PunctuatedRefusal {
 /// tokens become the transfer to that contact. If not, a sentence with no
 /// "to" keeps its tokens.
 ///
+/// Approved transfer: in "approve proposal <number> send …", the send part
+/// gets the slot rules and the recipient step, as a send sentence does. If
+/// the recipient step refuses, the send part keeps its words after the slot
+/// rules, so an exact transcript still matches without contacts. So the
+/// caller adds the receiver to `contacts` only when the speaker saw it: the
+/// recipient step writes the contact's words, and a refusal shows them.
+///
 /// `contacts` must hold no two confusable keys; the caller checks this.
-/// Other sentences (a multisig approval) have no slot rules and no recipient
-/// step. [`crate::parse_transfer`] with the same `contacts` then reads a
-/// transfer.
+/// Other sentences (a note, a rating, a merge, any other multisig approval)
+/// have no slot rules and no recipient step. [`crate::parse_transfer`] with
+/// the same `contacts` then reads a transfer.
 pub fn normalize_punctuated(
     transcript: &str,
     contacts: &[SpokenAccount],
 ) -> Result<Vec<SpokenToken>, PunctuatedRefusal> {
     let cleaned = clean_punctuated(transcript);
     let mut tokens = normalize(&cleaned).ok_or(PunctuatedRefusal::NotNormalizable)?;
-    if !tokens
-        .first()
-        .is_some_and(|token| SEND_FORMS.contains(&token.as_str()))
-    {
-        return Ok(tokens);
+    if is_send_form(tokens.first()) {
+        send_slots(&mut tokens);
+        return match_recipient(tokens, contacts);
     }
+    let Some(start) = approved_transfer_start(&tokens) else {
+        return Ok(tokens);
+    };
+    let mut send = tokens.split_off(start);
+    send_slots(&mut send);
+    let send = match match_recipient(send.clone(), contacts) {
+        Ok(read) => read,
+        Err(_) => send,
+    };
+    tokens.extend(send);
+    Ok(tokens)
+}
+
+fn is_send_form(token: Option<&SpokenToken>) -> bool {
+    token.is_some_and(|token| SEND_FORMS.contains(&token.as_str()))
+}
+
+/// The verb "send" and the amount and unit slot rules. `tokens` starts with
+/// a word of [`SEND_FORMS`].
+fn send_slots(tokens: &mut Vec<SpokenToken>) {
     tokens[0] = SpokenToken::from_static("send");
-    two_heard_as_to(&mut tokens);
-    unit_slot(&mut tokens);
-    match_recipient(tokens, contacts)
+    two_heard_as_to(tokens);
+    unit_slot(tokens);
+}
+
+/// The index of the verb in "approve proposal <number words> send …".
+fn approved_transfer_start(tokens: &[SpokenToken]) -> Option<usize> {
+    let word = |index: usize| tokens.get(index).map(SpokenToken::as_str);
+    if word(0) != Some("approve") || word(1) != Some("proposal") {
+        return None;
+    }
+    let number_words = tokens[2..]
+        .iter()
+        .take_while(|token| is_number_word(token.as_str()))
+        .count();
+    let start = 2 + number_words;
+    (number_words > 0 && is_send_form(tokens.get(start))).then_some(start)
 }
 
 #[cfg(test)]

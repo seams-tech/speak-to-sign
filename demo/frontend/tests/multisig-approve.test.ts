@@ -19,10 +19,11 @@ const ADMIN_A = 'admin-a.seams-v1.testnet';
 const ADMIN_B = 'admin-b.seams-v1.testnet';
 const SALT = 'ab'.repeat(32);
 const CENT = '10000000000000000000000';
-const CAP = '50000000000000000000000';
+/** 1,000,000 NEAR, the most that the grammar can say. */
+const GRAMMAR_MAX = '1000000000000000000000000000000';
 
 const SETTINGS: Settings = {
-  contract: 'team.seams-v1.testnet',
+  contract: 'multisig.seams-v1.testnet',
   rpcUrl: 'https://rpc.invalid',
   adminA: { account: ADMIN_A, key: 'ed25519:a' },
   adminB: { account: ADMIN_B, key: 'ed25519:b' },
@@ -53,7 +54,7 @@ function fakeChain(options: FakeOptions = {}) {
     async view(method) {
       if (method === 'get_proposal') return current && { ...current, approvals: [...current.approvals] };
       if (method === 'get_config') {
-        return options.config ?? { admins: options.admins ?? [ADMIN_A, ADMIN_B], verifier_public_key: 'ed25519:x', max_amount_yocto: CAP };
+        return options.config ?? { admins: options.admins ?? [ADMIN_A, ADMIN_B], verifier_public_key: 'ed25519:x' };
       }
       throw new Error(`no view ${method}`);
     },
@@ -93,6 +94,7 @@ test('the input is the opening: an id, a named receiver, hundredths of a NEAR an
     { ...INPUT, amount_yocto: '0' },
     { ...INPUT, amount_yocto: `0${CENT}` },
     { ...INPUT, amount_yocto: '10000000000000000000001' },
+    { ...INPUT, amount_yocto: (BigInt(GRAMMAR_MAX) + BigInt(CENT)).toString() },
     { ...INPUT, amount_yocto: 1e22 },
     { ...INPUT, salt_hex: SALT.toUpperCase() },
     { ...INPUT, salt_hex: SALT.slice(2) },
@@ -107,7 +109,7 @@ test('the settings need both admin keys, and have the defaults of the doc', () =
   assert.match(String(readApproveSettings({})), /MULTISIG_ADMIN_A_KEY and MULTISIG_ADMIN_B_KEY/);
   assert.match(String(readApproveSettings({ MULTISIG_ADMIN_A_KEY: 'ed25519:a' })), /needs MULTISIG_ADMIN_B_KEY\./);
   assert.deepEqual(readApproveSettings({ MULTISIG_ADMIN_A_KEY: 'ed25519:a', MULTISIG_ADMIN_B_KEY: 'ed25519:b' }), {
-    contract: 'team.seams-v1.testnet',
+    contract: 'multisig.seams-v1.testnet',
     rpcUrl: 'https://test.rpc.fastnear.com',
     adminA: { account: ADMIN_A, key: 'ed25519:a' },
     adminB: { account: ADMIN_B, key: 'ed25519:b' },
@@ -171,31 +173,42 @@ test('a transfer that does not arrive gives executed: false', async () => {
   assert.equal(result.kind === 'done' && result.proposal?.status, 'open');
 });
 
-test('no proposal is 404, an executed one is 409, above the cap is 400, and nothing signs', async () => {
-  const cases: [FakeOptions, typeof INPUT, number][] = [
-    [{ proposal: null }, INPUT, 404],
-    [{ proposal: proposal([ADMIN_A, ADMIN_B], 'executed') }, INPUT, 409],
-    [{}, { ...INPUT, amount_yocto: '60000000000000000000000' }, 400],
-    [{ admins: [ADMIN_A, ADMIN_B, 'admin-c.seams-v1.testnet'] }, INPUT, 503],
+test('no proposal is 404, an executed one is 409, other admins are 503, and nothing signs', async () => {
+  const cases: [FakeOptions, number][] = [
+    [{ proposal: null }, 404],
+    [{ proposal: proposal([ADMIN_A, ADMIN_B], 'executed') }, 409],
+    [{ admins: [ADMIN_A, ADMIN_B, 'admin-c.seams-v1.testnet'] }, 503],
   ];
-  for (const [options, input, status] of cases) {
+  for (const [options, status] of cases) {
     const fake = fakeChain(options);
-    const result = await runApproval(fake.chain, SETTINGS, input);
+    const result = await runApproval(fake.chain, SETTINGS, INPUT);
     assert.equal(result.kind === 'refused' && result.status, status);
     assert.deepEqual(fake.calls, []);
   }
-  const atCap = fakeChain();
-  assert.equal((await runApproval(atCap.chain, SETTINGS, { ...INPUT, amount_yocto: CAP })).kind, 'done');
 });
 
-test('a contract of the old shape (members and threshold) stops the run at read, with no throw', async () => {
-  const fake = fakeChain({ config: { members: [ADMIN_A, ADMIN_B], threshold: 2, verifier_public_key: 'ed25519:x' } });
-  assert.deepEqual(await runApproval(fake.chain, SETTINGS, INPUT), {
-    kind: 'failed',
-    step: 'read',
-    error: 'The multisig contract answered in an unexpected form.',
-  });
-  assert.deepEqual(fake.calls, []);
+test('the route has no cap: any amount that the grammar can say goes to execute', async () => {
+  const input = { ...INPUT, amount_yocto: GRAMMAR_MAX };
+  assert.deepEqual(parseApproveInput(JSON.stringify(input)), input);
+  const fake = fakeChain();
+  assert.equal((await runApproval(fake.chain, SETTINGS, input)).kind, 'done');
+  assert.deepEqual(fake.args[2], input);
+});
+
+test('a contract of an old shape (with a cap, or with members) stops the run at read, with no throw', async () => {
+  const oldShapes = [
+    { admins: [ADMIN_A, ADMIN_B], verifier_public_key: 'ed25519:x', max_amount_yocto: '50000000000000000000000' },
+    { members: [ADMIN_A, ADMIN_B], threshold: 2, verifier_public_key: 'ed25519:x' },
+  ];
+  for (const config of oldShapes) {
+    const fake = fakeChain({ config });
+    assert.deepEqual(await runApproval(fake.chain, SETTINGS, INPUT), {
+      kind: 'failed',
+      step: 'read',
+      error: 'The multisig contract answered in an unexpected form.',
+    });
+    assert.deepEqual(fake.calls, []);
+  }
   const oldProposal = fakeChain({ proposal: { ...proposal([]), confirmations: [], approvals: undefined } as unknown as Proposal });
   assert.equal((await runApproval(oldProposal.chain, SETTINGS, INPUT)).kind, 'failed');
   assert.deepEqual(oldProposal.calls, []);

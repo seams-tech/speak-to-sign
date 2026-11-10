@@ -7,7 +7,7 @@ use spoken_intent::{
     normalize, normalize_punctuated, parse_transfer, render, Network, ParseRefusal, ParseResult,
     ProposalV1, PunctuatedRefusal, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
 };
-use support::{account, contacts, near_account, parsed, MULTISIG_SALT};
+use support::{account, contacts, near, near_account, parsed, MULTISIG_SALT};
 
 #[test]
 fn punctuated_transcripts_read_like_the_rendered_text() {
@@ -416,4 +416,69 @@ fn joined_words_match_by_the_sound_of_the_sentence_end() {
     assert!(refused("Send 856 near toucane.testnet.", &alice));
     assert!(refused("Send near toucane.testnet.", &contacts));
     assert!(refused("Send 856 near tobob.testnet.", &contacts));
+}
+
+#[test]
+fn approved_transfers_read_their_send_part_like_a_send_sentence() {
+    let rendered = render(&SpokenRequestV1::MultisigApproval {
+        network: Network::Testnet,
+        owner: near_account("visitor.testnet"),
+        multisig: near_account("multisig.seams-v1.testnet"),
+        proposal_id: 12,
+        proposal: ProposalV1::Transfer {
+            receiver: account("seams-grants.testnet"),
+            amount: near(1),
+        },
+        salt: MULTISIG_SALT,
+    });
+    let receiver = [account("seams-grants.testnet")];
+    // "point" for "dot", "dash" left out or said as "hyphen", and the amount
+    // and unit slot rules.
+    for heard in [
+        "Approve proposal 12: send 0.01 NEAR to seams-grants.testnet.",
+        "approve proposal twelve send zero point zero one near to seams grants dot testnet",
+        "approve proposal twelve send zero point zero one near to seams dash grants dot testnet",
+        "Approve proposal 12, send 0.01 NEAR to seams grants point testnet.",
+        "Approved proposal twelve. Send point oh one NIR to Seams hyphen grants period testnet.",
+        "Approve proposal 12, send 0.01 NEAR to seams grants.",
+    ] {
+        assert_eq!(
+            normalize_punctuated(heard, &receiver).as_ref(),
+            Ok(&rendered.spoken),
+            "{heard}"
+        );
+    }
+    // Without the receiver in the contacts, the exact transcript still
+    // matches, and a dropped "dash" does not.
+    assert_eq!(
+        normalize_punctuated(
+            "Approve proposal 12: send 0.01 NEAR to seams-grants.testnet.",
+            &[]
+        )
+        .as_ref(),
+        Ok(&rendered.spoken)
+    );
+    assert_ne!(
+        normalize_punctuated(
+            "approve proposal twelve send zero point zero one near to seams grants dot testnet",
+            &[]
+        )
+        .as_ref(),
+        Ok(&rendered.spoken)
+    );
+    // Another id, amount or receiver stays another sentence.
+    for heard in [
+        "approve proposal thirteen send zero point zero one near to seams grants dot testnet",
+        "approve proposal twelve send zero point zero two near to seams grants dot testnet",
+        "approve proposal twelve send one near to seams grants dot testnet",
+        "approve proposal twelve send zero point zero one near to mallory dot testnet",
+        "approve proposal twelve do not send zero point zero one near to seams grants dot testnet",
+        "reject proposal twelve send zero point zero one near to seams grants dot testnet",
+    ] {
+        assert_ne!(
+            normalize_punctuated(heard, &receiver).as_ref(),
+            Ok(&rendered.spoken),
+            "{heard}"
+        );
+    }
 }

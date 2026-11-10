@@ -1,7 +1,9 @@
 //! Deploys `res/voice_multisig.wasm` to a local nearcore sandbox with 2
-//! admins and runs two proposals the way the demo page and the approve
-//! route do, with 30 Tgas and 0 deposit: one whose transfer arrives, and one
-//! whose receiver does not exist, so the proposal opens again.
+//! admins and runs three proposals the way the demo page and the approve
+//! route do, with 30 Tgas and 0 deposit: one whose transfer arrives, one
+//! whose receiver does not exist, so the callback opens the proposal again,
+//! and one above the balance of the multisig, so `execute` fails and the
+//! proposal stays open.
 //!
 //! Run `./build.sh` first, or set `VOICE_MULTISIG_WASM` to a WASM path.
 
@@ -28,10 +30,11 @@ const GAS_BUDGET: Gas = Gas::from_tgas(10);
 const VERDICT_DOMAIN: &[u8] = b"seams:outlayer:voice-verdict:v2";
 const SALT: [u8; 32] = [0x5a; 32];
 const SALT_2: [u8; 32] = [0x6b; 32];
+const SALT_3: [u8; 32] = [0x7c; 32];
 /// 0.01 NEAR.
 const ONE_HUNDREDTH_NEAR: u128 = 10_000_000_000_000_000_000_000;
-/// 0.05 NEAR, the cap of the demo.
-const CAP: u128 = 5 * ONE_HUNDREDTH_NEAR;
+/// The NEAR of the multisig account at its creation.
+const MULTISIG_NEAR: u128 = 10;
 
 fn wasm() -> anyhow::Result<Vec<u8>> {
     let path = std::env::var("VOICE_MULTISIG_WASM").unwrap_or_else(|_| {
@@ -256,16 +259,15 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
     let visitor = subaccount(&root, "visitor", 5).await?;
     let stranger = subaccount(&root, "stranger", 5).await?;
     let grants = subaccount(&root, "grants", 1).await?;
-    let team = subaccount(&root, "team", 10).await?;
-    let multisig = team.deploy(&wasm()?).await?.into_result()?;
+    let multisig_account = subaccount(&root, "multisig", MULTISIG_NEAR).await?;
+    let multisig = multisig_account.deploy(&wasm()?).await?.into_result()?;
     let verifier_public_key = format!(
         "ed25519:{}",
         bs58::encode(verifier().verifying_key().as_bytes()).into_string()
     );
     let init_args = json!({
         "admins": [admin_a.id(), admin_b.id()],
-        "verifier_public_key": verifier_public_key,
-        "max_amount_yocto": CAP.to_string()
+        "verifier_public_key": verifier_public_key
     });
     let init = multisig
         .call("new")
@@ -469,16 +471,7 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
             GAS_BUDGET,
         );
     }
-    let above_cap = Opening {
-        amount_yocto: CAP + ONE_HUNDREDTH_NEAR,
-        ..opening(&multisig, 2, &missing, 2, SALT_2)
-    };
-    check_failure(
-        "execute above the cap",
-        &execute(&visitor, &multisig, 2, &above_cap).await?,
-        "amount_yocto is above max_amount_yocto",
-    );
-    let team_before = multisig.view_account().await?.balance;
+    let balance_before = multisig.view_account().await?.balance;
     let result = execute(&visitor, &multisig, 2, &open_2).await?;
     assert!(
         result.is_success(),
@@ -490,12 +483,44 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
     );
     assert!(!result.clone().json::<bool>()?);
     assert_eq!(events(&result)[0]["event"], "execute_failed");
-    let team_after = multisig.view_account().await?.balance;
+    let balance_after = multisig.view_account().await?.balance;
     assert!(
-        team_after.as_yoctonear() >= team_before.as_yoctonear(),
-        "the 0.02 NEAR came back: {team_before} then {team_after}"
+        balance_after.as_yoctonear() >= balance_before.as_yoctonear(),
+        "the 0.02 NEAR came back: {balance_before} then {balance_after}"
     );
     let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 2 })).await?;
+    assert_eq!(proposal["status"], "open");
+    assert_eq!(proposal["approvals"], json!([admin_a.id(), admin_b.id()]));
+    assert!(proposal.get("receiver").is_none());
+
+    // Proposal 3: 2 NEAR more than the multisig had at its creation. No cap
+    // stops it, but the runtime refuses a transfer above the balance in
+    // `execute` itself. The call fails, its state change does not stay, and
+    // the proposal stays open with its approvals.
+    let above_balance = (MULTISIG_NEAR + 2) * 100;
+    let open_3 = opening(&multisig, 3, grants.id().as_str(), above_balance, SALT_3);
+    check_success(
+        "propose 3",
+        &propose(&visitor, &multisig, 3, &open_3).await?,
+        GAS_BUDGET,
+    );
+    for admin in [&admin_a, &admin_b] {
+        check_success(
+            "approve 3",
+            &approve(admin, &multisig, 3).await?,
+            GAS_BUDGET,
+        );
+    }
+    let grants_before = grants.view_account().await?.balance;
+    let result = execute(&admin_b, &multisig, 3, &open_3).await?;
+    check_failure(
+        "execute above the balance",
+        &result,
+        "Exceeded the account balance.",
+    );
+    assert!(events(&result).is_empty(), "no callback runs");
+    assert_eq!(grants.view_account().await?.balance, grants_before);
+    let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 3 })).await?;
     assert_eq!(proposal["status"], "open");
     assert_eq!(proposal["approvals"], json!([admin_a.id(), admin_b.id()]));
     assert!(proposal.get("receiver").is_none());
@@ -513,14 +538,14 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
         .iter()
         .map(|p| p["id"].as_u64().unwrap())
         .collect();
-    assert_eq!(ids, vec![2, 1], "newest first");
+    assert_eq!(ids, vec![3, 2, 1], "newest first");
     assert_eq!(
         view(&multisig, "get_proposal", json!({ "proposal_id": 9 })).await?,
         Value::Null
     );
     assert_eq!(
         view(&multisig, "next_proposal_id", json!({})).await?,
-        json!(3)
+        json!(4)
     );
 
     // Only the contract calls the callback and `new`.

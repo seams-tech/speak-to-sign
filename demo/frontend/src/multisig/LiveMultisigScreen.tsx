@@ -1,24 +1,26 @@
-// The live voice multisig example for the Speak-to-Sign page (#/multisig). It draws a
-// transaction queue in the style of a multisig wallet app (the sf-* classes of
-// src/showcase/showcase.css), at 1120 × 700, and it works on NEAR testnet against the voice
-// multisig contract (demo/contracts/voice-multisig, docs/voice-multisig-guests.md):
+// The live voice multisig example for the Speak-to-Sign page (#/multisig). It draws the
+// transactions of a multisig wallet app (the sf-* classes of src/showcase/showcase.css), at
+// 1120 × 700, and it works on NEAR testnet against the voice multisig contract
+// (demo/contracts/voice-multisig, docs/voice-multisig-guests.md). It opens on the New proposal
+// tab; the History tab lists the open and the executed proposals, newest first.
 //
 // - Propose: the visitor types a transfer and reads it aloud; the contract gets its hash.
 // - Approve: the page sends the opening to /api/multisig/approve. The two admin signers approve
-//   with their keys, and admin B executes the transfer.
+//   with their keys, and admin B executes the transfer. The page shows them as signers like the
+//   visitor, with no words about keys.
 //
 // The page records the voice itself and asks /api/voice-verify. The Seams Wallet signs `propose`
 // with its normal confirm step. If the contract is not deployed, the screen shows example data
 // with a note. It needs SeamsWebProvider above it. `onSignIn` opens the page's sign-in dialog.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { IconCircleDashed, IconCopy, IconKey, IconListDetails, IconPlus, IconSend, IconUserCircle } from '@tabler/icons-react';
+import { IconCircleDashed, IconCopy, IconListDetails, IconPlus, IconSend, IconUserCircle } from '@tabler/icons-react';
 import { useSeams } from '@seams/wallet/react';
 import { accountUrl, config, shortAccount } from '../config';
 import { formatNear } from './intent';
 import { createMultisigSigner } from './multisigSigner';
-import { ADMINS_NOTE, adminName, knownTransfer, ProposalBody, ProposePanel, proposalStatus, type MultisigContext } from './MultisigPanels';
-import { removeOpening } from './openings';
+import { adminName, knownTransfer, ProposalBody, ProposePanel, proposalStatus, type MultisigContext } from './MultisigPanels';
+import { readOpening, removeOpening } from './openings';
 import type { MultisigConfig, Proposal } from './contractViews';
 import { getBalance, getConfig, getProposal, getProposals, isMissingContract, nextProposalId } from './views';
 import './liveMultisig.css';
@@ -26,11 +28,11 @@ import './liveMultisig.css';
 const POLL_MS = 1500;
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 
-type Tab = 'queue' | 'history' | 'new';
+type Tab = 'new' | 'history';
 
 /** The example that the screen shows while the contract is not deployed. */
 const EXAMPLE_ADMINS = ['admin-a.seams-v1.testnet', 'admin-b.seams-v1.testnet'];
-const EXAMPLE_CONFIG: MultisigConfig = { admins: EXAMPLE_ADMINS, verifier_public_key: '', max_amount_yocto: '50000000000000000000000' };
+const EXAMPLE_CONFIG: MultisigConfig = { admins: EXAMPLE_ADMINS, verifier_public_key: '' };
 const EXAMPLE_PROPOSALS: Proposal[] = [
   {
     id: 7,
@@ -70,7 +72,7 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
   const signer = useMemo(() => createMultisigSigner({ seams, walletId, contract }), [seams, walletId, contract]);
 
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [tab, setTab] = useState<Tab>('queue');
+  const [tab, setTab] = useState<Tab>('new');
   const [openId, setOpenId] = useState<number | null>(null);
 
   const load = useCallback(async (): Promise<Proposal[]> => {
@@ -120,10 +122,10 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
   const multisigConfig = demo ? EXAMPLE_CONFIG : (loaded?.config ?? null);
   const proposals = demo ? EXAMPLE_PROPOSALS : (loaded?.proposals ?? []);
   const nextId = demo ? 8 : (loaded?.nextId ?? null);
-  const queue = proposals.filter((proposal) => proposal.status === 'open');
-  const history = proposals.filter((proposal) => proposal.status !== 'open');
-  const shown = tab === 'history' ? history : queue;
-  const selected = openId ?? queue[0]?.id ?? null;
+  const open = proposals.filter((proposal) => proposal.status === 'open');
+  // At first, the newest open proposal whose opening this browser holds: it can finish the transfer.
+  const held = open.find((proposal) => readOpening(contract, proposal.id)?.commitment_hex === proposal.commitment_hex);
+  const selected = openId ?? held?.id ?? null;
   const admins = multisigConfig?.admins ?? [];
 
   const context: MultisigContext = { contract, account, config: multisigConfig, demo, signer, onSignIn, onSent };
@@ -143,7 +145,7 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
             <span className="sf-identicon sf-identicon-c" />
             <span>
               <b>{shortAccount(account)}</b>
-              <i>{admins.includes(account) ? 'Admin' : 'Proposer'}</i>
+              <i>{admins.includes(account) ? 'Signer' : 'Proposer'}</i>
             </span>
           </span>
         ) : (
@@ -176,32 +178,31 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
           <IconPlus size={16} stroke={2.2} /> New proposal
         </button>
         <nav className="sf-nav" aria-label="Multisig">
-          <button type="button" className={tab !== 'new' ? 'sf-nav-on' : ''} onClick={() => setTab('queue')}>
-            <IconListDetails size={20} stroke={1.6} /> Transactions {queue.length > 0 && <i className="sf-count">{queue.length}</i>}
+          <button type="button" className="sf-nav-on" onClick={() => setTab('history')}>
+            <IconListDetails size={20} stroke={1.6} /> Transactions {open.length > 0 && <i className="sf-count">{open.length}</i>}
           </button>
         </nav>
         {multisigConfig && (
           <div className="lms-members">
-            <p className="sf-label">Admins · all approve</p>
+            <p className="sf-label">Signers · all approve</p>
             {admins.map((admin, index) => (
-              <p key={admin} className="lms-admin" title={admin}>
-                <IconKey size={15} stroke={1.8} />
+              <p key={admin} className="lms-signer" title={admin}>
+                <span className={`sf-identicon sf-identicon-xs ${index % 2 === 0 ? 'sf-identicon-a' : 'sf-identicon-b'}`} aria-hidden="true" />
                 <span>
                   {adminName(index)}
                   <i>{shortAccount(admin)}</i>
                 </span>
               </p>
             ))}
-            <p className="lms-hint">{ADMINS_NOTE}</p>
           </div>
         )}
       </aside>
       <main className="sf-main lms-main">
         <h1>Transactions</h1>
         <div className="sf-tabs" role="tablist">
-          {(['queue', 'history', 'new'] as const).map((id) => (
+          {(['new', 'history'] as const).map((id) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'sf-tab-on' : ''} onClick={() => setTab(id)}>
-              {id === 'queue' ? 'Queue' : id === 'history' ? 'History' : 'New proposal'}
+              {id === 'new' ? 'New proposal' : 'History'}
             </button>
           ))}
         </div>
@@ -215,11 +216,11 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
           <ProposePanel context={context} proposalId={nextId} />
         ) : !loaded ? (
           <p className="sf-label">Reading the multisig…</p>
-        ) : shown.length === 0 ? (
-          <p className="sf-label">{tab === 'queue' ? 'No open proposals. Make one with New proposal.' : 'No executed proposals yet.'}</p>
+        ) : proposals.length === 0 ? (
+          <p className="sf-label">No proposals yet. Make one with New proposal.</p>
         ) : (
           <div className="lms-list">
-            {shown.map((proposal) => {
+            {proposals.map((proposal) => {
               const status = proposalStatus(proposal, admins.length);
               const transfer = knownTransfer(contract, proposal);
               const expanded = proposal.status === 'open' && proposal.id === selected;
@@ -241,7 +242,7 @@ export function LiveMultisigScreen({ onSignIn }: { onSignIn?: () => void }) {
                     </span>
                     <span className="sf-time">{transfer ? `to ${shortAccount(transfer.receiver)}` : `by ${shortAccount(proposal.proposer)}`}</span>
                     <span className="sf-confs">
-                      <IconUserCircle size={16} stroke={1.8} /> {proposal.approvals.length} of {admins.length} admins
+                      <IconUserCircle size={16} stroke={1.8} /> {proposal.approvals.length} of {admins.length} signers
                     </span>
                     <span className={`sf-status lms-status-${status.tone}`}>{status.text}</span>
                   </button>

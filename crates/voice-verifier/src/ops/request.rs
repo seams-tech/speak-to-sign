@@ -81,8 +81,14 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
 
 /// The accounts of the word check: the contacts of the input, and the
 /// receiver of a transfer or of a multisig transfer if it is not one of
-/// them.
-pub(super) fn known_accounts(contacts: &[String], request: &SpokenRequestV1) -> Result<Vec<SpokenAccount>, Reason> {
+/// them. A `recalled` proposal adds no receiver: the recipient step writes
+/// a contact's words into the heard text, so a refusal would show the
+/// receiver that the member must say from memory.
+pub(super) fn known_accounts(
+    contacts: &[String],
+    request: &SpokenRequestV1,
+    recalled: bool,
+) -> Result<Vec<SpokenAccount>, Reason> {
     let mut accounts = contacts
         .iter()
         .map(|contact| SpokenAccount::new(contact))
@@ -90,7 +96,9 @@ pub(super) fn known_accounts(contacts: &[String], request: &SpokenRequestV1) -> 
         .map_err(unsupported)?;
     let receiver = match request {
         SpokenRequestV1::AccountTransfer { receiver, .. } => Some(receiver),
-        SpokenRequestV1::MultisigApproval { proposal: ProposalV1::Transfer { receiver, .. }, .. } => Some(receiver),
+        SpokenRequestV1::MultisigApproval { proposal: ProposalV1::Transfer { receiver, .. }, .. } if !recalled => {
+            Some(receiver)
+        }
         _ => None,
     };
     if let Some(receiver) = receiver {

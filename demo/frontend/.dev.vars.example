@@ -18,11 +18,11 @@ VOICE_OUTLAYER_PAYMENT_KEY=
 VOICE_OUTLAYER_SECRETS_PROFILE=
 VOICE_OUTLAYER_SECRETS_ACCOUNT_ID=
 # The two admin signers of /api/multisig/approve: function-call keys (ed25519:...) for approve
-# and execute on the team contract only.
+# and execute on the multisig contract only.
 MULTISIG_ADMIN_A_KEY=
 MULTISIG_ADMIN_B_KEY=
 # Optional. The defaults are admin-a.seams-v1.testnet, admin-b.seams-v1.testnet and
-# team.seams-v1.testnet.
+# multisig.seams-v1.testnet.
 MULTISIG_ADMIN_A=
 MULTISIG_ADMIN_B=
 MULTISIG_CONTRACT=

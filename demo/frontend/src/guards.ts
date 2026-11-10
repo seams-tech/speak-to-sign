@@ -13,3 +13,9 @@ export function isStringList(value: unknown): value is string[] {
 export function isDecimalText(value: unknown): value is string {
   return typeof value === 'string' && /^(0|[1-9]\d*)$/.test(value);
 }
+
+/** An object with exactly these keys: no key missing and no other key. */
+export function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const own = Object.keys(value);
+  return own.length === keys.length && keys.every((key) => own.includes(key));
+}

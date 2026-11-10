@@ -10,25 +10,28 @@
 //
 // Each step is done once. A second call reads the proposal again and continues from the first
 // step that is not done. On a failure the answer names the step: `read`, `admin_a`, `admin_b`
-// or `execute`. Each admin key is a function-call key for `approve` and `execute` on the team
-// contract only.
+// or `execute`. Each admin key is a function-call key for `approve` and `execute` on the
+// multisig contract only.
+//
+// The route sets no cap on the amount. The grammar's own range applies (0.01 to 1,000,000 NEAR),
+// and an amount above the balance of the multisig makes `execute` fail.
 
 import { signAndSendCall, viewCall, type CallOutcome } from '../../../src/faucet/nearTx.ts';
-import { isObject } from '../../../src/guards.ts';
+import { hasExactKeys, isObject } from '../../../src/guards.ts';
 import { readMultisigConfig, readProposal, UNEXPECTED_VIEW, type Proposal } from '../../../src/multisig/contractViews.ts';
-import { formatYocto, hundredthsOfYocto, isSpeakableAccount } from '../../../src/multisig/intent.ts';
+import { hundredthsOfYocto, isSpeakableAccount } from '../../../src/multisig/intent.ts';
 import { DEFAULT_RPC_URL, isAccountId, json, readBoundedText, refuseOtherOrigin } from '../../lib/http.ts';
 
 interface Env {
-  /** "ed25519:..." The function-call key of admin A for the team contract. */
+  /** "ed25519:..." The function-call key of admin A for the multisig contract. */
   MULTISIG_ADMIN_A_KEY?: string;
-  /** "ed25519:..." The function-call key of admin B for the team contract. */
+  /** "ed25519:..." The function-call key of admin B for the multisig contract. */
   MULTISIG_ADMIN_B_KEY?: string;
   /** Optional. Default admin-a.seams-v1.testnet. */
   MULTISIG_ADMIN_A?: string;
   /** Optional. Default admin-b.seams-v1.testnet. */
   MULTISIG_ADMIN_B?: string;
-  /** Optional. Default team.seams-v1.testnet. */
+  /** Optional. Default multisig.seams-v1.testnet. */
   MULTISIG_CONTRACT?: string;
   /** Optional. Default https://test.rpc.fastnear.com. */
   NEAR_RPC_URL?: string;
@@ -36,7 +39,7 @@ interface Env {
 
 const DEFAULT_ADMIN_A = 'admin-a.seams-v1.testnet';
 const DEFAULT_ADMIN_B = 'admin-b.seams-v1.testnet';
-const DEFAULT_CONTRACT = 'team.seams-v1.testnet';
+const DEFAULT_CONTRACT = 'multisig.seams-v1.testnet';
 const TGAS = 1_000_000_000_000n;
 const APPROVE_GAS = 30n * TGAS;
 /** `execute`: the commitment check, the transfer and its callback. */
@@ -73,7 +76,7 @@ export interface Chain {
 export type Step = 'read' | 'admin_a' | 'admin_b' | 'execute';
 
 export type ApproveResult =
-  | { kind: 'refused'; status: 400 | 404 | 409 | 503; error: string }
+  | { kind: 'refused'; status: 404 | 409 | 503; error: string }
   | { kind: 'failed'; step: Step; error: string; transactionHash?: string }
   /** `proposal` is null when the read after `execute` failed. */
   | { kind: 'done'; proposal: Proposal | null; executeTransactionHash: string; executed: boolean };
@@ -139,9 +142,7 @@ export function parseApproveInput(text: string): ApproveInput | string {
   } catch {
     return form;
   }
-  if (!isObject(body)) return form;
-  const keys = Object.keys(body);
-  if (keys.length !== INPUT_KEYS.length || !INPUT_KEYS.every((key) => keys.includes(key))) return form;
+  if (!isObject(body) || !hasExactKeys(body, INPUT_KEYS)) return form;
   const { proposal_id, receiver, amount_yocto, salt_hex } = body;
   if (typeof proposal_id !== 'number' || !Number.isSafeInteger(proposal_id) || proposal_id < 1) {
     return 'proposal_id must be a whole number from 1.';
@@ -172,9 +173,6 @@ export async function runApproval(chain: Chain, settings: Settings, input: Appro
   if (!proposal || !config) return { kind: 'failed', step: 'read', error: UNEXPECTED_VIEW };
   if (proposal.status === 'executed') {
     return { kind: 'refused', status: 409, error: `Proposal ${proposal_id} is executed already.` };
-  }
-  if (BigInt(input.amount_yocto) > BigInt(config.max_amount_yocto)) {
-    return { kind: 'refused', status: 400, error: `The most for one proposal is ${formatYocto(config.max_amount_yocto)} NEAR.` };
   }
   const admins = [settings.adminA.account, settings.adminB.account];
   if (config.admins.length !== admins.length || !admins.every((admin) => config.admins.includes(admin))) {

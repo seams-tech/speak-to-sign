@@ -224,3 +224,29 @@ fn the_longest_receiver_fits_the_output() {
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert!(out["multisig"]["salt"].is_string(), "{out}");
 }
+
+#[test]
+fn a_proposal_can_say_point_for_dot_and_leave_out_dash() {
+    let mut fake = enrolled();
+    let receiver = "seams-grants.testnet";
+    let said = "approve proposal seven send twenty five near to seams grants point testnet";
+    let (out, verdict) = say(&mut fake, |wav| propose_input(wav, receiver), 0, 0.9, said);
+    assert_eq!(outcome_name(&verdict), "accept", "{out}");
+    assert_eq!(verdict.heard.as_deref(), Some("approve proposal seven send twenty five near to seams dash grants dot testnet"));
+}
+
+#[test]
+fn a_confirmation_refusal_does_not_write_the_receiver() {
+    let (mut fake, commitment_hex) = proposed();
+    // The receiver words are one edit from "grants": a contact match would
+    // write "grants" into `heard`.
+    let (out, verdict) = say(
+        &mut fake,
+        |wav| confirm_input(BOB, wav, 7, &commitment_hex),
+        10,
+        0.91,
+        "approve proposal seven send two hundred fifty near to grand dot testnet",
+    );
+    assert_eq!(outcome_name(&verdict), "words", "{out}");
+    assert_eq!(verdict.heard.as_deref(), Some("approve proposal seven send two hundred fifty near to grand dot testnet"));
+}

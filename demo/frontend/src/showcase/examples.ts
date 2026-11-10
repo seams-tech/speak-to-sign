@@ -42,9 +42,9 @@ export const EXAMPLES: VoiceExample[] = [
     title: 'Confirm a multisig transaction',
     say: 'approve proposal seven, send zero point zero one NEAR to seams dash grants dot testnet',
     signs: 'propose({ proposal_id: 7, commitment_hex, verdict_json, signature_b64 })',
-    target: 'team.seams-v1.testnet · 0 NEAR · 30 Tgas · then 2 admins approve by key',
+    target: 'multisig.seams-v1.testnet · 0 NEAR · 30 Tgas · then Admin A and Admin B approve',
     status: 'live',
     blurb: 'Each owner reads the amount and the receiver aloud. You cannot blind-sign what you must say, so a phishing transaction is harder to approve.',
-    url: `${config.multisigContract}/transactions/queue`,
+    url: `${config.multisigContract}/transactions/new`,
   },
 ];

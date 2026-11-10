@@ -79,18 +79,17 @@
   align-items: center;
   gap: 6px;
 }
-.lms-members p.lms-admin {
+.lms-members p.lms-signer {
   align-items: flex-start;
 }
-.lms-admin svg {
-  flex: none;
-  margin-top: 2px;
+.lms-signer .sf-identicon {
+  margin-top: 1px;
 }
-.lms-admin span {
+.lms-signer > span:last-child {
   display: grid;
   min-width: 0;
 }
-.lms-admin i {
+.lms-signer i {
   overflow: hidden;
   color: #a1a3a7;
   font-size: 12px;
@@ -175,10 +174,6 @@
 .lms-field em {
   font-style: normal;
   color: #d1242f;
-}
-.lms-field small {
-  color: #a1a3a7;
-  font-size: 12px;
 }
 .lms-say {
   padding: 12px 14px;
@@ -281,7 +276,7 @@
   font-size: 13px;
   text-decoration: underline;
 }
-/* The voice approval and one tick for each admin. */
+/* The proposer's approval and one tick for each admin. */
 .lms-ticks {
   display: grid;
   gap: 10px;

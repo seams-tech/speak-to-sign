@@ -5,7 +5,8 @@
 # multisig_propose), VOICE_OUTLAYER_PAYMENT_KEY (secret), VOICE_OUTLAYER_SECRETS_PROFILE and
 # VOICE_OUTLAYER_SECRETS_ACCOUNT_ID.
 # functions/api/multisig/approve.ts needs the secrets MULTISIG_ADMIN_A_KEY and
-# MULTISIG_ADMIN_B_KEY (function-call keys for approve and execute on the team contract).
+# MULTISIG_ADMIN_B_KEY (function-call keys for approve and execute on the multisig contract,
+# multisig.seams-v1.testnet).
 # Optional: MULTISIG_ADMIN_A, MULTISIG_ADMIN_B, MULTISIG_CONTRACT and NEAR_RPC_URL. See README.md.
 name = "seams-voice-intents"
 pages_build_output_dir = "./dist"

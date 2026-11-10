@@ -1,9 +1,12 @@
-// The two working parts of the multisig screen: the proposal form and a queued proposal. The
-// visitor reads the transfer aloud: the page records it, asks /api/voice-verify, and on an accept
-// signs `propose` with the Seams Wallet. Then the page sends the opening to /api/multisig/approve:
-// the two admin signers approve, and admin B executes. The page shows three ticks (the voice
-// approval, admin A, admin B) and the receipt. Until the transfer is executed, this browser keeps
-// the opening, and **Finish the transfer** calls the route again.
+// The two working parts of the multisig screen: the proposal form and an open proposal in the
+// history. The visitor reads the transfer aloud: the page records it, asks /api/voice-verify, and
+// on an accept signs `propose` with the Seams Wallet. Then the page sends the opening to
+// /api/multisig/approve: the two admin signers approve, and admin B executes. The page shows
+// three ticks (your approval, Admin A, Admin B) and the receipt. Until the transfer is executed,
+// this browser keeps the opening, and **Finish the transfer** calls the route again.
+//
+// The admins approve by key (docs/voice-multisig-guests.md). For the demo, the page shows them
+// as signers like the visitor: no key icon and no words about keys.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { IconCheck, IconExternalLink, IconSend } from '@tabler/icons-react';
@@ -33,7 +36,6 @@ export interface MultisigContext {
   onSent: (proposalId: number) => void;
 }
 
-export const ADMINS_NOTE = 'The two admin signers approve automatically in this demo.';
 const DEMO_NOTE = 'Contract not deployed yet. This is example data, so nothing records or signs.';
 const DEFAULT_RECEIVER = 'seams-grants.testnet';
 const DEFAULT_AMOUNT = '0.01';
@@ -128,7 +130,7 @@ function useFinish(context: MultisigContext) {
       } else {
         setFinish({
           kind: 'failed',
-          message: 'The admins approved, but the transfer did not arrive. The NEAR is back in the multisig. Finish the transfer tries again.',
+          message: 'The signers approved, but the transfer did not arrive. The NEAR is back in the multisig. Finish the transfer tries again.',
         });
       }
     } else if (answer.kind === 'executed_before') {
@@ -159,7 +161,7 @@ function Tick({ done, label, detail }: { done: boolean; label: string; detail: R
   );
 }
 
-/** The voice approval, then one tick for each admin. */
+/** The proposer's approval, then one tick for each admin. */
 function ApprovalTicks({
   context,
   proposer,
@@ -179,7 +181,7 @@ function ApprovalTicks({
     <ul className="lms-ticks">
       <Tick
         done
-        label={proposer === context.account ? 'Your voice approval' : 'Voice approval'}
+        label={proposer === context.account ? 'Your approval' : 'Proposer'}
         detail={proposeHash ? <TxLink hash={proposeHash} /> : shortAccount(proposer)}
       />
       {admins.map((admin, index) => (
@@ -212,7 +214,7 @@ function FinishState({ finish, onFinish, canFinish }: { finish: Finish; onFinish
   if (finish.kind === 'running') {
     return (
       <p className="lms-hint" role="status">
-        The admins approve, then admin B sends the NEAR. This takes a few seconds.
+        Admin A and Admin B approve, then Admin B sends the NEAR. This takes a few seconds.
       </p>
     );
   }
@@ -241,7 +243,7 @@ function proposeBlock(context: MultisigContext, enrolled: boolean, gasShort: boo
   if (!context.account) return null;
   if (!context.config) return { text: 'The page cannot read the multisig now, so it cannot propose.', setup: false };
   if (context.config?.admins.includes(context.account)) {
-    return { text: 'This account is an admin of the multisig, and admins cannot propose. Sign in with another account.', setup: false };
+    return { text: 'This account is a signer of the multisig, and a signer cannot propose. Sign in with another account.', setup: false };
   }
   if (!enrolled) return { text: 'Set up your voice first. The Set up card on this page does it.', setup: true };
   if (gasShort) {
@@ -260,11 +262,9 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
   const enrolled = useEnrolled(context.account);
   const funds = useFunds(context.account, false);
 
-  const cap = context.config?.max_amount_yocto ?? null;
   const amount = parseNearAmount(amountText);
-  const overCap = amount.ok && cap !== null && BigInt(amount.yocto) > BigInt(cap);
   const receiverOk = isSpeakableAccount(receiver.trim());
-  const ready = amount.ok && !overCap && receiverOk && proposalId !== null;
+  const ready = amount.ok && receiverOk && proposalId !== null;
   const display = amount.ok ? formatNear(amount.hundredths) : '';
   const block = proposeBlock(context, enrolled, funds.balance !== null && !covers(funds.balance, 'gas'));
   const busy = BUSY[voice.kind] ?? null;
@@ -314,7 +314,6 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
           executed={finish.kind === 'done'}
           proposeHash={proposed.transactionHash}
         />
-        <p className="lms-hint">{ADMINS_NOTE}</p>
         {!proposed.stored && finish.kind !== 'done' && (
           <p className="lms-hint">This browser could not store the opening, so Finish the transfer works only until you close this page.</p>
         )}
@@ -336,7 +335,6 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
   }
 
   const locked = busy !== null;
-  const capText = cap === null ? null : formatYocto(cap);
   return (
     <div className="lms-panel">
       <div className="lms-fields">
@@ -355,13 +353,7 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
         <label className="lms-field lms-field-amount">
           <span>Amount (NEAR)</span>
           <input value={amountText} onChange={(event) => setAmountText(event.target.value)} placeholder={DEFAULT_AMOUNT} inputMode="decimal" disabled={locked} />
-          {amountText.trim() !== '' && !amount.ok ? (
-            <em>{amount.error}</em>
-          ) : overCap ? (
-            <em>The most for one proposal is {capText} NEAR.</em>
-          ) : (
-            capText && <small>At most {capText} NEAR</small>
-          )}
+          {amountText.trim() !== '' && !amount.ok && <em>{amount.error}</em>}
         </label>
       </div>
       <p className="sf-label">Read this aloud</p>
@@ -369,7 +361,7 @@ export function ProposePanel({ context, proposalId }: { context: MultisigContext
         {ready ? proposalSentence(proposalId, display, receiver.trim()) : `Approve proposal ${proposalId ?? '…'}: send … NEAR to …`}
       </p>
       <p className="lms-hint">
-        Say “dot” for each dot and “dash” for each dash of the account. The verifier keeps the transfer; the chain gets only its hash.
+        You can say “dot” or “point”, and you can leave out “dash”. The verifier keeps the transfer; the chain gets only its hash.
       </p>
       {!context.account && !context.demo ? (
         <button type="button" className="sf-btn lms-btn" onClick={context.onSignIn} disabled={!context.onSignIn}>
@@ -408,7 +400,7 @@ export function knownTransfer(contract: string, proposal: Proposal): { receiver:
   return null;
 }
 
-/** The body of an open queued proposal: the transfer, the approvals and **Finish the transfer**. */
+/** The body of an open proposal in the history: the transfer, the approvals and **Finish the transfer**. */
 export function ProposalBody({ context, proposal }: { context: MultisigContext; proposal: Proposal }) {
   const transfer = useFinish(context);
   const shown = transfer.live?.id === proposal.id ? transfer.live : proposal;
@@ -446,7 +438,6 @@ export function ProposalBody({ context, proposal }: { context: MultisigContext; 
       </div>
       <div className="sf-steps">
         <ApprovalTicks context={context} proposer={proposal.proposer} approvals={shown.approvals} executed={transfer.finish.kind === 'done'} />
-        <p className="lms-hint">{ADMINS_NOTE}</p>
         {context.demo ? (
           <p className="lms-hint">{DEMO_NOTE}</p>
         ) : (

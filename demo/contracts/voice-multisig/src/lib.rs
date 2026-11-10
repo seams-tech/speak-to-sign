@@ -8,7 +8,7 @@
 //! the proposal id and the commitment, a salted hash of the transfer. Then
 //! each admin approves the proposal with a plain signed call, and the
 //! proposer or an admin executes it. The chain sees the transfer only at
-//! `execute`, and each transfer is at most `max_amount_yocto`.
+//! `execute`.
 //!
 //! The method names and JSON shapes are fixed: the demo page and the approve
 //! route use them. See `README.md` and `docs/voice-multisig-guests.md`.
@@ -30,9 +30,6 @@ pub use verdict::{VERDICT_DOMAIN, VERDICT_KIND};
 const MIN_ADMINS: usize = 1;
 /// The most admins of a multisig.
 const MAX_ADMINS: usize = 10;
-/// 0.01 NEAR in yoctoNEAR, the step of each amount that the grammar can
-/// speak.
-const ONE_HUNDREDTH_NEAR: u128 = 10_000_000_000_000_000_000_000;
 /// `get_proposals` returns at most this many proposals.
 pub const MAX_PROPOSALS_PER_VIEW: u32 = 50;
 /// The network that each request digest names.
@@ -112,7 +109,6 @@ pub struct ProposalView {
 pub struct ConfigView {
     pub admins: Vec<AccountId>,
     pub verifier_public_key: String,
-    pub max_amount_yocto: U128,
 }
 
 #[near(serializers = [borsh])]
@@ -128,8 +124,6 @@ pub struct VoiceMultisig {
     admins: Vec<AccountId>,
     /// The ed25519 key of the verifier, which signs each verdict.
     verifier_key: [u8; 32],
-    /// The largest transfer that `execute` sends.
-    max_amount_yocto: u128,
     /// The id that the next proposal must use. The first is 1.
     next_proposal_id: u64,
     proposals: LookupMap<u64, Proposal>,
@@ -137,15 +131,11 @@ pub struct VoiceMultisig {
 
 #[near]
 impl VoiceMultisig {
-    /// Sets the admins, the verifier key and the cap of each transfer. Only
-    /// the contract account can call it, in the deploy transaction.
+    /// Sets the admins and the verifier key. Only the contract account can
+    /// call it, in the deploy transaction.
     #[init]
     #[private]
-    pub fn new(
-        admins: Vec<AccountId>,
-        verifier_public_key: String,
-        max_amount_yocto: U128,
-    ) -> Self {
+    pub fn new(admins: Vec<AccountId>, verifier_public_key: String) -> Self {
         if !(MIN_ADMINS..=MAX_ADMINS).contains(&admins.len()) {
             env::panic_str("admins must have 1 to 10 accounts");
         }
@@ -158,14 +148,9 @@ impl VoiceMultisig {
         let verifier_key = verdict::parse_ed25519_key(&verifier_public_key).unwrap_or_else(|| {
             env::panic_str("verifier_public_key must be ed25519:<base58 of 32 bytes>")
         });
-        let cap = max_amount_yocto.0;
-        if cap < ONE_HUNDREDTH_NEAR || !cap.is_multiple_of(ONE_HUNDREDTH_NEAR) {
-            env::panic_str("max_amount_yocto must be a multiple of 0.01 NEAR, at least 0.01 NEAR");
-        }
         Self {
             admins,
             verifier_key,
-            max_amount_yocto: cap,
             next_proposal_id: 1,
             proposals: LookupMap::new(StorageKey::Proposals),
         }
@@ -254,9 +239,11 @@ impl VoiceMultisig {
 
     /// Sends the transfer of a proposal that all admins approved. The
     /// caller is the proposer or an admin, and knows the opening: the
-    /// receiver, the amount and the salt. The amount is at most
-    /// `max_amount_yocto`. The result is `true` if the transfer arrived and
-    /// `false` if it failed; on a failure the proposal is open again.
+    /// receiver, the amount and the salt. The result is `true` if the
+    /// transfer arrived and `false` if it failed; on a failure the proposal
+    /// is open again. If the amount is above the balance of this account,
+    /// the runtime refuses the transfer in this call ("Exceeded the account
+    /// balance."), so the call fails and the proposal stays open.
     pub fn execute(
         &mut self,
         proposal_id: u64,
@@ -275,9 +262,6 @@ impl VoiceMultisig {
                 proposal.approvals.len(),
                 self.admins.len()
             ));
-        }
-        if amount_yocto.0 > self.max_amount_yocto {
-            env::panic_str("amount_yocto is above max_amount_yocto");
         }
         let spoken_receiver = SpokenAccount::new(receiver.as_str()).unwrap_or_else(|_| {
             env::panic_str("receiver must be a named account that the grammar can speak")
@@ -369,7 +353,6 @@ impl VoiceMultisig {
         ConfigView {
             admins: self.admins.clone(),
             verifier_public_key: verdict::format_ed25519_key(&self.verifier_key),
-            max_amount_yocto: U128(self.max_amount_yocto),
         }
     }
 

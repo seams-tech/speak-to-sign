@@ -50,7 +50,11 @@ async function view(rpcUrl: string, contract: string, method: string, args: Reco
     method_name: method,
     args_base64: btoa(JSON.stringify(args)),
   });
-  if (typeof result.error === 'string') throw new Error(RPC_ERRORS.CONTRACT_EXECUTION_ERROR);
+  if (typeof result.error === 'string') {
+    // An account with no code: this RPC reports it here, not as an error cause.
+    const noCode = result.error.includes('CodeDoesNotExist');
+    throw new Error(noCode ? RPC_ERRORS.NO_CONTRACT_CODE : RPC_ERRORS.CONTRACT_EXECUTION_ERROR);
+  }
   const bytes = result.result;
   if (!Array.isArray(bytes) || !bytes.every((byte) => typeof byte === 'number')) throw new Error(UNEXPECTED_VIEW);
   try {

@@ -12,7 +12,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.6.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.6.1 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -23,6 +23,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.5.1   | `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258` | Replaced on 2026-11-09 at 17:04 UTC (365,426 bytes, `build.sh --docker`, FastFS tx `A4zDd9E6sm1ZjSj3uVukTcTnoYZG83ntv1DqnS7A9w8R`, `add_version` tx `BGZ3QRPGaUzJ4x3Z7wcNq3yJ3xMYnAwS3rnPQfY69MTb`). It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. It includes the merge approvals of 0.5.0. The Mac build of the same source was `aae02d5e…`. |
 | 0.5.2   | `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5` | **Active** since 2026-11-09 at 17:04 UTC (373,865 bytes, `build.sh --docker`, FastFS tx `7zwppPbVm5AMmFQ18m9dWCYax4mA4zTrHupVnuhQpFnD`, `add_version` tx `A81vUiuvEdsCyFKrFwzZdQe3gVfFTXuse5ue4Qi5g7L2`). No change in behaviour: the code is reorganised. The signed output is the same as 0.5.1, except the version. |
 | 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
+| 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route selects it by `version_key`. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -60,12 +61,12 @@ takes about 40 s.
 crates/voice-verifier/build.sh --docker
 ```
 
-Expected for the source of version 0.6.0:
+Expected for the source of version 0.6.1:
 
 ```text
 host   x86_64-unknown-linux-gnu
-bytes  396771
-sha256 566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9
+bytes  397623
+sha256 f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb
 ```
 
 A change to the source of this crate or of `spoken-intent`, to
@@ -207,12 +208,20 @@ Stage times (`ms`, not signed), in ms:
       receiver one sound from a known account (the receiver or a contact)
       counts as that account. The amount and the receiver are still compared
       with the request. Negations, other units and added clauses are refused.
+    - Multisig proposal of a transfer (0.6.1 and later): in "approve
+      proposal <number> send …", the send part gets the same forgiveness. So
+      "seams grants point testnet" and "seams dash grants dot testnet" both
+      count as `seams-grants.testnet`. A confirmation (`multisig_confirm`)
+      adds no receiver to the known accounts: a match by sound would write
+      the hidden receiver into `heard`. Its send part gets only the verb,
+      amount and unit rules.
     - Community note summary (0.4.0 and later): a summary of 4 or more words
       also passes with one word changed or dropped, when the heard words are
       still closer to the summary than to every near miss (an added or dropped
       "not" never passes).
   - `contacts`: at most 32 named accounts that the owner knows, for the
-    account names and the confusion set. The receiver is added if missing.
+    account names and the confusion set. The receiver is added if missing,
+    except for `multisig_confirm`.
 - Unknown fields are refused at every level.
 - WAV: 16 kHz mono PCM16, at most 8 s, standard base64. The worker writes it
   again with a 44-byte header (the canonical WAV); the audio digest is the

@@ -74,9 +74,9 @@ voice check is on chain, so it does not depend on the wallet.
 Two new request kinds of the `verify` op:
 
 ```json
-{ "kind": "multisig_propose", "multisig": "team.seams-v1.testnet", "proposal_id": 1,
+{ "kind": "multisig_propose", "multisig": "multisig.seams-v1.testnet", "proposal_id": 1,
   "receiver": "grants.testnet", "amount_yocto": "25000000000000000000000000" }
-{ "kind": "multisig_confirm", "multisig": "team.seams-v1.testnet", "proposal_id": 1,
+{ "kind": "multisig_confirm", "multisig": "multisig.seams-v1.testnet", "proposal_id": 1,
   "commitment_hex": "<64 lowercase hex>" }
 ```
 
@@ -194,8 +194,10 @@ The proposal is hidden from the chain and from the members' pages until
    the enrolled test voices.
 3. Deploys: the verifier 0.6.0 and the page's OutLayer secrets are done
    (2026-11-10; 0.6.0 is added but not active, and the route selects it by
-   version key). The contract (`team.seams-v1.testnet`) waits for the member
-   list.
+   version key). The contract of this design, with members, was not
+   deployed. The demo for visitors uses `multisig.seams-v1.testnet`, which
+   replaces `team.seams-v1.testnet`. The old account stays on chain
+   (`docs/voice-multisig-guests.md`).
 4. The 1,024-byte output cap comes from the on-chain OutLayer path, which the
    verifier no longer uses. If the HTTPS path allows more, a confirmation can
    also return the salt, so that any member who confirmed can execute.

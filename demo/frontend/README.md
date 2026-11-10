@@ -17,17 +17,22 @@ and data. The notes app scrolls itself, and its layout follows the window size
 
 A NEAR multisig where a new visitor moves a small amount of testnet NEAR with
 one spoken approval. The spec is `../../docs/voice-multisig-guests.md`. The
-screen, `LiveMultisigScreen` in `src/multisig/`, draws a transaction queue
-and works on NEAR testnet against the contract in `VITE_MULTISIG_CONTRACT`
-(default `team.seams-v1.testnet`, `../contracts/voice-multisig/`). The
-contract has two admins, `admin-a.seams-v1.testnet` and
-`admin-b.seams-v1.testnet`. They are plain key signers. The page says: "The
-two admin signers approve automatically in this demo."
+screen, `LiveMultisigScreen` in `src/multisig/`, draws the transactions of a
+multisig wallet and works on NEAR testnet against the contract in
+`VITE_MULTISIG_CONTRACT` (default `multisig.seams-v1.testnet`,
+`../contracts/voice-multisig/`). It opens on the **New proposal** tab. The
+**History** tab lists the open and the executed proposals, newest first.
+The contract has two admins, `admin-a.seams-v1.testnet` and
+`admin-b.seams-v1.testnet`. They are plain key signers. For the demo, the
+page shows them as signers like the visitor, "Admin A" and "Admin B", with
+no key icon and no words about keys.
 
 1. **Propose.** The visitor types a receiver and an amount (default 0.01
-   NEAR to `seams-grants.testnet`; at most `max_amount_yocto` of
-   `get_config`, 0.05 NEAR), and reads "Approve proposal 1: send 0.01 NEAR
-   to seams-grants.testnet" aloud. The verifier checks the voice and the
+   NEAR to `seams-grants.testnet`; any amount that the grammar can speak,
+   with no cap), and reads "Approve proposal 1: send 0.01 NEAR to
+   seams-grants.testnet" aloud. The hint under the sentence says that
+   "point" can stand for "dot" and that "dash" can be left out. The
+   verifier checks the voice and the
    words, keeps the transfer, and returns a salted commitment and the salt.
    The page keeps the opening (receiver, amount, salt, commitment) in this
    browser's `localStorage`. The Wallet signs `propose`; the chain gets only
@@ -36,14 +41,15 @@ two admin signers approve automatically in this demo."
    (`functions/api/multisig/approve.ts`). Admin A calls `approve`, admin B
    calls `approve`, and admin B calls `execute` with the opening. The
    contract checks the opening against the commitment and sends the NEAR.
-3. **Receipt.** The page shows three ticks (your voice approval, admin A,
-   admin B), then the receipt with the explorer link. Then it deletes the
+3. **Receipt.** The page shows three ticks (your approval, Admin A,
+   Admin B), then the receipt with the explorer link. Then it deletes the
    opening.
 
 If the route fails, or the transfer does not arrive, the page shows
 **Finish the transfer**. It calls the route again, which continues from the
 first step that is not done. The opening stays in `localStorage` until the
-transfer is executed, so the button also shows in **Queue** after a reload.
+transfer is executed, so the button also shows in **History** after a
+reload, on the open proposal that this browser holds the opening of.
 If the browser loses the opening, nobody can execute the proposal: propose
 again.
 
@@ -69,8 +75,10 @@ nothing records.
 salt_hex }`. It takes requests from this site only.
 
 - It reads `get_proposal` and `get_config`. It answers 404 if there is no
-  proposal, 409 if the proposal is executed, and 400 if the input is bad or
-  the amount is above the cap.
+  proposal, 409 if the proposal is executed, and 400 if the input is bad.
+  It sets no cap. If the amount is above the balance of the multisig,
+  `execute` fails ("Exceeded the account balance."), the answer names the
+  step `execute`, and the proposal stays open.
 - Admin A calls `approve` (30 Tgas) if it did not approve yet. Then admin B
   does the same. Then admin B calls `execute` (50 Tgas: the commitment
   check, the transfer and its callback).
@@ -79,8 +87,9 @@ salt_hex }`. It takes requests from this site only.
   failure it answers 502 with `{ error, step }`. The step is `read`,
   `admin_a`, `admin_b` or `execute`.
 - It signs with `signAndSendCall` from `src/faucet/nearTx.ts`. Each admin key
-  is a function-call key for `approve` and `execute` on the team contract
-  only. One proposal costs 1 voice check and 3 admin transactions of gas.
+  is a function-call key for `approve` and `execute` on the multisig
+  contract only. One proposal costs 1 voice check and 3 admin transactions
+  of gas.
 
 ### What it needs live
 
@@ -88,8 +97,8 @@ Each deploy is the project owner's decision.
 
 | Part | What | Note |
 | --- | --- | --- |
-| Contract | `team.seams-v1.testnet`, built from `../contracts/voice-multisig/` | Deployed on 2026-11-10 (tx `HQb3jQNDd4CaYxV74apRRadjSeWtHxN2mRCSweVz7rX3`) with `new(admins, verifier_public_key, max_amount_yocto)`: the two admins, the verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` and a cap of 0.05 NEAR. Fund it with a plain transfer. |
-| Admins | `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` | Each has NEAR for gas and a function-call key for `approve` and `execute` on the contract. The keys are the Pages secrets `MULTISIG_ADMIN_A_KEY` and `MULTISIG_ADMIN_B_KEY`. |
+| Contract | `multisig.seams-v1.testnet`, built from `../contracts/voice-multisig/` | Deployed on 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). If the account has no code, the window shows example data. It was deployed with `new(admins, verifier_public_key)`: the two admins and the verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. Fund it with a plain transfer. It replaces `team.seams-v1.testnet` (deployed on 2026-11-10 with a cap of 0.05 NEAR), which stays on chain. The page refuses the config of that first deploy, so the window shows "The multisig contract answered in an unexpected form." for it. |
+| Admins | `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` | Each has NEAR for gas and a function-call key for `approve` and `execute` on the contract. The keys are the Pages secrets `MULTISIG_ADMIN_A_KEY` and `MULTISIG_ADMIN_B_KEY`. A function-call key names one contract, so the new contract needs new keys in these secrets. |
 | Receiver | `seams-grants.testnet` | A Seams account, the default receiver. |
 | Verifier | An OutLayer verifier version with `multisig_propose` (0.6.0 or later) | 0.6.0, `566e8cbc…`. Its WASM hash goes in `VOICE_OUTLAYER_VERSION_KEY`. |
 | Pages secrets | The six `VOICE_OUTLAYER_*` variables and the two admin keys (see Settings) | The `VOICE_OUTLAYER_*` values are the payment key, project and secrets profile (`main`, `cyan-loong.testnet`) of the Seams staging verify route, with the 0.6.0 version key. They take effect at the next Pages deploy. |
@@ -112,9 +121,9 @@ call spends admin gas, so add Cloudflare rate-limiting rules on
 
 1. Sign in with a wallet that is not an admin, and use **Set up your voice**
    in the Set up card. The card also gets testnet NEAR from the faucet.
-2. Open the multisig window, **New proposal**. Keep `seams-grants.testnet`
-   and `0.01`, press **Record**, and read the sentence. Then confirm in the
-   Wallet.
+2. Open the multisig window. It opens on **New proposal**. Keep
+   `seams-grants.testnet` and `0.01`, press **Record**, and read the
+   sentence. Then confirm in the Wallet.
 3. Wait for the three ticks and the receipt. If a step fails, press
    **Finish the transfer**.
 
@@ -256,7 +265,7 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
-| `VITE_MULTISIG_CONTRACT`            | `team.seams-v1.testnet`               |
+| `VITE_MULTISIG_CONTRACT`            | `multisig.seams-v1.testnet`           |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
 
@@ -280,11 +289,11 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `VOICE_OUTLAYER_PAYMENT_KEY` | Secret. The OutLayer payment key of the Seams staging verify route. Another key finds no voice templates. |
 | `VOICE_OUTLAYER_SECRETS_PROFILE` | The secrets profile of the Seams staging verify route. |
 | `VOICE_OUTLAYER_SECRETS_ACCOUNT_ID` | The secrets account of the Seams staging verify route. |
-| `MULTISIG_ADMIN_A_KEY` | Secret. Admin A's function-call key (`ed25519:…`) for `approve` and `execute` on the team contract. Required for `/api/multisig/approve`. |
+| `MULTISIG_ADMIN_A_KEY` | Secret. Admin A's function-call key (`ed25519:…`) for `approve` and `execute` on the multisig contract. Required for `/api/multisig/approve`. |
 | `MULTISIG_ADMIN_B_KEY` | Secret. Admin B's function-call key, the same way. Required for `/api/multisig/approve`. |
 | `MULTISIG_ADMIN_A` | Optional. Default `admin-a.seams-v1.testnet`. |
 | `MULTISIG_ADMIN_B` | Optional. Default `admin-b.seams-v1.testnet`. |
-| `MULTISIG_CONTRACT` | Optional. Default `team.seams-v1.testnet`. It must be the contract of `VITE_MULTISIG_CONTRACT`. |
+| `MULTISIG_CONTRACT` | Optional. Default `multisig.seams-v1.testnet`. It must be the contract of `VITE_MULTISIG_CONTRACT`. |
 
 Without the `VOICE_OUTLAYER_*` variables, `/api/voice-verify` answers 503 with
 the names of the missing variables, and the multisig screen shows that text.

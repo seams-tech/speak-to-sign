@@ -10,10 +10,10 @@ use near_sdk::{PromiseResult, RuntimeFeesConfig, test_vm_config, testing_env};
 const NOW_MS: u64 = 1_762_700_000_000;
 const TTL_MS: u64 = 120_000;
 const SALT: [u8; 32] = [0x5a; 32];
-/// 0.01 NEAR.
-const AMOUNT: u128 = ONE_HUNDREDTH_NEAR;
-/// 0.05 NEAR, the cap of the test multisig.
-const CAP: u128 = 5 * ONE_HUNDREDTH_NEAR;
+/// 0.01 NEAR, the smallest amount that the grammar can speak.
+const AMOUNT: u128 = 10_000_000_000_000_000_000_000;
+/// 1,000,000 NEAR, the largest amount that the grammar can speak.
+const GRAMMAR_MAX: u128 = 100_000_000 * AMOUNT;
 const RECEIVER: &str = "grants.testnet";
 const MULTISIG: &str = "team.testnet";
 /// The proposer of most tests. It is not an admin.
@@ -39,12 +39,16 @@ fn verifier_public_key(key: &SigningKey) -> String {
     )
 }
 
+/// The multisig's balance holds the largest transfer that the grammar can
+/// speak. A transfer above the balance fails in `execute` itself
+/// ("Exceeded the account balance."); the sandbox test checks that case.
 fn context(predecessor: AccountId, promise_results: Vec<PromiseResult>) {
     testing_env!(
         VMContextBuilder::new()
             .current_account_id(multisig_id())
             .predecessor_account_id(predecessor.clone())
             .signer_account_id(predecessor)
+            .account_balance(NearToken::from_yoctonear(2 * GRAMMAR_MAX))
             .block_timestamp(NOW_MS * 1_000_000)
             .build(),
         test_vm_config(),
@@ -58,22 +62,17 @@ fn set_caller(name: &str) {
     context(account(name), vec![]);
 }
 
-fn new_with(admins: &[&str], key: &str, cap: u128) -> VoiceMultisig {
+fn new_with(admins: &[&str], key: &str) -> VoiceMultisig {
     context(multisig_id(), vec![]);
     VoiceMultisig::new(
         admins.iter().map(|admin| account(admin)).collect(),
         key.into(),
-        U128(cap),
     )
 }
 
-/// Admins admin-a and admin-b; a cap of 0.05 NEAR.
+/// Admins admin-a and admin-b.
 fn contract() -> VoiceMultisig {
-    new_with(
-        &["admin-a", "admin-b"],
-        &verifier_public_key(&verifier()),
-        CAP,
-    )
+    new_with(&["admin-a", "admin-b"], &verifier_public_key(&verifier()))
 }
 
 fn transfer(receiver: &str, amount: u128) -> ProposalV1 {
@@ -311,7 +310,7 @@ fn a_failed_transfer_opens_the_proposal_again() {
 
 #[test]
 fn one_admin_approves_and_executes() {
-    let mut contract = new_with(&["admin-a"], &verifier_public_key(&verifier()), CAP);
+    let mut contract = new_with(&["admin-a"], &verifier_public_key(&verifier()));
     propose_as(&mut contract, VISITOR, 1);
     assert_eq!(approve_as(&mut contract, "admin-a", 1), 1);
     execute_as(&mut contract, "admin-a", 1, AMOUNT, &SALT);
@@ -538,7 +537,6 @@ fn the_verifier_vector_passes_the_signature_check() {
     let mut contract = new_with(
         &["admin-a", "admin-b"],
         vectors["public_key"].as_str().unwrap(),
-        CAP,
     );
     set_caller(VISITOR);
     contract.propose(
@@ -666,28 +664,27 @@ fn execute_of_an_unknown_proposal_fails() {
     execute_as(&mut contract, "admin-a", 1, AMOUNT, &SALT);
 }
 
+/// The contract has no cap: the grammar's own range is the limit.
 #[test]
-fn execute_at_the_cap_passes() {
+fn execute_of_1_000_000_near_sends_it() {
     let mut contract = contract();
-    propose_with(&mut contract, VISITOR, 1, &commitment_of(1, CAP));
+    propose_with(&mut contract, VISITOR, 1, &commitment_of(1, GRAMMAR_MAX));
     approve_as(&mut contract, "admin-a", 1);
     approve_as(&mut contract, "admin-b", 1);
-    execute_as(&mut contract, "admin-b", 1, CAP, &SALT);
+    execute_as(&mut contract, "admin-b", 1, GRAMMAR_MAX, &SALT);
     assert!(matches!(
         get_created_receipts()[0].actions.as_slice(),
-        [MockAction::Transfer { deposit, .. }] if deposit.as_yoctonear() == CAP
+        [MockAction::Transfer { deposit, .. }] if deposit.as_yoctonear() == GRAMMAR_MAX
     ));
 }
 
 #[test]
-#[should_panic(expected = "amount_yocto is above max_amount_yocto")]
-fn execute_above_the_cap_fails() {
-    let above = CAP + ONE_HUNDREDTH_NEAR;
-    let mut contract = contract();
-    propose_with(&mut contract, VISITOR, 1, &commitment_of(1, above));
-    approve_as(&mut contract, "admin-a", 1);
-    approve_as(&mut contract, "admin-b", 1);
-    execute_as(&mut contract, "admin-b", 1, above, &SALT);
+#[should_panic(
+    expected = "amount_yocto must be a multiple of 0.01 NEAR from 0.01 to 1,000,000 NEAR"
+)]
+fn execute_above_1_000_000_near_fails() {
+    let mut contract = ready();
+    execute_as(&mut contract, "admin-b", 1, GRAMMAR_MAX + AMOUNT, &SALT);
 }
 
 #[test]
@@ -765,7 +762,7 @@ fn execute_after_a_successful_transfer_fails() {
 #[test]
 #[should_panic(expected = "admins must have 1 to 10 accounts")]
 fn no_admins_fail() {
-    new_with(&[], &verifier_public_key(&verifier()), CAP);
+    new_with(&[], &verifier_public_key(&verifier()));
 }
 
 #[test]
@@ -773,14 +770,14 @@ fn no_admins_fail() {
 fn eleven_admins_fail() {
     let names: Vec<String> = (0..11).map(|n| format!("admin-{n}")).collect();
     let names: Vec<&str> = names.iter().map(String::as_str).collect();
-    new_with(&names, &verifier_public_key(&verifier()), CAP);
+    new_with(&names, &verifier_public_key(&verifier()));
 }
 
 #[test]
 fn ten_admins_pass() {
     let names: Vec<String> = (0..10).map(|n| format!("admin-{n}")).collect();
     let names: Vec<&str> = names.iter().map(String::as_str).collect();
-    let contract = new_with(&names, &verifier_public_key(&verifier()), CAP);
+    let contract = new_with(&names, &verifier_public_key(&verifier()));
     assert_eq!(contract.get_config().admins.len(), 10);
 }
 
@@ -790,7 +787,6 @@ fn a_repeated_admin_fails() {
     new_with(
         &["admin-a", "admin-b", "admin-a"],
         &verifier_public_key(&verifier()),
-        CAP,
     );
 }
 
@@ -798,7 +794,7 @@ fn a_repeated_admin_fails() {
 #[should_panic(expected = "verifier_public_key must be ed25519:<base58 of 32 bytes>")]
 fn a_secp256k1_verifier_key_fails() {
     let key = verifier_public_key(&verifier()).replace("ed25519:", "secp256k1:");
-    new_with(&["admin-a"], &key, CAP);
+    new_with(&["admin-a"], &key);
 }
 
 #[test]
@@ -808,49 +804,19 @@ fn a_short_verifier_key_fails() {
         "ed25519:{}",
         near_sdk::bs58::encode([1u8; 31]).into_string()
     );
-    new_with(&["admin-a"], &key, CAP);
-}
-
-#[test]
-#[should_panic(expected = "max_amount_yocto must be a multiple of 0.01 NEAR, at least 0.01 NEAR")]
-fn a_cap_of_0_fails() {
-    new_with(&["admin-a"], &verifier_public_key(&verifier()), 0);
-}
-
-#[test]
-#[should_panic(expected = "max_amount_yocto must be a multiple of 0.01 NEAR, at least 0.01 NEAR")]
-fn a_cap_that_is_not_a_multiple_of_0_01_near_fails() {
-    new_with(
-        &["admin-a"],
-        &verifier_public_key(&verifier()),
-        ONE_HUNDREDTH_NEAR + ONE_HUNDREDTH_NEAR / 2,
-    );
-}
-
-#[test]
-fn a_cap_of_0_01_near_passes() {
-    let contract = new_with(
-        &["admin-a"],
-        &verifier_public_key(&verifier()),
-        ONE_HUNDREDTH_NEAR,
-    );
-    assert_eq!(
-        contract.get_config().max_amount_yocto,
-        U128(ONE_HUNDREDTH_NEAR)
-    );
+    new_with(&["admin-a"], &key);
 }
 
 // --- views ---
 
 #[test]
-fn get_config_returns_the_admins_key_and_cap() {
+fn get_config_returns_the_admins_and_the_key() {
     let contract = contract();
     assert_eq!(
         serde_json::to_value(contract.get_config()).unwrap(),
         json!({
             "admins": ["admin-a.testnet", "admin-b.testnet"],
-            "verifier_public_key": verifier_public_key(&verifier()),
-            "max_amount_yocto": "50000000000000000000000"
+            "verifier_public_key": verifier_public_key(&verifier())
         })
     );
 }

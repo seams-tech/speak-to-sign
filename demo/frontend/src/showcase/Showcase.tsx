@@ -143,7 +143,7 @@ function tagOf(example: VoiceExample): string {
 }
 
 /** The name of each page, in the nav and the footer. */
-const PAGE_LABEL: Record<ExampleId, string> = {
+export const PAGE_LABEL: Record<ExampleId, string> = {
   notes: 'Community Notes',
   multisig: 'Voice multisig',
 };

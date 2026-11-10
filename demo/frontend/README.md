@@ -389,11 +389,31 @@ X took the `tweet.fields` name. Of 20 posts, 5 passed the default filter (2
 sport, 1 science, 1 technology, 1 entertainment). The model put the posts on
 Gaza, vaccines, politicians and crime numbers in their own subjects.
 
-## The timeline: `#/notes/timeline`
+## The Community Notes page as one app
+
+`src/showcase/NotesPage.tsx` is the page at `/`. It has the height of the
+screen, with three parts:
+
+- **The nav**, with both examples, Speak to pay and GitHub.
+- **The banner** about voice signatures: the title, one sentence, the
+  signature card (`SignatureCard.tsx`: a spoken sentence, the two checks and
+  "Signed", as a loop) and the setup steps as one strip (`#setup`).
+- **The notes app**, in the page itself, not in a window. It scrolls inside
+  the page. When it scrolls, the banner folds to one line; a click on that
+  line, or a scroll back to the top, opens the banner again.
+
+The app opens on the timeline. Its right column, "Signed by voice"
+(`src/x/VoiceFeed.tsx`), lists the newest notes with the sentence that each
+author said. "Home" in the app's navigation opens the timeline. The voice
+multisig page (`/multisig/`) keeps the page with a small screen and a window
+(`Showcase.tsx`).
+
+## The timeline
 
 `src/x/Timeline.tsx` lists the demo post and the posts from
-`/api/x/eligible-posts`. The back arrow of a post page opens it. `#/notes`
-still opens the demo post.
+`/api/x/eligible-posts`. It is the first screen of the app: every hash that
+is not a post (`#/notes/post/<id>`) shows it. The back arrow of a post page
+opens it.
 
 - **A card** shows the post, its note and the state of the note's market:
   no note, a note without a market, open bets, closed bets, or JEV's answer.

@@ -139,3 +139,28 @@ button.tab.tab-on {
 .tl-post .actions {
   padding-right: 4px;
 }
+/* The right column shows only when the app is wide enough for three columns. */
+/* Two classes: the app's own .side rule loads later and says display: flex. */
+.side.xt-side {
+  display: none;
+}
+@container notes (min-width: 1100px) {
+  .side.xt-side {
+    display: flex;
+  }
+}
+.xt-side .trend-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.xt-side-foot {
+  margin-top: 12px;
+  font-size: 13px;
+}
+/* "Home" in the navigation is a real link now. */
+a.rail-item {
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}

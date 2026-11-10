@@ -13,6 +13,7 @@ import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { routeKey, START_POST_ID, useRoute } from './router';
 import { Timeline } from './x/Timeline';
+import { VoiceFeed } from './x/VoiceFeed';
 import { loadXPosts } from './x/xPosts';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 import { SETUP_CHANGED, setUpVoice, voiceIsSetUp, type VoicePhase } from './signer/voiceSetup';
@@ -366,6 +367,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             <SetupPanel />
             {route.name === 'timeline' ? <Timeline /> : <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />}
           </main>
+          <VoiceFeed />
         </div>
 
         {writePost && (

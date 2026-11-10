@@ -13,6 +13,7 @@ import { createRoot } from 'react-dom/client';
 import { SeamsWebProvider } from '@seams/wallet/react';
 import { buildSeamsConfig } from '../seams/seamsConfig';
 import { PAGE_PATH, type ExampleId } from './examples';
+import { NotesPage } from './NotesPage';
 import { Showcase } from './Showcase';
 // The notes app and its dialogs, then the page.
 import '../styles.css';
@@ -33,14 +34,18 @@ if (page === 'notes' && /^#\/multisig(?:\/|$)/.test(window.location.hash)) {
   // on one origin, so a sign-in on one page holds on the other.
   const seamsConfig = buildSeamsConfig();
 
+  // Community Notes is the page itself (NotesPage). The voice multisig keeps the page with a
+  // small screen that opens in a window (Showcase).
+  const site = (seams: boolean) => (page === 'notes' ? <NotesPage seams={seams} /> : <Showcase seams={seams} page={page} />);
+
   createRoot(root).render(
     <StrictMode>
       {seamsConfig ? (
         <SeamsWebProvider config={seamsConfig} theme={{ theme: 'light' }}>
-          <Showcase seams page={page} />
+          {site(true)}
         </SeamsWebProvider>
       ) : (
-        <Showcase seams={false} page={page} />
+        site(false)
       )}
     </StrictMode>,
   );

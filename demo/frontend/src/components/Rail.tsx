@@ -11,6 +11,7 @@ import {
 } from '@tabler/icons-react';
 import { shortAccount } from '../config';
 import { useDemo } from '../demoContext';
+import { paths } from '../router';
 
 const DECOR = [
   { label: 'Explore', Icon: IconSearch },
@@ -23,7 +24,7 @@ const DECOR = [
 
 /**
  * The left navigation. Wide screens show the labels; narrow screens show icons only.
- * The demo has one page, the post, so the menu items copy the look only, in a dim grey that does
+ * "Home" opens the timeline. The other menu items copy the look only, in a dim grey that does
  * not invite a click. The account works.
  */
 export function Rail() {
@@ -32,12 +33,12 @@ export function Rail() {
   return (
     <header className="rail">
       <nav className="rail-inner" aria-label="Main">
-        <span className="rail-item" aria-hidden="true">
+        <a className="rail-item rail-link" href={paths.timeline}>
           <span className="rail-item-pill">
             <IconHome size={24} stroke={1.8} />
             <span className="rail-label">Home</span>
           </span>
-        </span>
+        </a>
         {DECOR.map(({ label, Icon }) => (
           <span key={label} className="rail-item" aria-hidden="true">
             <span className="rail-item-pill">
@@ -85,9 +86,9 @@ export function BottomBar() {
   return (
     <>
       <nav className="bottom-bar" aria-label="Main">
-        <span className="bottom-item" aria-hidden="true">
-          <IconHome size={26} stroke={1.8} />
-        </span>
+        <a className="bottom-item" href={paths.timeline} aria-label="Home">
+          <IconHome size={26} stroke={1.8} aria-hidden="true" />
+        </a>
         <span className="bottom-item" aria-hidden="true">
           <IconSearch size={26} stroke={1.6} />
         </span>

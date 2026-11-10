@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import {
   handleEligiblePosts,
   MAX_KEPT_POSTS,
+  readPage,
+  refreshAgeMs,
   NO_FILTER_KEY,
   NO_KEYS,
   parseEligiblePosts,
@@ -25,6 +27,7 @@ import { fallbackDraft, validDraft } from '../src/x/noteDrafts.ts';
 const ENV: Env = { X_API_KEY: 'ck', X_API_SECRET: 'SECRET-ONE', X_ACCESS_TOKEN: 'at', X_ACCESS_TOKEN_SECRET: 'SECRET-TWO', X_ELIGIBLE_TOPICS: 'all', X_ELIGIBLE_TTL_SECONDS: '3600' };
 /** The settings with the subject filter on. */
 const FILTER_ENV: Env = { ...ENV, X_ELIGIBLE_TOPICS: undefined, NEAR_AI_API_KEY: 'SECRET-AI' };
+const FILTER_ENV_ALL = FILTER_ENV;
 const T0 = 1_800_000_000_000;
 
 const X_BODY = {
@@ -146,7 +149,9 @@ test('readSettings needs all four keys and clamps the optional values', () => {
   assert.equal(readSettings({}), 'no-keys');
   assert.equal(readSettings({ ...ENV, X_ACCESS_TOKEN_SECRET: ' ' }), 'no-keys');
   const defaults = settingsOf({ ...ENV, X_ELIGIBLE_TTL_SECONDS: undefined });
-  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [10, 28_800_000, null]);
+  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang, defaults?.maxKept], [10, 28_800_000, null, MAX_KEPT_POSTS]);
+  assert.equal(settingsOf({ ...ENV, X_ELIGIBLE_KEEP: '5' })?.maxKept, 10);
+  assert.equal(settingsOf({ ...ENV, X_ELIGIBLE_KEEP: '90000' })?.maxKept, 2_000);
   const set = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '500', X_ELIGIBLE_TTL_SECONDS: '5', X_ELIGIBLE_LANG: ' JA ' });
   assert.deepEqual([set?.maxResults, set?.ttlMs, set?.lang], [100, 60_000, 'ja']);
   const bad = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '-3', X_ELIGIBLE_TTL_SECONDS: 'soon', X_ELIGIBLE_LANG: 'feed_size:xxl' });
@@ -216,11 +221,13 @@ test('a fresh snapshot answers without a call to X, and an old one causes a new 
   const snapshot: Snapshot = { fetchedAtMs: T0, posts: parseEligiblePosts(X_BODY), failedAtMs: null, topics: {} };
   const x = fakeX([ok({ data: [{ id: '5', text: 'New post.' }] })]);
   const store = fakeStore(snapshot);
-  const fresh = await handleEligiblePosts(get(), ENV, deps(x, store, T0 + 3_599_000));
+  // The TTL is 1 hour here, so the snapshot is old enough 6 minutes before it (a tenth of it).
+  assert.equal(refreshAgeMs(3_600_000), 3_240_000);
+  const fresh = await handleEligiblePosts(get(), ENV, deps(x, store, T0 + 3_239_000));
   assert.equal(((await fresh.json()) as { posts: unknown[] }).posts.length, 2);
   assert.equal(x.calls.length, 0);
 
-  const renewed = await handleEligiblePosts(get(), ENV, deps(x, store, T0 + 3_600_000));
+  const renewed = await handleEligiblePosts(get(), ENV, deps(x, store, T0 + 3_240_000));
   const body = (await renewed.json()) as { posts: { id: string }[]; stale: boolean };
   // The old posts stay, and the newest post is first. A post without a date is last.
   assert.deepEqual([body.posts.map((post) => post.id), body.stale], [['1933207126262096118', '5', '1930672414444372186'], false]);
@@ -369,12 +376,15 @@ test('if the filter fails, no unsorted post shows and the route tries again afte
 });
 
 test('a change of the allowed subjects removes kept posts, and the snapshot has a size limit', async () => {
-  const many = Array.from({ length: MAX_KEPT_POSTS + 5 }, (_, index) => String(100 + index));
+  // A limit of 30 (X_ELIGIBLE_KEEP), so that the test needs only two answers of the subject filter.
+  const KEEP = 30;
+  const FILTER_ENV = { ...FILTER_ENV_ALL, X_ELIGIBLE_KEEP: String(KEEP) };
+  const many = Array.from({ length: KEEP + 5 }, (_, index) => String(100 + index));
   const services = fakeServices([xPosts(...many), xPosts('7')], [aiSays(many.slice(0, 20).map((_, i) => `${i + 1}: sport`).join('\n')), aiSays(many.slice(20).map((_, i) => `${i + 1}: sport`).join('\n')), aiSays('1: science')]);
   const store = fakeStore();
   const at = (now: number): Deps => ({ fetch: services.fetch, store: store.store, now: () => now, nonce: () => 'n' });
   const first = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0))).json()) as { posts: unknown[] };
-  assert.equal(first.posts.length, MAX_KEPT_POSTS);
+  assert.equal(first.posts.length, KEEP);
   const narrowed = (await (await handleEligiblePosts(get(), { ...FILTER_ENV, X_ELIGIBLE_TOPICS: 'science' }, at(T0 + 3_600_000))).json()) as { posts: { id: string }[] };
   assert.deepEqual(narrowed.posts.map((post) => post.id), ['7']);
 });
@@ -440,4 +450,44 @@ test('the route gives each shown post a draft once, and keeps it', async () => {
   const plain = fakeX([ok({ data: [{ id: '5', text: 'A post.' }] })]);
   const body = (await (await handleEligiblePosts(get(), ENV, deps(plain, fakeStore()))).json()) as { posts: { draft: unknown }[] };
   assert.deepEqual(body.posts[0]?.draft, fallbackDraft(null));
+});
+
+// ---- Pages and the schedule ----
+
+test('readPage reads offset and limit, and no limit means all the posts', () => {
+  assert.deepEqual(readPage(new URLSearchParams('')), { offset: 0, limit: null });
+  assert.deepEqual(readPage(new URLSearchParams('offset=20&limit=10')), { offset: 20, limit: 10 });
+  assert.deepEqual(readPage(new URLSearchParams('offset=-4&limit=500')), { offset: 0, limit: 50 });
+  assert.deepEqual(readPage(new URLSearchParams('offset=x&limit=0')), { offset: 0, limit: 1 });
+  assert.deepEqual(readPage(new URLSearchParams('limit=many')), { offset: 0, limit: 10 });
+});
+
+test('the route answers a page of the kept posts with the total and the next offset', async () => {
+  const posts = Array.from({ length: 25 }, (_, index) => ({ ...parseEligiblePosts(X_BODY)[0]!, id: String(1000 + index) }));
+  const store = fakeStore({ fetchedAtMs: T0, posts, failedAtMs: null, topics: {} });
+  const x = fakeX([]);
+  const page = async (query: string) => {
+    const request = new Request(`https://demo.example/api/x/eligible-posts${query}`);
+    return (await (await handleEligiblePosts(request, ENV, deps(x, store, T0 + 1_000))).json()) as { posts: { id: string }[]; total: number; nextOffset: number | null };
+  };
+  const first = await page('?limit=10');
+  assert.deepEqual([first.posts.map((post) => post.id).slice(0, 2), first.posts.length, first.total, first.nextOffset], [['1000', '1001'], 10, 25, 10]);
+  const last = await page('?offset=20&limit=10');
+  assert.deepEqual([last.posts.length, last.nextOffset], [5, null]);
+  const past = await page('?offset=40&limit=10');
+  assert.deepEqual([past.posts.length, past.nextOffset], [0, null]);
+  const all = await page('');
+  assert.deepEqual([all.posts.length, all.nextOffset], [25, null]);
+  assert.equal(x.calls.length, 0);
+});
+
+test('a request of the schedule every 8 hours gets new posts, also when it comes a minute early', async () => {
+  const TTL = 8 * 3_600_000;
+  assert.equal(refreshAgeMs(TTL), TTL - 600_000);
+  const store = fakeStore({ fetchedAtMs: T0, posts: parseEligiblePosts(X_BODY), failedAtMs: null, topics: {} });
+  const x = fakeX([ok({ data: [{ id: '5', text: 'New post.' }] })]);
+  const env = { ...ENV, X_ELIGIBLE_TTL_SECONDS: undefined };
+  await handleEligiblePosts(get(), env, deps(x, store, T0 + TTL - 60_000));
+  assert.equal(x.calls.length, 1);
+  assert.equal(store.current()?.posts.length, 3);
 });

@@ -12,7 +12,7 @@ import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { Timeline } from './x/Timeline';
 import { VoiceFeed } from './x/VoiceFeed';
-import { loadXPosts } from './x/xPosts';
+import { loadXPosts, X_PAGE_SIZE } from './x/xPosts';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 import { SETUP_CHANGED, setUpVoice, voiceIsSetUp, type VoicePhase } from './signer/voiceSetup';
 
@@ -34,6 +34,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   const [xPostsState, setXPostsState] = useState<DemoState['xPostsState']>('loading');
   // The newest list, for `loadAll`: it also runs from `reload`, long after the posts arrived.
   const xPostsRef = useRef<Post[]>([]);
+  // The offset of the next page of posts (null: no more), and whether a page is on its way.
+  const [xPostsNext, setXPostsNext] = useState<number | null>(null);
+  const xPostsNextRef = useRef<number | null>(null);
+  const [xPostsMoreState, setXPostsMoreState] = useState<DemoState['xPostsMoreState']>('idle');
+  const loadingMoreRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [myRatings, setMyRatings] = useState<Record<number, Rating>>({});
@@ -117,19 +122,21 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     void refreshStatus();
   }, [refreshStatus]);
 
-  // The posts from X. They are registered before the first render that shows them, and their
-  // notes load with the notes of the demo post.
+  // The first page of posts from X. They are registered before the first render that shows
+  // them, and their notes load with the notes of the demo post.
   useEffect(() => {
     let cancelled = false;
-    void loadXPosts().then((posts) => {
+    void loadXPosts(0, X_PAGE_SIZE).then((page) => {
       if (cancelled) return;
-      if (!posts) {
+      if (!page) {
         setXPostsState('error');
         return;
       }
-      registerPosts(posts);
-      xPostsRef.current = posts;
-      setXPosts(posts);
+      registerPosts(page.posts);
+      xPostsRef.current = page.posts;
+      xPostsNextRef.current = page.nextOffset;
+      setXPosts(page.posts);
+      setXPostsNext(page.nextOffset);
       setXPostsState('ready');
       void loadAll();
     });
@@ -137,6 +144,36 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
       cancelled = true;
     };
   }, [loadAll]);
+
+  // The next page, when the timeline asks (the visitor scrolled near its end). Only the new
+  // posts' notes load.
+  const loadMoreXPosts = useCallback(async () => {
+    const offset = xPostsNextRef.current;
+    if (loadingMoreRef.current || offset === null) return;
+    loadingMoreRef.current = true;
+    setXPostsMoreState('loading');
+    const page = await loadXPosts(offset, X_PAGE_SIZE);
+    if (!page) {
+      loadingMoreRef.current = false;
+      setXPostsMoreState('error');
+      return;
+    }
+    const known = new Set(xPostsRef.current.map((post) => post.id));
+    const added = page.posts.filter((post) => !known.has(post.id));
+    registerPosts(added);
+    xPostsRef.current = [...xPostsRef.current, ...added];
+    xPostsNextRef.current = page.nextOffset;
+    setXPosts(xPostsRef.current);
+    setXPostsNext(page.nextOffset);
+    try {
+      const entries = await Promise.all(added.map(async (post) => [post.id, await store.getNotes(post.id)] as const));
+      setNotesByPost((current) => ({ ...current, ...Object.fromEntries(entries) }));
+    } catch {
+      // The notes of these posts load with the next full read (focus, or after a note).
+    }
+    loadingMoreRef.current = false;
+    setXPostsMoreState('idle');
+  }, [store]);
 
   useEffect(() => {
     void loadAll();
@@ -331,6 +368,9 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     notesByPost,
     xPosts,
     xPostsState,
+    xPostsMore: xPostsNext !== null,
+    xPostsMoreState,
+    loadMoreXPosts: () => void loadMoreXPosts(),
     loading,
     loadError,
     myRatings,

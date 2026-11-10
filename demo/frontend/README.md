@@ -315,6 +315,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |
 | `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` | Secret. The OAuth 1.0a Access Token and secret of the same account. Required. A Bearer Token does not work on this endpoint. |
 | `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10.               |
+| `X_ELIGIBLE_KEEP` | Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. |
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 28800 (8 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
 | `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment`. `all` turns the filter off. The filter needs `NEAR_AI_API_KEY`. |
@@ -408,7 +409,21 @@ mode and never sends a note to X.
   (`fallbackDraft` in `src/x/noteDrafts.ts`). The five example posts have
   hand-written drafts.
 - **Collection.** About 1 post in 4 passes the default filter. The snapshot
-  therefore keeps the passed posts of earlier calls, 30 at most, newest first.
+  therefore keeps the passed posts of earlier calls, newest first, up to
+  `X_ELIGIBLE_KEEP` (600). It grows by the new passed posts of each call. With
+  10 posts a call that is 2 or 3 posts, about 20 after two days; 10 new shown
+  posts a call (60 after two days) need about 40 posts a call
+  (`X_ELIGIBLE_MAX=40`), which costs about four times as much.
+- **Schedule.** Pages Functions have no schedule: a visitor's request makes
+  the call when the snapshot is old (at the TTL less 10 minutes, or less a
+  tenth of a short TTL). The Worker `../x-refresh-worker` asks every 8 hours,
+  so the posts come also when no one visits. Deploy it with the owner's
+  approval (its README).
+- **Pages.** `?offset=<n>&limit=<n>` (1 to 50) gives `limit` posts from
+  `offset` (0 is the newest), with `total` and `nextOffset` (null at the
+  end). Without `limit` the answer has all the posts. The timeline loads 10,
+  then the next 10 when the visitor scrolls within 800 px of the end
+  (`loadMoreXPosts`).
 - **Checks.** The route drops posts that X marks as sensitive. It checks each
   field of X's answer, and keeps only image URLs on `twimg.com`.
 

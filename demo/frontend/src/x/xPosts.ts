@@ -1,5 +1,6 @@
 // The posts from X that can get a note, as posts of the notes app. They come from the page's
-// own route /api/x/eligible-posts (functions/api/x/eligible-posts.ts).
+// own route /api/x/eligible-posts (functions/api/x/eligible-posts.ts), in pages: the timeline
+// loads the first page, and the next one when the visitor scrolls near its end.
 
 import type { Post } from '../data/posts';
 import { FIXTURE_FETCHED_AT_MS, FIXTURE_POSTS } from './fixture.ts';
@@ -93,19 +94,37 @@ export function readXPosts(body: unknown, nowMs: number): Post[] | null {
   });
 }
 
+/** The posts of one page of the timeline. */
+export const X_PAGE_SIZE = 10;
+
+/** One page of posts, and the offset of the next page (null: no more). */
+export interface XPostsPage {
+  posts: Post[];
+  nextOffset: number | null;
+}
+
+/** The offset of the next page in the route's body. A route without pages gave all its posts. */
+export function readNextOffset(body: unknown): number | null {
+  const next = typeof body === 'object' && body !== null ? (body as { nextOffset?: unknown }).nextOffset : null;
+  return typeof next === 'number' && Number.isSafeInteger(next) && next > 0 ? next : null;
+}
+
 /**
- * The posts from the route, or null when the route gives none. `pnpm dev` without the function
- * server shows the five example posts of fixture.ts, so the timeline can be seen without X.
+ * One page of posts from the route, or null when the route gives none. `pnpm dev` without the
+ * function server shows the five example posts of fixture.ts on the first page, so the timeline
+ * can be seen without X.
  */
-export async function loadXPosts(): Promise<Post[] | null> {
+export async function loadXPosts(offset = 0, limit = X_PAGE_SIZE): Promise<XPostsPage | null> {
   try {
-    const response = await fetch('/api/x/eligible-posts', { headers: { Accept: 'application/json' } });
+    const response = await fetch(`/api/x/eligible-posts?offset=${offset}&limit=${limit}`, { headers: { Accept: 'application/json' } });
     if (response.ok) {
-      const posts = readXPosts(await response.json(), Date.now());
-      if (posts) return posts;
+      const body: unknown = await response.json();
+      const posts = readXPosts(body, Date.now());
+      if (posts) return { posts, nextOffset: readNextOffset(body) };
     }
   } catch {
     // The fallback below.
   }
-  return import.meta.env.DEV ? FIXTURE_POSTS.map((x) => toPost(x, FIXTURE_FETCHED_AT_MS)) : null;
+  if (import.meta.env.DEV && offset === 0) return { posts: FIXTURE_POSTS.map((x) => toPost(x, FIXTURE_FETCHED_AT_MS)), nextOffset: null };
+  return null;
 }

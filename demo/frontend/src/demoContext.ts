@@ -35,6 +35,12 @@ export interface DemoState {
   xPosts: Post[];
   /** `error`: the posts service gave no posts. The timeline then shows the demo post only. */
   xPostsState: 'loading' | 'ready' | 'error';
+  /** The route has more posts than the timeline loaded. */
+  xPostsMore: boolean;
+  /** `loading`: the next page is on its way. `error`: the last try failed. */
+  xPostsMoreState: 'idle' | 'loading' | 'error';
+  /** Loads the next page of posts from X. Calls while a page loads do nothing. */
+  loadMoreXPosts(): void;
   loading: boolean;
   loadError: string | null;
   /** The ratings of the signed-in account, by note id. */

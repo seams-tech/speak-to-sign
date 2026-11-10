@@ -144,11 +144,11 @@ test('readSettings needs all four keys and clamps the optional values', () => {
   assert.equal(readSettings({}), 'no-keys');
   assert.equal(readSettings({ ...ENV, X_ACCESS_TOKEN_SECRET: ' ' }), 'no-keys');
   const defaults = settingsOf({ ...ENV, X_ELIGIBLE_TTL_SECONDS: undefined });
-  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [20, 28_800_000, null]);
+  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [10, 28_800_000, null]);
   const set = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '500', X_ELIGIBLE_TTL_SECONDS: '5', X_ELIGIBLE_LANG: ' JA ' });
   assert.deepEqual([set?.maxResults, set?.ttlMs, set?.lang], [100, 60_000, 'ja']);
   const bad = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '-3', X_ELIGIBLE_TTL_SECONDS: 'soon', X_ELIGIBLE_LANG: 'feed_size:xxl' });
-  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [20, 28_800_000, null]);
+  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [10, 28_800_000, null]);
 });
 
 test('parseEligiblePosts keeps the good posts and checks every field', () => {
@@ -201,7 +201,7 @@ test('the first call asks X in test mode, signs the request and stores the snaps
   const { url, authorization } = x.calls[0]!;
   assert.equal(url.origin + url.pathname, 'https://api.x.com/2/notes/search/posts_eligible_for_notes');
   assert.equal(url.searchParams.get('test_mode'), 'true');
-  assert.equal(url.searchParams.get('max_results'), '20');
+  assert.equal(url.searchParams.get('max_results'), '10');
   assert.equal(url.searchParams.get('post_selection'), 'feed_lang:all');
   assert.ok(url.searchParams.get('tweet.fields')?.includes('note_tweet'));
   assert.match(authorization, /^OAuth oauth_consumer_key="ck", oauth_nonce="nonce", oauth_signature="[^"]+", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1800000000", oauth_token="at", oauth_version="1\.0"$/);

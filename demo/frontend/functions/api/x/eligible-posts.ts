@@ -25,7 +25,7 @@ export interface Env {
   /** OAuth 1.0a "Access Token" and secret of the AI Note Writer account. */
   X_ACCESS_TOKEN?: string;
   X_ACCESS_TOKEN_SECRET?: string;
-  /** Optional. Posts for each call to X, 1 to 100. Default 20. */
+  /** Optional. Posts for each call to X, 1 to 100. Default 10. */
   X_ELIGIBLE_MAX?: string;
   /** Optional. The age at which the route asks X again. Default 28800 (8 hours), minimum 60. */
   X_ELIGIBLE_TTL_SECONDS?: string;
@@ -105,9 +105,9 @@ export interface Deps {
 }
 
 const X_URL = 'https://api.x.com/2/notes/search/posts_eligible_for_notes';
-const DEFAULT_MAX = 20;
-// The demo needs some fresh posts each day, not a live feed. Three calls a day of 20 posts cost
-// $0.90 a day at most, which keeps a week below the budget of $5 to $10.
+const DEFAULT_MAX = 10;
+// The demo needs some fresh posts each day, not a live feed. Three calls a day of 10 posts cost
+// $0.45 a day at most, which keeps a week below the budget of $5 to $10.
 const DEFAULT_TTL_SECONDS = 8 * 3_600;
 const MIN_TTL_SECONDS = 60;
 /** After a failed call, the route waits this long before it asks X again. */

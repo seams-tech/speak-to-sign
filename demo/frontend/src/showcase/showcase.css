@@ -1572,15 +1572,14 @@ h1.ss-display {
   color: var(--ink);
 }
 
-/* A hairline between the name and the steps. It is a part of the steps' box at all times, so
-   it fades in and out with the steps and not before them. */
+/* The space between the name and the steps, with no line in it. It is a part of the steps' box
+   at all times, so it comes and goes with the steps and not before them. */
 .ss-nav-setup::before {
   content: '';
   flex: none;
   align-self: center;
   height: 16px;
   margin: 0 8px 0 2px;
-  border-left: 1px solid rgba(255, 255, 255, 0.45);
 }
 
 /* GitHub is at the rose end of the gradient, which is light: a dark glass keeps it readable. */

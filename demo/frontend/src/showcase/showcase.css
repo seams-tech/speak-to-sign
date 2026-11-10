@@ -2165,159 +2165,178 @@ h1.ss-display {
   color: rgba(255, 255, 255, 0.92);
 }
 
-/* The signature card on the hero: the Seams Wallet voice card (.sw-card, above) as it goes
-   through one signature. data-phase is listening, voice, words or signed. The card keeps one
-   size through all of them. */
-.ss-sig {
+/* The card on the hero: the notes app's own "Write a Community Note" dialog (the .dialog classes
+   of src/styles.css), as it goes through one voice signature. data-step says where it is. The
+   card has the app's own colours and type, not the page's, and it keeps one size through
+   every step. */
+.ss-wn {
+  /* The notes app's theme (src/styles.css): .ss-page gives these names other values. */
+  --ink: #0f1419;
+  --muted: #536471;
+  --line: #eff3f4;
+  --line-strong: #cfd9de;
+  --accent: #1d9bf0;
+  --accent-ink: #1a8cd8;
+  --accent-bg: #e8f5fd;
+  --panel: #f7f9f9;
+  --green: #00ba7c;
   justify-self: end;
-  width: 372px;
-  padding: 16px 20px 0;
-  border: 0;
-  border-radius: 22px;
+  width: 440px;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+  text-align: left;
   box-shadow:
     0 36px 70px -30px rgba(6, 24, 38, 0.6),
     0 8px 20px -10px rgba(6, 24, 38, 0.3);
+  /* Nothing in the card takes a click: the real dialog opens from a post. */
+  pointer-events: none;
+  user-select: none;
 }
 
-/* The sentence: room for two lines, so a long one does not move the card. */
-.ss-sig-say {
+/* On a phone the app's dialog fills the screen. The card on the hero stays a card. */
+.ss-wn.dialog {
+  min-height: 0;
+  max-height: none;
+  border-radius: 28px;
+}
+
+.ss-wn-inner {
   display: flex;
-  align-items: center;
-  min-height: 67px;
-  margin: 14px 0 8px;
+  flex-direction: column;
 }
 
-.ss-sig-words {
-  animation: ss-sig-in 0.4s ease-out;
+.ss-wn .dialog-head h2 {
+  margin: 0;
+  font-size: 19px;
 }
 
-/* It starts visible enough to read, in case the browser holds the animation. */
-@keyframes ss-sig-in {
-  from {
-    opacity: 0.35;
-    transform: translateY(4px);
-  }
+.ss-wn .dialog-body {
+  overflow: hidden;
 }
 
-/* The sound bars move only while the card listens. */
-.ss-sig-wave {
-  transition: opacity 0.3s;
+/* The two fields are boxes, not inputs. Each has the height of its longest text, so the card
+   does not grow while a text types itself in. */
+/* Whole lines only: 3 lines of 20px for the note, 2 lines of 23px for the sentence. */
+.ss-wn-lines {
+  display: block;
+  height: 100%;
+  overflow: hidden;
 }
 
-.ss-sig:not([data-phase='listening']) .ss-sig-wave {
-  opacity: 0.22;
+.ss-wn-note {
+  height: 82px;
+  resize: none;
 }
 
-.ss-sig:not([data-phase='listening']) .ss-sig-wave i {
-  animation-play-state: paused;
-}
-
-/* The two checks of the verifier. */
-.ss-sig-checks {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.ss-sig-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--ash);
-  transition: color 0.25s;
-}
-
-.ss-sig-dot {
-  width: 16px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  border-radius: 9999px;
-  background: var(--stone);
-  color: #ffffff;
+.ss-wn-say {
+  height: 68px;
+  line-height: 23px;
+  resize: none;
   transition:
-    background-color 0.25s,
-    transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
-.ss-sig-check-ok {
+.ss-wn-note {
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.ss-wn-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  margin-left: 1px;
+  vertical-align: -0.18em;
+  background: var(--accent-ink);
+  animation: ss-blink 0.9s steps(1) infinite;
+}
+
+/* The foot is the voice button. It turns black for a moment when it is "pressed". */
+.ss-wn-foot {
+  transition:
+    background-color 0.18s,
+    color 0.18s;
+}
+
+.ss-wn-foot .speak-wait {
+  min-height: 44px;
+}
+
+.ss-wn[data-step='press'] .ss-wn-foot {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.ss-wn[data-step='press'] .ss-wn-foot .mic {
+  background: #ffffff;
   color: var(--ink);
 }
 
-.ss-sig-check-ok .ss-sig-dot {
-  background: var(--green);
-  transform: scale(1.08);
+.ss-wn[data-step='press'] .ss-wn-foot .muted {
+  color: rgba(255, 255, 255, 0.72);
 }
 
-/* The bar: black while it records and checks, green when the wallet has signed. */
-.ss-sig-bar {
-  transition: background-color 0.3s;
+.ss-wn-mic-off {
+  opacity: 0.4;
 }
 
-.ss-sig[data-phase='signed'] .ss-sig-bar {
+.ss-wn .ss-wn-mic-done {
   background: var(--green);
 }
 
-.ss-sig-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  animation: ss-sig-in 0.25s ease-out;
+.ss-wn-title {
+  animation: ss-wn-in 0.25s ease-out;
 }
 
-/* The base rule colours every icon of the bar red and makes it blink: only the record dot. */
-.ss-sig-bar svg {
-  color: inherit;
-  animation: none;
-}
-
-.ss-sig-bar .ss-sig-rec {
-  color: #f04438;
-  animation: ss-blink 1.2s ease-in-out infinite;
-}
-
-.ss-sig-spin {
-  width: 13px;
-  height: 13px;
-  border-radius: 9999px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #ffffff;
-  animation: ss-sig-spin 0.7s linear infinite;
-}
-
-@keyframes ss-sig-spin {
-  to {
-    transform: rotate(360deg);
+/* It starts visible enough to read, in case the browser holds the animation. */
+@keyframes ss-wn-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
   }
 }
 
-/* What the wallet signed. Its line is there from the start, so the card does not grow. */
-.ss-sig-call {
-  display: block;
-  height: 18px;
-  margin-top: 9px;
+.ss-wn-hint {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--smoke);
-  background: none;
-  opacity: 0;
-  transition: opacity 0.3s;
 }
 
-.ss-sig[data-phase='signed'] .ss-sig-call {
-  opacity: 1;
+/* Sound bars at the end of the foot, while the wallet listens. */
+.ss-wn-wave {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
 }
 
-.ss-sig .sw-foot {
-  margin: 10px -20px 0;
+.ss-wn-wave i {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: ss-wn-wave 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes ss-wn-wave {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.ss-wn .spinner {
+  flex: none;
+  margin-left: auto;
 }
 
 /* The sheet: the notes app, as a part of the page. The page is the one scroll area: one
@@ -2520,24 +2539,13 @@ h1.ss-display {
     font-size: 15px;
   }
   /* One column: the card is as wide as the text, and shorter, so the feed still shows under
-     the hero: no address line, no sound bars, no call line and no foot. */
-  .ss-sig {
+     the hero: the note box has two lines. */
+  .ss-wn {
     justify-self: stretch;
     width: auto;
-    padding-bottom: 16px;
   }
-  .ss-sig .sw-origin,
-  .ss-sig .ss-sig-wave,
-  .ss-sig .ss-sig-call,
-  .ss-sig .sw-foot {
-    display: none;
-  }
-  .ss-sig .sw-title {
-    margin-top: 0;
-  }
-  .ss-sig-say {
-    min-height: 0;
-    margin: 12px 0 10px;
+  .ss-wn-note {
+    height: 62px;
   }
   .ss-spa {
     --sheet-r: 22px;
@@ -2606,11 +2614,9 @@ h1.ss-display {
   .ss-nav-setup .step {
     animation: none;
   }
-  .ss-sig-words,
-  .ss-sig-state,
-  .ss-sig-wave i,
-  .ss-sig-spin,
-  .ss-sig-bar .ss-sig-rec {
+  .ss-wn-title,
+  .ss-wn-caret,
+  .ss-wn-wave i {
     animation: none;
   }
 }

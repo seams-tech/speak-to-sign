@@ -453,8 +453,9 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   A screen narrower than 1200 pixels shows only the next step.
 - **The hero**, about voice signatures, on a moving grain field of the Seams
   site: the title, one sentence, the signature card (`SignatureCard.tsx`: the
-  Seams Wallet voice card as it records a sentence, passes the two checks and
-  signs, as a loop) and the setup
+  app's own "Write a Community Note" dialog, with its own classes, as the
+  note and the sentence type in, the voice button is pressed, and the note is
+  signed, as a loop) and the setup
   steps as one strip (`#setup`). The field is the `GrainField` of
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour

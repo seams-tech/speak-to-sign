@@ -1,7 +1,6 @@
 {
   "name": "@seams/voice-verdict",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.66.0",
   "type": "module",
   "description": "Checks what the Speak-to-Sign verifier signed: a verdict, a transcript and the TDX quote of a call. No dependency.",
   "license": "Apache-2.0",
@@ -19,7 +18,8 @@
   },
   "files": [
     "dist/",
-    "README.md"
+    "README.md",
+    "LICENSE.md"
   ],
   "sideEffects": false,
   "scripts": {
@@ -33,5 +33,9 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882"
 }

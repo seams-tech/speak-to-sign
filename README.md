@@ -498,6 +498,12 @@ Each top-level folder says what its contents are for.
 
 The code is under the Apache License 2.0 (`LICENSE`).
 
+## Releases
+
+`docs/release-0.66.0.md` is the state of the release of the three libraries
+for an application with no wallet (`@seams/voice-verdict`,
+`@seams/voice-capture`, `@seams/speak-to-sign`), and the steps that it needs.
+
 ## Testnet facts
 
 | Item                | Value                                                                                        |

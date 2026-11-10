@@ -861,3 +861,12 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
    for `$` and `%` in a transcript. The golden file has vectors for both.
 9. **The plugin's own tests** fail against the published Wallet 0.65.0
    (missing exports of Wallet 0.66.0). This was so before the move.
+
+## 8. Consolidation and release (2026-11-11)
+
+- Pull request 3 is merged into `dev`. It held pull request 2
+  (`voice-capture`), which closed as merged. No open pull request is left.
+- Every other branch has no commit that `dev` does not have. The one
+  exception is a merge commit on `spoken-general`, whose only difference is
+  an old row of the verifier README.
+- The release of the three libraries is prepared: `docs/release-0.66.0.md`.

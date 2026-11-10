@@ -1,8 +1,8 @@
-// The Wallet's theme on the page. On the dark theme of the Community Notes page the Wallet takes
-// the page's own colours: X's black, Lights out (the dark block in src/styles.css). On the light
-// theme it keeps the SDK's light colours. SeamsWebProvider gives the theme to the Wallet's
-// components in the page, and pushes it to the Wallet's frames (the sign-in menu, VoiceID, the
-// confirmation) when it changes.
+// The Wallet's theme on the page. On the Community Notes page the Wallet takes the page's own
+// colours: X's light theme, or X's black, Lights out, on the dark theme (the two colour blocks at
+// the top of src/styles.css). SeamsWebProvider gives the theme to the Wallet's components in the
+// page, and pushes it to the Wallet's frames (the sign-in menu, VoiceID, the confirmation) when
+// it changes.
 //
 // Each page theme sends a full colour set, and has its own theme id. The Wallet frame keeps the
 // colours that a push does not name: with an empty light set, a page that loads dark kept the
@@ -10,76 +10,138 @@
 
 import { useMemo, type ReactNode } from 'react';
 import type { SeamsConfigsInput } from '@seams/wallet';
-import { DARK_TOKENS, LIGHT_TOKENS, SeamsWebProvider } from '@seams/wallet/react';
+import { DARK_TOKENS, LIGHT_TOKENS, SeamsWebProvider, SHAPE_PRESETS } from '@seams/wallet/react';
 import type { ThemeName } from '../showcase/theme';
 
-// The values of the dark block in src/styles.css, by the SDK's token names.
-const BG = '#000'; // --bg
-const INK = '#e7e9ea'; // --ink
-const ON_INK = '#0f1419'; // --on-ink
-const INK_HOVER = '#d7dbdc'; // --ink-hover
-const MUTED = '#71767b'; // --muted
-const LINE = '#2f3336'; // --line
-const LINE_STRONG = '#3e4246'; // --line-strong
-const PANEL = '#16181c'; // --panel
-const MEDIA = '#202327'; // --media
-const ACCENT = '#1d9bf0'; // --accent
-const ACCENT_INK = '#1a8cd8'; // --accent-ink
+/**
+ * The colours of one page theme, by the names of the page's CSS variables, and the Wallet's
+ * card: its background, and the two steps of raised surface on it.
+ */
+interface PagePalette {
+  card: string;
+  raised: string;
+  raised2: string;
+  ink: string;
+  onInk: string;
+  inkHover: string;
+  muted: string;
+  line: string;
+  lineStrong: string;
+  accent: string;
+  accentInk: string;
+  green: string;
+  gold: string;
+  red: string;
+}
 
-const LIGHTS_OUT_COLORS: Record<string, string> = {
-  ...DARK_TOKENS.colors,
-  primary: ACCENT,
-  primaryHover: ACCENT_INK,
-  secondary: MUTED,
-  secondaryHover: INK,
-  accent: ACCENT,
+/** X's light theme: the :root block in src/styles.css. The card is the page's white. */
+const X_LIGHT: PagePalette = {
+  card: '#fff', // --bg
+  raised: '#f7f9f9', // --panel
+  raised2: '#e8edf0', // --media
+  ink: '#0f1419',
+  onInk: '#fff',
+  inkHover: '#272c30',
+  muted: '#536471',
+  line: '#eff3f4',
+  lineStrong: '#cfd9de',
+  accent: '#1d9bf0',
+  accentInk: '#1a8cd8',
+  green: '#00ba7c',
+  gold: '#e2b719',
+  red: '#f4212e',
+};
 
-  textPrimary: INK,
-  textSecondary: MUTED,
-  textMuted: MUTED,
-  textButton: ON_INK,
+/** X's black, Lights out: the dark block in src/styles.css. The card is the page's black. */
+const LIGHTS_OUT: PagePalette = {
+  card: '#000', // --bg
+  raised: '#16181c', // --panel
+  raised2: '#202327', // --media
+  ink: '#e7e9ea',
+  onInk: '#0f1419',
+  inkHover: '#d7dbdc',
+  muted: '#71767b',
+  line: '#2f3336',
+  lineStrong: '#3e4246',
+  accent: '#1d9bf0',
+  accentInk: '#1a8cd8',
+  green: '#00ba7c',
+  gold: '#e2b719',
+  red: '#f4212e',
+};
 
-  // The main button is the page's ink button: light, with dark text. The other buttons are
-  // black with a line, as X's second buttons are.
-  buttonBackground: INK,
-  buttonHoverBackground: INK_HOVER,
-  secondaryButtonBackground: BG,
-  secondaryButtonHoverBackground: PANEL,
-  secondaryButtonBorder: LINE_STRONG,
-  secondaryButtonText: INK,
+/** The SDK's token names in the page's colours, over the SDK's own set for the same mode. */
+function walletColors(base: Record<string, string>, p: PagePalette): Record<string, string> {
+  return {
+    ...base,
+    primary: p.accent,
+    primaryHover: p.accentInk,
+    secondary: p.muted,
+    secondaryHover: p.ink,
+    accent: p.accent,
 
-  colorBackground: BG,
-  surface: PANEL,
-  surface2: MEDIA,
-  surface3: MEDIA,
-  surface4: LINE,
-  txDetailsBackground: PANEL,
+    textPrimary: p.ink,
+    textSecondary: p.muted,
+    textMuted: p.muted,
+    textButton: p.onInk,
 
-  hover: PANEL,
-  active: MEDIA,
-  focus: ACCENT,
+    // The main button is the page's ink button: dark with white text on the light theme, light
+    // with dark text on Lights out. The other buttons have the card's background and a line, as
+    // X's second buttons do.
+    buttonBackground: p.ink,
+    buttonHoverBackground: p.inkHover,
+    secondaryButtonBackground: p.card,
+    secondaryButtonHoverBackground: p.raised,
+    secondaryButtonBorder: p.lineStrong,
+    secondaryButtonText: p.ink,
 
-  success: '#00ba7c', // --green
-  warning: '#e2b719', // --gold
-  error: '#f4212e', // --red
-  info: ACCENT,
+    colorBackground: p.card,
+    surface: p.raised,
+    surface2: p.raised2,
+    surface3: p.raised2,
+    surface4: p.line,
+    txDetailsBackground: p.raised,
 
-  borderPrimary: LINE,
-  borderSecondary: LINE,
-  borderHover: LINE_STRONG,
+    hover: p.raised,
+    active: p.raised2,
+    focus: p.accent,
 
-  highlightPrimary: ACCENT,
-  highlightHalo: ACCENT,
-  highlightReceiver: ACCENT,
-  highlightMethodName: INK,
-  highlightAmount: INK,
+    success: p.green,
+    warning: p.gold,
+    error: p.red,
+    info: p.accent,
+
+    borderPrimary: p.line,
+    borderSecondary: p.line,
+    borderHover: p.lineStrong,
+
+    highlightPrimary: p.accent,
+    highlightHalo: p.accent,
+    highlightReceiver: p.accent,
+    highlightMethodName: p.ink,
+    highlightAmount: p.ink,
+  };
+}
+
+/**
+ * The page's X shapes, over the SDK's square preset (its bordered fields and heights): the card
+ * as round as the page's dialogs (2rem), buttons as pills as on X, and fields, boxes and rows at
+ * the 12 px of the page's text fields. Both themes send all of it.
+ */
+const X_SHAPE: Record<string, string> = {
+  ...SHAPE_PRESETS.square,
+  card: '2rem',
+  control: '9999px',
+  field: '12px',
+  box: '12px',
+  item: '12px',
 };
 
 type AppearanceTheme = NonNullable<NonNullable<SeamsConfigsInput['appearance']>['theme']>;
 
 const WALLET_THEMES: Record<ThemeName, AppearanceTheme> = {
-  dark: { id: 'lights-out', mode: 'dark', colors: LIGHTS_OUT_COLORS },
-  light: { id: 'light', mode: 'light', colors: { ...LIGHT_TOKENS.colors } },
+  dark: { id: 'lights-out', mode: 'dark', colors: walletColors(DARK_TOKENS.colors, LIGHTS_OUT), shape: X_SHAPE },
+  light: { id: 'x-light', mode: 'light', colors: walletColors(LIGHT_TOKENS.colors, X_LIGHT), shape: X_SHAPE },
 };
 
 /** SeamsWebProvider with the Wallet's theme for the page's theme. */

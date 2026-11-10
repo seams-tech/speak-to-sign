@@ -28,14 +28,23 @@ export type VoiceCaptureConfig = Readonly<{
   recoveryHint?: string;
   /** The name of the browser cache that keeps the model files. */
   cacheName?: string;
+  /** The nonce of the page's style policy, for the style elements of the phrase card. */
+  styleNonce?: string | (() => string | undefined);
 }>;
 
-type ResolvedConfig = Required<Omit<VoiceCaptureConfig, 'assetBase' | 'microphonePreference'>> &
-  Readonly<{ assetBase: URL | null; microphonePreference: VoiceMicrophonePreferenceStore | null }>;
+type ResolvedConfig = Required<
+  Omit<VoiceCaptureConfig, 'assetBase' | 'microphonePreference' | 'styleNonce'>
+> &
+  Readonly<{
+    assetBase: URL | null;
+    microphonePreference: VoiceMicrophonePreferenceStore | null;
+    styleNonce: string | (() => string | undefined) | null;
+  }>;
 
 const DEFAULTS: ResolvedConfig = {
   assetBase: null,
   microphonePreference: null,
+  styleNonce: null,
   label: 'Voice capture',
   place: 'this page',
   recoveryHint: 'Reload the page and try again.',
@@ -52,6 +61,7 @@ export function configureVoiceCapture(config: VoiceCaptureConfig): void {
   current = {
     assetBase: base,
     microphonePreference: config.microphonePreference ?? null,
+    styleNonce: config.styleNonce ?? null,
     label: config.label ?? DEFAULTS.label,
     place: config.place ?? DEFAULTS.place,
     recoveryHint: config.recoveryHint ?? DEFAULTS.recoveryHint,
@@ -61,6 +71,12 @@ export function configureVoiceCapture(config: VoiceCaptureConfig): void {
 
 export function captureConfig(): ResolvedConfig {
   return current;
+}
+
+/** The nonce for a style element, or undefined when the page has none. */
+export function styleNonce(): string | undefined {
+  const nonce = current.styleNonce;
+  return (typeof nonce === 'function' ? nonce() : nonce) ?? undefined;
 }
 
 /** The URL of one asset file. It throws before `configureVoiceCapture` set the folder. */

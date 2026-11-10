@@ -2,7 +2,7 @@
   "name": "@seams/voice-capture",
   "version": "0.65.0",
   "type": "module",
-  "description": "Records one spoken sentence in the browser, with speech detection and a quality check",
+  "description": "Records one spoken sentence in the browser, with speech detection, a quality check and a phrase card",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -13,6 +13,10 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/esm/index.js"
+    },
+    "./card": {
+      "types": "./dist/types/card/index.d.ts",
+      "import": "./dist/esm/card.js"
     },
     "./hosting": {
       "types": "./dist/hosting.d.mts",
@@ -33,7 +37,8 @@
   "scripts": {
     "build": "node scripts/build.mjs && tsrs -p tsconfig.build.json",
     "type-check": "tsrs --noEmit",
-    "test": "playwright test"
+    "test": "playwright test",
+    "example": "node scripts/serve-example.mjs"
   },
   "dependencies": {
     "onnxruntime-web": "1.30.0"
@@ -41,8 +46,11 @@
   "devDependencies": {
     "@playwright/test": "1.56.1",
     "@types/node": "24.2.0",
+    "@types/react": "19.2.18",
+    "preact": "10.29.8",
     "rolldown": "1.0.0-rc.9",
-    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929",
+    "voice-glow": "0.2.1"
   },
   "engines": {
     "node": ">=24"

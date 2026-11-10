@@ -63,7 +63,7 @@ type Recorded = Readonly<{
 }>;
 
 /** The built single-file package. A variable keeps the type checker from resolving the URL. */
-const MODULE = '/browser/voice-capture.js';
+const MODULE = '/browser/index.js';
 
 /** Records one utterance on the page and returns plain facts about it. */
 async function record(page: Page, detector: 'model' | 'level'): Promise<Recorded> {
@@ -120,7 +120,7 @@ test('the level detector records with no model download', async ({ page }) => {
   expect(recorded.endedBy).toBe('pause');
   expect(recorded.voicedMs).toBeGreaterThan(1_000);
   // The browser does not report the audio worklet file as a page request.
-  expect(requests).toEqual(['/', '/browser/voice-capture.js']);
+  expect(requests.filter((pathname) => !pathname.startsWith('/browser/'))).toEqual(['/']);
 });
 
 test('a cancelled recording rejects and stops the microphone', async ({ page }) => {

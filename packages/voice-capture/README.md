@@ -3,7 +3,8 @@
 Records one spoken sentence in the browser. It opens the microphone, finds the speech, stops at
 the pause, checks the quality, and returns 16 kHz mono samples.
 
-It has no user interface and no dependency on a wallet. `@seams/voiceid` and Speak-to-Sign use
+The core has no user interface, the phrase card is a second entry point, and neither depends on
+a wallet. `@seams/voiceid` and Speak-to-Sign use
 it, and any web page can use it alone.
 
 ## Install
@@ -65,6 +66,68 @@ if (result.kind === 'captured') {
 - `stop.abort()` cancels the recording and stops the microphone. The promise then rejects.
 - `pcm16Wav` gives the audio format of the Speak-to-Sign verifier.
 
+## The phrase card
+
+`@seams/voice-capture/card` has the card that the Seams Wallet shows: the sentence, a Record
+button, the voice line, and then your check and your result on the same card. It needs no
+React: the package brings its own small renderer.
+
+```ts
+import { openPhraseCard } from '@seams/voice-capture/card';
+
+const surface = openPhraseCard({
+  sentence: 'Send two NEAR to alice.testnet',
+  signal: new AbortController().signal,
+  frame: { parent: document.querySelector('#card') },
+});
+try {
+  const recording = await surface.record(); // the person selects Record and speaks
+  if (recording.kind === 'recorded') {
+    void surface.show({
+      kind: 'check',
+      label: 'Checking',
+      caption: 'Checking your voice',
+      details: ['One moment.'],
+      segments: ['done', 'run'],
+    });
+    const answer = await yourCheck(pcm16Wav(recording.samples));
+    await surface.show({
+      kind: 'result',
+      label: '',
+      headline: answer.ok ? 'Approved' : 'Not approved',
+      caption: 'Send two NEAR to alice.testnet',
+      detail: answer.text,
+      action: { label: 'Done' },
+      line: answer.ok ? 'seal' : ['done', 'fail'],
+    });
+  }
+} finally {
+  surface.close();
+}
+```
+
+- `record()` resolves with `recorded` (the samples) or `cancelled`. A too quiet recording
+  stays on the card with "Try again".
+- `show()` resolves with `action` when the person selects the button of a result, `closed`
+  when the person closes the card, or `replaced` when a new view or recording takes its place.
+- The card uses the CSS variables `--seams-colors-*`, `--seams-shape-*` and
+  `--seams-font-family` when the page sets them, and has its own values when it does not.
+  `data-theme="light"` or `"dark"` on the page selects the glow colours.
+- `frame` adds what a host needs: the parent element, more class names, a Back control, and a
+  callback when the card is in the document.
+- `VoicePrompt`, `PhraseCard`, `VoiceRibbon` and `VoiceVisual` are exported for a host that
+  makes its own surfaces.
+
+## The example
+
+```sh
+pnpm build
+pnpm example
+```
+
+Open `http://localhost:4599/example/`. The page records one sentence on the card, or three
+enrollment phrases one after another, with this package alone.
+
 ## Two detectors
 
 | `detector` | Download | What it finds |
@@ -88,6 +151,7 @@ await recordVoice(stop.signal, observer, { detector: 'level' });
 | `place` | `this page` | The place name in messages ("Keep this page open and focused ...") |
 | `recoveryHint` | `Reload the page and try again.` | The last sentence when a file cannot load |
 | `cacheName` | `seams-voice-capture-models-v1` | The browser cache of the model files |
+| `styleNonce` | none | The nonce of the page's style policy, for an older browser that needs a style element |
 
 ## Privacy
 

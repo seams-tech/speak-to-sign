@@ -1,0 +1,1161 @@
+import { styleNonce } from '../config';
+import type { VoiceCaptureEvent } from '../microphone';
+import { useSystemVoiceMicrophone } from '../microphoneInput';
+import type { VoiceCheckingStyle } from './ribbon';
+import { VoiceVisual } from './visual';
+
+const CSS = `
+.seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; background: transparent; }
+/* Inside an operation's card the card is the frame: the prompt fills it edge to edge. */
+.seams-voiceid-activation-surface.seams-voiceid-in-card { width: 100%; }
+.seams-voiceid-in-card .seams-voiceid-prompt {
+  width: 100%;
+  padding-top: 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.seams-voiceid-prompt {
+  box-sizing: border-box;
+  position: relative;
+  width: min(100%, 26.25rem);
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 1.5rem;
+  display: grid;
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) minmax(5rem, auto);
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: var(--seams-shape-card, 16px);
+  background: var(--seams-colors-colorBackground, #192024);
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  /* While the card fills a taller frame (fillFrame), the spare height stays below the rows. */
+  align-content: start;
+  text-align: center;
+  font-family: var(--seams-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+/* A card that comes back after a Wallet confirm shows its rows only when the frame has eased to
+   its size (prompt.ts observeSize); until then they stay in the middle of the frame. */
+.seams-voiceid-prompt[data-rows-held] > :not(.seams-voiceid-glow, .seams-voiceid-close, .seams-voiceid-progress-slot) {
+  opacity: 0 !important;
+  transition: none !important;
+}
+.seams-voiceid-prompt[data-frame-fill="center"] {
+  align-content: center;
+}
+.seams-voiceid-prompt {
+  transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), transform 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+@starting-style {
+  .seams-voiceid-prompt { opacity: 0; transform: translateY(4px); }
+  /* A card that continues another, or shows again after a Wallet confirm, has no entrance. */
+  .seams-voiceid-prompt.seams-voiceid-entered { opacity: 1; transform: none; }
+  /* The button it replaces was enabled a moment ago; this one dims from there. */
+  .seams-voiceid-prompt.seams-voiceid-entered .seams-voiceid-primary:disabled { opacity: 1; }
+}
+/* A card that holds focus itself (until its first control is ready, or after a confirm). */
+.seams-voiceid-prompt[tabindex="-1"]:focus { outline: none; }
+/* Each line owns its row. The download overlays rows 3-5; an auto-placed line would move to new rows. */
+.seams-voiceid-prompt > h2 { grid-area: 1 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-phrase { grid-area: 2 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-ribbon { grid-area: 3 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-status { grid-area: 4 / 1; }
+.seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
+.seams-voiceid-progress-slot:empty { visibility: hidden; }
+.seams-voiceid-activation-surface .seams-voiceid-record-slot { transition: opacity 300ms cubic-bezier(0.2, 0, 0, 1) 140ms, visibility 0s linear 0s; }
+.seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { opacity: 0; visibility: hidden; transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
+  @starting-style { .seams-voiceid-prompt { transform: none; } }
+  .seams-voiceid-ribbon { transition: none !important; }
+}
+.seams-voiceid-prompt h2 {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  margin: 0.5rem 0 1rem;
+}
+.seams-voiceid-prompt.seams-voiceid-management {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1.375rem;
+  border-radius: var(--seams-shape-card, 1.5rem);
+  text-align: start;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.seams-voiceid-management-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: -0.5rem;
+}
+.seams-voiceid-management h2 {
+  margin: 0;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.seams-voiceid-management .seams-voiceid-management-intro {
+  margin: -0.125rem 0 0.25rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+}
+.seams-voiceid-management button {
+  appearance: none;
+  margin: 0;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font: inherit;
+  transition: background-color 140ms ease;
+}
+.seams-voiceid-management button:disabled { opacity: 0.5; cursor: default; }
+.seams-voiceid-management .seams-voiceid-management-back {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+}
+.seams-voiceid-management-enrollment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  background: var(--seams-colors-surface, #202b31);
+  color: var(--seams-colors-textSecondary, #9cabb3);
+}
+.seams-voiceid-management-summary { text-align: end; }
+.seams-voiceid-management-value { color: var(--seams-colors-textPrimary, #eff2f3); font-weight: 500; }
+.seams-voiceid-management-enrollment-detail:not(:empty)::before { content: ' · '; }
+.seams-voiceid-management-enrollment[data-enrollment="adapted"] > .seams-voiceid-management-summary {
+  grid-area: 2 / 1;
+  text-align: start;
+  font-size: 0.8125rem;
+}
+.seams-voiceid-management-enrollment > .seams-voiceid-management-reset { grid-area: 1 / 2 / 3; }
+.seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-value { display: none; }
+.seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-enrollment-detail::before { content: none; }
+.seams-voiceid-management .seams-voiceid-management-reset {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.seams-voiceid-management .seams-voiceid-management-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: 0.75rem;
+  background: transparent;
+  text-align: start;
+}
+.seams-voiceid-management-action > svg { color: var(--seams-colors-textSecondary, #9cabb3); }
+.seams-voiceid-management-action-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-weight: 600;
+}
+.seams-voiceid-management-chip {
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--seams-colors-textPrimary, #eff2f3), transparent 93%);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.seams-voiceid-management-action-detail {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.8125rem;
+}
+.seams-voiceid-management .seams-voiceid-management-action[data-state="pending"] {
+  opacity: 1;
+  border-color: var(--seams-colors-borderHover, #46545b);
+  background: var(--seams-colors-surface, #202b31);
+}
+.seams-voiceid-management-action[data-state="pending"] > svg { visibility: hidden; }
+.seams-voiceid-management [data-state="pending"] .seams-voiceid-management-action-detail,
+.seams-voiceid-management [data-state="pending"] .seams-voiceid-management-enrollment-detail {
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-management [data-state="error"] .seams-voiceid-management-action-detail,
+.seams-voiceid-management [data-state="error"] .seams-voiceid-management-enrollment-detail {
+  color: var(--seams-colors-error, oklch(0.74 0.166 19));
+}
+.seams-voiceid-management .seams-voiceid-management-section {
+  margin: 0.5rem 0 -0.25rem;
+  padding-inline-start: 0.125rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* The status line is read by assistive technology; a message for a hidden row is also shown. */
+.seams-voiceid-prompt.seams-voiceid-management > [role="status"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.seams-voiceid-prompt.seams-voiceid-management > [role="status"][data-placement="dialog"] {
+  position: relative;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  color: var(--seams-colors-error, oklch(0.74 0.166 19));
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+[dir='rtl'] .seams-voiceid-management svg { transform: scaleX(-1); }
+@media (hover: hover) {
+  .seams-voiceid-management button:hover:not(:disabled) {
+    background: var(--seams-colors-surface2, var(--seams-colors-surface, #202b31));
+  }
+}
+.seams-voiceid-prompt .seams-voiceid-phrase {
+  font-size: clamp(1.75rem, 6vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.17;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  max-width: 21rem;
+  align-self: center;
+  margin: 0 auto;
+  transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), color 300ms ease;
+}
+.seams-voiceid-ribbon {
+  display: block;
+  width: 308px;
+  max-width: 100%;
+  height: 64px;
+  margin: auto;
+  overflow: visible;
+}
+.seams-voiceid-ribbon .seams-voiceid-ribbon-check { stroke: var(--seams-colors-colorBackground, #192024); }
+.seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-success-headline {
+  display: grid;
+  align-content: end;
+  font-size: 18px;
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+.seams-voiceid-prompt .seams-voiceid-status.seams-voiceid-success-message { font-size: 0.8125rem; }
+/* The glow is decorative and cannot intercept record, retry or cancel controls. */
+.seams-voiceid-glow { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 0; }
+.seams-voiceid-beam { width: 100%; height: 100%; border-radius: inherit; }
+.seams-voiceid-prompt > :not(.seams-voiceid-glow) { position: relative; z-index: 1; }
+.seams-voiceid-prompt > .seams-voiceid-close { position: absolute; }
+.seams-voiceid-prompt .seams-voiceid-status {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  min-height: 3.375rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  margin: 0;
+}
+.seams-voiceid-prompt button {
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.seams-voiceid-prompt button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.seams-voiceid-prompt .seams-voiceid-close {
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  color: inherit;
+  display: grid;
+  place-items: center;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+}
+.seams-voiceid-prompt .seams-voiceid-close.seams-voiceid-back {
+  right: auto;
+  left: 0.75rem;
+}
+.seams-voiceid-prompt .seams-voiceid-record-slot {
+  grid-row: 5;
+  grid-column: 1;
+  align-self: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+.seams-voiceid-prompt .seams-voiceid-primary {
+  width: 100%;
+  min-height: var(--seams-shape-controlHeight, 44px);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: var(--seams-colors-textPrimary, #eff2f3);
+  color: var(--seams-colors-colorBackground, #192024);
+}
+.seams-voiceid-prompt .seams-voiceid-primary {
+  transition: opacity 180ms ease, visibility 0s linear 0s;
+}
+.seams-voiceid-prompt .seams-voiceid-primary:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.seams-voiceid-prompt .seams-voiceid-record-slot { position: relative; }
+/* The link sits under the button and never moves it. */
+.seams-voiceid-prompt .seams-voiceid-microphone {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% 0;
+  white-space: nowrap;
+  transition: opacity 150ms ease, visibility 0s linear 0s;
+  margin-top: 0.5rem;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.75rem;
+}
+.seams-voiceid-prompt button[hidden],
+.seams-voiceid-prompt [hidden] {
+  display: none !important;
+}
+/* The record button and the microphone link fade out in place and keep the row's layout. */
+.seams-voiceid-activation-surface:not(.seams-voiceid-in-card) .seams-voiceid-record-slot > button[hidden] {
+  display: block !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 150ms ease, visibility 0s linear 150ms;
+}
+.seams-voiceid-activation-surface:not(.seams-voiceid-in-card) .seams-voiceid-record-slot > .seams-voiceid-primary[hidden] {
+  margin-inline: auto;
+}
+/* While VoiceID loads, its bar takes the answer line's place, its message the status line's,
+   and its retry the record button's. */
+.seams-voiceid-progress-slot:has(> .seams-voiceid-model-download),
+.seams-voiceid-progress-slot > .seams-voiceid-model-download { display: contents; }
+.seams-voiceid-model-download > * { position: relative; z-index: 1; grid-column: 1; align-self: center; }
+.seams-voiceid-prompt > .seams-voiceid-status { transition: opacity 180ms ease; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-ribbon,
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-status {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
+/* The download's rows fade in over the rows they replace, and fade out when VoiceID is ready. */
+.seams-voiceid-model-download > * { transition: opacity 180ms ease 150ms; }
+@starting-style { .seams-voiceid-model-download > * { opacity: 0; } }
+/* Two texts in one place must not cross: the download's rows leave first, then the card's return. */
+.seams-voiceid-model-download[data-state="ready"] > * { opacity: 0; transition-duration: 120ms; transition-delay: 0s; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="ready"]) > .seams-voiceid-ribbon {
+  transition: opacity 180ms ease 120ms;
+}
+.seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="ready"]) > .seams-voiceid-status {
+  transition: opacity 180ms ease 160ms;
+}
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-phrase { opacity: 0.35; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="failed"]) > .seams-voiceid-record-slot { display: none; }
+.seams-voiceid-model-download progress {
+  grid-row: 3;
+  justify-self: center;
+  appearance: none;
+  display: block;
+  width: min(100%, 308px);
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--seams-colors-surface, #202b31);
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-model-download progress::-webkit-progress-bar { background: var(--seams-colors-surface, #202b31); }
+.seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
+/* The bar stays full and still while the models start: the start blocks the main thread, and
+   a looping animation would compete with it on a software-rendered page. */
+.seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
+.seams-voiceid-model-download p {
+  grid-row: 4;
+  align-self: start;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-variant-numeric: tabular-nums;
+}
+.seams-voiceid-model-download button { grid-row: 5; }
+/* A phrase card shows its check and its result in the same card. */
+.seams-voiceid-prompt > .seams-voiceid-status-line { grid-area: 3 / 1; }
+.seams-voiceid-status-line {
+  transition: opacity 120ms ease;
+  display: block;
+  width: 308px;
+  max-width: 100%;
+  height: 64px;
+  margin: auto;
+  overflow: visible;
+  opacity: 0;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-ribbon { transition: opacity 120ms ease; }
+.seams-voiceid-prompt[data-phrase-line="status"] > .seams-voiceid-ribbon { opacity: 0; }
+.seams-voiceid-prompt[data-phrase-line="status"] > .seams-voiceid-status-line { opacity: 1; }
+.seams-voiceid-status-line rect {
+  fill: var(--seams-colors-surface3, #2b363c);
+  transition: fill 240ms ease, opacity 240ms ease;
+}
+.seams-voiceid-status-line rect[data-state="done"],
+.seams-voiceid-status-line rect[data-state="run"] { fill: currentColor; }
+.seams-voiceid-status-line rect[data-state="run"] { animation: seams-voiceid-segment-pulse 900ms ease-in-out infinite alternate; }
+.seams-voiceid-status-line rect[data-state="fail"] { fill: var(--seams-colors-error, oklch(0.74 0.166 19)); }
+.seams-voiceid-status-line rect[data-state="wait"] {
+  fill: var(--seams-colors-info, oklch(0.7 0.13 255));
+  animation: seams-voiceid-segment-pulse 1600ms ease-in-out infinite alternate;
+}
+.seams-voiceid-status-line rect[data-state="skip"] { opacity: 0.5; }
+@keyframes seams-voiceid-segment-pulse { from { opacity: 0.35; } to { opacity: 1; } }
+.seams-voiceid-status-bar,
+.seams-voiceid-status-ring,
+.seams-voiceid-status-seal,
+.seams-voiceid-status-check { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.seams-voiceid-status-bar { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+.seams-voiceid-status-ring { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.seams-voiceid-status-seal { fill: currentColor; transform: scale(0); }
+.seams-voiceid-status-check {
+  fill: none;
+  stroke: var(--seams-colors-colorBackground, #192024);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.seams-voiceid-status-line[data-seal] rect { opacity: 0; }
+.seams-voiceid-status-line[data-seal] > :not(rect) { opacity: 1; }
+.seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-phrase-dim { color: var(--seams-colors-textMuted, #6f7f87); }
+.seams-voiceid-prompt[data-phrase-view] > h2 { min-height: 1.19rem; }
+.seams-voiceid-prompt[data-phrase-view="check"] {
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 0;
+}
+.seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-record-slot { display: none; }
+.seams-voiceid-prompt[data-phrase-view] .seams-voiceid-microphone { display: none; }
+.seams-voiceid-prompt .seams-voiceid-close { transition: opacity 150ms ease, visibility 0s linear 0s; }
+.seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-close {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease, visibility 0s linear 150ms;
+}
+.seams-voiceid-status.seams-voiceid-two-lines > span { display: block; }
+.seams-voiceid-status .seams-voiceid-caption {
+  margin-bottom: 0.125rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-status a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.seams-voiceid-heard-mark {
+  background: none;
+  color: var(--seams-colors-error, oklch(0.74 0.166 19));
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.seams-voiceid-prompt .seams-voiceid-primary:has(> .seams-voiceid-action-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.seams-voiceid-action-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seams-voiceid-prompt[data-phrase-view] .seams-voiceid-primary:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  .seams-voiceid-status-line rect { animation: none !important; transition: none; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .seams-voiceid-close:hover { background: var(--seams-colors-surface, #202b31); }
+  .seams-voiceid-primary:hover:not(:disabled) { opacity: 0.9; }
+}
+`;
+/** The documents that have the prompt's styles. */
+const styled = new WeakSet<Document>();
+
+/**
+ * Adds the prompt's styles to the document one time: as a constructed stylesheet where the
+ * browser has them, so a strict style policy needs no nonce, else as a style element with the
+ * page's nonce.
+ */
+function ensureStyles(document: Document): void {
+  if (styled.has(document)) return;
+  styled.add(document);
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(CSS);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    return;
+  } catch {
+    // An older browser: use a style element.
+  }
+  const style = document.createElement('style');
+  const nonce = styleNonce();
+  if (nonce) style.setAttribute('nonce', nonce);
+  style.textContent = CSS;
+  (document.head ?? document.documentElement).appendChild(style);
+}
+
+/** How the card shows a phrase: by default as it is, with a capital letter and a full stop. */
+export type PhraseDisplay = (phrase: string) => string;
+
+/** A new state of the card's rows. Rows that it leaves out keep their content. */
+export type PromptChange = Readonly<{
+  title?: string;
+  phrase?: string;
+  status?: string;
+  /** The record button's label, and whether it shows. */
+  action?: Readonly<{ label?: string; hidden?: boolean }>;
+  /** Runs while the changing rows are out of sight, for state that goes with them. */
+  apply?: () => void;
+}>;
+
+export class VoicePrompt {
+  readonly element: HTMLElement;
+  readonly title: HTMLHeadingElement;
+  readonly phrase: HTMLParagraphElement;
+  readonly status: HTMLParagraphElement;
+  readonly record: HTMLButtonElement;
+  readonly cancel: HTMLButtonElement;
+  readonly progress: HTMLElement;
+  /** The wave under the phrase. */
+  readonly ribbon: SVGSVGElement;
+  /** The row of the record button, which a phrase card reuses for its action. */
+  readonly actionRow: HTMLElement;
+  private readonly microphone: HTMLButtonElement;
+  private microphoneRequested = false;
+  private readonly visual: VoiceVisual;
+  private disposed = false;
+  private pendingChange: PromptChange | null = null;
+  private changing: Promise<void> | null = null;
+  /** The card has been laid out once, and has since been hidden (a Wallet confirm took its place). */
+  private laidOut = false;
+  private hidden = false;
+  private readonly sizes = new ResizeObserver(this.observeSize.bind(this));
+  /** A newer resize stops the one in progress, and takes over what waits for it to end. */
+  private frameFill = 0;
+  private readonly onFrameFitted: (() => void)[] = [];
+
+  constructor(
+    document: Document,
+    label: string,
+    phrase: string,
+    checking: VoiceCheckingStyle = 'ring',
+    /** The text to show for a phrase, such as the phrase with its commas. */
+    private readonly display: PhraseDisplay = (spoken) => spoken,
+  ) {
+    ensureStyles(document);
+    this.element = document.createElement('section');
+    // A wallet surface always hosts the card. Without its own seams-wallet-ui class the
+    // card keeps that surface's theme instead of resetting to the default tokens.
+    this.element.className = 'seams-voiceid-prompt';
+    this.element.setAttribute('aria-label', label);
+    this.title = document.createElement('h2');
+    this.title.textContent = 'Read aloud';
+    this.phrase = document.createElement('p');
+    this.phrase.className = 'seams-voiceid-phrase';
+    this.phrase.dataset.voiceidPhrase = '';
+    this.phrase.setAttribute('aria-live', 'polite');
+    this.setPhrase(phrase);
+    this.visual = new VoiceVisual(document, this.element, checking);
+    this.status = document.createElement('p');
+    this.status.className = 'seams-voiceid-status';
+    this.status.setAttribute('role', 'status');
+    this.record = document.createElement('button');
+    this.record.type = 'button';
+    this.record.className = 'seams-voiceid-primary';
+    this.record.textContent = 'Record';
+    this.cancel = document.createElement('button');
+    this.cancel.type = 'button';
+    this.cancel.className = 'seams-voiceid-close';
+    const closeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    closeIcon.setAttribute('viewBox', '0 0 24 24');
+    closeIcon.setAttribute('width', '20');
+    closeIcon.setAttribute('height', '20');
+    closeIcon.setAttribute('aria-hidden', 'true');
+    const closePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    closePath.setAttribute('d', 'M6 6l12 12M18 6L6 18');
+    closePath.setAttribute('fill', 'none');
+    closePath.setAttribute('stroke', 'currentColor');
+    closePath.setAttribute('stroke-width', '1.75');
+    closePath.setAttribute('stroke-linecap', 'round');
+    closeIcon.append(closePath);
+    this.cancel.append(closeIcon);
+    this.cancel.setAttribute('aria-label', 'Cancel');
+    this.progress = document.createElement('div');
+    this.progress.className = 'seams-voiceid-progress-slot';
+    const slot = document.createElement('div');
+    slot.className = 'seams-voiceid-record-slot';
+    this.actionRow = slot;
+    this.ribbon = this.visual.element;
+    this.microphone = document.createElement('button');
+    this.microphone.type = 'button';
+    this.microphone.className = 'seams-voiceid-microphone';
+    this.microphone.textContent = 'Use system microphone';
+    this.microphone.hidden = true;
+    this.microphone.addEventListener('click', this.changeMicrophone);
+    slot.append(this.record, this.microphone);
+    this.element.append(
+      this.visual.glow,
+      this.cancel,
+      this.title,
+      this.phrase,
+      this.visual.element,
+      this.status,
+      slot,
+      this.progress,
+    );
+    this.sizes.observe(this.element);
+  }
+
+  /**
+   * In an app's dialog with a step before this card, the corner control returns to that step.
+   * It still ends the card as cancelled; the Wallet tells the app that the person went back.
+   */
+  showBack(): void {
+    this.cancel.classList.add('seams-voiceid-back');
+    this.cancel.setAttribute('aria-label', 'Back');
+    this.cancel.querySelector('path')?.setAttribute('d', 'm15 18-6-6 6-6');
+  }
+
+  /**
+   * Moves the rows to a new state. The rows whose content changes fade out together, take their
+   * new content and fade in one after another; the other rows stay still. A change that comes
+   * during a fade joins it, so no state in between is drawn.
+   */
+  change(next: PromptChange): Promise<void> {
+    this.pendingChange = mergeChange(this.pendingChange, next);
+    this.changing ??= this.drainChanges().finally(this.changesDrained);
+    return this.changing;
+  }
+
+  private readonly changesDrained = (): void => {
+    this.changing = null;
+  };
+
+  private async drainChanges(): Promise<void> {
+    let faded: HTMLElement[] = [];
+    while (this.pendingChange && !this.disposed) {
+      const next: PromptChange = this.pendingChange;
+      this.pendingChange = null;
+      const leaving = this.changingRows(next).filter((row) => !faded.includes(row));
+      if (leaving.length > 0 && !reducedMotion()) {
+        await Promise.all(leaving.map(fadeRowOut));
+        faded = this.rowOrder([...faded, ...leaving]);
+        if (this.pendingChange) {
+          // A newer state came during the fade: write only the newest one.
+          this.pendingChange = mergeChange(next, this.pendingChange);
+          continue;
+        }
+      } else {
+        faded = this.rowOrder([...faded, ...leaving]);
+      }
+      if (this.disposed) return;
+      this.writeChange(next);
+      fadeRowsIn(faded);
+      faded = [];
+    }
+  }
+
+  /** The rows whose visible content `next` changes, top to bottom. */
+  private changingRows(next: PromptChange): HTMLElement[] {
+    const rows: HTMLElement[] = [];
+    if (next.title !== undefined && next.title !== this.title.textContent) rows.push(this.title);
+    if (next.phrase !== undefined && next.phrase !== this.phrase.dataset.voiceidPhrase)
+      rows.push(this.phrase);
+    if (next.status !== undefined && next.status !== this.status.textContent)
+      rows.push(this.status);
+    const action = next.action;
+    if (
+      action &&
+      ((action.label !== undefined && action.label !== this.record.textContent) ||
+        (action.hidden !== undefined && action.hidden !== this.record.hidden))
+    )
+      rows.push(this.actionRow);
+    return rows;
+  }
+
+  private rowOrder(rows: readonly HTMLElement[]): HTMLElement[] {
+    const order = [this.title, this.phrase, this.status, this.actionRow];
+    return order.filter((row) => rows.includes(row));
+  }
+
+  private writeChange(next: PromptChange): void {
+    if (next.title !== undefined) this.title.textContent = next.title;
+    if (next.phrase !== undefined) this.setPhrase(next.phrase);
+    if (next.status !== undefined) this.status.textContent = next.status;
+    if (next.action?.label !== undefined) this.record.textContent = next.action.label;
+    if (next.action?.hidden !== undefined) this.record.hidden = next.action.hidden;
+    next.apply?.();
+  }
+
+  /** The card is ready to record again, through a change of its rows. */
+  readyChange(message: string, next: Omit<PromptChange, 'status'> = {}): Promise<void> {
+    return this.change({
+      ...next,
+      status: message,
+      action: { ...next.action, hidden: false },
+      apply: () => {
+        next.apply?.();
+        this.unlockLayout();
+        this.visual.ready();
+        this.element.dataset.capture = 'ready';
+        this.record.disabled = false;
+        this.microphone.hidden = !this.microphoneRequested;
+      },
+    });
+  }
+
+  /** Starts without an entrance, because it takes another card's place. */
+  skipEntrance(): void {
+    this.element.classList.add('seams-voiceid-entered');
+  }
+
+  /**
+   * In the Wallet iframe the parent eases the frame to every new card size. While the frame is
+   * taller than the card, the card fills it, so its edge follows the frame and never jumps; the
+   * surface around it keeps the card's own height, which is what the parent hears.
+   */
+  fillFrame(
+    fromCssPx: number = window.innerHeight,
+    rows: 'top' | 'center' = 'top',
+    onFitted?: () => void,
+  ): void {
+    if (onFitted) this.onFrameFitted.push(onFitted);
+    const surface = this.element.closest<HTMLElement>('.seams-voiceid-hugged');
+    if (!surface || this.disposed) {
+      this.frameFitted();
+      return;
+    }
+    const fill = ++this.frameFill;
+    // A resize that replaces one with centred rows keeps them centred, or they would jump.
+    const centred = rows === 'center' || this.element.dataset.frameFill === 'center';
+    this.element.style.minHeight = '';
+    surface.style.height = '';
+    delete this.element.dataset.frameFill;
+    const own = this.element.getBoundingClientRect().height;
+    if (fromCssPx <= own + 1) {
+      this.frameFitted();
+      return;
+    }
+    surface.style.height = `${own}px`;
+    if (centred) this.element.dataset.frameFill = 'center';
+    let height = fromCssPx;
+    this.element.style.minHeight = `${height}px`;
+    let fitted = 0;
+    const began = performance.now();
+    const step = (): void => {
+      if (fill !== this.frameFill || this.disposed) return;
+      height = Math.min(height, Math.max(window.innerHeight, own));
+      this.element.style.minHeight = `${height}px`;
+      fitted = window.innerHeight <= own + 1 ? fitted + 1 : 0;
+      if (fitted < 2 && performance.now() - began < FRAME_FILL_LIMIT_MS) {
+        requestAnimationFrame(step);
+        return;
+      }
+      this.element.style.minHeight = '';
+      surface.style.height = '';
+      delete this.element.dataset.frameFill;
+      this.frameFitted();
+    };
+    requestAnimationFrame(step);
+  }
+
+  private readonly releaseRows = (): void => {
+    delete this.element.dataset.rowsHeld;
+    fadeRowsIn(this.rows());
+  };
+
+  private frameFitted(): void {
+    for (const fitted of this.onFrameFitted.splice(0)) fitted();
+  }
+
+  /** The card's rows, top to bottom: everything but its glow, its close button and its download. */
+  private rows(): Element[] {
+    return [...this.element.children].filter(
+      (row) =>
+        !row.matches('.seams-voiceid-glow, .seams-voiceid-close, .seams-voiceid-progress-slot'),
+    );
+  }
+
+  /** A Wallet confirm hid the card (wallet-service.css); when it shows again, its rows come back. */
+  private observeSize(entries: ResizeObserverEntry[]): void {
+    const box = entries.at(-1)?.contentRect;
+    if (!box || this.disposed) return;
+    if (box.height === 0) {
+      if (!this.laidOut) return;
+      this.hidden = true;
+      this.skipEntrance();
+      return;
+    }
+    if (!this.laidOut) {
+      this.laidOut = true;
+      if (!this.element.classList.contains('seams-voiceid-entered')) fadeRowsIn(this.rows());
+      return;
+    }
+    if (!this.hidden) return;
+    this.hidden = false;
+    // The chrome is back at once; the rows wait until the frame has eased to the card's size,
+    // because the card follows the parent's ease a frame late and moving rows would show it.
+    this.element.dataset.rowsHeld = '';
+    this.fillFrame(window.innerHeight, 'center', this.releaseRows);
+    const focused = this.element.ownerDocument.activeElement;
+    if (!focused || focused === this.element.ownerDocument.body) {
+      this.element.tabIndex = -1;
+      this.element.focus({ preventScroll: true });
+    }
+  }
+
+  setPhrase(phrase: string): void {
+    const displayPhrase = this.display(phrase);
+    this.phrase.textContent = displayPhrase.charAt(0).toUpperCase() + displayPhrase.slice(1) + '.';
+    this.phrase.dataset.voiceidPhrase = phrase;
+  }
+
+  readonly capture = (event: VoiceCaptureEvent): void => {
+    if (this.disposed) return;
+    switch (event.kind) {
+      case 'opening':
+        this.microphoneRequested = true;
+        this.microphone.hidden = true;
+        return;
+      case 'listening':
+        this.microphone.hidden = true;
+        this.element.dataset.capture = 'listening';
+        void this.change({ status: 'Listening', action: { hidden: true } });
+        this.visual.listen();
+        return;
+      case 'activity':
+        this.visual.add(event);
+        return;
+      case 'measured': {
+        const quality = event.quality;
+        if (quality.noise === 'high')
+          this.status.textContent = 'Background noise is high. Move closer to the microphone.';
+        return;
+      }
+      case 'processing':
+        this.element.dataset.capture = 'processing';
+        this.lockLayout();
+        this.visual.checking();
+        void this.change({ status: 'Checking your voice…' });
+        return;
+      default:
+        return assertNever(event);
+    }
+  };
+
+  /**
+   * This card replaces `previous` in the same surface. It skips the entrance and starts with the
+   * rows that `previous` shows, so the swap does not show; the caller then changes the rows.
+   */
+  continueFrom(previous: Element): void {
+    this.skipEntrance();
+    this.element.tabIndex = -1;
+    const title = previous.querySelector(':scope > h2')?.textContent;
+    const status = previous.querySelector(':scope > .seams-voiceid-status')?.textContent;
+    const button = previous.querySelector<HTMLButtonElement>(
+      ':scope > .seams-voiceid-record-slot > .seams-voiceid-primary',
+    );
+    if (title !== undefined && title !== null) this.title.textContent = title;
+    if (status !== undefined && status !== null) this.status.textContent = status;
+    if (button) {
+      this.record.textContent = button.textContent;
+      this.record.hidden = button.hidden;
+    }
+    // A row of `previous` that is still fading in goes on from there, once this card is placed.
+    const pairs: [Element | null, Element][] = [
+      [previous.querySelector(':scope > h2'), this.title],
+      [previous.querySelector(':scope > .seams-voiceid-phrase'), this.phrase],
+      [previous.querySelector(':scope > .seams-voiceid-status'), this.status],
+      [previous.querySelector(':scope > .seams-voiceid-record-slot'), this.actionRow],
+    ];
+    const fading = pairs.flatMap(([old, row]) => {
+      const opacity = old ? Number(getComputedStyle(old).opacity) : 1;
+      return opacity < 0.99 ? [{ row, opacity }] : [];
+    });
+    if (fading.length > 0) queueMicrotask(() => fading.forEach(continueFade));
+  }
+
+  /** Settle the visual when an enrollment sample is accepted. */
+  accepted(): void {
+    this.visual.accept();
+  }
+
+  /** The wave rests flat while the glow keeps working. */
+  flattenLine(): void {
+    this.visual.flatten();
+  }
+
+  /** The glow settles. */
+  quietLine(): void {
+    this.visual.ready();
+  }
+
+  /**
+   * Plays the unlock success in place and resolves when the check is drawn. Once
+   * the ring has formed it glides to the middle of `area` (the card by default).
+   */
+  async succeed(
+    headline: string,
+    message: string,
+    area: SuccessArea = this.element.getBoundingClientRect(),
+  ): Promise<void> {
+    if (this.disposed) return;
+    this.element.dataset.capture = 'succeeded';
+    this.record.hidden = true;
+    this.microphone.hidden = true;
+    await this.visual.succeed(this.beginSuccess.bind(this, headline, message, area));
+  }
+
+  ready(message: string): void {
+    this.unlockLayout();
+    this.visual.ready();
+    this.element.dataset.capture = 'ready';
+    this.status.textContent = message;
+    this.record.hidden = false;
+    this.record.disabled = false;
+    this.microphone.hidden = !this.microphoneRequested;
+  }
+
+  private readonly changeMicrophone = (): void => {
+    void this.useSystemMicrophone();
+  };
+
+  private async useSystemMicrophone(): Promise<void> {
+    this.record.disabled = true;
+    this.microphone.disabled = true;
+    await useSystemVoiceMicrophone();
+    if (this.disposed) return;
+    this.status.textContent = 'The next recording will use your system microphone.';
+    this.record.disabled = false;
+    this.microphone.disabled = false;
+    this.microphone.hidden = true;
+    this.record.focus();
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.sizes.disconnect();
+    this.microphone.removeEventListener('click', this.changeMicrophone);
+    this.visual.stop();
+  }
+
+  /** The ribbon turns into the ring and the copy may change, so the card's rows hold their size. */
+  private lockLayout(): void {
+    for (const part of [this.element, this.phrase, this.status])
+      part.style.minHeight = `${part.getBoundingClientRect().height}px`;
+    this.element.style.height = this.element.style.minHeight;
+  }
+
+  /**
+   * The ring has formed: the reading copy fades where it is, only the ring glides
+   * to the middle of the free space, and the success copy arrives in place around
+   * it, headline first. The rows keep their locked size throughout.
+   */
+  private async beginSuccess(headline: string, message: string, area: SuccessArea): Promise<void> {
+    if (this.disposed) return;
+    const ring = this.visual.element.getBoundingClientRect();
+    const lift = (area.top + area.bottom - ring.top - ring.bottom) / 2;
+    this.visual.element.animate([{ translate: '0 0' }, { translate: `0 ${lift}px` }], {
+      duration: 600,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      fill: 'forwards',
+    });
+    await Promise.all([this.title, this.phrase, this.status].map(fadeOut));
+    if (this.disposed) return;
+    this.phrase.textContent = headline;
+    this.phrase.classList.add('seams-voiceid-success-headline');
+    this.status.textContent = message;
+    this.status.classList.add('seams-voiceid-success-message');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const [index, part] of [this.phrase, this.status].entries()) {
+      part.style.translate = `0 ${lift}px`;
+      fadeIn(part, reduced, SUCCESS_COPY_DELAY_MS - FADE_OUT_MS + index * SUCCESS_COPY_STAGGER_MS);
+    }
+  }
+
+  private unlockLayout(): void {
+    for (const part of [this.element, this.phrase, this.status]) part.style.minHeight = '';
+    this.element.style.height = '';
+  }
+}
+
+type SuccessArea = Readonly<{ top: number; bottom: number }>;
+
+// After the ring forms, the old copy leaves together and the new copy arrives 40 ms apart.
+const FADE_OUT_MS = 150;
+const SUCCESS_COPY_DELAY_MS = 450;
+const SUCCESS_COPY_STAGGER_MS = 40;
+
+function fadeOut(element: HTMLElement): Promise<unknown> {
+  return element.animate([{ opacity: 1 }, { opacity: 0 }], {
+    duration: FADE_OUT_MS,
+    easing: 'ease-in',
+    fill: 'forwards',
+  }).finished;
+}
+
+function fadeIn(element: HTMLElement, reduced: boolean, delay: number): void {
+  element.animate(
+    [
+      { opacity: 0, transform: reduced ? 'none' : 'translateY(4px)' },
+      { opacity: 1, transform: 'none' },
+    ],
+    { delay, duration: 300, easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'both' },
+  );
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected capture event: ${String(value)}`);
+}
+
+// Rows leave together, then arrive one after another (the phrase card's own timing).
+const ROW_OUT_MS = 150;
+const ROW_IN_MS = 300;
+const ROW_IN_DELAY_MS = 60;
+const ROW_STAGGER_MS = 40;
+const ROW_EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+const ROW_MOTION = 'seams-voiceid-row';
+/** A frame that never reaches the card's size stops being followed after this time. */
+const FRAME_FILL_LIMIT_MS = 800;
+
+function reducedMotion(): boolean {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function mergeChange(previous: PromptChange | null, next: PromptChange): PromptChange {
+  if (!previous) return next;
+  const applies = [previous.apply, next.apply].filter((apply) => apply !== undefined);
+  return {
+    ...previous,
+    ...next,
+    action: previous.action || next.action ? { ...previous.action, ...next.action } : undefined,
+    apply: applies.length === 0 ? undefined : () => applies.forEach(run),
+  };
+}
+
+function run(apply: () => void): void {
+  apply();
+}
+
+function cancelRowMotion(row: Element): void {
+  for (const animation of row.getAnimations()) if (animation.id === ROW_MOTION) animation.cancel();
+}
+
+/** Fades a row out from where it is; it stays out until it fades in again. */
+function fadeRowOut(row: HTMLElement): Promise<unknown> {
+  const from = Number(getComputedStyle(row).opacity);
+  cancelRowMotion(row);
+  const animation = row.animate([{ opacity: from }, { opacity: 0 }], {
+    duration: ROW_OUT_MS * from,
+    easing: 'ease-in',
+    fill: 'forwards',
+    id: ROW_MOTION,
+  });
+  return animation.finished.catch(ignoreCancel);
+}
+
+/** Rows arrive one after another, each to the opacity that the card's styles give it. */
+function fadeRowsIn(rows: readonly Element[]): void {
+  const reduced = reducedMotion();
+  for (const [index, row] of rows.entries()) {
+    cancelRowMotion(row);
+    const to = Number(getComputedStyle(row).opacity);
+    if (to === 0) continue;
+    row.animate(
+      [
+        { opacity: 0, transform: reduced ? 'none' : 'translateY(4px)' },
+        { opacity: to, transform: 'none' },
+      ],
+      {
+        delay: reduced ? 0 : ROW_IN_DELAY_MS + index * ROW_STAGGER_MS,
+        duration: reduced ? 150 : ROW_IN_MS,
+        easing: ROW_EASE,
+        fill: 'backwards',
+        id: ROW_MOTION,
+      },
+    );
+  }
+}
+
+function ignoreCancel(): void {}
+
+function continueFade({ row, opacity }: Readonly<{ row: Element; opacity: number }>): void {
+  row.animate([{ opacity }, { opacity: 1 }], {
+    duration: ROW_IN_MS * (1 - opacity),
+    easing: ROW_EASE,
+    id: ROW_MOTION,
+  });
+}
+
+/**
+ * A closed card fades out where it is, then goes. It leaves the layout at once, so a card or a
+ * confirm that comes next takes its place, and the frame never shows empty before it closes.
+ */
+export function leaveSurface(element: HTMLElement): void {
+  if (!element.isConnected || reducedMotion()) {
+    element.remove();
+    return;
+  }
+  // It is no longer an open surface: the host's cancel and the frame's styles skip it.
+  element.inert = true;
+  element.classList.remove('seams-auth-method-activation-surface');
+  delete element.dataset.seamsVoiceidHandoff;
+  const box = element.getBoundingClientRect();
+  element.style.position = 'fixed';
+  element.style.top = `${box.top}px`;
+  element.style.left = `${box.left}px`;
+  element.style.width = `${box.width}px`;
+  element.style.margin = '0';
+  element.style.pointerEvents = 'none';
+  const from = Number(getComputedStyle(element).opacity);
+  element
+    .animate([{ opacity: from }, { opacity: 0 }], {
+      duration: ROW_OUT_MS * from,
+      easing: 'ease-in',
+      fill: 'forwards',
+    })
+    .finished.catch(ignoreCancel)
+    .finally(() => element.remove());
+}

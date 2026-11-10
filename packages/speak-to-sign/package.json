@@ -1,0 +1,45 @@
+{
+  "name": "@seams/speak-to-sign",
+  "version": "0.66.0-alpha.0",
+  "private": true,
+  "type": "module",
+  "description": "Speak-to-Sign for an application with no wallet: record a sentence, enroll a voice, get a verdict and check it",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/speak-to-sign.git",
+    "directory": "packages/speak-to-sign"
+  },
+  "exports": {
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "type-check": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@seams/voice-capture": "link:../voice-capture",
+    "@seams/voice-verdict": "link:../voice-verdict"
+  },
+  "devDependencies": {
+    "@types/node": "24.2.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -794,3 +794,23 @@ Ways to make `local-speaker` faster, not tried:
    not timed: the first runs stopped at the default compute limit.
 4. The summary fault of 6.3.
 5. Slice 3 (the top layer `@seams/speak-to-sign`) is not started.
+
+## 7. The three libraries are in place (2026-11-11)
+
+- `packages/speak-to-sign` is the top layer, `@seams/speak-to-sign`:
+  `./browser` (`recordSentence`, on `@seams/voice-capture`) and `./server`
+  (`enroll`, `confirm`, `select`, `transcribe`, each with a checked result,
+  and a store of used verdicts). The verifier client moved here from
+  `voice-verdict`.
+- `packages/speak-to-sign-wallet` is the Wallet plugin,
+  `@seams/speak-to-sign-wallet`. Only its folder, its npm name and its
+  release workflow changed. Version 0.65.0 on npm keeps the old name, and the
+  demo and `examples/speak-to-pay` still install that version.
+- `packages/voice-capture` came in by a merge of its branch (pull request 2).
+- `examples/voice-confirm` uses the top layer and `voice-capture`.
+- The verifier source is version 0.10.0 after the merge of `dev`.
+
+For the Wallet repository: at the next release, the host must install
+`@seams/speak-to-sign-wallet` in place of `@seams/speak-to-sign`. The served
+paths (`/sdk/speak-to-sign/host.js`) and the command
+`seams-speak-to-sign-host` did not change.

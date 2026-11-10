@@ -1,14 +1,14 @@
 # @seams/voice-verdict
 
-Speak-to-Sign with no Seams Wallet and no chain. The package has no
-dependency. It runs in a browser, in Node.js 20 or later, in Deno, in Bun and
+The checks of Speak-to-Sign, with no Seams Wallet and no chain. The package
+has no dependency. `@seams/speak-to-sign` uses it and adds the verifier call
+and the recording; most applications use that package. It runs in a browser, in Node.js 20 or later, in Deno, in Bun and
 in a Cloudflare Worker.
 
 | Part | Import | Job |
 | --- | --- | --- |
 | Verdict check | `checkVerdict` | Checks a signed verdict against the key that you pin |
 | Request | `confirmationRequest` | Builds a request for any payload, and its digest |
-| Client | `callVerifier` | Calls the verifier (an OutLayer worker) from your server |
 | TDX quote | `checkAttestationBinding` | Checks that a TDX quote of OutLayer binds the verifier output to a WASM hash |
 
 A complete application is in
@@ -113,7 +113,8 @@ for an application owner. The verdict binds the owner, the context and the
 SHA-256 of the payload. The owner says the summary.
 
 ```ts
-import { callVerifier, checkVerdict, confirmationRequest } from '@seams/voice-verdict';
+import { checkVerdict, confirmationRequest } from '@seams/voice-verdict';
+import { callVerifier } from '@seams/speak-to-sign/server';
 
 const login = await confirmationRequest({
   owner: 'app:user-42', // "app:" and your id of the user
@@ -187,8 +188,8 @@ check that one exact build of the verifier gave one exact verdict, with no
 trust in the verdict key.
 
 ```ts
+import { callVerifierWithAttestation } from '@seams/speak-to-sign/server';
 import {
-  callVerifierWithAttestation,
   checkAttestationBinding,
   fetchAttestation,
   measurementsApproved,

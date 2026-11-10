@@ -4,17 +4,17 @@ A small web page and a small server. A user enrolls a voice, then confirms
 one of three actions of an order by voice. No wallet, no chain, no account
 of the user on NEAR.
 
-- `index.html` records the voice with `record.js`, a plain recorder of this
-  example. The capture library of this repository is `@seams/voice-capture`.
-  It is not on this branch yet; the page will use it after the merge.
-- `server.mjs` holds the OutLayer payment key. It calls the Speak-to-Sign
-  verifier and checks each signed verdict with `@seams/voice-verdict`. It
-  has no dependency.
+- `index.html` records the voice with `@seams/speak-to-sign/browser`
+  (`recordSentence`, which uses `@seams/voice-capture`). It has no bundler:
+  an import map names the capture library.
+- `server.mjs` holds the OutLayer payment key and uses
+  `@seams/speak-to-sign/server`. It has no dependency of its own.
 
 The user is the application owner `app:<user id>`. The server sends the
 three possible actions to the operation `select`. The verifier signs a
 verdict for the one sentence that the user said. The server accepts the
-action only if the verdict passes these checks:
+action only if `select` of `@seams/speak-to-sign/server` returns `ok`. That
+means these checks passed:
 
 1. The pinned verifier key signed it.
 2. Its request digest is the digest of the selected action, which the server
@@ -25,8 +25,18 @@ action only if the verdict passes these checks:
 
 ## Look at the page with no account
 
+Build the three packages one time:
+
 ```sh
 (cd ../../packages/voice-verdict && pnpm install && pnpm build)
+```
+
+```sh
+(cd ../../packages/voice-capture && pnpm install && pnpm build)
+```
+
+```sh
+(cd ../../packages/speak-to-sign && pnpm install && pnpm build)
 ```
 
 ```sh
@@ -78,9 +88,10 @@ that you check.
   server ran only with the fake verifier.
 - The sentences have no numbers. The speech-to-text model writes "forty
   dollars" as "40", and the word check then refuses the sentence.
-- The microphone path of the page was not run in a test. `record.js` has no
-  speech detection and no quality check: the verifier refuses bad audio with
-  the reason `quality`, and that recording is then used up.
+- The page loads the capture library and asks for the microphone. No test
+  recorded a real voice through the page.
+- Set `CHECK_TDX_QUOTE=1` to make each confirmation also need the TDX quote
+  of its call (it needs `OUTLAYER_VERSION_KEY`).
 - The page has no login. A real application takes the user id from its
   session, not from a text field.
 - The voice proves that the enrolled person said the sentence. It does not

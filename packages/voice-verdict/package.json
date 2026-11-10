@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Speak-to-Sign with no wallet: build a request, call the verifier, check the signed verdict. No dependency.",
+  "description": "Checks what the Speak-to-Sign verifier signed: a verdict, a transcript and the TDX quote of a call. No dependency.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

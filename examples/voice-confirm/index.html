@@ -68,7 +68,7 @@
 
       <section aria-labelledby="enroll-title">
         <h2 id="enroll-title">1. Enroll your voice</h2>
-        <p>Record three clips. Say one different sentence in each clip, for two to four seconds.</p>
+        <p>Record three clips. Say one different sentence in each clip, for two to four seconds. Each recording ends by itself when you stop.</p>
         <div class="row">
           <button id="enroll-record" type="button">Record clip 1 of 3</button>
         </div>
@@ -89,8 +89,14 @@
       </section>
     </main>
 
+    <!-- The page has no bundler, so it names where the capture library is. -->
+    <script type="importmap">
+      { "imports": { "@seams/voice-capture": "/voice-capture/browser/index.js" } }
+    </script>
     <script type="module">
-      import { startRecording } from './record.js';
+      import { configureSpeakToSign, recordSentence } from '/speak-to-sign/browser.js';
+
+      configureSpeakToSign({ assetBase: '/voice-capture/assets/', label: 'Voice confirmation' });
 
       const $ = (id) => document.getElementById(id);
       const say = (id, text, kind = '') => {
@@ -111,29 +117,29 @@
         $('fake-said').replaceChildren(...options.map(([value, text]) => Object.assign(document.createElement('option'), { value, textContent: text })));
       }
 
-      /** One button that starts a recording, then stops it. `done` gets the WAV as base64. */
+      /**
+       * One button that records one sentence. The recording ends by itself at the pause after
+       * the speech. A second click stops it. `done` gets the WAV as base64.
+       */
       function recorder(button, idleLabel, status, done) {
-        let recording = null;
+        let stop = null;
         button.addEventListener('click', async () => {
+          if (stop !== null) return stop.abort();
+          stop = new AbortController();
+          button.textContent = 'Stop';
+          say(status, 'Say the sentence now. The recording ends when you stop.');
           try {
-            if (recording === null) {
-              recording = await startRecording();
-              button.textContent = 'Stop';
-              say(status, 'Recording. Say the sentence, then select Stop.');
-              return;
-            }
-            const current = recording;
-            recording = null;
+            const recording = await recordSentence(null, { signal: stop.signal });
             button.disabled = true;
-            await done(await current.stop());
+            if (recording.kind === 'recorded') await done(recording.wavBase64);
+            else say(status, recording.message, 'bad');
           } catch (cause) {
-            recording = null;
-            say(status, cause?.name === 'NotAllowedError' ? 'Allow the microphone for this page, then record again.' : 'The recording failed. Record it again.', 'bad');
+            if (stop.signal.aborted) say(status, 'The recording stopped.');
+            else say(status, cause?.name === 'NotAllowedError' ? 'Allow the microphone for this page, then record again.' : `The recording failed. ${cause?.message ?? ''}`, 'bad');
           } finally {
-            if (recording === null) {
-              button.disabled = false;
-              button.textContent = idleLabel();
-            }
+            stop = null;
+            button.disabled = false;
+            button.textContent = idleLabel();
           }
         });
       }

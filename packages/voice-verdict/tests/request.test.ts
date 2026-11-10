@@ -4,7 +4,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { callVerifier, confirmationRequest, VerifierCallError, type VerifierConfig } from '../src/index.ts';
+import {
+  callVerifier,
+  callVerifierWithAttestation,
+  confirmationRequest,
+  VerifierCallError,
+  type VerifierConfig,
+} from '../src/index.ts';
 
 const vectors = JSON.parse(
   readFileSync(new URL('../../../crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json', import.meta.url), 'utf8'),
@@ -103,6 +109,16 @@ test('the client sends the input with the payment key in a header', async () => 
   assert.equal((seen.input as { op: string }).op, 'verify');
   // The payment key is in no part of the body.
   assert.ok(!JSON.stringify(seen).includes('test-payment-key'));
+});
+
+test('the client gives the attestation URL of the call', async () => {
+  const output = { kind: 'seams_voice_enrollment_v3', outcome: 'accept' };
+  const reply = { call_id: 'c-1', status: 'completed', output, attestation_url: '/attestations/by-call/c-1' };
+  const call = await callVerifierWithAttestation(
+    { ...CONFIG, fetch: fakeFetch(() => Response.json(reply)) },
+    { op: 'enroll', owner: 'app:u', audio_wav_b64: ['a', 'b', 'c'] },
+  );
+  assert.deepEqual(call, { output, callId: 'c-1', attestationUrl: '/attestations/by-call/c-1' });
 });
 
 test('the client reports a call that gave no verifier output', async () => {

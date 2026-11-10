@@ -86,6 +86,14 @@ export class VerifierCallError extends Error {
 
 const DEFAULT_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };
 
+/** One call: the output, and where OutLayer serves the TDX attestation of the call. */
+export interface VerifierCall<Output> {
+  output: Output;
+  callId: string | null;
+  /** A path of the OutLayer API, for `fetchAttestation`. `null` if OutLayer gave none. */
+  attestationUrl: string | null;
+}
+
 /** Runs one operation of the verifier and returns its output JSON. */
 export async function callVerifier(config: VerifierConfig, input: Extract<VerifierInput, { op: 'enroll' }>): Promise<EnrollOutput>;
 export async function callVerifier(
@@ -93,6 +101,22 @@ export async function callVerifier(
   input: Extract<VerifierInput, { op: 'verify' | 'select' }>,
 ): Promise<VerifyOutput>;
 export async function callVerifier(config: VerifierConfig, input: VerifierInput): Promise<EnrollOutput | VerifyOutput> {
+  return (await callVerifierWithAttestation(config, input as Extract<VerifierInput, { op: 'enroll' }>)).output;
+}
+
+/** As `callVerifier`, and it also gives the attestation URL of the call. */
+export async function callVerifierWithAttestation(
+  config: VerifierConfig,
+  input: Extract<VerifierInput, { op: 'enroll' }>,
+): Promise<VerifierCall<EnrollOutput>>;
+export async function callVerifierWithAttestation(
+  config: VerifierConfig,
+  input: Extract<VerifierInput, { op: 'verify' | 'select' }>,
+): Promise<VerifierCall<VerifyOutput>>;
+export async function callVerifierWithAttestation(
+  config: VerifierConfig,
+  input: VerifierInput,
+): Promise<VerifierCall<EnrollOutput | VerifyOutput>> {
   if (!/^[a-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(config.project)) throw new RangeError('project must be owner/project');
   const base = new URL(config.baseUrl);
   if (base.protocol !== 'https:') throw new RangeError('baseUrl must be an HTTPS URL');
@@ -133,5 +157,9 @@ export async function callVerifier(config: VerifierConfig, input: VerifierInput)
     // An input without a known operation gives `seams_voice_error_v1`.
     throw new VerifierCallError('output', `the verifier gave the output kind ${String(kind)}`);
   }
-  return output as EnrollOutput | VerifyOutput;
+  return {
+    output: output as EnrollOutput | VerifyOutput,
+    callId: typeof reply.call_id === 'string' ? reply.call_id : null,
+    attestationUrl: typeof reply.attestation_url === 'string' ? reply.attestation_url : null,
+  };
 }

@@ -10,6 +10,7 @@ in a Cloudflare Worker.
 | Request | `confirmationRequest` | Builds a request for any payload, and its digest |
 | Client | `callVerifier` | Calls the verifier (an OutLayer worker) from your server |
 | Capture | `@seams/voice-verdict/capture` | Records a 16 kHz WAV in a browser, with the energy gate of the verifier |
+| TDX quote | `checkAttestationBinding` | Checks that a TDX quote of OutLayer binds the verifier output to a WASM hash |
 
 A complete application with all four parts is in
 [`examples/voice-confirm`](../../examples/voice-confirm).
@@ -161,6 +162,64 @@ if (clip.gate.passes) send(toBase64(clip.wav));
 the verifier marks a recording as used even if it then refuses it.
 `encodeWav`, `energyGate`, `toPcm16` and `audioDigest` run in any runtime.
 
+## The TDX quote of a call (optional)
+
+OutLayer makes a TDX quote for each call. The quote commits to the SHA-256
+of the WASM that ran, of the input and of the output. So a third party can
+check that one exact build of the verifier gave one exact verdict, with no
+trust in the verdict key.
+
+```ts
+import {
+  callVerifierWithAttestation,
+  checkAttestationBinding,
+  fetchAttestation,
+  measurementsApproved,
+  WORKER_CONTRACT,
+} from '@seams/voice-verdict';
+
+const call = await callVerifierWithAttestation(config, input);
+const record = await fetchAttestation(config.baseUrl, call.attestationUrl!);
+
+const bound = await checkAttestationBinding({
+  record,
+  output: call.output, // it holds verdict_json, so the quote covers the verdict
+  acceptedWasmHashes: [MY_VERIFIER_WASM_SHA256], // from your own build of the source
+  projectId: config.project,
+});
+if (!bound.ok) throw new Error(bound.refusal.code);
+
+const approved = await measurementsApproved({
+  rpcUrl: 'https://test.rpc.fastnear.com/',
+  contract: WORKER_CONTRACT.testnet,
+  measurements: bound.measurements,
+});
+```
+
+`checkAttestationBinding` checks these links:
+
+1. The first 32 bytes of the quote's report data are the task hash of the
+   record (the WASM hash, the input hash, the output hash, the caller, the
+   project and the time).
+2. The output hash of the record is the hash of the output that you hold.
+3. The WASM hash of the record is one that you accept.
+4. If you give them: the input, the project and the caller.
+
+Two checks are not in this package. The result names them in `notChecked`:
+
+- **The signature of the quote.** A DCAP verifier must check the chain of
+  the quote to Intel, with Intel's collateral. Pass `bound.quote` to one, or
+  run `outlayer-verify call <call id>` (github.com/out-layer/outlayer-verify).
+  Without this check, the quote is only a claim.
+- **The measurements.** `measurementsApproved` asks the OutLayer contract on
+  NEAR if it approves the five measurements. It trusts the RPC for the view.
+
+To get the WASM hash that you accept, build the verifier from its source
+(`crates/voice-verifier/build.sh --docker`). The build is reproducible.
+
+Keep the output of a call as you received it, if a third party must check
+it later. OutLayer stores only the hashes.
+
 ## Other functions
 
 - `requestDigest(requestBorsh)`: the request digest of `spoken-intent`,
@@ -173,8 +232,11 @@ the verifier marks a recording as used even if it then refuses it.
 ## What a verdict proves
 
 A valid verdict proves that the holder of the verifier key signed this
-result for this request digest. It does not hold a TDX quote. It does not
-prove that the voice was live: a good voice clone can pass. The plan for
+result for this request digest. The verdict holds no TDX quote: the quote of
+the call is a second, optional proof (see above). Neither proves that the
+voice was live: a good voice clone can pass. The transcript comes from
+NEAR AI with no signature, so the quote covers the verifier and not the
+speech-to-text model. The plan for
 these limits is in [`docs/standalone-library.md`](../../docs/standalone-library.md).
 
 The Rust crate with the same check is in

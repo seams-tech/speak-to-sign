@@ -145,6 +145,32 @@ fn a_confirmation_binds_the_context_and_the_payload() {
     );
 }
 
+/// The model writes an amount of money with a symbol. The transcript of
+/// OutLayer testnet for this summary was "Pay $40 for two books."
+#[test]
+fn a_summary_with_an_amount_matches_the_models_numerals() {
+    for (index, transcript) in ["Pay $40 for two books.", "Pay 40 dollars for 2 books", "pay forty dollars for two books"]
+        .into_iter()
+        .enumerate()
+    {
+        let mut fake = app_enrolled();
+        fake.transcript = Some(transcript.into());
+        let wav = clip(0.3 + 0.01 * index as f32);
+        fake.voice(&wav, embedding(0, 0.3));
+        let request = confirmation("shop.example/order", "Pay forty dollars for two books");
+        let out = call(&mut fake, verify_input(USER, request, &wav));
+        let verdict = checked_verdict(&out);
+        assert_eq!(outcome_name(&verdict), "accept", "{transcript}: {out}");
+        assert_eq!(verdict.heard.as_deref(), Some("pay forty dollars for two books"));
+    }
+    // Another amount is other words.
+    let mut fake = app_enrolled();
+    let wav = said(&mut fake, "Pay $14 for two books.");
+    let request = confirmation("shop.example/order", "Pay forty dollars for two books");
+    let out = call(&mut fake, verify_input(USER, request, &wav));
+    assert_eq!(outcome_name(&checked_verdict(&out)), "words");
+}
+
 #[test]
 fn a_confirmation_refuses_other_words() {
     let mut fake = app_enrolled();

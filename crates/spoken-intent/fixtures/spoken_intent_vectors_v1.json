@@ -253,6 +253,42 @@
   "normalize_punctuated": [
     {
       "result": {
+        "tokens": "pay forty dollars for two books"
+      },
+      "transcript": "Pay $40 for two books."
+    },
+    {
+      "result": {
+        "tokens": "it costs one thousand two hundred fifty dollars i think"
+      },
+      "transcript": "It costs $1,250, I think"
+    },
+    {
+      "result": {
+        "tokens": "give one dollar to charity"
+      },
+      "transcript": "Give $1 to charity"
+    },
+    {
+      "result": {
+        "tokens": "pay forty euros now"
+      },
+      "transcript": "Pay €40 now"
+    },
+    {
+      "result": {
+        "tokens": "top ten percent of users"
+      },
+      "transcript": "Top 10% of users"
+    },
+    {
+      "result": {
+        "refused": "NotNormalizable"
+      },
+      "transcript": "Pay $2.50 now"
+    },
+    {
+      "result": {
         "tokens": "send twenty five near to alice dot testnet"
       },
       "transcript": "Send 25 NEAR to alice.testnet."
@@ -343,7 +379,7 @@
     },
     {
       "result": {
-        "refused": "NotNormalizable"
+        "tokens": "send twenty five dollars to alice dot testnet"
       },
       "transcript": "send $25 to alice.testnet"
     },

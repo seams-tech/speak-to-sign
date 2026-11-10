@@ -650,7 +650,15 @@ fn parse_vectors() -> Value {
 
 /// Whisper-style transcripts, with contacts that hold no two
 /// confusable keys.
-const PUNCTUATED_CASES: [&str; 39] = [
+const PUNCTUATED_CASES: [&str; 45] = [
+    // An amount with a symbol (a summary of a note, a transaction or a
+    // confirmation). The last one has no single spoken form.
+    "Pay $40 for two books.",
+    "It costs $1,250, I think",
+    "Give $1 to charity",
+    "Pay \u{20ac}40 now",
+    "Top 10% of users",
+    "Pay $2.50 now",
     "Send 25 NEAR to alice.testnet.",
     " Send 1,250 nir to Alice.Testnet!",
     "Send 2.5 neer to bob-1.testnet",

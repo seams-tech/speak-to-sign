@@ -737,9 +737,11 @@ test of the path and not of a real person.
 2. **Numbers in a summary.** The summary "Pay forty dollars for two books"
    was refused with `words`: the speech-to-text model wrote "pay 40 for two
    books". This holds for every summary kind (`community_note`,
-   `transaction`, `signed_message`, `confirmation`). Not fixed. A fix is a
-   change of the transcript rules in `spoken-intent`, with new vectors. For
-   now the documents say: a summary has no numbers.
+   `transaction`, `signed_message`, `confirmation`). Fixed in the source
+   (verifier 0.10.0): the transcript rules of `spoken-intent` read "$40" as
+   "forty dollars" and "10%" as "ten percent", with new golden vectors. The
+   builds on OutLayer do not have the fix. A TypeScript port of
+   `normalize_punctuated` needs the same rule.
 
 ### 6.4 The two variants, compared
 

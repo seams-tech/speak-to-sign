@@ -359,12 +359,14 @@ Stage times (`ms`, not signed), in ms:
       summary. The verdict binds the owner, the context (1 to 64 characters
       of `a-z`, `0-9`, `.`, `_`, `-`, `:`, `/`) and the SHA-256 of the
       payload. The application defines the payload bytes.
-    - A summary with a number or an amount of money is not reliable (all
-      summary kinds). On testnet, the model wrote "pay 40 for two books" for
-      the summary "Pay forty dollars for two books", and the word check
-      refused it. The summary has only letters, and the worker does not turn
-      "$40" into "forty dollars". Write summaries with no numbers, or use a
-      typed kind for an amount.
+    - Numbers in a summary (all summary kinds, version 0.10.0 and later):
+      write the number in words ("Pay forty dollars for two books"). The
+      model can write it as a numeral, and the worker reads "40", "$40" and
+      "40 dollars" as the same words. It reads `$`, the euro sign and the
+      pound sign before a whole number, and `%` after a number. An amount
+      with a decimal point ("$2.50") has no single spoken form: do not put
+      one in a summary. In the builds before 0.10.0, "$40" fails the word
+      check (seen on testnet).
     - The contract `demo/contracts/voice-multisig` checks each verdict of
       these kinds on chain. `Transfer` and `HideNote` proposals exist. A
       0.6 record of a transfer still reads in 0.7.0.

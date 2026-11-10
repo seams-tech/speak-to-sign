@@ -52,11 +52,15 @@ const X_LIGHT: PagePalette = {
   red: '#f4212e',
 };
 
-/** X's black, Lights out: the dark block in src/styles.css. The card is the page's black. */
+/**
+ * X's black, Lights out: the dark block in src/styles.css. The card is a step lighter than the
+ * page's black (--panel), so the Wallet's cards stand out on the black page; their raised
+ * surfaces are a step lighter again.
+ */
 const LIGHTS_OUT: PagePalette = {
-  card: '#000', // --bg
-  raised: '#16181c', // --panel
-  raised2: '#202327', // --media
+  card: '#16181c', // --panel
+  raised: '#202327', // --media
+  raised2: '#2a2d32',
   ink: '#e7e9ea',
   onInk: '#0f1419',
   inkHover: '#d7dbdc',

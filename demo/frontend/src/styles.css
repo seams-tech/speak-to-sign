@@ -1601,6 +1601,14 @@ code {
   max-height: 90vh;
   outline: none;
 }
+/* On the dark theme a dialog is X's raised dark grey, the same as the Seams Wallet's cards
+   (src/seams/walletTheme.tsx), so it stands out on the black page. Its own surfaces are a step
+   lighter again. A dialog that is only the Wallet's card (.dialog-bare) has no surface. */
+:root[data-theme='dark'] .overlay .dialog:not(.dialog-bare) {
+  --bg: #16181c;
+  --panel: #202327;
+  --media: #2a2d32;
+}
 /* In the middle of the screen. An auto margin, not align-items: a dialog taller than the
    screen starts at the top and scrolls, and is not cut off above. */
 .overlay:not(.overlay-bare) > .dialog {
@@ -2344,35 +2352,6 @@ fieldset:disabled .choice {
    The SDK's hook --seams-wallet-inline-dialog-z puts it above our modal overlay (z-index 50). */
 :root {
   --seams-wallet-inline-dialog-z: 60;
-}
-/* On the dark theme the Wallet's cards are black on a black page, and the SDK's black shadows do
-   not show. They get X's dark-mode edge instead: a faint white rim and a soft white glow, as X's
-   own menus and dialogs on Lights out. The SDK paints a card's shadow on this page: a
-   drop-shadow on the iframe of a compact card (VoiceID, the transaction confirmer) and of the
-   sign-in menu, which hugs the card's round shape, and a box-shadow on the dialog of a reviewed
-   transaction. These rules repeat the SDK's selectors under the dark root, so they win. */
-:root[data-theme='dark']
-  dialog[data-seams-root].seams-wallet-overlay.seams-wallet-overlay-dialog.is-modal:not(.is-provisional):not(
-    .is-viewport-fallback
-  ):not(.is-auth-menu):not([data-transaction-review])
-  > iframe.seams-wallet-overlay-iframe,
-:root[data-theme='dark']
-  dialog[data-seams-root].seams-wallet-overlay.seams-wallet-overlay-dialog.is-modal:not(:modal):not(
-    .is-provisional
-  ):not(.is-viewport-fallback):not(.is-auth-menu):not([data-transaction-review])
-  > iframe.seams-wallet-overlay-iframe,
-:root[data-theme='dark']
-  dialog[data-seams-root].seams-wallet-overlay.seams-wallet-overlay-dialog.is-auth-menu
-  iframe.seams-wallet-overlay-iframe {
-  filter: drop-shadow(0 0 1px rgb(255 255 255 / 0.35)) drop-shadow(0 0 15px rgb(255 255 255 / 0.16));
-}
-:root[data-theme='dark'] dialog[data-seams-root].seams-wallet-overlay.seams-wallet-overlay-dialog.is-modal[data-transaction-review],
-:root[data-theme='dark']
-  dialog[data-seams-root].seams-wallet-overlay.seams-wallet-overlay-dialog.is-modal[data-transaction-review]:not(:modal) {
-  box-shadow:
-    rgb(255 255 255 / 0.16) 0 0 15px,
-    rgb(255 255 255 / 0.2) 0 0 1px 1px,
-    inset 0 0 0 1px var(--seams-colors-borderPrimary);
 }
 .link-btn {
   border: 0;

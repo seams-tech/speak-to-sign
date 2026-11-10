@@ -720,6 +720,39 @@ h1.ss-display {
   contain: layout paint;
 }
 
+/* An example that stopped (ExampleGuard): the message fills its window. */
+.ss-guard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: #ffffff;
+  color: var(--graphite);
+  font-size: 15px;
+  text-align: center;
+}
+.ss-guard b {
+  color: var(--ink);
+  font-size: 17px;
+}
+.ss-guard-error {
+  max-width: 56ch;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--taupe);
+  color: var(--smoke);
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ss-guard-retry {
+  margin-top: 4px;
+}
+
 .ss-app-screen {
   position: relative;
 }

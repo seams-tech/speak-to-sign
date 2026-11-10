@@ -11,6 +11,7 @@ import { LiveMultisigScreen } from '../multisig/LiveMultisigScreen';
 import { createContractMarketSource, MarketSourceContext } from '../market/contractSource';
 import { createSeamsMarketSigner } from '../market/marketSigner';
 import { createMissingKeySigner, createSeamsSigner } from '../signer/seamsSigner';
+import { ExampleGuard } from './guard';
 
 export type LiveId = 'notes' | 'multisig';
 
@@ -38,13 +39,19 @@ export function LiveSlot({ id, active = true }: { id: LiveId; active?: boolean }
 /**
  * Renders the live apps into their elements. With `seams`, it needs SeamsWebProvider above it.
  * Without a Seams publishable key, the notes app shows the notes and cannot sign, and there is
- * no live multisig screen.
+ * no live multisig screen. Each app has its own guard, so an error in one does not blank the page.
  */
 export function LiveApps({ seams, onMultisigSignIn }: { seams: boolean; onMultisigSignIn: () => void }) {
   return (
     <>
-      {createPortal(seams ? <SeamsNotes /> : <KeylessNotes />, liveNode('notes'))}
-      {seams && createPortal(<LiveMultisigScreen onSignIn={onMultisigSignIn} />, liveNode('multisig'))}
+      {createPortal(<ExampleGuard name="notes">{seams ? <SeamsNotes /> : <KeylessNotes />}</ExampleGuard>, liveNode('notes'))}
+      {seams &&
+        createPortal(
+          <ExampleGuard name="multisig">
+            <LiveMultisigScreen onSignIn={onMultisigSignIn} />
+          </ExampleGuard>,
+          liveNode('multisig'),
+        )}
     </>
   );
 }

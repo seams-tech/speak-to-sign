@@ -30,8 +30,6 @@ const PHOTO_FIELDS = {
 
 export type GrainFieldName = keyof typeof PHOTO_FIELDS;
 
-export const GRAIN_FIELD_NAMES = Object.keys(PHOTO_FIELDS) as GrainFieldName[];
-
 function meanColour(grid: Uint8Array): [number, number, number] {
   let r = 0;
   let g = 0;

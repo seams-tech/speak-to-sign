@@ -3,9 +3,9 @@
 .xt-mock {
   margin: 0;
   padding: 8px 16px;
-  background: #fff8e1;
-  border-bottom: 1px solid #f0e2b0;
-  color: #6b5300;
+  background: var(--warn-bg);
+  border-bottom: 1px solid var(--warn-line);
+  color: var(--warn-ink);
   font-size: 13px;
 }
 .xt-sub {

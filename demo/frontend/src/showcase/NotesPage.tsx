@@ -1,28 +1,28 @@
 // The Community Notes page of the Speak-to-Sign site, as one single-page app: a hero about
-// voice signatures (with the setup steps), and the live notes app on a white sheet under it.
+// voice signatures (with the setup steps), and the live notes app on a sheet under it.
 // The page has one bar, the nav, with the name and GitHub: the notes app's own top line is
 // hidden here. When the sheet covers the hero, the setup steps show in the nav.
 //
 // The hero has a moving grain field of the Seams site (./grain, the GrainField of seams-monorepo).
-// The nav's brand pill holds the name and the picker (FieldPicker) of the hero's three
-// gradients; the default is Apricot Beam.
+// The nav's brand pill holds the name and the theme picker (ThemePicker): Light mode (the
+// default), Dark mode and Onyx Black. A theme sets the hero's field and the notes app's colours.
 // The page has three layers: the ground (the field, behind the nav and the hero), the nav, and
 // one scroll area that starts under the nav. In the scroll area, the hero's text stays in place
 // and the sheet moves up over it like a sheet of paper, while the hero goes back a little, blurs
 // and dims. The same scroll then goes on down the feed: the notes app does not scroll itself
 // here. Nothing that scrolls can come behind the nav, so the nav always shows the field.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconBrandGithub } from '@tabler/icons-react';
 import type { CSSProperties } from 'react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
-import { FieldPicker } from './FieldPicker';
 import { NearMark, NearWordmark } from './nearMarks';
 import { SeamsMark, SeamsWordmark } from './seamsMarks';
 import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
-import { fieldScrim, useHeroField } from './heroField';
+import { fieldScrim, THEMES, useTheme } from './theme';
+import { ThemePicker } from './ThemePicker';
 import { LiveApps, LiveSlot } from './live';
 import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
 
@@ -44,8 +44,19 @@ export function NotesPage({ seams }: { seams: boolean }) {
   const sheetRef = useRef<HTMLElement>(null);
   // The sheet is at the nav or past it: only the nav's strip of the field shows.
   const [docked, setDocked] = useState(false);
-  const field = useHeroField();
+  const theme = useTheme();
+  const field = THEMES[theme].field;
   const fieldStyle = { '--field-base': grainFieldSource(field).base, '--field-scrim': fieldScrim(field) } as CSSProperties;
+
+  // The theme is on the root element: the notes app's dialogs open on document.body. It is set
+  // before the first paint, so a dark theme never shows a white flash.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    return () => {
+      delete root.dataset.theme;
+    };
+  }, [theme]);
 
   /** How far the scroll area scrolls until the sheet is at the nav. */
   const coverDistance = () => sheetRef.current?.offsetTop ?? 0;
@@ -109,13 +120,13 @@ export function NotesPage({ seams }: { seams: boolean }) {
         </div>
         <header className="ss-nav">
           <div className="ss-nav-inner">
-            {/* One pill: the name, then the round picture of the hero's gradient, which opens its menu. */}
+            {/* One pill: the name, then the round picture of the hero's field, which opens the theme menu. */}
             <div className="ss-brand-pill">
               <a className="ss-brand" href="/">
                 <BrandMark size={24} />
                 Speak-to-Sign
               </a>
-              <FieldPicker />
+              <ThemePicker />
             </div>
             {/* The setup steps again, for the time that the sheet covers the hero and its strip.
                 They show until every step is done, so the wallet setup is always in reach. */}

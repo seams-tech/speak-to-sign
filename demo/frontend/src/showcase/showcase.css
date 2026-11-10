@@ -2145,8 +2145,9 @@ h1.ss-display {
   margin-top: calc(-1 * var(--sheet-r));
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
   /* Light grey diagonal stripes in the empty space at the sides of the notes app. The app's
-     layout is white (below). */
-  background: repeating-linear-gradient(135deg, #ebebeb 0 1.5px, #ffffff 1.5px 9px);
+     layout is white (below). They are fixed to the screen, so they hold still while the page
+     scrolls. (iOS Safari scrolls them, but there the app fills the width and has no sides.) */
+  background: repeating-linear-gradient(135deg, #ebebeb 0 1.5px, #ffffff 1.5px 9px) fixed;
   box-shadow:
     0 -1px 0 rgba(255, 255, 255, 0.6),
     0 -22px 50px -14px rgba(8, 48, 66, 0.5);

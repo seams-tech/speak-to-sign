@@ -424,9 +424,9 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 `src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
 
-- **The nav**, the one bar of the page, 44 pixels high, with the name, the
-  gradient picker, "Built on NEAR" (NEAR's wordmark, a link to near.org) and
-  GitHub. It stays at the top and has no ground of its own: it lies over the
+- **The nav**, the one bar of the page, 44 pixels high: at the left one pill
+  with the name and the gradient picker; at the right "Built on NEAR" (NEAR's
+  wordmark, a link to near.org) and GitHub, in the same glass pills. It stays at the top and has no ground of its own: it lies over the
   top of the hero. When the sheet covers the hero, that strip of the hero
   stays in sight, so the nav keeps the hero's gradient. The notes app's own top line is hidden on this page. When
   the sheet covers the hero, the setup steps show in the nav, until every
@@ -439,11 +439,11 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   steps as one strip (`#setup`). The field is the `GrainField` of
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
-  grid, flows it and adds grain. The nav's picker (`FieldPicker.tsx`) is a
-  round button with a picture of the field. It opens a menu of the 14
-  gradients, each with a picture; the arrow keys change the hero as they
-  move. The default is `apricot-beam`; the menu tags `teal-peach-wisp`, the
-  field of the Seams home hero. The choice stays in this browser
+  grid, flows it and adds grain. The site keeps three of its gradients:
+  Apricot Beam (the default), Aqua Evergreen and Onyx Black. The picker
+  (`FieldPicker.tsx`), in the nav's brand pill, is a round button with a
+  picture of the field. It opens a menu of the three, each with a picture;
+  the arrow keys change the hero as they move. The choice stays in this browser
   (`localStorage`), and `?field=<name>` picks one for a link. A light field gets a soft dark shade
   on the left (`--field-scrim`), so the white text stays readable. NEAR's N
   mark (`nearMarks.tsx`, as on tatchi.xyz) lies big and faint over the field

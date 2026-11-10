@@ -8,9 +8,6 @@ import { GRAIN_FIELD_NAMES, grainFieldSource, type GrainFieldName } from './grai
 /** The field of the hero until the visitor picks another. */
 export const DEFAULT_FIELD: GrainFieldName = 'apricot-beam';
 
-/** The field of the Seams home hero. The menu tags it. */
-export const SEAMS_HOME_FIELD: GrainFieldName = 'teal-peach-wisp';
-
 // v2: the default changed to Apricot Beam, so an older pick does not hide it.
 const STORAGE_KEY = 'speak-to-sign:hero-field:v2';
 

@@ -1,12 +1,12 @@
-// The nav's picker of the hero gradient: a small round button with a picture of the field, which
-// opens a menu of every grain field of the Seams site, each with a picture of its colours. The menu is a listbox: the arrow keys
-// move through it and change the hero at once, Enter or Escape closes it, and a click outside
-// closes it too.
+// The picker of the hero gradient, in the nav's brand pill: a small round button with a picture of
+// the field, which opens a menu of the site's three grain fields, each with a picture of its
+// colours. The menu is a listbox: the arrow keys move through it and change the hero at once,
+// Enter or Escape closes it, and a click outside closes it too.
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { IconCheck } from '@tabler/icons-react';
 import { GRAIN_FIELD_NAMES, grainFieldSource, type GrainFieldName } from './grain/fields';
-import { DEFAULT_FIELD, fieldLabel, SEAMS_HOME_FIELD, setHeroField, useHeroField } from './heroField';
+import { DEFAULT_FIELD, fieldLabel, setHeroField, useHeroField } from './heroField';
 
 /** The menu's order: the default field first, then the rest as the Seams site lists them. */
 const ORDER: GrainFieldName[] = [DEFAULT_FIELD, ...GRAIN_FIELD_NAMES.filter((name) => name !== DEFAULT_FIELD)];
@@ -190,7 +190,6 @@ export function FieldPicker() {
               >
                 <Swatch field={name} className="ss-field-thumb" />
                 <span className="ss-field-option-name">{fieldLabel(name)}</span>
-                {name === SEAMS_HOME_FIELD && <span className="ss-field-tag">Seams home</span>}
                 {name === field && <IconCheck className="ss-field-check" size={15} stroke={2.4} aria-hidden="true" />}
               </div>
             ))}

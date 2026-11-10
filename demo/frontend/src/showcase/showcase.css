@@ -1764,31 +1764,86 @@ h1.ss-display {
   }
 }
 
-/* The picker sits at the right of the nav, so GitHub follows it with no gap of its own. */
-.ss-spa .ss-field-pick {
-  margin-left: auto;
+/* The brand pill: the name and the gradient picker in one pill of the GitHub glass, with a
+   hairline between them. The gradient menu opens under the pill, at its left edge. */
+.ss-brand-pill {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 3px 0 4px;
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.26);
 }
 
-.ss-spa .ss-field-pick ~ .ss-nav-source {
-  margin-left: 0;
+.ss-brand-pill .ss-brand {
+  padding-right: 8px;
 }
 
-/* "Built on NEAR" between the picker and GitHub: the words and NEAR's wordmark, in white, as on
-   tatchi.xyz. */
+.ss-brand-pill .ss-field-pick {
+  /* The menu takes its place from the pill, not from the button. */
+  position: static;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ss-brand-pill .ss-field-pick::before {
+  content: '';
+  flex: none;
+  width: 1px;
+  height: 16px;
+  margin-right: 3px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.ss-brand-pill .ss-field-button {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+}
+
+.ss-brand-pill .ss-field-button:focus-visible,
+.ss-brand-pill .ss-field-pick[data-open] .ss-field-button {
+  background: rgba(10, 10, 10, 0.3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-brand-pill .ss-field-button:hover {
+    background: rgba(10, 10, 10, 0.24);
+  }
+}
+
+.ss-brand-pill .ss-field-menu {
+  left: 0;
+  right: auto;
+  transform-origin: 0 0;
+}
+
+/* "Built on NEAR" before GitHub, in the same glass pill: the words and NEAR's wordmark, in
+   white, as on tatchi.xyz. GitHub follows it with no gap of its own. */
 .ss-near {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   height: 28px;
-  padding: 0 4px;
-  border-radius: 6px;
+  padding: 0 11px 0 10px;
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.26);
   color: #ffffff;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
-  opacity: 0.92;
-  transition: opacity 150ms ease;
+  transition: background-color 150ms ease;
+}
+
+.ss-spa .ss-near {
+  margin-left: auto;
+}
+
+.ss-spa .ss-near + .ss-nav-source {
+  margin-left: 0;
 }
 
 .ss-near svg {
@@ -1800,7 +1855,7 @@ h1.ss-display {
 
 @media (hover: hover) and (pointer: fine) {
   .ss-near:hover {
-    opacity: 1;
+    background: rgba(10, 10, 10, 0.42);
   }
 }
 

@@ -4,8 +4,8 @@
 // hidden here. When the sheet covers the hero, the setup steps show in the nav.
 //
 // The hero has a moving grain field of the Seams site (./grain, the GrainField of seams-monorepo).
-// The nav's picker (FieldPicker) chooses one of its 14 gradients; the default is the field of the
-// Seams home hero.
+// The nav's brand pill holds the name and the picker (FieldPicker) of the hero's three
+// gradients; the default is Apricot Beam.
 // The page has three layers: the ground (the field, behind the nav and the hero), the nav, and
 // one scroll area that starts under the nav. In the scroll area, the hero's text stays in place
 // and the sheet moves up over it like a sheet of paper, while the hero goes back a little, blurs
@@ -109,16 +109,19 @@ export function NotesPage({ seams }: { seams: boolean }) {
         </div>
         <header className="ss-nav">
           <div className="ss-nav-inner">
-            <a className="ss-brand" href="/">
-              <BrandMark size={24} />
-              Speak-to-Sign
-            </a>
+            {/* One pill: the name, then the round picture of the hero's gradient, which opens its menu. */}
+            <div className="ss-brand-pill">
+              <a className="ss-brand" href="/">
+                <BrandMark size={24} />
+                Speak-to-Sign
+              </a>
+              <FieldPicker />
+            </div>
             {/* The setup steps again, for the time that the sheet covers the hero and its strip.
                 They show until every step is done, so the wallet setup is always in reach. */}
             <div className="ss-nav-setup" data-shown={covered || undefined} inert={!covered} aria-label="Set up">
               {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
             </div>
-            <FieldPicker />
             <a className="ss-near" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
               <span className="ss-near-words">Built on</span>
               <NearWordmark />

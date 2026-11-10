@@ -93,6 +93,26 @@ let bound = check_attestation_binding(
   approval of the measurements (`attestation::NOT_CHECKED`). The TypeScript
   package explains both.
 
+For the signature chain in Rust, pass `bound.quote` to a DCAP verifier, for
+example the crate `dcap-qvl` (Phala, MIT). On a server with a network:
+
+```rust
+use dcap_qvl::collateral::{CollateralClient, INTEL_PCS_URL};
+
+let collateral = CollateralClient::with_default_http(INTEL_PCS_URL)?
+    .fetch(&bound.quote)
+    .await?;
+let verified = dcap_qvl::verify::verify(&bound.quote, &collateral, now_secs)?;
+// verified.status is the TCB status of the platform, for example "UpToDate".
+```
+
+`tests/dcap.rs` does this with no network: it checks both real quotes of the
+fixtures with `dcap-qvl` 0.7.1 and the collateral that Intel PCS gave on
+2026-11-10 (`*.collateral.json` next to each fixture). Both are `UpToDate`,
+and the report that the chain covers has the task hash of its record. This
+crate has `dcap-qvl` only as a test dependency, so a contract build does not
+change.
+
 ## Test
 
 ```sh

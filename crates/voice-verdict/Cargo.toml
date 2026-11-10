@@ -32,3 +32,6 @@ ed25519-dalek = { version = "2", default-features = false, optional = true }
 serde_json = "1"
 base64 = "0.22"
 ed25519-dalek = "2"
+# Checks in a test that the real quotes of the fixtures chain to Intel, with the
+# collateral of Intel PCS that is stored next to them. No network.
+dcap-qvl = { version = "=0.7.1", default-features = false, features = ["std", "rustcrypto", "default-x509"] }

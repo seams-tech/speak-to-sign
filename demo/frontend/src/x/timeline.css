@@ -1,0 +1,115 @@
+/* The timeline of X posts that can get a note (mock). It uses the notes app's variables and its
+   .tl-*, .tabs, .btn, .actions and .nm-bar classes; the xt-* classes are only what is new. */
+.xt-mock {
+  margin: 0;
+  padding: 8px 16px;
+  background: #fff8e1;
+  border-bottom: 1px solid #f0e2b0;
+  color: #6b5300;
+  font-size: 13px;
+}
+.xt-sub {
+  padding: 0 16px 10px;
+  font-size: 14px;
+}
+.xt-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--media);
+  object-fit: cover;
+}
+.xt-topic {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.xt-text {
+  white-space: pre-wrap;
+}
+.xt-media {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  margin-top: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  object-fit: cover;
+}
+/* What the demo adds to a post: the note state and the market state. */
+.xt-box {
+  margin-top: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  overflow: hidden;
+  font-size: 14px;
+}
+.xt-box-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 0;
+  font-weight: 700;
+}
+/* The space is a margin: padding under a clamped text shows a part of the next line. */
+.xt-note {
+  margin: 4px 12px 10px;
+  padding: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.xt-market {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.xt-market .nm-bar {
+  margin: 0 0 6px;
+}
+.xt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.xt-row-text {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.xt-btns {
+  display: inline-flex;
+  gap: 8px;
+}
+.xt-empty {
+  padding: 10px 12px;
+}
+.xt-verdict {
+  color: var(--green);
+  font-weight: 700;
+}
+.xt-foot {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+}
+/* The tabs are buttons here: they take the look of the app's .tab. */
+button.tab {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+button.tab.tab-on {
+  font-weight: 700;
+}

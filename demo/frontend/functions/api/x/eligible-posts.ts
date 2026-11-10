@@ -16,6 +16,7 @@
 
 import { json, refuseOtherOrigin } from '../../lib/http.ts';
 import { oauth1Header, queryString, type OAuth1Keys } from '../../lib/oauth1.ts';
+import type { XAuthor, XMedia, XPost } from '../../../src/x/types.ts';
 import { classifyPosts, DEFAULT_ALLOWED_TOPICS, DEFAULT_TOPIC_MODEL, isTopic, type Topic } from '../../lib/topicFilter.ts';
 
 export interface Env {
@@ -44,33 +45,7 @@ export interface Env {
   X_CACHE?: KVNamespace;
 }
 
-export interface XAuthor {
-  id: string;
-  username: string;
-  name: string;
-  avatarUrl: string | null;
-  verified: boolean;
-}
-
-export interface XMedia {
-  type: 'photo' | 'video' | 'animated_gif';
-  /** A still image: the photo, or the preview of a video. */
-  url: string;
-  alt: string | null;
-}
-
-export interface XPost {
-  id: string;
-  text: string;
-  createdAt: string | null;
-  lang: string | null;
-  url: string;
-  author: XAuthor | null;
-  media: XMedia[];
-  metrics: { likes: number; reposts: number; replies: number; views: number } | null;
-  /** The subject from the filter. Null when the filter is off. */
-  topic: Topic | null;
-}
+export type { XAuthor, XMedia, XPost };
 
 /** What the route keeps between calls to X. */
 export interface Snapshot {

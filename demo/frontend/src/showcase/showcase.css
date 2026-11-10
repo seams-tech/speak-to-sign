@@ -1518,8 +1518,9 @@ h1.ss-display {
   color: var(--ink);
 }
 
-/* A hairline between the name and the steps, while the steps show. */
-.ss-nav-setup[data-shown]::before {
+/* A hairline between the name and the steps. It is a part of the steps' box at all times, so
+   it fades in and out with the steps and not before them. */
+.ss-nav-setup::before {
   content: '';
   flex: none;
   align-self: center;
@@ -2106,7 +2107,7 @@ h1.ss-display {
     margin-left: 0;
   }
   .ss-nav-setup .step + .step::before,
-  .ss-nav-setup[data-shown]::before {
+  .ss-nav-setup::before {
     display: none;
   }
   /* While the step shows, the name is its mark only, so the step's words fit. */

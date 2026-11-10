@@ -24,6 +24,7 @@ use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json;
 use near_sdk::store::LookupMap;
+use spoken_intent::{request_digest, BetOutcomeV1, NearAccount, Network, SpokenRequestV1, UsdcAmount};
 use near_sdk::{
     AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError, PromiseOrValue, env,
     near,
@@ -82,6 +83,19 @@ pub const DEFAULT_PROJECT_ID: &str = "seams-v1.testnet/pm-notes-resolver";
 const MAX_INSTRUCTIONS: u64 = 1_000_000_000;
 const MAX_MEMORY_MB: u32 = 128;
 const MAX_EXECUTION_SECONDS: u64 = 60;
+
+/// The key of the Seams voice verifier on testnet, which signs each verdict. The admin can set
+/// another key (`set_voice_verifier_key`).
+pub const DEFAULT_VOICE_VERIFIER_KEY: &str = "ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U";
+/// The network that the request digest of a bet names.
+const NETWORK: Network = Network::Testnet;
+// The voice settings are under raw storage keys, not in the contract's state struct, so an
+// upgrade needs no state migration.
+const VOICE_VERIFIER_KEY: &[u8] = b"voice:verifier_key";
+/// Holds one byte, 0, when bets need no verdict. Absent: bets need one.
+const VOICE_REQUIRED_KEY: &[u8] = b"voice:required";
+/// The prefix of the marker of a used verdict: `voice:used:<SHA-256 of the verdict JSON>`.
+const VOICE_USED_PREFIX: &[u8] = b"voice:used:";
 
 const EVENT_STANDARD: &str = "pm_notes";
 const EVENT_VERSION: &str = "1.0.0";
@@ -389,7 +403,10 @@ impl PredictionMarkets {
     /// The token calls this for `ft_transfer_call` (NEP-141). `msg` says what the USDC is for:
     /// - `{"action": "create_market", "question", "context"?, "note_id"?, "closes_at_ms"}`: the
     ///   USDC is the seed of a new market (at least 1 USDC).
-    /// - `{"action": "bet", "market_id", "outcome": "yes" | "no"}`: a bet (at least 0.1 USDC).
+    /// - `{"action": "bet", "market_id", "outcome": "yes" | "no", "verdict_json", "signature_b64"}`:
+    ///   a bet (at least 0.1 USDC). The verdict is the bettor's spoken bet, signed by the voice
+    ///   verifier: the contract takes the bet only if the verdict is for this account, this
+    ///   market, this outcome and this amount, has not expired and was not used before.
     ///
     /// It uses all of the USDC and returns 0. A refused transfer fails, and the token then
     /// sends the USDC back.
@@ -405,7 +422,8 @@ impl PredictionMarkets {
             ("create_market", TransferMessage { question: Some(question), context, note_id, closes_at_ms: Some(closes_at_ms), market_id: None, outcome: None, .. }) => {
                 self.create_market(sender_id, amount.0, question, context, note_id, closes_at_ms);
             }
-            ("bet", TransferMessage { market_id: Some(market_id), outcome: Some(outcome), question: None, context: None, note_id: None, closes_at_ms: None, .. }) => {
+            ("bet", TransferMessage { market_id: Some(market_id), outcome: Some(outcome), question: None, context: None, note_id: None, closes_at_ms: None, verdict_json, signature_b64, .. }) => {
+                self.check_spoken_bet(&sender_id, amount.0, market_id, outcome, verdict_json.as_deref(), signature_b64.as_deref());
                 self.bet(sender_id, amount.0, market_id, outcome);
             }
             _ => env::panic_str("msg must be a create_market or bet message"),
@@ -644,6 +662,35 @@ impl PredictionMarkets {
         U128(0)
     }
 
+    /// Sets the key of the voice verifier that signs the verdict of each bet,
+    /// `ed25519:<base58 of 32 bytes>`. Only the admin.
+    pub fn set_voice_verifier_key(&mut self, verifier_public_key: String) {
+        if env::predecessor_account_id() != self.admin {
+            env::panic_str("only the admin can change the voice verifier key");
+        }
+        let key = verdict::parse_ed25519_key(&verifier_public_key)
+            .unwrap_or_else(|| env::panic_str("verifier_public_key must be ed25519:<base58 of 32 bytes>"));
+        env::storage_write(VOICE_VERIFIER_KEY, &key);
+    }
+
+    /// Says if a bet needs a voice verdict. It does by default. Only the admin: it is the way
+    /// to keep the markets open if the voice verifier is down.
+    pub fn set_voice_required(&mut self, required: bool) {
+        if env::predecessor_account_id() != self.admin {
+            env::panic_str("only the admin can change the voice rule");
+        }
+        if required {
+            env::storage_remove(VOICE_REQUIRED_KEY);
+        } else {
+            env::storage_write(VOICE_REQUIRED_KEY, &[0]);
+        }
+    }
+
+    /// The voice rule of a bet: if a bet needs a verdict, and the key that must sign it.
+    pub fn get_voice_config(&self) -> VoiceConfigView {
+        VoiceConfigView { required: voice_required(), verifier_public_key: verdict::format_ed25519_key(&voice_verifier_key()) }
+    }
+
     /// Changes where `request_resolution` sends the request. Only the admin.
     pub fn set_resolver_config(&mut self, resolver: ResolverConfig) {
         if env::predecessor_account_id() != self.admin {
@@ -813,6 +860,38 @@ impl PredictionMarkets {
     }
 
     /// A bet of `amount` USDC on `outcome`. Returns the account's stake on that outcome.
+    /// Panics unless the bet has the verdict of its own spoken sentence. The request digest
+    /// names the bettor, this contract, the token, the market, the outcome and the amount, so a
+    /// verdict for any other bet does not pass. A verdict passes once.
+    fn check_spoken_bet(&self, account: &AccountId, amount: u128, market_id: u64, outcome: Outcome, verdict_json: Option<&str>, signature_b64: Option<&str>) {
+        if !voice_required() {
+            return;
+        }
+        let (Some(verdict_json), Some(signature_b64)) = (verdict_json, signature_b64) else {
+            env::panic_str("say the bet: it needs verdict_json and signature_b64 from the voice verifier");
+        };
+        let request = SpokenRequestV1::MarketBet {
+            network: NETWORK,
+            owner: near_account(account),
+            market: near_account(&env::current_account_id()),
+            token: near_account(&self.token),
+            market_id,
+            outcome: match outcome {
+                Outcome::Yes => BetOutcomeV1::Yes,
+                Outcome::No => BetOutcomeV1::No,
+            },
+            amount: UsdcAmount::from_units(amount)
+                .unwrap_or_else(|_| env::panic_str("a spoken bet is a whole number of cents, up to 1,000,000 USDC")),
+        };
+        verdict::check_verdict(&voice_verifier_key(), &request_digest(&request), verdict_json, signature_b64);
+        let mut used = VOICE_USED_PREFIX.to_vec();
+        used.extend_from_slice(&env::sha256_array(verdict_json.as_bytes()));
+        if env::storage_has_key(&used) {
+            env::panic_str("this verdict was used for a bet before");
+        }
+        env::storage_write(&used, &[1]);
+    }
+
     fn bet(&mut self, account: AccountId, amount: u128, market_id: u64, outcome: Outcome) -> u128 {
         if amount < MIN_BET {
             env::panic_str("bet at least 0.1 USDC");
@@ -1107,6 +1186,38 @@ struct TransferMessage {
     market_id: Option<u64>,
     #[serde(default)]
     outcome: Option<Outcome>,
+    /// The verdict of a spoken bet, as the voice verifier gave it, byte for byte.
+    #[serde(default)]
+    verdict_json: Option<String>,
+    /// Standard base64 of the verifier's signature of the verdict.
+    #[serde(default)]
+    signature_b64: Option<String>,
+}
+
+/// NEAR and `spoken-intent` have the same account id rules, so this holds for each valid
+/// `AccountId`.
+fn near_account(account: &AccountId) -> NearAccount {
+    NearAccount::new(account.as_str()).unwrap_or_else(|_| env::panic_str("the account id is not valid for spoken-intent"))
+}
+
+/// True unless the admin turned the voice rule off.
+fn voice_required() -> bool {
+    env::storage_read(VOICE_REQUIRED_KEY).is_none_or(|value| value != [0])
+}
+
+/// The key that signs each verdict: the one that the admin set, or the default.
+fn voice_verifier_key() -> [u8; 32] {
+    env::storage_read(VOICE_VERIFIER_KEY)
+        .and_then(|bytes| bytes.try_into().ok())
+        .or_else(|| verdict::parse_ed25519_key(DEFAULT_VOICE_VERIFIER_KEY))
+        .unwrap_or_else(|| env::panic_str("the voice verifier key is not valid"))
+}
+
+/// The voice rule, as `get_voice_config` gives it.
+#[near(serializers = [json])]
+pub struct VoiceConfigView {
+    pub required: bool,
+    pub verifier_public_key: String,
 }
 
 #[derive(Serialize)]
@@ -1274,6 +1385,8 @@ fn emit<T: Serialize>(event: &str, data: T) {
         serde_json::to_string(&log).unwrap_or_else(|_| env::panic_str("cannot serialize the event"));
     env::log_str(&format!("EVENT_JSON:{json}"));
 }
+
+mod verdict;
 
 #[cfg(test)]
 mod tests;

@@ -12,9 +12,13 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = "=5.30.1"
+# The request digest of a spoken bet, which its voice verdict names.
+spoken-intent = { path = "../../../crates/spoken-intent" }
 
 [dev-dependencies]
 near-sdk = { version = "=5.30.1", features = ["unit-testing"] }
+# Signs test verdicts with a test key.
+ed25519-dalek = { version = "=2.2.0", default-features = false }
 
 # A standalone workspace: it must not join a parent workspace. The sandbox
 # test crate and the fake OutLayer and USDC contracts are members so that they share

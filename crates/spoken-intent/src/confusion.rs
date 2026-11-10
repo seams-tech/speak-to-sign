@@ -42,7 +42,9 @@ type NearMisses = BTreeSet<Vec<SpokenToken>>;
 /// - A receiver or member: each other account in `contacts`.
 /// - A proposal: the id one lower and one higher, add and remove member
 ///   exchanged, the threshold one lower and one
-///   higher, and each of the eight version digits changed to each other digit.
+///   higher, each of the eight version digits changed to each other digit,
+///   and the note id of a hidden note one lower, one higher, and with each
+///   decimal digit changed to each other digit.
 ///
 /// Sentence changes, at each verb (the first word, and for an approval also
 /// the first word of the proposal):
@@ -378,7 +380,45 @@ fn proposal_variants(proposal: &ProposalV1, contacts: &[SpokenAccount]) -> Vec<P
                 .collect()
         }
         ProposalV1::SetVerifierVersion { .. } => Vec::new(),
+        ProposalV1::HideNote { note_id } => note_id_variants(*note_id)
+            .into_iter()
+            .map(|note_id| ProposalV1::HideNote { note_id })
+            .collect(),
     }
+}
+
+/// The other note ids of a hidden note: one lower, one higher, and each
+/// decimal digit changed to each other digit. A changed first digit is never
+/// zero, so each variant has as many digits as the id or one less.
+fn note_id_variants(note_id: u64) -> BTreeSet<u64> {
+    let mut variants = BTreeSet::new();
+    variants.extend(note_id.checked_sub(1));
+    variants.extend(note_id.checked_add(1));
+    let mut digits = Vec::new();
+    let mut rest = note_id;
+    loop {
+        digits.push((rest % 10) as u8);
+        rest /= 10;
+        if rest == 0 {
+            break;
+        }
+    }
+    digits.reverse();
+    for position in 0..digits.len() {
+        for digit in 0..10u8 {
+            if digit == digits[position] || (position == 0 && digit == 0 && digits.len() > 1) {
+                continue;
+            }
+            let mut changed = digits.clone();
+            changed[position] = digit;
+            let value = changed
+                .iter()
+                .try_fold(0u64, |value, digit| value.checked_mul(10)?.checked_add(u64::from(*digit)));
+            variants.extend(value);
+        }
+    }
+    variants.remove(&note_id);
+    variants
 }
 
 /// The position of the proposal in the spoken form of an approval with

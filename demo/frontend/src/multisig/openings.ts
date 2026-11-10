@@ -1,13 +1,25 @@
-// The opening of a proposal: the transfer and the salt behind its on-chain commitment. Only the
-// proposer's browser gets it (the verifier returns the salt to `multisig_propose`), and the
-// approve route needs it for `execute`. It stays in localStorage, keyed by contract and proposal
-// id, until the proposal is executed.
+// The opening of a proposal: the transfer or the note to hide, and the salt behind its on-chain
+// commitment. Only the proposer's browser gets it (the verifier returns the salt to
+// `multisig_propose` and `multisig_hide_note`), and the approve route needs it for `execute`. It
+// stays in localStorage, keyed by contract and proposal id, until the proposal is executed.
 
-export interface Opening {
+export type Opening = TransferOpening | HideOpening;
+
+export interface TransferOpening {
   receiver: string;
   amount_yocto: string;
   salt_hex: string;
   commitment_hex: string;
+}
+
+export interface HideOpening {
+  note_id: number;
+  salt_hex: string;
+  commitment_hex: string;
+}
+
+export function isHide(opening: Opening): opening is HideOpening {
+  return 'note_id' in opening;
 }
 
 const HEX_32 = /^[0-9a-f]{64}$/;
@@ -18,17 +30,15 @@ function key(contract: string, proposalId: number): string {
 
 export function readOpening(contract: string, proposalId: number): Opening | null {
   try {
-    const value = JSON.parse(localStorage.getItem(key(contract, proposalId)) ?? 'null') as Partial<Opening> | null;
-    if (
-      value &&
-      typeof value.receiver === 'string' &&
-      typeof value.amount_yocto === 'string' &&
-      typeof value.salt_hex === 'string' &&
-      HEX_32.test(value.salt_hex) &&
-      typeof value.commitment_hex === 'string' &&
-      HEX_32.test(value.commitment_hex)
-    ) {
-      return value as Opening;
+    const value = JSON.parse(localStorage.getItem(key(contract, proposalId)) ?? 'null') as Record<string, unknown> | null;
+    if (!value || typeof value.salt_hex !== 'string' || !HEX_32.test(value.salt_hex)) return null;
+    if (typeof value.commitment_hex !== 'string' || !HEX_32.test(value.commitment_hex)) return null;
+    const { salt_hex, commitment_hex } = value;
+    if (typeof value.note_id === 'number' && Number.isSafeInteger(value.note_id) && value.note_id >= 1) {
+      return { note_id: value.note_id, salt_hex, commitment_hex };
+    }
+    if (typeof value.receiver === 'string' && typeof value.amount_yocto === 'string') {
+      return { receiver: value.receiver, amount_yocto: value.amount_yocto, salt_hex, commitment_hex };
     }
   } catch {
     // No storage, or a value that is not JSON.

@@ -250,3 +250,83 @@ fn a_confirmation_refusal_does_not_write_the_receiver() {
     assert_eq!(outcome_name(&verdict), "words", "{out}");
     assert_eq!(verdict.heard.as_deref(), Some("approve proposal seven send two hundred fifty near to grand dot testnet"));
 }
+
+// --- "hide note N" ---
+
+const HIDE_SAID: &str = "Approve proposal 7: hide note 42.";
+
+fn hide_input(wav: &[u8], note_id: u64) -> Value {
+    json!({
+        "op": "verify",
+        "owner": OWNER,
+        "request": {
+            "kind": "multisig_hide_note",
+            "multisig": MULTISIG,
+            "proposal_id": 7,
+            "note_id": note_id,
+        },
+        "contacts": [],
+        "audio_wav_b64": STANDARD.encode(wav),
+    })
+}
+
+fn hide_commitment(note_id: u64) -> [u8; 32] {
+    multisig_commitment(&NearAccount::new(MULTISIG).unwrap(), 7, &ProposalV1::HideNote { note_id }, &SALT)
+}
+
+#[test]
+fn a_hide_and_its_recalled_confirmation_are_accepted() {
+    let mut fake = enrolled();
+    enroll(&mut fake, BOB, 10);
+    let (out, verdict) = say(&mut fake, |wav| hide_input(wav, 42), 0, 0.31, HIDE_SAID);
+    assert_eq!(outcome_name(&verdict), "accept", "{out}");
+    let commitment = hide_commitment(42);
+    assert_eq!(verdict.request_digest, Some(digest(OWNER, &commitment)));
+    assert_eq!(verdict.heard.as_deref(), Some("approve proposal seven hide note forty two"));
+    assert_eq!(out["multisig"], json!({ "commitment": b64u(&commitment), "salt": b64u(&SALT) }));
+
+    // The worker keeps the note id, with no receiver or amount.
+    let open_key = format!("msig1:{MULTISIG}:{}:open", b64u(&commitment));
+    let stored: Value = serde_json::from_slice(&fake.storage[&open_key]).unwrap();
+    assert_eq!(stored, json!({ "proposal_id": 7, "note_id": 42, "salt_hex": hex(&SALT) }));
+
+    let commitment_hex = hex(&commitment);
+    let (out, verdict) = say(&mut fake, |wav| confirm_input(BOB, wav, 7, &commitment_hex), 10, 0.32, HIDE_SAID);
+    assert_eq!(outcome_name(&verdict), "accept", "{out}");
+    assert_eq!(verdict.request_digest, Some(digest(BOB, &commitment)));
+}
+
+#[test]
+fn a_hide_of_another_note_is_refused() {
+    let mut fake = enrolled();
+    let tries = ["Approve proposal 7: hide note 43.", "Approve proposal 7: hide note 24.", "Approve proposal 7: send note 42."];
+    for (index, said) in tries.into_iter().enumerate() {
+        // Each try is a new recording: the worker refuses audio it heard before.
+        let step = 0.31 + 0.01 * index as f32;
+        let (out, verdict) = say(&mut fake, |wav| hide_input(wav, 42), 0, step, said);
+        assert_eq!(outcome_name(&verdict), "words", "{said}: {out}");
+        assert!(out.get("multisig").is_none(), "{out}");
+    }
+}
+
+#[test]
+fn a_hide_of_note_0_is_unsupported() {
+    let mut fake = enrolled();
+    let (out, verdict) = say(&mut fake, |wav| hide_input(wav, 0), 0, 0.31, "Approve proposal 7: hide note 0.");
+    assert_eq!(outcome_name(&verdict), "unsupported", "{out}");
+}
+
+#[test]
+fn a_stored_transfer_of_0_6_still_reads() {
+    // A 0.6 record has no note_id field. The transfer flow above writes the
+    // same shape, so a confirmation of it still works.
+    let (mut fake, commitment_hex) = proposed();
+    let open_key = format!("msig1:{MULTISIG}:{}:open", b64u(&commitment("grants.testnet")));
+    let stored: Value = serde_json::from_slice(&fake.storage[&open_key]).unwrap();
+    assert_eq!(
+        stored,
+        json!({ "proposal_id": 7, "receiver": "grants.testnet", "amount_yocto": AMOUNT, "salt_hex": hex(&SALT) })
+    );
+    let (out, verdict) = say(&mut fake, |wav| confirm_input(BOB, wav, 7, &commitment_hex), 10, 0.32, SAID);
+    assert_eq!(outcome_name(&verdict), "accept", "{out}");
+}

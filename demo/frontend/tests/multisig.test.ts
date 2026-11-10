@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readApproveAnswer } from '../src/multisig/approveClient.ts';
 import { readMultisigConfig, readProposal, readProposalId, readProposals } from '../src/multisig/contractViews.ts';
-import { formatNear, hexOfBase64Url, hundredthsOfYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from '../src/multisig/intent.ts';
+import { formatNear, hexOfBase64Url, hideSentence, hundredthsOfYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from '../src/multisig/intent.ts';
 import { base64, encodeWav, MAX_SAMPLES, resampleTo16k, toPcm16, wavFromSamples } from '../src/multisig/wav.ts';
 
 const ascii = (bytes: Uint8Array, start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
@@ -175,4 +175,13 @@ test('the views are read with checks: an old contract shape gives null, not a th
   assert.equal(readProposalId(1), 1);
   assert.equal(readProposalId('1'), null);
   assert.equal(readProposalId(0), null);
+});
+
+test('a hide reads as the grammar renders it, and a hidden note id comes through the proposal view', () => {
+  assert.equal(hideSentence(12, 42), 'Approve proposal 12: hide note 42');
+  const view = { id: 12, commitment_hex: 'ab'.repeat(32), proposer: 'v.testnet', approvals: [], status: 'executed', created_at_ms: 1 };
+  assert.equal(readProposal({ ...view, note_id: 42 })?.note_id, 42);
+  assert.equal(readProposal(view)?.note_id, undefined);
+  assert.equal(readProposal({ ...view, note_id: 0 }), null);
+  assert.equal(readProposal({ ...view, note_id: '42' }), null);
 });

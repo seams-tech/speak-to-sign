@@ -2,7 +2,8 @@
 //
 // Runs the OutLayer voice verifier for the voice multisig screen, with the demo's own OutLayer
 // payment key, the way the Seams verify route does (/speak-to-sign/v1/verify). It takes only
-// the `verify` op with the request kind `multisig_propose`.
+// the `verify` op with the request kind `multisig_propose` (a transfer) or `multisig_hide_note`
+// (a reported note; verifier 0.7.0 or later).
 //
 // The Seams route checks that the caller owns `owner`; this route cannot. The verifier still
 // checks the voice against the owner's template, and the contract checks that the owner signs
@@ -43,6 +44,8 @@ const ENV_NAMES = [
 const MAX_BODY_BYTES = 400 * 1024;
 /** The verifier calls two remote models. */
 const TIMEOUT_MS = 20_000;
+/** The proposal kinds of the voice multisig page. */
+const REQUEST_KINDS = ['multisig_propose', 'multisig_hide_note'];
 const RESOURCE_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -126,8 +129,8 @@ function parseInput(text: string): Record<string, unknown> | string {
   }
   const { input } = body;
   if (input.op !== 'verify') return 'This route runs only the verify op.';
-  if (!isObject(input.request) || input.request.kind !== 'multisig_propose') {
-    return 'This route takes only the request kind multisig_propose.';
+  if (!isObject(input.request) || !REQUEST_KINDS.includes(String(input.request.kind))) {
+    return 'This route takes only the request kinds multisig_propose and multisig_hide_note.';
   }
   return input;
 }

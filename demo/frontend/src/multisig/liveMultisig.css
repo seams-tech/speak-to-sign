@@ -142,6 +142,86 @@
 .lms-action .sf-label {
   margin: 0;
 }
+/* The two proposal kinds: hide a reported note, or send NEAR. */
+.lms-kinds {
+  display: inline-flex;
+  justify-self: start;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: #f4f4f4;
+}
+.lms-kinds button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #636669;
+  cursor: pointer;
+}
+.lms-kinds button.lms-kind-on {
+  background: #ffffff;
+  color: #121312;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+.lms-kinds button:focus-visible {
+  outline: 2px solid #121312;
+  outline-offset: 1px;
+}
+.lms-kinds button:disabled {
+  cursor: default;
+}
+/* The reported notes: one to pick. */
+.lms-notes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.lms-notes legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+.lms-report {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dcdee0;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.lms-report input {
+  margin: 2px 0 0;
+  accent-color: #121312;
+}
+.lms-report > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.lms-report-text {
+  color: #636669;
+  overflow-wrap: anywhere;
+}
+.lms-report-on {
+  border-color: #121312;
+}
+.lms-notes:disabled .lms-report {
+  cursor: default;
+  opacity: 0.7;
+}
 .lms-fields {
   display: grid;
   grid-template-columns: 1fr 160px;

@@ -1,7 +1,8 @@
 // The applications of the Speak-to-Sign site. Each one has its own page: Community Notes at /,
 // the voice multisig at /multisig/. A click on the app's screen opens it in a window on its page.
-// Community Notes is live on NEAR testnet. The voice multisig works against its testnet
-// contract, and shows example data if the contract account has no code. Both copy the style of
+// Community Notes is live on NEAR testnet. The voice multisig moderates the notes: it hides a
+// reported note, or sends NEAR. It works against its testnet contract, and shows example data if
+// the contract account has no code. Both copy the style of
 // the real apps, with neutral logos, inside a hand-drawn frame.
 
 import { config } from '../config';
@@ -45,13 +46,13 @@ export const EXAMPLES: VoiceExample[] = [
   },
   {
     id: 'multisig',
-    chip: 'Approve a multisig',
-    title: 'Approve a multisig transaction',
-    say: 'approve proposal seven, send zero point zero one NEAR to seams dash grants dot testnet',
-    signs: 'propose({ proposal_id: 7, commitment_hex, verdict_json, signature_b64 })',
-    target: 'multisig.seams-v1.testnet · 0 NEAR · 30 Tgas · then Admin A and Admin B approve',
+    chip: 'Hide a note',
+    title: 'Moderate notes with a multisig',
+    say: 'approve proposal twelve hide note forty two',
+    signs: 'propose({ proposal_id: 12, commitment_hex, verdict_json, signature_b64 })',
+    target: 'multisig.seams-v1.testnet · 0 NEAR · 30 Tgas · then Admin A and Admin B approve, and the multisig calls hide_note',
     status: 'live',
-    blurb: 'You read the amount and the receiver aloud. You cannot blind-sign what you must say, so a phishing transaction is harder to approve.',
+    blurb: 'Readers reported a harmful note. You propose to hide it by voice, two admins approve, and the multisig hides it. One stolen key cannot hide a note alone.',
     url: `${config.multisigContract}/transactions/new`,
   },
 ];

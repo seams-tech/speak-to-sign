@@ -358,7 +358,7 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
         events(&result),
         vec![json!({
             "standard": "voice_multisig",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "event": "approved",
             "data": [{ "proposal_id": 1, "admin": admin_a.id(), "approvals": 1 }]
         })]
@@ -428,7 +428,7 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
         events(&result),
         vec![json!({
             "standard": "voice_multisig",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "event": "executed",
             "data": [{ "proposal_id": 1, "receiver": grants.id(), "amount_yocto": open.amount_yocto.to_string() }]
         })]
@@ -582,5 +582,147 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
         &result,
         "The contract has already been initialized",
     );
+    Ok(())
+}
+
+/// The community-notes WASM: `COMMUNITY_NOTES_WASM`, or the release build of
+/// `../community-notes` (run its `./build.sh` first).
+fn notes_wasm() -> anyhow::Result<Vec<u8>> {
+    let path = std::env::var("COMMUNITY_NOTES_WASM").unwrap_or_else(|_| {
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../community-notes/res/community_notes.wasm").to_string()
+    });
+    std::fs::read(&path).map_err(|e| anyhow::anyhow!("cannot read {path}: {e}. Run ../community-notes/build.sh first."))
+}
+
+/// The WASM in the environment variable `name`, if it is set: the code that
+/// is deployed now, to check an upgrade in place.
+fn old_wasm(name: &str) -> anyhow::Result<Option<Vec<u8>>> {
+    match std::env::var(name) {
+        Ok(path) => Ok(Some(std::fs::read(&path).map_err(|e| anyhow::anyhow!("cannot read {path}: {e}"))?)),
+        Err(_) => Ok(None),
+    }
+}
+
+/// A multisig of two admins hides a note of the community-notes contract.
+/// With `OLD_VOICE_MULTISIG_WASM` and `OLD_COMMUNITY_NOTES_WASM`, both
+/// contracts start on that code, get state, and then get the new code in
+/// place, as the testnet upgrade does.
+#[tokio::test]
+async fn hide_a_note_in_the_sandbox() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account()?;
+    let admin_a = subaccount(&root, "admin-a", 5).await?;
+    let admin_b = subaccount(&root, "admin-b", 5).await?;
+    let visitor = subaccount(&root, "visitor", 5).await?;
+    let author = subaccount(&root, "author", 5).await?;
+    let multisig_account = subaccount(&root, "multisig", MULTISIG_NEAR).await?;
+    let notes_account = subaccount(&root, "notes", 10).await?;
+
+    let old_multisig = old_wasm("OLD_VOICE_MULTISIG_WASM")?;
+    let old_notes = old_wasm("OLD_COMMUNITY_NOTES_WASM")?;
+    let multisig = multisig_account
+        .deploy(old_multisig.as_deref().map_or(wasm()?, <[u8]>::to_vec).as_slice())
+        .await?
+        .into_result()?;
+    let notes = notes_account
+        .deploy(old_notes.as_deref().map_or(notes_wasm()?, <[u8]>::to_vec).as_slice())
+        .await?
+        .into_result()?;
+    let verifier_public_key = format!(
+        "ed25519:{}",
+        bs58::encode(verifier().verifying_key().as_bytes()).into_string()
+    );
+    let init = multisig
+        .call("new")
+        .args_json(json!({ "admins": [admin_a.id(), admin_b.id()], "verifier_public_key": verifier_public_key }))
+        .gas(WALLET_GAS)
+        .transact()
+        .await?;
+    check_success("new", &init, GAS_BUDGET);
+
+    // State before the upgrade: an open transfer proposal and a note.
+    let open = opening(&multisig, 1, visitor.id().as_str(), 1, SALT);
+    check_success("propose a transfer", &propose(&visitor, &multisig, 1, &open).await?, GAS_BUDGET);
+    let add = call(
+        &author,
+        &notes,
+        "add_note",
+        json!({ "post_id": 900, "text": "Call 555-0142 now to win 100 NEAR.", "summary": "Win 100 NEAR" }),
+        NearToken::from_yoctonear(0),
+    )
+    .await?;
+    check_success("add_note", &add, GAS_BUDGET);
+
+    if old_multisig.is_some() || old_notes.is_some() {
+        multisig_account.deploy(&wasm()?).await?.into_result()?;
+        notes_account.deploy(&notes_wasm()?).await?.into_result()?;
+        println!("upgraded both contracts in place");
+        let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 1 })).await?;
+        assert_eq!(proposal["status"], json!("open"), "the old proposal reads after the upgrade");
+        let note = view(&notes, "get_note", json!({ "note_id": 1 })).await?;
+        assert_eq!(note["summary"], json!("Win 100 NEAR"), "the old note reads after the upgrade");
+        assert_eq!(note["hidden"], json!(false));
+    }
+
+    // The contract accounts link the two contracts.
+    let linked = notes.call("set_moderator").args_json(json!({ "account_id": multisig.id() })).transact().await?;
+    assert!(linked.is_success(), "set_moderator failed: {linked:#?}");
+    let linked = multisig.call("set_notes_contract").args_json(json!({ "account_id": notes.id() })).transact().await?;
+    assert!(linked.is_success(), "set_notes_contract failed: {linked:#?}");
+    assert_eq!(view(&multisig, "get_notes_contract", json!({})).await?, json!(notes.id()));
+    let result = call(&visitor, &multisig, "set_notes_contract", json!({ "account_id": visitor.id() }), NearToken::from_yoctonear(0)).await?;
+    check_failure("set_notes_contract by another account", &result, "is private");
+
+    // Proposal 2: hide note 1.
+    let hide = ProposalV1::HideNote { note_id: 1 };
+    let commitment = multisig_commitment(&NearAccount::new(multisig.id().as_str()).unwrap(), 2, &hide, &SALT_2);
+    let hide_open = Opening { commitment, receiver: String::new(), amount_yocto: 0, salt: SALT_2 };
+    check_success("propose a hide", &propose(&visitor, &multisig, 2, &hide_open).await?, GAS_BUDGET);
+    check_success("admin A approves", &approve(&admin_a, &multisig, 2).await?, GAS_BUDGET);
+    check_success("admin B approves", &approve(&admin_b, &multisig, 2).await?, GAS_BUDGET);
+
+    let hide_args = |note_id: u64| json!({ "proposal_id": 2, "note_id": note_id, "salt_hex": hex(&SALT_2) });
+    let execute_hide = |args: Value| {
+        admin_b
+            .call(multisig.id(), "execute")
+            .args_json(args)
+            .gas(Gas::from_tgas(50))
+            .transact()
+    };
+    check_failure(
+        "execute with another note",
+        &execute_hide(hide_args(2)).await?,
+        "note_id and salt_hex do not match the commitment",
+    );
+    let result = execute_hide(hide_args(1)).await?;
+    assert!(result.is_success(), "execute the hide failed: {result:#?}");
+    println!("execute a hide: {:.3} Tgas burnt in all", tgas(result.total_gas_burnt));
+    let logs = result.logs().join("\n");
+    assert_eq!(result.json::<Value>()?, json!(true), "on_hide returns true");
+
+    let note = view(&notes, "get_note", json!({ "note_id": 1 })).await?;
+    assert_eq!((&note["text"], &note["summary"], &note["hidden"]), (&json!(""), &json!(""), &json!(true)));
+    let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 2 })).await?;
+    assert_eq!((&proposal["status"], &proposal["note_id"]), (&json!("executed"), &json!(1)));
+    assert!(logs.contains(r#""event":"note_hidden""#), "the notes contract logs note_hidden: {logs}");
+    assert!(logs.contains(r#""event":"executed","data":[{"proposal_id":2,"note_id":1}]"#), "{logs}");
+
+    // A second proposal to hide the same note fails at the notes contract,
+    // and the proposal opens again.
+    let commitment = multisig_commitment(&NearAccount::new(multisig.id().as_str()).unwrap(), 3, &hide, &SALT_3);
+    let again = Opening { commitment, receiver: String::new(), amount_yocto: 0, salt: SALT_3 };
+    check_success("propose the same hide", &propose(&visitor, &multisig, 3, &again).await?, GAS_BUDGET);
+    check_success("admin A approves", &approve(&admin_a, &multisig, 3).await?, GAS_BUDGET);
+    check_success("admin B approves", &approve(&admin_b, &multisig, 3).await?, GAS_BUDGET);
+    let result = execute_hide(json!({ "proposal_id": 3, "note_id": 1, "salt_hex": hex(&SALT_3) })).await?;
+    assert_eq!(result.json::<Value>()?, json!(false), "on_hide returns false");
+    let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 3 })).await?;
+    assert_eq!(proposal["status"], json!("open"));
+
+    // The transfer of proposal 1 still runs after the upgrade.
+    check_success("admin A approves 1", &approve(&admin_a, &multisig, 1).await?, GAS_BUDGET);
+    check_success("admin B approves 1", &approve(&admin_b, &multisig, 1).await?, GAS_BUDGET);
+    let result = execute(&admin_b, &multisig, 1, &open).await?;
+    assert_eq!(result.json::<Value>()?, json!(true), "the transfer arrives");
     Ok(())
 }

@@ -72,6 +72,7 @@ fn add_note_stores_the_note_and_counts_ids_from_1() {
             somewhat_helpful: 0,
             not_helpful: 0,
             status: NoteStatus::NeedsMoreRatings,
+            hidden: false,
         }
     );
 
@@ -89,7 +90,7 @@ fn add_note_logs_note_added() {
     assert_eq!(logs.len(), 1);
     assert_eq!(
         logs[0],
-        r#"EVENT_JSON:{"standard":"community_notes","version":"1.0.0","event":"note_added","data":[{"note_id":1,"post_id":7,"author":"alice.testnet"}]}"#
+        r#"EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_added","data":[{"note_id":1,"post_id":7,"author":"alice.testnet"}]}"#
     );
 }
 
@@ -170,7 +171,7 @@ fn rate_note_counts_the_rating_and_logs_note_rated() {
     assert_eq!(logs.len(), 1);
     assert_eq!(
         logs[0],
-        r#"EVENT_JSON:{"standard":"community_notes","version":"1.0.0","event":"note_rated","data":[{"note_id":1,"account_id":"bob.testnet","rating":"somewhat_helpful","previous_rating":null,"status":"needs_more_ratings"}]}"#
+        r#"EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_rated","data":[{"note_id":1,"account_id":"bob.testnet","rating":"somewhat_helpful","previous_rating":null,"status":"needs_more_ratings"}]}"#
     );
 }
 
@@ -406,7 +407,8 @@ fn note_view_json_uses_numbers_and_snake_case() {
             "helpful": 1,
             "somewhat_helpful": 0,
             "not_helpful": 0,
-            "status": "needs_more_ratings"
+            "status": "needs_more_ratings",
+            "hidden": false
         })
     );
     assert!(value["id"].is_u64() && value["post_id"].is_u64() && value["created_at_ms"].is_u64());
@@ -434,4 +436,108 @@ fn rating_and_status_json_strings() {
     for (status, json) in statuses {
         assert_eq!(serde_json::to_string(&status).unwrap(), json);
     }
+}
+
+// --- hide_note ---
+
+fn set_moderator(contract: &mut CommunityNotes) {
+    set_caller("notes");
+    contract.set_moderator(account("multisig"));
+}
+
+#[test]
+fn the_moderator_hides_a_note() {
+    let mut contract = contract_with_note();
+    rate(&mut contract, "bob", 1, Rating::Helpful);
+    set_moderator(&mut contract);
+    assert_eq!(contract.get_moderator(), Some(account("multisig")));
+
+    set_caller_at("multisig", 1_731_000_000_500);
+    contract.hide_note(1, Some(12));
+    let hidden = note(&contract, 1);
+    assert!(hidden.hidden);
+    assert_eq!(hidden.text, "");
+    assert_eq!(hidden.summary, "");
+    assert_eq!((hidden.post_id, hidden.helpful), (7, 1));
+    assert_eq!(hidden.author, account("alice"));
+    assert_eq!(contract.get_notes(7), vec![hidden]);
+
+    let logs = get_logs();
+    assert_eq!(
+        event(logs.last().unwrap()),
+        json!({
+            "standard": "community_notes",
+            "version": "1.1.0",
+            "event": "note_hidden",
+            "data": [{ "note_id": 1, "post_id": 7, "moderator": "multisig.testnet", "proposal_id": 12 }],
+        })
+    );
+}
+
+#[test]
+fn the_event_leaves_out_a_missing_proposal_id() {
+    let mut contract = contract_with_note();
+    set_moderator(&mut contract);
+    set_caller("multisig");
+    contract.hide_note(1, None);
+    let logs = get_logs();
+    assert_eq!(
+        event(logs.last().unwrap())["data"][0],
+        json!({ "note_id": 1, "post_id": 7, "moderator": "multisig.testnet" })
+    );
+}
+
+#[test]
+#[should_panic(expected = "only the moderator can hide a note")]
+fn without_a_moderator_no_one_can_hide_a_note() {
+    let mut contract = contract_with_note();
+    set_caller("notes");
+    contract.hide_note(1, None);
+}
+
+#[test]
+#[should_panic(expected = "only the moderator can hide a note")]
+fn another_account_cannot_hide_a_note() {
+    let mut contract = contract_with_note();
+    set_moderator(&mut contract);
+    set_caller("bob");
+    contract.hide_note(1, None);
+}
+
+#[test]
+#[should_panic(expected = "this note is already hidden")]
+fn a_note_is_hidden_once() {
+    let mut contract = contract_with_note();
+    set_moderator(&mut contract);
+    set_caller("multisig");
+    contract.hide_note(1, None);
+    contract.hide_note(1, None);
+}
+
+#[test]
+#[should_panic(expected = "note 9 does not exist")]
+fn hiding_an_unknown_note_fails() {
+    let mut contract = contract_with_note();
+    set_moderator(&mut contract);
+    set_caller("multisig");
+    contract.hide_note(9, None);
+}
+
+#[test]
+#[should_panic(expected = "this note is hidden")]
+fn a_hidden_note_takes_no_ratings() {
+    let mut contract = contract_with_note();
+    set_moderator(&mut contract);
+    set_caller("multisig");
+    contract.hide_note(1, None);
+    rate(&mut contract, "bob", 1, Rating::Helpful);
+}
+
+#[test]
+fn a_new_moderator_replaces_the_old_one() {
+    let mut contract = contract_with_note();
+    set_moderator(&mut contract);
+    set_caller("notes");
+    contract.set_moderator(account("council"));
+    assert_eq!(contract.get_moderator(), Some(account("council")));
 }

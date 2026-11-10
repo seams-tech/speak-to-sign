@@ -54,6 +54,11 @@ export function proposalSentence(proposalId: number, amount: string, receiver: s
   return `Approve proposal ${proposalId}: send ${amount} NEAR to ${receiver}`;
 }
 
+/** The sentence of a proposal to hide a note, the grammar's display text. */
+export function hideSentence(proposalId: number, noteId: number): string {
+  return `Approve proposal ${proposalId}: hide note ${noteId}`;
+}
+
 /** Lowercase hex of unpadded base64url bytes (the verifier's commitment and salt), or null. */
 export function hexOfBase64Url(text: string, length: number): string | null {
   if (!/^[A-Za-z0-9_-]*$/.test(text)) return null;

@@ -91,6 +91,18 @@ pub enum RequestInput {
         /// Decimal yoctoNEAR (a JSON string: it does not fit a JSON number).
         amount_yocto: String,
     },
+    /// A new multisig proposal to hide a community note, said by its
+    /// proposer: "approve proposal N hide note M". The multisig is the
+    /// moderator of a notes contract. Like `multisig_propose`, the verifier
+    /// draws the salt and keeps the proposal.
+    MultisigHideNote {
+        /// The multisig contract.
+        multisig: String,
+        /// The id that the contract gives the proposal next.
+        proposal_id: u64,
+        /// The id of the note to hide.
+        note_id: u64,
+    },
     /// A confirmation of a stored multisig proposal. The member says the
     /// proposal from memory: the input names only its commitment.
     MultisigConfirm {
@@ -104,10 +116,10 @@ pub enum RequestInput {
 }
 
 impl RequestInput {
-    /// `true` for the two multisig kinds, whose request needs the worker's
+    /// `true` for the multisig kinds, whose request needs the worker's
     /// storage and randomness.
     pub fn is_multisig(&self) -> bool {
-        matches!(self, Self::MultisigPropose { .. } | Self::MultisigConfirm { .. })
+        matches!(self, Self::MultisigPropose { .. } | Self::MultisigHideNote { .. } | Self::MultisigConfirm { .. })
     }
 }
 

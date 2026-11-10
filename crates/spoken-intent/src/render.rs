@@ -145,6 +145,12 @@ fn push_proposal_words(words: &mut Words, proposal: &ProposalV1) -> String {
             words.push_integer(u64::from(threshold.get()));
             format!("set threshold to {threshold}")
         }
+        ProposalV1::HideNote { note_id } => {
+            words.push("hide");
+            words.push("note");
+            words.push_integer(*note_id);
+            format!("hide note {note_id}")
+        }
         ProposalV1::SetVerifierVersion { version_hash } => {
             let digits = version_check_digits(version_hash);
             words.push("set");

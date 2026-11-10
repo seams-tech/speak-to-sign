@@ -166,15 +166,12 @@ const INTRO: Record<ExampleId, IntroCopy> = {
     ],
   },
   multisig: {
-    title: 'Approve a multisig by voice.',
-    sub: 'You propose a transfer from a NEAR multisig by saying it: the proposal number, the amount and the receiver. You cannot blind-sign what you must read aloud, so a phishing transfer is harder to approve.',
+    title: 'Moderate notes by voice.',
+    sub: 'Readers reported some community notes as harmful. A NEAR multisig is the moderator: you propose to hide a note by saying it, and two admins approve. No single key can hide a note, and you cannot blind-sign what you must read aloud.',
     steps: [
-      {
-        lead: 'Say the transfer.',
-        text: 'The page shows one sentence, for example “approve proposal seven, send zero point zero one NEAR to seams dash grants dot testnet”.',
-      },
-      { lead: 'A verifier checks it.', text: 'It hears that the account owner speaks, and that the words match the transfer.' },
-      { lead: 'The admins approve.', text: 'Your wallet signs the proposal. Then two admins approve it, and the multisig sends the NEAR.' },
+      { lead: 'Say the proposal.', text: 'Pick a reported note. The page shows one sentence, for example “approve proposal twelve, hide note forty two”.' },
+      { lead: 'A verifier checks it.', text: 'It hears that the account owner speaks, and that the words match the proposal.' },
+      { lead: 'The admins approve.', text: 'Your wallet signs the proposal. Then two admins approve it, and the multisig hides the note.' },
     ],
   },
 };

@@ -86,7 +86,6 @@ export const POSTS: Post[] = [
     },
     text: 'Claude Code just found 145,763 photos I deleted from my iPhone. Three years of them, still sitting in PhotoData/Thumbnails, with my passport and a screenshot of my crypto recovery phrase.',
     media: 'thumbnails',
-    mediaCaption: 'Drawing of the claim',
     age: 'Oct 24',
     postedAt: 'Oct 24, 2026',
     history: {

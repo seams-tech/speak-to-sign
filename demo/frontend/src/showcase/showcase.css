@@ -595,7 +595,6 @@ h1.ss-display {
   align-items: center;
   gap: 7px;
   padding: 5px 13px;
-  background: #ffffff;
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -610,15 +609,19 @@ h1.ss-display {
   height: 100%;
   overflow: visible;
   pointer-events: none;
+  /* Under the dot and the text. The tag's z-index makes it the stacking context. */
+  z-index: -1;
 }
 
+/* The white fill is in the drawn shape, so it has the same round corners as the outline,
+   and it covers the frame's line under the tag. */
 .ss-drawn-tag rect {
   x: 1px;
   y: 1px;
   width: calc(100% - 2px);
   height: calc(100% - 2px);
   rx: 12px;
-  fill: none;
+  fill: #ffffff;
   stroke: #1c1917;
   stroke-width: 1.4;
 }

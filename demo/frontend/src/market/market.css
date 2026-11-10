@@ -1,3 +1,11 @@
+/* Yes is blue and no is red, in every part of a market: the bar, the shares, the odds chart and
+   the bet buttons. Both are OKLCH lightness 0.57 and chroma 0.16, with hues 250 and 15, so the
+   two sides look equal. Small text uses a darker shade of each. Green stays for "done" marks. */
+:root {
+  --bet-yes: #037ad1;
+  --bet-no: #c34659;
+}
+
 /* The note market strip and bet sheet. They use the X-style variables of src/styles.css
    (--ink, --muted, --line, --green, --red, --accent), so they sit inside a note card. */
 .nm-strip {
@@ -26,10 +34,10 @@
   margin: 4px 0 0;
 }
 .nm-yes {
-  color: var(--green);
+  color: color-mix(in srgb, var(--bet-yes) 80%, #000);
 }
 .nm-no {
-  color: var(--red);
+  color: color-mix(in srgb, var(--bet-no) 80%, #000);
 }
 .nm-bar {
   display: flex;
@@ -40,10 +48,10 @@
   background: var(--line);
 }
 .nm-bar-yes {
-  background: var(--green);
+  background: var(--bet-yes);
 }
 .nm-bar-no {
-  background: var(--red);
+  background: var(--bet-no);
 }
 /* The bar slides to new odds after a bet, and to JEV's split when JEV answers. */
 .nm-bar-yes,
@@ -120,7 +128,7 @@
 }
 .nm-spark-line {
   fill: none;
-  stroke: var(--green);
+  stroke: var(--bet-yes);
   stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
 }
@@ -136,15 +144,15 @@
 }
 .nm-side.nm-side-on.nm-side-yes,
 .nm-side.nm-side-on.nm-side-yes:not(:disabled):hover {
-  border-color: var(--green);
-  background: rgba(0, 186, 124, 0.1);
-  color: #00704a;
+  border-color: var(--bet-yes);
+  background: color-mix(in srgb, var(--bet-yes) 10%, transparent);
+  color: color-mix(in srgb, var(--bet-yes) 80%, #000);
 }
 .nm-side.nm-side-on.nm-side-no,
 .nm-side.nm-side-on.nm-side-no:not(:disabled):hover {
-  border-color: var(--red);
-  background: rgba(244, 33, 46, 0.08);
-  color: #b4121b;
+  border-color: var(--bet-no);
+  background: color-mix(in srgb, var(--bet-no) 9%, transparent);
+  color: color-mix(in srgb, var(--bet-no) 80%, #000);
 }
 .nm-pill {
   padding: 2px 8px;

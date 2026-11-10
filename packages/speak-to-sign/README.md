@@ -224,8 +224,8 @@ const sent = await seams.speakToSign.requestTransaction({
   words this person said. It does not prove that the summary describes the
   transaction. Use the typed calls (`requestTransfer`, `requestBet` and the
   others) when one fits: their sentence comes from the request fields.
-- The voice limits of `requestTransfer` (10 NEAR for one payment, 20 NEAR in 24
-  hours) do not apply to this call.
+- Speak-to-Sign sets no amount limit of its own. A limit is a rule of the
+  Wallet's policy engine, as for a normal signature.
 - The refusals are the verifier's, `summary_not_speakable`,
   `transaction_not_valid` (the receiver, or no action), `verdict_mismatch` and
   `transaction_failed`.

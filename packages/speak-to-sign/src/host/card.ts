@@ -385,17 +385,6 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         at: 'verdict',
         retry: true,
       };
-    case 'voice_limit':
-      return {
-        headline: 'Over your voice limit',
-        caption:
-          result.detail === 'over_daily_limit'
-            ? 'Your voice payments in the last 24 hours reached the limit.'
-            : 'This amount is over the limit for one voice payment.',
-        detail: 'Pay with the normal confirm instead.',
-        at: 'policy',
-        retry: false,
-      };
     case 'cosigner_refused':
       return {
         headline: 'Seams refused the verdict',

@@ -13,7 +13,6 @@ export type FailedResult =
       reason:
         | VerifierRefusal
         | 'verdict_mismatch'
-        | 'voice_limit'
         | 'cosigner_refused'
         | 'transaction_failed';
       detail?: string;

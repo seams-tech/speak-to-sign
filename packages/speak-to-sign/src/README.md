@@ -18,7 +18,7 @@ as changed by Refactor 227 (`docs/refactor-227-speak-to-sign-without-passkey.md`
   co-signer checks it again (`wallet-server/src/router/domains/speakToSign/voiceVerdictAdmission.ts`).
   `payWithVerdict` tells the open prompt when the verdict passed, when a step-up needs the
   owner, and when the transfer leaves for the network. A co-signer refusal comes back as
-  `voice_limit` or `cosigner_refused`.
+  `cosigner_refused`.
 - [`host/enroll.ts`](host/enroll.ts) runs one enrollment: three prompts of one recording each,
   `authorizeEnrollment` for exactly these clips (core signs one NEP-413 message), then
   `verify` with the verifier's `enroll` input. The card of the third phrase stays open: it

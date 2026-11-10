@@ -4,15 +4,13 @@ import {
   IconChecklist,
   IconDots,
   IconDotsCircleHorizontal,
-  IconFeather,
   IconHome,
   IconMail,
   IconSearch,
   IconUser,
 } from '@tabler/icons-react';
 import { shortAccount } from '../config';
-import { useDemo, useWriteCue } from '../demoContext';
-import type { Route } from '../router';
+import { useDemo } from '../demoContext';
 
 const DECOR = [
   { label: 'Explore', Icon: IconSearch },
@@ -78,20 +76,14 @@ export function Rail() {
 
 /**
  * The tab bar at the bottom of a phone screen, where the left navigation is hidden.
- * The account works; the other places copy the look.
- * On a post page, a round button writes a note.
+ * The account works; the other places copy the look. There is no round write button: the post
+ * page's own "Write a note" row is the one way to write, and a floating button covered it.
  */
-export function BottomBar({ route }: { route: Route }) {
-  const { account, openWrite, openSignIn } = useDemo();
-  const cue = useWriteCue(route.name === 'post' ? route.postId : null);
+export function BottomBar() {
+  const { account, openSignIn } = useDemo();
 
   return (
     <>
-      {route.name === 'post' && (
-        <button type="button" className={`fab ${cue ? 'fab-cue' : ''}`} aria-label="Write a note" onClick={() => openWrite(route.postId)}>
-          <IconFeather size={24} stroke={1.8} aria-hidden="true" />
-        </button>
-      )}
       <nav className="bottom-bar" aria-label="Main">
         <span className="bottom-item" aria-hidden="true">
           <IconHome size={26} stroke={1.8} />

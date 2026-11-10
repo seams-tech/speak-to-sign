@@ -367,7 +367,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         )}
         {/* A dialog shows the voice setup as its own step; the page card is for the gaps. */}
         {voicePhase && signInHosts === 0 && <WalletWait step={voicePhase} />}
-        <BottomBar route={route} />
+        <BottomBar />
         <div className="toast-region" role="status" aria-live="polite">
           {toast && (
             <div key={toast.id} className="toast">

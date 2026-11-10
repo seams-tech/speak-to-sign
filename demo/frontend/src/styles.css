@@ -769,14 +769,9 @@ a.lk:hover {
     box-shadow: 0 0 0 10px rgba(29, 155, 240, 0);
   }
 }
-.fab.fab-cue {
-  background: var(--accent);
-  animation: cue-ring 1.8s ease-out infinite;
-}
 @media (prefers-reduced-motion: reduce) {
   .cue-hand,
-  .btn-cue,
-  .fab.fab-cue {
+  .btn-cue {
     animation: none;
   }
 }
@@ -1985,9 +1980,8 @@ fieldset:disabled .choice {
     grid-template-columns: 1fr;
   }
 }
-/* Bottom tab bar and write button: phones only, where the left navigation is hidden */
-.bottom-bar,
-.fab {
+/* Bottom tab bar: phones only, where the left navigation is hidden */
+.bottom-bar {
   display: none;
 }
 @container notes (max-width: 500px) {
@@ -2043,31 +2037,24 @@ fieldset:disabled .choice {
     align-items: center;
     justify-content: center;
   }
-  .fab {
-    position: fixed;
-    right: 16px;
-    bottom: calc(53px + 16px + env(safe-area-inset-bottom));
-    z-index: 20;
-    width: 56px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 9999px;
-    background: var(--ink);
-    color: #fff;
-    cursor: pointer;
-    box-shadow: rgba(15, 20, 25, 0.25) 0 4px 16px;
-  }
   .toast-region {
     bottom: calc(53px + 16px + env(safe-area-inset-bottom));
   }
   .toast {
     white-space: normal;
   }
+  /* The write row: the icon and the text on one line, the button under them, full width. */
   .write-row {
     flex-wrap: wrap;
+  }
+  .write-row-text {
+    flex: 1 1 0;
+  }
+  .write-row > .btn {
+    flex: 1 1 100%;
+  }
+  .write-row .cue-hand {
+    display: none;
   }
 }
 /* The dialogs open on document.body, so they follow the screen. */

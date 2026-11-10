@@ -2018,24 +2018,25 @@ h1.ss-display {
   opacity: 1;
 }
 
-/* The sheet: the notes app. It has the height of the screen under the nav,
-   so that it fills the screen when it is at the nav. Its top overlaps the hero by its round
-   corners, which stay round at the nav: the gradient shows in them. */
+/* The sheet: the notes app, as a part of the page. The page is the one scroll area: one
+   gesture moves the sheet up over the hero and then goes on down the feed. The sheet is at
+   least as high as the screen under the nav. Its top overlaps the hero by its round corners. */
 .ss-sheet {
   position: relative;
   z-index: 2;
-  height: calc(100dvh - var(--nav-h));
-  margin-top: -28px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 28px 28px 0 0;
+  --sheet-r: 28px;
+  min-height: calc(100dvh - var(--nav-h));
+  margin-top: calc(-1 * var(--sheet-r));
+  border-radius: var(--sheet-r) var(--sheet-r) 0 0;
   /* Light grey diagonal stripes in the empty space at the sides of the notes app. The app's
      layout is white (below). */
   background: repeating-linear-gradient(135deg, #ebebeb 0 1.5px, #ffffff 1.5px 9px);
   box-shadow:
     0 -1px 0 rgba(255, 255, 255, 0.6),
     0 -22px 50px -14px rgba(8, 48, 66, 0.5);
-  overflow: hidden;
+  /* clip, not hidden: hidden makes a scroll box, and the app's sticky parts would stick to the
+     sheet and not to the page. */
+  overflow: clip;
 }
 
 /* The setup steps of the notes app (.steps) as one strip at the foot of the hero: white pills
@@ -2128,9 +2129,6 @@ h1.ss-display {
 }
 
 .ss-sheet-app {
-  position: relative;
-  flex: 1;
-  min-height: 0;
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
@@ -2152,26 +2150,63 @@ h1.ss-display {
     1px 0 0 var(--line);
 }
 
-/* No scrollbars at the side of the screen: the page and the app scroll, and the sheet over the
-   hero shows where the visitor is. */
-.ss-spa,
+/* The live app's element is in the flow here, with no containment: it is as high as its
+   content. (In a window it fills the window and is contained.) */
+.ss-sheet .ss-live-slot,
+.ss-sheet .ss-live-node {
+  position: static;
+  contain: none;
+}
+
+/* The notes app does not scroll itself on this page. It still answers to its own width (its
+   container queries), and its height follows its content. */
 .ss-sheet .notes-app {
+  container: notes / inline-size;
+  height: auto;
+  overflow: visible;
+}
+
+/* What the app measured from its own scroll box, it now measures from the screen under the nav. */
+.ss-sheet .layout,
+.ss-sheet .column {
+  min-height: calc(100dvh - var(--nav-h));
+}
+
+.ss-sheet .rail {
+  top: var(--nav-h);
+  height: calc(100dvh - var(--nav-h));
+}
+
+.ss-sheet .side,
+.ss-sheet .page-head,
+.ss-sheet .tabs {
+  top: var(--nav-h);
+}
+
+/* The app's width container is the containing block of its fixed parts, and it is as long as
+   the feed. So the phone's bottom bar and the toast stick to the bottom of the screen. */
+.ss-sheet .bottom-bar {
+  position: sticky;
+}
+
+.ss-sheet .toast-region {
+  position: sticky;
+  left: auto;
+  bottom: 24px;
+  height: 0;
+  transform: none;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+/* No scrollbar at the side of the screen: the sheet over the hero shows where the visitor is. */
+.ss-spa {
   scrollbar-width: none;
 }
 
-.ss-spa::-webkit-scrollbar,
-.ss-sheet .notes-app::-webkit-scrollbar {
+.ss-spa::-webkit-scrollbar {
   display: none;
-}
-
-/* Until the sheet is at the nav, a scroll over the app moves the page, not the app. At the top
-   of the app, a scroll up goes on to the page and brings the hero back. */
-.ss-sheet .notes-app {
-  overscroll-behavior: auto;
-}
-
-.ss-sheet:not([data-docked]) .notes-app {
-  overflow-y: hidden;
 }
 
 @media (max-width: 860px) {
@@ -2204,7 +2239,7 @@ h1.ss-display {
     display: none;
   }
   .ss-sheet {
-    border-radius: 22px 22px 0 0;
+    --sheet-r: 22px;
   }
   .ss-setup-strip {
     margin-top: -36px;

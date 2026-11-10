@@ -469,8 +469,8 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   mark (`nearMarks.tsx`, as on tatchi.xyz) lies big and faint over the field
   at the right, turned 30 degrees, behind the hero's text.
 - **The sheet**, with the notes app in the page itself, not in a window. The
-  app's layout has the theme's ground (white in Light mode), and the empty
-  space at its sides has faint diagonal stripes.
+  sheet has the theme's plain ground (white in Light mode), also at the sides
+  of the app.
 
 The page is the one scroll area. The hero stays in place, and the sheet moves
 up over it like paper. While the sheet covers it, the hero goes back a little,

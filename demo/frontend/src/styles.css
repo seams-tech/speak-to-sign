@@ -28,8 +28,6 @@
   --warn-bg: #fff8e1;
   --warn-line: #f0e2b0;
   --warn-ink: #6b5300;
-  /* The diagonal stripes at the sides of the app on the Community Notes page. */
-  --stripe: #ebebeb;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
 }
@@ -57,7 +55,6 @@
   --warn-bg: #1a1708;
   --warn-line: #3a3315;
   --warn-ink: #f0d175;
-  --stripe: #121416;
   color-scheme: dark;
 }
 

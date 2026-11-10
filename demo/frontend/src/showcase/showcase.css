@@ -2171,11 +2171,8 @@ h1.ss-display {
   min-height: calc(100dvh - var(--nav-h));
   margin-top: calc(-1 * var(--sheet-r));
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
-  /* Faint diagonal stripes in the empty space at the sides of the notes app, in the theme's
-     colours (src/styles.css). The app's layout has the plain ground (below). They are fixed to
-     the screen, so they hold still while the page scrolls. (iOS Safari scrolls them, but there
-     the app fills the width and has no sides.) */
-  background: repeating-linear-gradient(135deg, var(--stripe) 0 1.5px, var(--bg) 1.5px 9px) fixed;
+  /* The theme's plain ground (src/styles.css), also in the space at the sides of the app. */
+  background: var(--bg);
   box-shadow:
     0 -1px 0 color-mix(in srgb, var(--bg) 60%, transparent),
     0 -22px 50px -14px rgba(8, 48, 66, 0.5);
@@ -2355,22 +2352,6 @@ h1.ss-display {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-}
-
-/* The notes app shows the sheet's stripes at its sides: only its layout (navigation, column and
-   side panel) has the plain ground, with a hairline at each edge. */
-.ss-sheet .notes-app {
-  background: transparent;
-}
-
-.ss-sheet .layout {
-  width: fit-content;
-  max-width: 100%;
-  margin-inline: auto;
-  background: var(--bg);
-  box-shadow:
-    -1px 0 0 var(--line),
-    1px 0 0 var(--line);
 }
 
 /* The live app's element is in the flow here, with no containment: it is as high as its

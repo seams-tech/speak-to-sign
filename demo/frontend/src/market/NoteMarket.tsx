@@ -83,7 +83,6 @@ interface PendingBet {
   amount: bigint;
 }
 
-const CANCELLED = 'You closed the Wallet. Nothing was signed.';
 /** The look of a tapped button while the page signs the visitor in (and funds the wallet). */
 const SETTING_UP = 'Setting up your wallet…';
 
@@ -244,10 +243,15 @@ export function NoteMarketStrip({
     const start = (stage: SignStage = 'confirm') =>
       setBusy({ kind: action.kind, stage, side: action.kind === 'bet' ? action.side : undefined });
     const progress = (stage: SignStage) => setBusy((current) => current && { ...current, stage });
+    // A closed or rejected Wallet window is the visitor's own choice: no note, and '' (not null),
+    // so a sheet stays open.
     const fail = (result: Exclude<SignResult, { kind: 'sent' }>) => {
-      const text = result.kind === 'cancelled' ? CANCELLED : result.reason;
-      setNotice({ text, isError: true });
-      return text;
+      if (result.kind === 'cancelled') {
+        setNotice(null);
+        return '';
+      }
+      setNotice({ text: result.reason, isError: true });
+      return result.reason;
     };
 
     if (action.kind === 'open') {
@@ -855,8 +859,8 @@ function BetSheet({
     setStage(null);
     if (result.kind === 'sent') close();
     if (result.kind === 'sent') onDone(`Your bet of ${amountText(amount, currency)} on ${side} is in.`);
-    else if (result.kind === 'cancelled') setError(CANCELLED);
-    else setError(result.reason);
+    // A closed or rejected Wallet window needs no note: the sheet stays as it was.
+    else if (result.kind !== 'cancelled') setError(result.reason);
   };
   const closeRef = useRef<() => void>(() => undefined);
   // With a spoken bet, the sign-in ends at the "say it" step: nothing is placed without a voice.
@@ -975,6 +979,7 @@ function OpenSheet({
   signInFirst: boolean;
   onSignIn: () => void | Promise<boolean>;
   onClose: () => void;
+  /** Null when the market is open, '' when the visitor closed the Wallet, else the problem. */
   onOpen: (seed: bigint, durationMs: number) => Promise<string | null>;
 }) {
   const titleId = useId();
@@ -988,8 +993,9 @@ function OpenSheet({
   const open = async () => {
     setError(null);
     const problem = await onOpen(seed, duration);
-    if (problem) setError(problem);
-    else closeRef.current();
+    // null: the market is open. '': the visitor closed the Wallet, so the sheet stays, quiet.
+    if (problem === null) closeRef.current();
+    else if (problem) setError(problem);
   };
   const signIn = useSignInThen(account, onSignIn, open);
   // "Open a market" while signed out: the sign-in comes first, once.

@@ -6,6 +6,7 @@
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
+import { isUserRejection } from '../signer/rejection';
 import { type BetVerdict, YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
@@ -110,6 +111,8 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
         case 'reverted':
           return { kind: 'refused', reason: contractReason(result.error) };
         case 'not_submitted':
+          // The owner closed or rejected the confirm step: a cancel, not an error.
+          if (isUserRejection(result.error)) return { kind: 'cancelled' };
           return { kind: 'unavailable', reason: `Nothing was sent. ${result.error}` };
         case 'submission_unknown':
           return { kind: 'unavailable', reason: `The transaction may have gone out. Check the explorer before you try again. ${result.error}` };

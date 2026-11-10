@@ -13,11 +13,23 @@ const ACCOUNT = 'you.testnet';
 
 function Preview() {
   const [version, setVersion] = useState(0);
-  // `?signedout` starts signed out: an action asks for the sign-in, which "succeeds" after 0.8 s,
-  // and the action then runs.
-  const [account, setAccount] = useState<string | undefined>(() =>
-    new URLSearchParams(window.location.search).has('signedout') ? undefined : ACCOUNT,
-  );
+  // `?signedout` starts signed out: an action asks for the sign-in, which "succeeds" after 1.5 s
+  // (as the page's sign-in and faucet would), and the action then runs. `?signedout=void` uses a
+  // sign-in without a promise: the action runs when the account arrives.
+  const signedOut = new URLSearchParams(window.location.search).get('signedout');
+  const [account, setAccount] = useState<string | undefined>(() => (signedOut === null ? ACCOUNT : undefined));
+  const signIn = (): void | Promise<boolean> => {
+    if (signedOut === 'void') {
+      setTimeout(() => setAccount(ACCOUNT), 800);
+      return;
+    }
+    return new Promise<boolean>((resolve) =>
+      setTimeout(() => {
+        setAccount(ACCOUNT);
+        resolve(true);
+      }, 1_500),
+    );
+  };
   const source = useMemo(() => {
     // `?usdc` shows the markets in USDC, as the contract has them.
     const usdc = new URLSearchParams(window.location.search).has('usdc');
@@ -68,7 +80,7 @@ function Preview() {
                 noteId={id}
                 source={source}
                 account={account}
-                onSignIn={() => setTimeout(() => setAccount(ACCOUNT), 800)}
+                onSignIn={signIn}
                 directBet={direct ?? false}
                 context="Post: Claude Code found 145,763 deleted photos. Note: the account posts AI-written text every day."
               />

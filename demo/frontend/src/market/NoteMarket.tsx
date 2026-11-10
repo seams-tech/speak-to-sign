@@ -80,6 +80,12 @@ interface PendingBet {
 }
 
 const CANCELLED = 'You closed the Wallet. Nothing was signed.';
+/** The look of a tapped button while the page signs the visitor in (and funds the wallet). */
+const SETTING_UP = 'Setting up your wallet…';
+
+function isPromise<T>(value: unknown): value is Promise<T> {
+  return typeof (value as { then?: unknown } | null | undefined)?.then === 'function';
+}
 
 export function NoteMarketStrip({
   noteId,
@@ -94,8 +100,13 @@ export function NoteMarketStrip({
   source: MarketSource;
   /** The signed-in NEAR account, if any. */
   account?: string;
-  /** Opens the page's sign-in dialog. The action that asked for it runs after the sign-in. */
-  onSignIn: () => void;
+  /**
+   * Opens the page's sign-in dialog, and the action that asked for it runs after the sign-in.
+   * With a promise, the action runs only when it resolves true (for example: signed in, and the
+   * faucet's USDC arrived), and false drops it. Without one, the action runs when `account`
+   * arrives, within 2 minutes.
+   */
+  onSignIn: () => void | Promise<boolean>;
   /**
    * The post and the note as JEV reads them, for a new market. With it and
    * `source.createMarket`, a note without a market shows "Open a market".
@@ -129,6 +140,8 @@ export function NoteMarketStrip({
   const [opening, setOpening] = useState(false);
   /** The action that waits for the sign-in. */
   const [intent, setIntent] = useState<{ action: Action; atMs: number } | null>(null);
+  /** The action whose button waits for the page's sign-in promise. */
+  const [waiting, setWaiting] = useState<{ kind: Action['kind']; side?: Side } | null>(null);
   /** The YES share when JEV's answer arrived in this view, for the reveal. */
   const [revealFrom, setRevealFrom] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -181,8 +194,16 @@ export function NoteMarketStrip({
   const run = async (action: Action): Promise<string | null> => {
     setNotice(null);
     if (!account) {
-      setIntent({ action, atMs: Date.now() });
-      onSignIn();
+      const asked = onSignIn();
+      if (!isPromise(asked)) {
+        setIntent({ action, atMs: Date.now() });
+        return null;
+      }
+      setWaiting({ kind: action.kind, side: action.kind === 'bet' ? action.side : undefined });
+      const ready = await asked.catch(() => false);
+      // Ready: the button keeps its look until the action starts (the effect below).
+      if (ready) setIntent({ action, atMs: Date.now() });
+      else setWaiting(null);
       return null;
     }
     if (action.kind === 'bet' && !directBet) {
@@ -267,6 +288,7 @@ export function NoteMarketStrip({
   useEffect(() => {
     if (!account || !intent) return;
     setIntent(null);
+    setWaiting(null);
     if (Date.now() - intent.atMs <= INTENT_MS) void runRef.current(intent.action);
   }, [account, intent]);
 
@@ -316,15 +338,15 @@ export function NoteMarketStrip({
           <button
             type="button"
             className="btn btn-outline btn-xs"
-            disabled={openBusy}
+            disabled={openBusy || waiting !== null}
             onClick={() => void run({ kind: 'open', seed, durationMs: DEFAULT_DURATION_MS })}
           >
-            {openStage ? stageText(openStage, 'Opening…') : 'Open a market'}
+            {openStage ? stageText(openStage, 'Opening…') : waiting?.kind === 'open' ? SETTING_UP : 'Open a market'}
           </button>
         </div>
         <p className="nm-muted nm-small">
           Seed {amountText(seed, currency)} · people bet for {durationText(DEFAULT_DURATION_MS)} · then JEV decides.{' '}
-          <button type="button" className="link-btn nm-small" disabled={openBusy} onClick={() => (account ? setOpening(true) : onSignIn())}>
+          <button type="button" className="link-btn nm-small" disabled={openBusy || waiting !== null} onClick={() => (account ? setOpening(true) : void onSignIn())}>
             Change
           </button>
         </p>
@@ -410,10 +432,16 @@ export function NoteMarketStrip({
                     key={side}
                     type="button"
                     className="btn btn-outline btn-sm nm-bet"
-                    disabled={busy !== null}
+                    disabled={busy !== null || waiting !== null}
                     onClick={() => void run({ kind: 'bet', side })}
                   >
-                    {busy?.kind === 'bet' && busy.side === side ? stageText(busy.stage, 'Placing your bet…') : side === 'yes' ? 'Bet yes' : 'Bet no'}
+                    {busy?.kind === 'bet' && busy.side === side
+                      ? stageText(busy.stage, 'Placing your bet…')
+                      : waiting?.kind === 'bet' && waiting.side === side
+                        ? SETTING_UP
+                        : side === 'yes'
+                          ? 'Bet yes'
+                          : 'Bet no'}
                   </button>
                 ))}
               </div>
@@ -428,9 +456,9 @@ export function NoteMarketStrip({
             </>
           )}
           {status === 'closed' && !asking && source.requestResolution && (
-            <button type="button" className="btn btn-outline btn-sm nm-ask" onClick={() => void run({ kind: 'ask' })}>
+            <button type="button" className="btn btn-outline btn-sm nm-ask" disabled={waiting !== null} onClick={() => void run({ kind: 'ask' })}>
               <IconScale size={16} stroke={1.8} aria-hidden="true" />
-              Ask JEV now
+              {waiting?.kind === 'ask' ? SETTING_UP : 'Ask JEV now'}
             </button>
           )}
           {staked > 0n && (

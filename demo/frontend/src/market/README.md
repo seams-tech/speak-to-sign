@@ -41,7 +41,11 @@ one Wallet confirm.
 5. **Claim.** "Claim 1.62 USDC" sends the payout to the wallet.
 
 An action that starts while signed out asks for the sign-in (`onSignIn`) and
-runs after it, if the sign-in comes within 2 minutes. The strip reads the
+runs after it. If `onSignIn` returns a promise, the tapped button says
+"Setting up your wallet…", and the action runs only when the promise resolves
+true (the page resolves it when the visitor is signed in and the faucet's
+USDC arrived); false drops it. Without a promise, the action runs when
+`account` arrives, within 2 minutes. The strip reads the
 market again every 10 s (3 s while JEV decides), so other people's bets show.
 The Wallet's confirm step gets its own title and text for each action
 (`confirmerText`), and the strip follows the Wallet's signing events
@@ -104,8 +108,9 @@ the payout. The UI only estimates it before the resolution.
      `account` there.
    - `onSignIn` opens the page's sign-in dialog. The strip calls it when a
      signed-out reader presses "Bet yes", "Bet no", "Open a market" or "Ask
-     JEV now", and runs that action after the sign-in. Keep the strip mounted
-     while the sign-in dialog shows.
+     JEV now", and runs that action after the sign-in. It can return
+     `Promise<boolean>`: true when the visitor can act (signed in and funded).
+     Keep the strip mounted while the sign-in dialog shows.
    - The strip renders nothing when the note has no market. Most notes have
      none, so the strip is safe on every card.
    - The strip stops click propagation, so a click on it does not open the

@@ -55,7 +55,7 @@ pays for its own runs:
 2. A NEAR AI Cloud API key, stored as the OutLayer secret `NEAR_AI_API_KEY`
    in a secrets profile of your account.
 3. A verifier version with the operation `select` and application owners:
-   version 0.8.0, `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f`,
+   version 0.10.0, `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb`,
    in the project `seams-v1.testnet/voice-verifier` on testnet. To check it,
    build it with `crates/voice-verifier/build.sh --docker` and compare the
    SHA-256.

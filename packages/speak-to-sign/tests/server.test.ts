@@ -230,7 +230,7 @@ test('transcribe gives the signed text of this owner', async () => {
 });
 
 test('with the attestation setting, a call with no quote confirms nothing', async () => {
-  const settings = { attestation: { acceptedWasmHashes: ['ab'.repeat(32)] } };
+  const settings = { attestation: { acceptedWasmHashes: ['ab'.repeat(32)], waitMs: 0 } };
   const missing = await server({ said: 0, calls: [] }, settings).confirm({ owner: OWNER, action: ACTIONS[0]!, recording: wav(50) });
   assert.deepEqual(missing, { ok: false, reason: 'attestation_missing', heard: 'pay forty dollars for two books' });
   // The fake has no attestation record to serve.

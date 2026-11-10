@@ -822,8 +822,16 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
    recorded a person through it.
 2. **A second payment key.** No call used a payment key of another account
    than the Seams staging account.
-3. **Verifier 0.10.0 is not on OutLayer.** The builds on OutLayer do not
-   have the two number fixes of section 6.3.
+3. Done: verifier 0.10.0 is on OutLayer testnet in both variants, not
+   active (`9b0609fa…44eb` and `92c5416d…c88f`, commit `d3e02bc`). A run
+   through `@seams/speak-to-sign/server`, with a synthetic voice and the TDX
+   quote check on, gave on both: `enroll` accepted; "Pay forty dollars for
+   two books" confirmed; "Pay fourteen dollars for two books" refused with
+   `words`; `select` gave the correct index two times; another voice was
+   refused; `transcribe` gave its text. OutLayer stores the attestation
+   record a short time after a call returns, so the server waits for it (up
+   to 15 s). One call took 4 to 7 s with the default build and 18 to 31 s
+   with `local-speaker` in this run, with the quote check.
 4. **`detect`** is not built.
 5. **The demo contracts keep their own `verdict.rs`.** A change of their
    dependencies changes their code hash, and the root README pins the hash

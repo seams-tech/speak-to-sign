@@ -62,6 +62,8 @@ export interface SpeakToSignConfig {
   attestation?: {
     acceptedWasmHashes: readonly string[];
     near?: { rpcUrl: string; contract: string };
+    /** How long to wait for the record of a call, which OutLayer stores after the call. Default: 15,000 ms. */
+    waitMs?: number;
   };
   /** Default: a store in the memory of this process. Use a shared store with several servers. */
   usedVerdicts?: UsedVerdictStore;
@@ -157,11 +159,17 @@ export function createSpeakToSign(config: SpeakToSignConfig): SpeakToSign {
   async function attestationProblem(call: { output: VerifyOutput; attestationUrl: string | null }): Promise<string | null> {
     const settings = config.attestation!;
     if (call.attestationUrl === null) return 'missing';
+    // OutLayer stores the record a short time after the call returns. Try for some seconds.
     let record;
-    try {
-      record = await fetchAttestation(config.verifier.baseUrl, call.attestationUrl, { fetch: config.verifier.fetch });
-    } catch {
-      return 'unavailable';
+    const until = Date.now() + (settings.waitMs ?? 15_000);
+    for (;;) {
+      try {
+        record = await fetchAttestation(config.verifier.baseUrl, call.attestationUrl, { fetch: config.verifier.fetch });
+        break;
+      } catch {
+        if (Date.now() + 1_000 > until) return 'unavailable';
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
     }
     const bound = await checkAttestationBinding({
       record,

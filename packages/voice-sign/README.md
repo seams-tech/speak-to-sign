@@ -18,8 +18,8 @@ It has two entry points:
 | `@seams/voice-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
 | `@seams/voice-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
 
-The Seams Wallet host plugin is a separate package, `@seams/speak-to-sign`
-(`packages/speak-to-sign-wallet`). This library needs no wallet.
+The Seams Wallet host plugin is a separate package, `@seams/wallet-voice-sign`
+(`packages/wallet-voice-sign`; up to 0.66.0 its npm name was `@seams/speak-to-sign`). This library needs no wallet.
 
 A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).

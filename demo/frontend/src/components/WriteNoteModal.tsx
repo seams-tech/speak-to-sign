@@ -6,6 +6,8 @@ import { useDemo } from '../demoContext';
 import { useEnrolled } from '../signer/voiceSetup';
 import { checkSummary, SUMMARY_MAX_WORDS } from '../summaryRules';
 import { Modal, type ModalHandle } from './Modal';
+import { Morph, MorphView } from './Morph';
+import { SignInStep } from './SignInModal';
 import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
 
 const MAX_NOTE_CHARS = 280;
@@ -36,10 +38,12 @@ interface Props {
  * the note posts, the dialog shows the result for a moment and closes by itself.
  */
 export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
-  const { account, status, prepare } = useDemo();
+  const { account, status, prepare, signingIn, hostSignIn, endSignIn } = useDemo();
+  useEffect(() => hostSignIn(), [hostSignIn]);
   const enrolled = useEnrolled(account);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
+  const signInTitleId = useId();
   const draft = post.noteDraft;
   const [text, setText] = useState(draft?.text ?? '');
   const prefill = draft?.summary ?? '';
@@ -83,73 +87,89 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
     !typing && summary.trim() !== '' && !speakable ? `Use 1 to ${SUMMARY_MAX_WORDS} words, with letters A to Z only.` : null;
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={locked} handle={modal}>
-      <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
-          <IconX size={20} />
-        </button>
-        <h2 id={titleId}>Write a Community Note</h2>
-      </header>
-      <div className="dialog-body">
-        <label className="wn-label muted small" htmlFor={`${titleId}-text`}>
-          Your note on @{post.author.handle}
-        </label>
-        <textarea
-          id={`${titleId}-text`}
-          className="wn-note"
-          rows={5}
-          value={text}
-          disabled={signing}
-          onChange={(event) => setText(event.target.value)}
-          aria-invalid={!noteOk}
-        />
-        {noteChars > MAX_NOTE_CHARS && (
-          <p className="field-error" role="alert">
-            The note has {noteChars} characters. Use {MAX_NOTE_CHARS} or fewer.
-          </p>
+    <Modal
+      labelledBy={signingIn ? signInTitleId : titleId}
+      onClose={onClose}
+      locked={locked && !signingIn}
+      handle={modal}
+      onOutside={signingIn ? () => endSignIn(false) : undefined}
+    >
+      <Morph view={signingIn ? 'signin' : 'compose'} flex>
+        {/* Kept while the sign-in shows: what the visitor wrote stays as it was. */}
+        <MorphView name="compose" keep>
+          <header className="dialog-head">
+            <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
+              <IconX size={20} />
+            </button>
+            <h2 id={titleId}>Write a Community Note</h2>
+          </header>
+          <div className="dialog-body">
+            <label className="wn-label muted small" htmlFor={`${titleId}-text`}>
+              Your note on @{post.author.handle}
+            </label>
+            <textarea
+              id={`${titleId}-text`}
+              className="wn-note"
+              rows={5}
+              value={text}
+              disabled={signing}
+              onChange={(event) => setText(event.target.value)}
+              aria-invalid={!noteOk}
+            />
+            {noteChars > MAX_NOTE_CHARS && (
+              <p className="field-error" role="alert">
+                The note has {noteChars} characters. Use {MAX_NOTE_CHARS} or fewer.
+              </p>
+            )}
+            <label className="q q-block" htmlFor={`${titleId}-summary`}>
+              Read this aloud to post
+            </label>
+            <textarea
+              id={`${titleId}-summary`}
+              className={`input summary-input ${typing ? 'summary-typing' : ''}`}
+              rows={2}
+              maxLength={MAX_SUMMARY_CHARS}
+              value={summary}
+              disabled={signing}
+              onChange={(event) => {
+                setTyping(false);
+                setSummary(event.target.value.replace(/\n/g, ' '));
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.preventDefault();
+              }}
+              aria-invalid={summaryProblem !== null}
+            />
+            {summaryProblem && (
+              <p className="field-error" role="alert">
+                {summaryProblem}
+              </p>
+            )}
+          </div>
+          <footer className="dialog-foot">
+            <SpeakStep
+              phase={phase}
+              sentence={check.spoken}
+              buttonLabel="Read it aloud to post"
+              hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the note. No confirm tap.')}
+              disabled={typing || !speakable || !noteOk}
+              disabledHint={typing ? 'Filling in the sentence…' : !noteOk ? 'Write the note first.' : 'Write the sentence to read first.'}
+              accountId={account}
+              wordsLine="Words matched the summary"
+              signedLine="Note signed and submitted"
+              nothingLine="Nothing was posted."
+              onStart={startSigning}
+              onRetry={() => setPhase({ state: 'idle' })}
+              onDone={sent ? finish : () => modal.current?.close()}
+            />
+          </footer>
+        </MorphView>
+        {signingIn && (
+          <MorphView name="signin">
+            <SignInStep titleId={signInTitleId} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
+          </MorphView>
         )}
-        <label className="q q-block" htmlFor={`${titleId}-summary`}>
-          Read this aloud to post
-        </label>
-        <textarea
-          id={`${titleId}-summary`}
-          className={`input summary-input ${typing ? 'summary-typing' : ''}`}
-          rows={2}
-          maxLength={MAX_SUMMARY_CHARS}
-          value={summary}
-          disabled={signing}
-          onChange={(event) => {
-            setTyping(false);
-            setSummary(event.target.value.replace(/\n/g, ' '));
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.preventDefault();
-          }}
-          aria-invalid={summaryProblem !== null}
-        />
-        {summaryProblem && (
-          <p className="field-error" role="alert">
-            {summaryProblem}
-          </p>
-        )}
-      </div>
-      <footer className="dialog-foot">
-        <SpeakStep
-          phase={phase}
-          sentence={check.spoken}
-          buttonLabel="Read it aloud to post"
-          hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the note. No confirm tap.')}
-          disabled={typing || !speakable || !noteOk}
-          disabledHint={typing ? 'Filling in the sentence…' : !noteOk ? 'Write the note first.' : 'Write the sentence to read first.'}
-          accountId={account}
-          wordsLine="Words matched the summary"
-          signedLine="Note signed and submitted"
-          nothingLine="Nothing was posted."
-          onStart={startSigning}
-          onRetry={() => setPhase({ state: 'idle' })}
-          onDone={sent ? finish : () => modal.current?.close()}
-        />
-      </footer>
+      </Morph>
     </Modal>
   );
 }

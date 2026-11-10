@@ -1411,6 +1411,76 @@ a.lk:hover {
 .overlay-leaving .dialog:not(.dialog-bare) {
   animation: dialog-out 140ms ease-in forwards;
 }
+
+/* Steps of one dialog (Morph): the old step fades out, then the parts of the new one fade in
+   one after another, while the dialog animates to its new size (Modal). */
+.morph-view[hidden] {
+  display: none;
+}
+.morph-flex {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.morph-out {
+  opacity: 0;
+  transition: opacity 120ms ease-in;
+}
+@keyframes morph-part-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.morph-in > *,
+.morph-in > .dialog-body > * {
+  animation: morph-part-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.morph-in > :nth-child(2) {
+  animation-delay: 50ms;
+}
+.morph-in > :nth-child(3) {
+  animation-delay: 100ms;
+}
+.morph-in > :nth-child(n + 4) {
+  animation-delay: 150ms;
+}
+/* The parts of a step's body follow its head. */
+.morph-in > .dialog-body > :nth-child(1) {
+  animation-delay: 60ms;
+}
+.morph-in > .dialog-body > :nth-child(2) {
+  animation-delay: 110ms;
+}
+.morph-in > .dialog-body > :nth-child(3) {
+  animation-delay: 160ms;
+}
+.morph-in > .dialog-body > :nth-child(n + 4) {
+  animation-delay: 210ms;
+}
+/* The sign-in step: the dialog shrinks to the Wallet's card, and its own white goes once the
+   card is painted (the SDK marks the anchor ready), so the card is the dialog. */
+.dialog {
+  transition: background-color 180ms ease;
+}
+.dialog:has(.morph-view:not([hidden]) > .signin-step) {
+  max-width: 420px;
+}
+.dialog:has(.morph-view:not([hidden]) > .signin-step [data-seams-auth-menu-ready]) {
+  background-color: transparent;
+}
+.signin-step .field-error {
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 12px;
+}
+/* Close on the card's corner: above the Wallet's iframe (z-index 60). */
+.card-corner {
+  position: fixed;
+  z-index: 61;
+  animation: overlay-in 200ms ease-out 200ms backwards;
+}
 .overlay {
   position: fixed;
   inset: 0;
@@ -1726,9 +1796,6 @@ fieldset:disabled .choice {
 
 /* The voice step */
 .speak-btn,
-.speak-prepare {
-  animation: overlay-in 200ms ease-out;
-}
 .speak-wait {
   display: flex;
   align-items: center;
@@ -1895,7 +1962,8 @@ fieldset:disabled .choice {
   .dialog:not(.dialog-bare),
   .step-just-done .step-mark,
   .note-card.note-fresh,
-  .speak-prepare {
+  .morph-in > *,
+  .morph-in > .dialog-body > * {
     animation: none;
   }
 }

@@ -60,6 +60,13 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     statusRef.current = status;
   });
 
+  // Dialogs that show the sign-in as their own step. With none open, the sign-in is a dialog.
+  const [signInHosts, setSignInHosts] = useState(0);
+  const signingInRef = useRef(signingIn);
+  useLayoutEffect(() => {
+    signingInRef.current = signingIn;
+  });
+
   // Callers of `openSignIn` that wait for the sign-in to end.
   const signInWaiters = useRef<((account: string | null) => void)[]>([]);
   const settleSignIn = useCallback((value: string | null) => {
@@ -159,6 +166,37 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     const timer = window.setTimeout(() => setFreshNoteId(null), FRESH_NOTE_MS);
     return () => window.clearTimeout(timer);
   }, [freshNoteId]);
+
+  const endSignIn = useCallback(
+    (signedIn: boolean) => {
+      setSigningIn(false);
+      if (!signedIn) {
+        settleSignIn(null);
+        return;
+      }
+      reload();
+      setToast({ id: Date.now(), text: 'You are signed in to Seams Wallet' });
+      // The account shows when the app has the new signer; the effect on `account` answers the
+      // waiters. If it does not show, they stop waiting.
+      window.setTimeout(() => settleSignIn(accountRef.current ?? null), SIGN_IN_SETTLE_MS);
+    },
+    [reload, settleSignIn],
+  );
+
+  // Stable, so a host dialog registers once: a sign-in gives the app a new signer, and with it
+  // a new `endSignIn`, while the host is still open.
+  const endSignInRef = useRef(endSignIn);
+  useLayoutEffect(() => {
+    endSignInRef.current = endSignIn;
+  });
+  const hostSignIn = useCallback(() => {
+    setSignInHosts((count) => count + 1);
+    return () => {
+      setSignInHosts((count) => count - 1);
+      // The dialog closed during its sign-in step: the sign-in ends with it.
+      if (signingInRef.current) endSignInRef.current(false);
+    };
+  }, []);
 
   const openSignIn = useCallback((): Promise<string | null> => {
     if (!walletConfigured) {
@@ -279,6 +317,9 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     openWrite: setWriteFor,
     openRate: setRateFor,
     openSignIn,
+    signingIn,
+    hostSignIn,
+    endSignIn,
     prepare,
     reload,
   };
@@ -321,23 +362,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             }}
           />
         )}
-        {signingIn && walletConfigured && (
-          <SignInModal
-            onClose={() => {
-              setSigningIn(false);
-              settleSignIn(null);
-            }}
-            onSignedIn={() => {
-              setSigningIn(false);
-              reload();
-              showToast('You are signed in to Seams Wallet');
-              // The account shows when the app has the new signer; the effect on `account`
-              // answers the waiters. If it does not show, they stop waiting.
-              window.setTimeout(() => settleSignIn(accountRef.current ?? null), SIGN_IN_SETTLE_MS);
-            }}
-          />
+        {signingIn && walletConfigured && signInHosts === 0 && (
+          <SignInModal onClose={() => endSignIn(false)} onSignedIn={() => endSignIn(true)} />
         )}
-        {voicePhase && <WalletWait step={voicePhase} />}
+        {/* A dialog shows the voice setup as its own step; the page card is for the gaps. */}
+        {voicePhase && signInHosts === 0 && <WalletWait step={voicePhase} />}
         <BottomBar route={route} />
         <div className="toast-region" role="status" aria-live="polite">
           {toast && (

@@ -44,8 +44,17 @@ export interface DemoState {
   preparing: PrepareStep | null;
   openWrite(postId: number): void;
   openRate(noteId: number): void;
-  /** Opens the sign-in dialog. Resolves with the account, or null when the visitor closes it. */
+  /** Opens the sign-in. Resolves with the account, or null when the visitor closes it. */
   openSignIn(): Promise<string | null>;
+  /** True while the sign-in is open. */
+  signingIn: boolean;
+  /**
+   * An open dialog shows the sign-in as one of its own steps (SignInStep), so no second dialog
+   * opens on top. Call it on mount; the result unregisters. A host that closes cancels the sign-in.
+   */
+  hostSignIn(): () => void;
+  /** A hosted sign-in ended: signed in, or not (Back, or the Wallet's cancel). */
+  endSignIn(signedIn: boolean): void;
   /**
    * Runs the steps that an action still needs, in order: sign in, set up the voice, testnet
    * funds (the faucet). A step that is done already is skipped, so a set-up visitor sees nothing.

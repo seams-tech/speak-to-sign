@@ -4,6 +4,7 @@ import { shortAccount } from '../config';
 import type { DemoState, PrepareStep } from '../demoContext';
 import type { NotesSigner, SignResult } from '../signer/notesSigner';
 import { TxLink } from './bits';
+import { Morph } from './Morph';
 
 /** `preparing`: a step before the voice runs first (sign in, set up the voice, testnet funds). */
 export type SignPhase =
@@ -114,8 +115,23 @@ interface SpeakStepProps {
   onDone: () => void;
 }
 
-/** The voice part of a modal: the button, the wait for the Wallet card, and the result card. */
+/**
+ * The voice part of a modal: the button, the steps before the voice, the wait for the Wallet
+ * card, and the result card. Each new phase fades the old part out and the new one in, and the
+ * dialog changes its size with it.
+ */
 export function SpeakStep(props: SpeakStepProps) {
+  const { phase } = props;
+  const view =
+    phase.state === 'preparing' ? `preparing-${phase.step}` : phase.state === 'done' ? `done-${phase.result.kind}` : phase.state;
+  return (
+    <Morph view={view}>
+      <SpeakContent {...props} />
+    </Morph>
+  );
+}
+
+function SpeakContent(props: SpeakStepProps) {
   const { phase } = props;
 
   if (phase.state === 'idle') {
@@ -138,7 +154,7 @@ export function SpeakStep(props: SpeakStepProps) {
     const view = PREPARE_VIEW[phase.step];
     return (
       <div className="speak" role="status" aria-live="polite">
-        <div className="speak-wait speak-prepare" key={phase.step}>
+        <div className="speak-wait">
           <span className="mic" aria-hidden="true">
             {view.icon}
           </span>

@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 /** How long the close animation runs (the CSS `overlay-out` and `dialog-out`). */
 const EXIT_MS = 140;
+/** How long the dialog takes to change size when its content changes. */
+const RESIZE_MS = 280;
+const RESIZE_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
 
 /** Closes the dialog with its close animation, then calls `after` (default: `onClose`). */
 export interface ModalHandle {
@@ -33,6 +36,7 @@ export function Modal({
   locked,
   bare = false,
   handle,
+  onOutside,
   children,
 }: {
   labelledBy: string;
@@ -40,14 +44,18 @@ export function Modal({
   locked: boolean;
   bare?: boolean;
   handle?: Ref<ModalHandle>;
+  /** For Escape and a click outside, in place of closing: for example, back to the step before. */
+  onOutside?: () => void;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const lockedRef = useRef(locked);
   const onCloseRef = useRef(onClose);
+  const onOutsideRef = useRef(onOutside);
   useEffect(() => {
     lockedRef.current = locked;
     onCloseRef.current = onClose;
+    onOutsideRef.current = onOutside;
   });
 
   const [leaving, setLeaving] = useState(false);
@@ -61,6 +69,7 @@ export function Modal({
   }, []);
   useImperativeHandle(handle, () => ({ close }), [close]);
   useEffect(() => () => window.clearTimeout(leaveTimer.current), []);
+  useSmoothSize(dialogRef, !bare);
 
   useEffect(() => {
     const token = {};
@@ -72,7 +81,7 @@ export function Modal({
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== token) return;
-      if (event.key === 'Escape' && !lockedRef.current) close();
+      if (event.key === 'Escape' && !lockedRef.current) (onOutsideRef.current ?? close)();
       if (event.key === 'Tab') keepFocusInside(event, dialogRef.current);
     };
     document.addEventListener('keydown', onKey);
@@ -86,7 +95,7 @@ export function Modal({
   }, [close]);
 
   const closeOutside = () => {
-    if (!lockedRef.current) close();
+    if (!lockedRef.current) (onOutsideRef.current ?? close)();
   };
   const dialog = (
     <div
@@ -121,6 +130,59 @@ export function Modal({
     ),
     document.body,
   );
+}
+
+/**
+ * When the content of the dialog changes its size (a new step, an error line, a market that
+ * loads), the dialog grows or shrinks to the new size in place of a jump.
+ *
+ * A ResizeObserver reports the new size after layout and before paint, so the animation starts
+ * from the old size in the same frame. Reports during an animation are the animation's own
+ * frames; at its end the dialog checks its size once more.
+ */
+function useSmoothSize(ref: RefObject<HTMLDivElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const panel = ref.current;
+    if (!enabled || !panel || typeof ResizeObserver !== 'function') return;
+    let size: { width: number; height: number } | null = null;
+    let running: Animation | null = null;
+
+    const settle = () => {
+      // Layout sizes: the open animation's scale does not count.
+      const next = { width: panel.offsetWidth, height: panel.offsetHeight };
+      const from = size;
+      size = next;
+      if (!from || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (Math.abs(from.width - next.width) < 1 && Math.abs(from.height - next.height) < 1) return;
+      panel.style.overflow = 'hidden';
+      // The limits go while it runs: a new step can bring a new max-width (the sign-in step).
+      running = panel.animate(
+        [
+          { width: `${from.width}px`, height: `${from.height}px`, maxWidth: 'none', maxHeight: 'none' },
+          { width: `${next.width}px`, height: `${next.height}px`, maxWidth: 'none', maxHeight: 'none' },
+        ],
+        { duration: RESIZE_MS, easing: RESIZE_EASING },
+      );
+      running.onfinish = () => {
+        running = null;
+        panel.style.overflow = '';
+        settle();
+      };
+      running.oncancel = () => {
+        running = null;
+        panel.style.overflow = '';
+      };
+    };
+
+    const observer = new ResizeObserver(() => {
+      if (!running) settle();
+    });
+    observer.observe(panel);
+    return () => {
+      observer.disconnect();
+      running?.cancel();
+    };
+  }, [ref, enabled]);
 }
 
 /**

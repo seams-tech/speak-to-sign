@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import type { Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
@@ -7,6 +7,8 @@ import { useEnrolled } from '../signer/voiceSetup';
 import { shortAccount } from '../config';
 import { Linkified } from './bits';
 import { Modal, type ModalHandle } from './Modal';
+import { Morph, MorphView } from './Morph';
+import { SignInStep } from './SignInModal';
 import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
 
 const OPTIONS: { rating: Rating; answer: string }[] = [
@@ -25,10 +27,12 @@ interface Props {
 }
 
 export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
-  const { account, status, myRatings, prepare } = useDemo();
+  const { account, status, myRatings, prepare, signingIn, hostSignIn, endSignIn } = useDemo();
+  useEffect(() => hostSignIn(), [hostSignIn]);
   const enrolled = useEnrolled(account);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
+  const signInTitleId = useId();
   const previous = myRatings[note.id];
   const [choice, setChoice] = useState<Rating | null>(null);
   const [phase, setPhase] = useState<SignPhase>({ state: 'idle' });
@@ -49,57 +53,73 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
   useAutoClose(sent, finish);
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={locked} handle={modal}>
-      <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
-          <IconX size={20} />
-        </button>
-        <h2 id={titleId}>Rate this note</h2>
-      </header>
-      <div className="dialog-body">
-        <div className="note-preview">
-          <div className="muted small">Note by {shortAccount(note.author)}</div>
-          <div>
-            <Linkified text={note.text} />
+    <Modal
+      labelledBy={signingIn ? signInTitleId : titleId}
+      onClose={onClose}
+      locked={locked && !signingIn}
+      handle={modal}
+      onOutside={signingIn ? () => endSignIn(false) : undefined}
+    >
+      <Morph view={signingIn ? 'signin' : 'compose'} flex>
+        {/* Kept while the sign-in shows: what the visitor wrote stays as it was. */}
+        <MorphView name="compose" keep>
+          <header className="dialog-head">
+            <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
+              <IconX size={20} />
+            </button>
+            <h2 id={titleId}>Rate this note</h2>
+          </header>
+          <div className="dialog-body">
+            <div className="note-preview">
+              <div className="muted small">Note by {shortAccount(note.author)}</div>
+              <div>
+                <Linkified text={note.text} />
+              </div>
+            </div>
+            <fieldset className="group" disabled={signing}>
+              <legend className="q">Is this note helpful?</legend>
+              <p className="muted small field-help">
+                Pick one answer. Then say its sentence aloud.
+                {previous && ` Your rating now: ${RATING_LABELS[previous]}.`}
+              </p>
+              {OPTIONS.map(({ rating, answer }) => (
+                <label key={rating} className={`choice choice-tall ${choice === rating ? 'choice-on' : ''}`}>
+                  <span>
+                    <b>{answer}</b>
+                    <span className="say-line">
+                      Say <q className="say">{RATING_SENTENCES[rating]}</q>
+                    </span>
+                  </span>
+                  <input type="radio" name="rating" className="sr-only-input" checked={choice === rating} onChange={() => setChoice(rating)} />
+                  <span className="radio" aria-hidden="true" />
+                </label>
+              ))}
+            </fieldset>
           </div>
-        </div>
-        <fieldset className="group" disabled={signing}>
-          <legend className="q">Is this note helpful?</legend>
-          <p className="muted small field-help">
-            Pick one answer. Then say its sentence aloud.
-            {previous && ` Your rating now: ${RATING_LABELS[previous]}.`}
-          </p>
-          {OPTIONS.map(({ rating, answer }) => (
-            <label key={rating} className={`choice choice-tall ${choice === rating ? 'choice-on' : ''}`}>
-              <span>
-                <b>{answer}</b>
-                <span className="say-line">
-                  Say <q className="say">{RATING_SENTENCES[rating]}</q>
-                </span>
-              </span>
-              <input type="radio" name="rating" className="sr-only-input" checked={choice === rating} onChange={() => setChoice(rating)} />
-              <span className="radio" aria-hidden="true" />
-            </label>
-          ))}
-        </fieldset>
-      </div>
-      <footer className="dialog-foot">
-        <SpeakStep
-          phase={phase}
-          sentence={choice ? RATING_SENTENCES[choice] : ''}
-          buttonLabel="Say it aloud to rate"
-          hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the rating. No confirm tap.')}
-          disabled={!choice}
-          disabledHint="Pick one answer first."
-          accountId={account}
-          wordsLine="Words matched your rating"
-          signedLine="Rating signed"
-          nothingLine="Nothing was rated."
-          onStart={startSigning}
-          onRetry={() => setPhase({ state: 'idle' })}
-          onDone={sent ? finish : () => modal.current?.close()}
-        />
-      </footer>
+          <footer className="dialog-foot">
+            <SpeakStep
+              phase={phase}
+              sentence={choice ? RATING_SENTENCES[choice] : ''}
+              buttonLabel="Say it aloud to rate"
+              hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the rating. No confirm tap.')}
+              disabled={!choice}
+              disabledHint="Pick one answer first."
+              accountId={account}
+              wordsLine="Words matched your rating"
+              signedLine="Rating signed"
+              nothingLine="Nothing was rated."
+              onStart={startSigning}
+              onRetry={() => setPhase({ state: 'idle' })}
+              onDone={sent ? finish : () => modal.current?.close()}
+            />
+          </footer>
+        </MorphView>
+        {signingIn && (
+          <MorphView name="signin">
+            <SignInStep titleId={signInTitleId} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
+          </MorphView>
+        )}
+      </Morph>
     </Modal>
   );
 }

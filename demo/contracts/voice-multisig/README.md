@@ -190,24 +190,26 @@ the contract's own checks.
 ## Gas and storage
 
 Measured in the nearcore 2.14.0 sandbox (`sandbox/tests/sandbox.rs`), 30 Tgas
-attached, 2 admins. The `execute` rows are the total of the call, the
-transfer and the callback.
+attached, 2 admins, on 2026-11-11 with the shared verdict check
+(`crates/voice-verdict`). The `execute` rows are the total of the call, the
+transfer and the callback. The shared check made the WASM 9.4 KB larger and
+`propose` 0.06 Tgas more expensive than the old copy of the check.
 
 | Call                                | Gas burnt |
 | ----------------------------------- | --------- |
-| `new`                               | 1.66 Tgas |
-| `propose`                           | 2.29 Tgas |
-| `approve`, the first of 2           | 1.90 Tgas |
-| `approve`, the second of 2          | 1.91 Tgas |
-| `execute`, the transfer arrives     | 4.86 Tgas |
-| `execute`, the transfer fails       | 5.06 Tgas |
+| `new`                               | 1.70 Tgas |
+| `propose`                           | 2.37 Tgas |
+| `approve`, the first of 2           | 1.93 Tgas |
+| `approve`, the second of 2          | 1.93 Tgas |
+| `execute`, the transfer arrives     | 4.92 Tgas |
+| `execute`, the transfer fails       | 5.12 Tgas |
 
 The three admin calls of one proposal (2 `approve` and 1 `execute`) burn
-about 8.7 Tgas in total.
+about 8.8 Tgas in total.
 
 One proposal with 2 admin approvals uses 158 bytes of contract storage
 (with `admin-a.test.near`-length accounts; 0.0016 NEAR at 10^19 yoctoNEAR a
-byte). The contract code uses about 2.30 NEAR. The contract balance pays for
+byte). The contract code uses about 2.55 NEAR (255,182 bytes). The contract balance pays for
 all storage and for the transfers.
 
 ## Build and test
@@ -274,7 +276,7 @@ and put that key in `new`.
    near account create-account fund-myself admin-b.seams-v1.testnet '1 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-2. Create the contract account. 3 NEAR covers the code (about 2.30 NEAR):
+2. Create the contract account. 3 NEAR covers the code (about 2.55 NEAR):
 
    ```bash
    near account create-account fund-myself multisig.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send

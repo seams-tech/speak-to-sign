@@ -1,7 +1,21 @@
 # The `voice-capture` package
 
-Status: plan, 2026-11-10. Nothing is built. The plan waits for the owner's answers to the
-questions in the last section.
+Status, 2026-11-10: slice 1 (the capture core) is built in `packages/voice-capture`. Slices 2
+to 4 are not started. The owner accepted the recommended answers of the last section.
+
+## The owner's target structure
+
+Repository seams-wallet:
+
+- `@seams/voiceid`: mostly the VoiceID auth method, tied to the Wallet.
+- `@seams/wallet` (client) and `@seams/wallet-server` (server).
+
+Repository speak-to-sign:
+
+- `voice-capture`: this package.
+- `voice-verdict`: the check of a signed verdict.
+- `speak-to-sign`: depends on `voice-capture` and `voice-verdict`. The owner may give it a more
+  accurate name later.
 
 ## Goal
 
@@ -232,6 +246,12 @@ phrases again for Speak-to-Sign.
 4. **Release** together with the next Wallet version (after 0.66.0), in the order above.
 
 Slices 1 and 2 touch only this repository. Slice 3 is the one that can break the unlock.
+
+## Answers of the owner (2026-11-10)
+
+The owner accepted the recommended answer to each question below: (1) way A; (2) yes, the
+detector `level` needs no model; (3) the Wallet's version number; (4) the default label is
+"Voice capture", and VoiceID passes its own name; (5) keep today's behaviour.
 
 ## Questions for the owner
 

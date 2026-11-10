@@ -1,0 +1,3 @@
+# onnxruntime-web brings protobufjs, whose postinstall is not needed here.
+allowBuilds:
+  protobufjs: false

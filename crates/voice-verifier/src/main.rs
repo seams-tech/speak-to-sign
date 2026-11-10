@@ -4,11 +4,18 @@
 #[cfg(target_arch = "wasm32")]
 mod wasm_host;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(feature = "local-speaker")))]
 #[used]
 #[link_section = "outlayer.manifest"]
 static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest/outlayer.json").len()] =
     *include_bytes!("../manifest/outlayer.json");
+
+// The `local-speaker` variant: the model host in place of the speaker service.
+#[cfg(all(target_arch = "wasm32", feature = "local-speaker"))]
+#[used]
+#[link_section = "outlayer.manifest"]
+static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest/outlayer-local-speaker.json").len()] =
+    *include_bytes!("../manifest/outlayer-local-speaker.json");
 
 #[cfg(target_arch = "wasm32")]
 fn main() {

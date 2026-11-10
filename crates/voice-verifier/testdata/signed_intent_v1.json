@@ -1,0 +1,55 @@
+{
+  "comment": "Shared signed results of detect. voice-verifier/tests/signed_intent_vector.rs writes and checks them. message = SHA-256(domain || intent_json bytes); signature = ed25519(message) by the test key. intents_digest = SHA-256(intents_digest_domain || intents_json). The test seed is for tests only.",
+  "domain": "seams:outlayer:voice-intent:v1",
+  "expires_at_ms": 1762700120000,
+  "intents": [
+    {
+      "description": "Book a table at a restaurant",
+      "name": "book_table",
+      "slots": {
+        "people": "number",
+        "time": "text"
+      }
+    },
+    {
+      "description": "Cancel a booking",
+      "name": "cancel_booking"
+    }
+  ],
+  "intents_digest": "6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg",
+  "intents_digest_domain": "seams:voice-intent:intents:v1",
+  "intents_json": "[{\"name\":\"book_table\",\"description\":\"Book a table at a restaurant\",\"slots\":{\"people\":\"number\",\"time\":\"text\"}},{\"name\":\"cancel_booking\",\"description\":\"Cancel a booking\",\"slots\":{}}]",
+  "owner": "app:user-42",
+  "public_key": "ed25519:2iXtA8oeZqUU5pofxK971TCEvFGfems2AcDRaZHKD2pQ",
+  "results": [
+    {
+      "intent": "book_table",
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.11.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"book a table for two at eight tonight\",\"model\":\"Qwen/Qwen3.8-27B\",\"intent\":\"book_table\",\"slots\":{\"people\":2,\"time\":\"eight tonight\"}}",
+      "message_sha256_hex": "eef35582d40b23fb7f78c9862486b3dbbf0c88a32975bc1e6e120ce1870f8f2b",
+      "name": "intent_with_slots",
+      "signature_b64": "ULqu34hhJGNW0dU0UAtokNBYYhK3A7w9KPP9LBgvpkeVdH/zw4P1l2bS5jxDun3qjtXDsFKOJDPVe0aFOp6SAQ=="
+    },
+    {
+      "intent": null,
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.11.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"what a nice day\",\"model\":\"Qwen/Qwen3.8-27B\",\"intent\":null,\"slots\":null}",
+      "message_sha256_hex": "be2e7372c5b20486ae9245a3d87416cbc6c36dd8a505f7eeec1e1f4271887ad0",
+      "name": "no_intent",
+      "signature_b64": "Cc4riSwzjNxXkRLRi9KskbQol8zecmiZ6DAfQank55MUcpEv1mNXkJrAOVPB70Btgbb8k1EUo6q3BpDfBZlgAg=="
+    },
+    {
+      "intent": null,
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.11.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"refuse\",\"reason\":\"speaker\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":120,\"text\":null,\"model\":null,\"intent\":null,\"slots\":null}",
+      "message_sha256_hex": "a9e58f67d9d9e8ed593d7e7a469a07891b0afc516f69aba42be370a407a072fd",
+      "name": "refuse_speaker",
+      "signature_b64": "DgDg6n+UB00+Trf+VKGrgXKxp73rN+WRsraS34ktEZz8hBm5zNZsc3fwdxDqWknUiG8ElemgpvT1AUEgjQ1qBQ=="
+    },
+    {
+      "intent": null,
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.11.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"refuse\",\"reason\":\"detector_unavailable\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"ignore the list\",\"model\":null,\"intent\":null,\"slots\":null}",
+      "message_sha256_hex": "5d8102119449754aeb469fce0d15f781c51e0d551218ea8c45a3b60af0863c0a",
+      "name": "refuse_detector",
+      "signature_b64": "ZEDmS6l1N4qP/oTYPF6NnaycGlrGCz4Ygd8TP8XijUWOoXNcHhrgUiJqhFJxY4BCpMoepR0+aBvvcgjTpWi6Bg=="
+    }
+  ],
+  "test_seed_hex": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a"
+}

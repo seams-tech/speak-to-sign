@@ -1,6 +1,6 @@
 {
   "display": { "name": "Seams voice verifier" },
-  "operations": ["enroll", "verify"],
+  "operations": ["enroll", "verify", "select", "transcribe", "detect"],
   "capabilities": {
     "network": [
       { "host": "627a3cc63411c2f454cb43695a3747f54618482c-8080.dstack-pha1-prod5.phala.network", "timeout_secs": 30 },

@@ -4,7 +4,9 @@ OutLayer worker (`wasm32-wasip2`) for Speak-to-Sign (plan
 `seams-wallet/docs/refactor-227-speak-to-sign-without-passkey.md`). The Seams
 verify route calls it with
 `POST https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`.
-Operations: `enroll` and `verify`. No `tract`, no ReDimNet in the worker.
+Operations: `enroll` and `verify`. The default worker has no `tract` and no
+ReDimNet: the speaker model runs in a service on Phala. The variant
+`local-speaker` runs ReDimNet inside the worker (see "Two variants").
 
 The verdict authorizes a payment from the owner's own account: the Wallet
 checks it against the key that it pins and signs the transaction itself.
@@ -12,7 +14,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.9.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.11.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -27,7 +29,19 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.7.0   | not built for OutLayer yet | The source on this branch. It adds `multisig_hide_note` for the voice multisig page ("hide note N"). The other kinds are unchanged, except the version in the verdict. Build it with `build.sh --docker`, add it to the OutLayer project, and set its hash as `VOICE_OUTLAYER_VERSION_KEY` of the demo site. |
 | 0.8.0   | `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3` | Added to the OutLayer project on 2026-11-10 (421,745 bytes, `build.sh --docker`, FastFS tx `C7ANV9NzfpZYoJaJxc5kzZbCttg14RPhYC8syqv8pq85`, `add_version` tx `F8orYFRTJybc26s6Sa1L329HbLkRfDfqhoXDKAb7Roq7`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"). The other kinds are unchanged, except the version in the verdict. The Seams staging Gateway pins it. |
 | 0.9.0   | `6725917bd01355f08bb402271dff6265c0d03650c1b1acf8d0992b2537d65ef1` | Added to the OutLayer project on 2026-11-10 (432,675 bytes, `build.sh --docker` from commit `072c616`, FastFS tx `8uY35daAbCWwiJ4ZWXDzFuPpTPybP21YPTPo6TEgiL4y`, `add_version` tx `4MziPaaCvU33cywvA8bvTc2NStJADcLWJYXsq7CCVu9h`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds the general request kinds `transaction` (the receiver and the SHA-256 of the action bytes) and `signed_message` (the SHA-256 of the NEP-413 bytes), each with a spoken summary. The other kinds are unchanged, except the version in the verdict. Wallet 0.66.0 needs it for `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage`. |
-| 0.9.0   | not built for OutLayer yet | The source on this branch. Adds the general kinds `transaction` (any NEAR transaction or delegate action: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). Wallet SDK 0.66.0 needs it for `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage` of `seams.near.speakToSign`. |
+| 0.8.0 (standalone preview) | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | A build of the branch `claude/standalone-library-3e4d17` at commit `21ad633`, before it took a new version number. It writes `0.8.0` in a verdict. It has the kinds of 0.8.0 and the general kinds of 0.9.0. It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Added to the OutLayer project on 2026-11-11 (458,081 bytes, `build.sh --docker`, commit `21ad633`, FastFS tx `GPDF3s9pNwA8rxu7pbRjjvtFbBEW7hc1Sz7H2Xf1Ryg`, `add_version` tx `BSFZLLgM5PQ4v5bS8MJC7VKe2fR7MZ4YEDVS4kYaEYwN`). **Not active**: a call reaches it only with `version_key`. |
+| 0.8.0 (standalone preview, `local-speaker`) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
+| 0.10.0  | `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb` | The source on this branch at commit `d3e02bc` (460,283 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `AVaXXBDYpERq5bNef7fAM7CF4HaZNeXuZpJiTr4jGEhw`, `add_version` tx `S4RvnDPMhkxkCoxHG8Rx9KtUyfSAstG4kmjj2BhaU4t`). **Not active.** It adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`. For every summary kind it reads "$40" as "forty dollars", and one changed word is never a number word. |
+| 0.10.0 `local-speaker` | `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | The same source with ReDimNet inside the worker (`build.sh --local-speaker --docker`). Added on 2026-11-11 (first FastFS chunk tx `GRbHuHVDmf6Ya9YH8CRiexxCLxU1hCovjqEaDsrg7hx3`, `add_version` tx `6hQKZyNrVTbCY5V5GKYuFCh4SfZKWfdL3nwVqa3vjscq`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
+| 0.11.0  | `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` | The source on this branch at commit `be35842` (507,649 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `E5DDUHW7UL9rehTyFQ4TQzsVphMi5rdeqeGxgvBNMQAa`, `add_version` tx `CkUMmoDiE7QmXZDzkzQgi8xB83iczem4T9s11kd9d9wL`). **Not active.** It adds the operation `detect`. |
+| 0.11.0 `local-speaker` | `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | The same source with ReDimNet inside the worker. Added on 2026-11-11 (first FastFS chunk tx `3sNi1vRtfdESuxJNpVSodvgwUueM9hqKibWWidpFgL6x`, `add_version` tx `2gdj8j7xAizq8daGu1WfnwhA6o87UQV8wRuBAK8caLxn`). **Not active.** |
+
+Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
+`b0f53da4…bff3` and the two "standalone preview" builds. So that text does
+not name one build. Use the version key. On 2026-11-11 the active version of
+the project was still 0.5.2 (`96b79b51…d7e5`), and all three builds were in
+the version list (views `get_project` and `list_versions` of
+`outlayer.testnet`).
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -116,6 +130,149 @@ another machine cannot build them again.
 - NEAR RPC: `https://test.rpc.fastnear.com` (`config::NEAR_RPC_URL`), for the
   owner's access key at enrollment only.
 - `verify` sends both requests at once (`wasi:http`, one poll loop).
+
+## Two variants
+
+One source gives two workers. The verdict, the inputs, the template record
+and the storage keys are the same. So a voice that one variant enrolled
+passes in the other, if both use the same storage cell (the same project and
+payment key).
+
+| | Default | `local-speaker` |
+| --- | --- | --- |
+| Build | `./build.sh` | `./build.sh --local-speaker` |
+| Speaker model | In the speaker service (Phala), signed embeddings | Inside the worker, in `tract` (`src/local_model.rs`) |
+| Manifest | `manifest/outlayer.json` | `manifest/outlayer-local-speaker.json` |
+| Hosts | Phala, NEAR AI, NEAR RPC | FastFS (first run only), NEAR AI, NEAR RPC |
+| WASM (macOS arm64 build) | about 0.45 MB | about 8.3 MB |
+| Trust for the speaker | The Phala app and its pinned key | Only the worker and the pinned model digest |
+| Cost | A second service to operate and pay | More worker time for each call |
+
+How the `local-speaker` variant works:
+
+- The model is 8,859,593 bytes, and OutLayer refuses a WASM of 10 MB or
+  more. So the model is not in the WASM.
+- The worker keeps the model in its OutLayer storage (`src/model_cache.rs`):
+  9 plaintext records of at most 1 MiB in the worker storage of the project,
+  with the keys `model:v1:<sha256>:<index>`. A run reads them and downloads
+  nothing.
+- If the storage does not hold the whole model, the worker downloads the
+  file from FastFS (`config::REDIMNET_URL`, host `test.fastfs.io`) and
+  writes the records for the next run. So the first run downloads, and the
+  later runs do not. A failed write does not fail the run.
+- Every run checks the SHA-256 of the bytes against
+  `config::SPEAKER_MODEL.sha256_hex`, from the storage and from a download.
+  Other bytes count as "not stored". So neither the storage nor the host of
+  the file is trusted.
+- The device of the user downloads nothing in either variant. Only the
+  worker reads the model.
+- `verify` sends only the NEAR AI request. After the storage calls, it runs
+  the model while that request is in flight (`Host::embed_local`). `enroll`
+  runs the model three times while the access-key request is in flight.
+- A failure of the download or of the model refuses with
+  `speaker_unavailable`.
+- The stage times have `model_fetch` (the read of the storage, or the
+  download), `model_cached` (1 if no download was necessary) and `redimnet`
+  (the model runs), and no `speaker`.
+
+The model file on FastFS (uploaded from `seams-v1.testnet` on 2026-11-10,
+9 transactions to `outlayer.testnet`, the first is
+`HVcxZzvRH2ne3uq4cELgmHEBkhmf96nxM5uiFFztVvbw`):
+
+```sh
+curl -s https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269.onnx | shasum -a 256
+```
+
+To upload a model file again, or another model:
+
+```sh
+python3 -I scripts/fastfs_chunks.py redimnet-b1.onnx chunks onnx application/octet-stream
+```
+
+Then send each chunk file as the arguments of `__fastdata_fastfs` on
+`outlayer.testnet` (`near contract call-function as-transaction ... file-args
+chunks/chunk-000.bin`). Each transaction fails with `MethodNotFound` by
+design: FastFS reads the arguments.
+
+Measured on OutLayer testnet on 2026-11-11, one run of each operation for
+each variant, with a synthetic voice (macOS `say`) and the same sentences:
+
+| | Default | `local-speaker` |
+| --- | --- | --- |
+| `verify` or `select`: OutLayer `time_ms` | 1.35 to 1.46 s | 10.6 to 12.5 s |
+| `verify` or `select`: time at the client | 2.6 to 2.9 s | 12 to 15 s |
+| `verify` or `select`: the worker's own `total` | 0.36 to 0.48 s | 2.2 to 2.7 s |
+| `verify` or `select`: instructions | 17 to 27 million | 4.4 to 6.5 billion |
+| `verify` or `select`: OutLayer `compute_cost` | about 1,020 | 5,400 to 7,500 |
+| `enroll` (three clips): OutLayer `time_ms`, cost | 3.3 s, 1,079 | 14.9 s, 22,364 |
+| A call that refuses before any work: `time_ms` | 0.8 s | 11.2 s |
+
+So the `local-speaker` variant is about 8 times slower and 5 to 7 times
+more expensive for each call. Where its time goes:
+
+- About 9 s is the fixed time of OutLayer for a WASM of 8 MB (`time_ms`
+  less the worker's own `total`). The default variant has about 1 s.
+- 1.8 to 1.9 s is the read of the model from the storage with its SHA-256
+  (`model_fetch`, with `model_cached` 1).
+- 0.3 to 0.7 s is the model run for one clip (`redimnet`).
+
+A later run (0.11.0, 2026-11-11) showed that the read of the model from
+the worker storage does not have a stable time. Four enrollments in a row
+had `model_fetch` of 1.8 s, 8.0 s, 69.6 s and 4.6 s, each with
+`model_cached` 1 and about 18.9 billion instructions. In the same hour,
+three of twelve `local-speaker` calls failed with the status `failed`; the
+probable cause is the time limit of the run (`max_execution_seconds`, 90 in
+that test), not the code. The default variant had no such failure. So do not
+plan on the 12 s of the table above for each call.
+
+Other facts of that run:
+
+- The worker storage accepts records of 1 MiB. After the first run, each
+  run had `model_cached` 1.
+- OutLayer stops a call at about 8.9 billion instructions unless the caller
+  sends the header `X-Compute-Limit`. The stopped run fails with a trap and
+  no reason. An enrollment of this variant needs about 20 billion.
+- A template of one variant passed in the other: both use one storage cell.
+- Not measured: the time of the first run, which downloads the model; and
+  if the worker storage is one for the project or one for each caller (the
+  runs had one caller).
+
+Both variants declare the same signing key (`verdict`, `bind: "project"`).
+As two versions of one project, they sign with the same key. A verdict does
+not show which variant made it.
+
+Tests: `cargo test` covers both paths with the fake host
+(`tests/ops/local_speaker.rs`). With the model file, this runs the real
+model natively:
+
+```sh
+SEAMS_REDIMNET_PATH=/path/to/redimnet-b1.onnx cargo test --release --features local-speaker --lib local_model
+```
+
+## Another speaker model
+
+`config::SPEAKER_MODEL` holds every value that changes with the model: the
+SHA-256 of the ONNX file, its URL and size, the embedding size, the cutoff
+and the name of the output node. Today it is `REDIMNET_B1`.
+
+To use another model (for example another ReDimNet size):
+
+1. Measure the cutoff of the model on real recordings. Do not copy 0.45.
+2. Add a `SpeakerModel` constant in `src/config.rs` and set `SPEAKER_MODEL`
+   to it.
+3. For the default variant, build the speaker service with the same file
+   (`MODEL_SHA256` and `EMBEDDING_DIM` in `crates/speaker-service/src/lib.rs`)
+   and pin its new key.
+4. For the `local-speaker` variant, upload the file to FastFS (see "Two
+   variants") and set its URL. The storage keys name the digest, so the new
+   model has its own records. Check that `tract` loads
+   the model: ReDimNet B1 needs the typed plan with no declutter pass.
+5. Build. The WASM hash changes.
+
+A template records the digest of its model. A worker with another model does
+not read it and refuses with `template_missing`, so each owner enrolls
+again. One build has one model: the model is part of the code that a WASM
+hash names.
 
 ## Overlap of network and storage
 
@@ -206,6 +363,22 @@ Stage times (`ms`, not signed), in ms:
       one proposal give `attempts_exhausted`; only refusals after the
       speaker check passed count. A voice that passes against another
       member who already said the proposal refuses `same_speaker`.
+    - `confirmation`: `{"context","payload_sha256_hex","summary"}`, as
+      `SpokenRequestV1::Confirmation` (tag 10). It is for an application
+      that is not a NEAR application: a login, an order, a transaction of
+      another chain. The owner must be an application owner (`app:<id>`),
+      and an application owner can use only this kind. The owner says the
+      summary. The verdict binds the owner, the context (1 to 64 characters
+      of `a-z`, `0-9`, `.`, `_`, `-`, `:`, `/`) and the SHA-256 of the
+      payload. The application defines the payload bytes.
+    - Numbers in a summary (all summary kinds, version 0.10.0 and later):
+      write the number in words ("Pay forty dollars for two books"). The
+      model can write it as a numeral, and the worker reads "40", "$40" and
+      "40 dollars" as the same words. It reads `$`, the euro sign and the
+      pound sign before a whole number, and `%` after a number. An amount
+      with a decimal point ("$2.50") has no single spoken form: do not put
+      one in a summary. In the builds before 0.10.0, "$40" fails the word
+      check (seen on testnet).
     - The contract `demo/contracts/voice-multisig` checks each verdict of
       these kinds on chain. `Transfer` and `HideNote` proposals exist. A
       0.6 record of a transfer still reads in 0.7.0.
@@ -230,10 +403,85 @@ Stage times (`ms`, not signed), in ms:
     - Community note summary (0.4.0 and later): a summary of 4 or more words
       also passes with one word changed or dropped, when the heard words are
       still closer to the summary than to every near miss (an added or dropped
-      "not" never passes).
+      "not" never passes). From 0.10.0, the changed or dropped word is never
+      a number word: "pay fourteen dollars" does not pass for "pay forty
+      dollars". The builds before 0.10.0 let it pass.
   - `contacts`: at most 32 named accounts that the owner knows, for the
     account names and the confusion set. The receiver is added if missing,
     except for `multisig_confirm`.
+- `select`: `{"op":"select","owner","requests":[2 to 16 requests],"contacts":[...],"audio_wav_b64"}`.
+  - The verdict is for the one request whose sentence the owner said. The
+    output is the output of `verify`, with `"selected"`: the index of that
+    request (not signed; the verdict binds its request digest).
+  - The heard words must equal the sentence of exactly one candidate. No
+    summary passes with a changed word, because the other candidates are
+    the near misses. No match refuses with `words`; two matches refuse with
+    `words` and the detail `select: ambiguous`.
+  - Two candidates with one sentence, fewer than 2 or more than 16
+    candidates, or a multisig kind refuse with `unsupported`.
+  - The policy step runs for the selected request.
+- `transcribe`: `{"op":"transcribe","owner","audio_wav_b64"}`. No request.
+  - The output is
+    `{"kind":"seams_voice_transcript_output_v1","transcript_json","signature_b64","public_key","ms","detail"}`.
+  - `transcript_json` is the only signed object: compact JSON with 9
+    fields, in this order: `kind` (`seams_voice_signed_transcript_v1`),
+    `verifier`, `owner`, `audio_digest`, `outcome` (`accept` or `refuse`),
+    `reason`, `expires_at_ms`, `speaker_score_milli`, `text`.
+  - `text` is the heard words: lowercase ASCII letters, digits and
+    apostrophes with single spaces, cut to 200 bytes. It is set only on
+    `accept`.
+  - The signed message is
+    `SHA-256("seams:outlayer:voice-transcript:v1" || transcript_json bytes)`,
+    by the same key as a verdict. The prefix and the kind are not those of a
+    verdict, so no checker of verdicts accepts a transcript.
+  - The speaker check, the energy gate and the used-audio mark are those of
+    `verify`. No words refuse with `words`.
+  - The model writes numbers in different ways. In two runs of one sentence
+    it gave "8" and "eight".
+  - A transcript is weaker than a verdict. No sentence is expected, so the
+    worker makes no word check and no near-miss check. NEAR AI gives the
+    text with no signature. Do not let a transcript approve an action with
+    value.
+  - Shared vectors: `testdata/signed_transcript_v1.json`
+    (`tests/signed_transcript_vector.rs`).
+- `detect` (0.11.0 and later):
+  `{"op":"detect","owner","intents":[1 to 16 intents],"audio_wav_b64"}`.
+  - An intent is `{"name","description","slots":{"<slot>":"text"|"number"}}`.
+    A name is 1 to 32 characters of `a-z`, `0-9` and `_`. A description is
+    1 to 120 ASCII letters, digits, spaces and `. , ' -`. An intent has at
+    most 6 slots.
+  - The worker checks the speaker and gets the heard words, as `transcribe`
+    does. Then it sends the words and the list to a chat model on NEAR AI
+    (`config::NEAR_AI_CHAT_MODEL`, `Qwen/Qwen3.8-27B`). A voice that does
+    not pass gets no model call.
+  - The output is
+    `{"kind":"seams_voice_intent_output_v1","intent_json","signature_b64","public_key","ms","detail"}`.
+  - `intent_json` is the only signed object: 13 fields, in this order:
+    `kind` (`seams_voice_signed_intent_v1`), `verifier`, `owner`,
+    `audio_digest`, `intents_digest`, `outcome`, `reason`, `expires_at_ms`,
+    `speaker_score_milli`, `text` (cut to 80 bytes), `model`, `intent`,
+    `slots`.
+  - `intents_digest` is base64url
+    `SHA-256("seams:voice-intent:intents:v1" || canonical JSON of the list)`.
+    The canonical JSON is compact, each intent as `name`, `description`,
+    `slots`, with the slots in name order.
+  - The signed message is
+    `SHA-256("seams:outlayer:voice-intent:v1" || intent_json bytes)`.
+  - The worker checks the form of the model's reply: the intent is a name of
+    the list or `null`; each slot is a slot of that intent; a text value has
+    only heard words and at most 40 bytes; a number value is a JSON number.
+    Any other value becomes `null`. An unknown intent or slot refuses with
+    `detector_unavailable`.
+  - An accept with `"intent":null` means: the model named no intent.
+  - This is the weakest operation. Two models make the result, and neither
+    signs its part. The result is a proposal: show the action, then confirm
+    it with `verify` or `select`.
+  - The chat model took about 11 s for each of 5 calls from a desktop
+    computer (`tests/detect_live.rs`). On OutLayer testnet, a whole `detect`
+    call of the default variant took 6 to 10 s at the client. Give the call
+    a `max_execution_seconds` of 40 or more.
+  - Shared vectors: `testdata/signed_intent_v1.json`
+    (`tests/signed_intent_vector.rs`).
 - Unknown fields are refused at every level.
 - WAV: 16 kHz mono PCM16, at most 8 s, standard base64. The worker writes it
   again with a 44-byte header (the canonical WAV); the audio digest is the
@@ -277,6 +525,24 @@ Exactly 10 NEAR is allowed. A step-up still marks the audio used.
 - `policy_text` (not signed): the sentence of the rule on `step_up`, else
   `null`.
 - The output stays below 1,024 bytes; `heard` is cut to fit.
+
+## Owners
+
+- A NEAR account. `enroll` needs the NEP-413 authorization of the section
+  below.
+- An application owner: `app:` and then the id that the application gives
+  its user, for example `app:user-42`. The id is 1 or more characters of
+  `a-z`, `0-9`, `.`, `_`, `-` and `:`; the whole text is at most 100 bytes.
+  A NEAR account id cannot hold ":", so the two kinds never collide.
+  - `enroll` takes no `authorization` for it:
+    `{"op":"enroll","owner":"app:user-42","audio_wav_b64":[3 WAVs]}`. It
+    makes no NEAR RPC call.
+  - The authority is the caller of the worker: the owner of the OutLayer
+    payment key. The storage cell and the verdict key belong to that payment
+    key. So a developer with an own payment key has an own set of users and
+    an own verdict key. The application is trusted for the identity of its
+    users: any holder of the payment key can enroll, or enroll again, any
+    application owner of that cell. Keep the payment key on a server.
 
 ## Owner-authorized enrollment
 

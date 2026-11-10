@@ -3,10 +3,9 @@
 use std::time::Instant;
 
 use serde_json::Value;
-use spoken_intent::NearAccount;
 
-use super::request::unsupported;
-use super::steps::{consume, decode_clip, in_flight, reply, speaker_reply};
+use super::request::{unsupported, Owner};
+use super::steps::{consume, decode_clip, in_flight, local_embedding, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
 use crate::authorization::{access_key_request, check_authorization, enrollment_digest, parse_access_key, AccessKey};
@@ -45,8 +44,12 @@ pub(super) fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> EnrollOu
 
 fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut EnrollOutput) -> Result<(), Refusal> {
     let input: EnrollInput = serde_json::from_value(value).map_err(unsupported)?;
-    let owner = NearAccount::new(&input.owner).map_err(unsupported)?;
-    if input.op != "enroll" {
+    let owner = Owner::parse(&input.owner)?;
+    // A NEAR owner authorizes the enrollment with a key of the account. An
+    // application owner has no key: the caller of the worker (the owner of
+    // the payment key) is the authority for it, and it sends no
+    // authorization.
+    if input.op != "enroll" || matches!(owner, Owner::Near(_)) != input.authorization.is_some() {
         return Err(Reason::Unsupported.into());
     }
     output.owner = Some(owner.as_str().to_string());
@@ -69,43 +72,68 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
     output.enrollment_digest = Some(digest_text.clone());
 
     // The owner's signature of this digest, before any network call.
-    let public_key = check_authorization(&input.authorization, &digest_text)
-        .map_err(|error| Refusal::new(Reason::NotAuthorized, format!("authorization: {error}")))?;
+    let public_key = match &input.authorization {
+        Some(authorization) => Some(
+            check_authorization(authorization, &digest_text)
+                .map_err(|error| Refusal::new(Reason::NotAuthorized, format!("authorization: {error}")))?,
+        ),
+        None => None,
+    };
 
-    // The owner's access key (NEAR RPC) and the three embeddings (speaker
-    // service), in one batch. Storage while the requests are in flight: the
-    // current template (for its epoch and the compare-and-swap) and the
-    // used-audio markers.
+    // The owner's access key (NEAR RPC, only for a NEAR owner) and the three
+    // embeddings (speaker service), in one batch. Storage while the requests
+    // are in flight: the current template (for its epoch and the
+    // compare-and-swap) and the used-audio markers.
     let nonces = (0..ENROLL_RECORDINGS)
         .map(|_| host.random32())
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| Reason::SpeakerUnavailable)?;
-    let mut requests = vec![access_key_request(owner.as_str(), &public_key)];
-    requests.extend(clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)));
-    let key = template_key(owner.as_str());
-    let (previous, results) =
-        in_flight(host, &mut output.ms, requests, |host, _| enroll_storage(host, &key, &output.audio_digests))?;
-    if let Some(timed) = results.first() {
-        output.ms.record("rpc", timed.ms);
+    let mut requests: Vec<_> = public_key.iter().map(|key| access_key_request(owner.as_str(), key)).collect();
+    // The index of the first speaker reply.
+    let speakers_at = requests.len();
+    if !pins.local_speaker {
+        requests.extend(clips.iter().zip(&nonces).map(|(clip, nonce)| service_request(&clip.wav, nonce)));
     }
-    if let Some(slowest) = results.iter().skip(1).map(|timed| timed.ms).max() {
-        output.ms.record("speaker", slowest);
+    let key = template_key(owner.as_str());
+    // The `local-speaker` build runs the model inside the worker on the
+    // three clips, while the access-key request is in flight.
+    let local: Vec<&_> = clips.iter().collect();
+    let flight =
+        in_flight(host, &mut output.ms, requests, pins.local_speaker.then_some(&local[..]), |host, _| {
+            enroll_storage(host, &key, &output.audio_digests)
+        })?;
+    let (previous, results) = (flight.value, flight.results);
+    if public_key.is_some() {
+        if let Some(timed) = results.first() {
+            output.ms.record("rpc", timed.ms);
+        }
+    }
+    if !pins.local_speaker {
+        if let Some(slowest) = results.iter().skip(speakers_at).map(|timed| timed.ms).max() {
+            output.ms.record("speaker", slowest);
+        }
     }
 
     // The key must be a full-access key of the owner, before the embeddings
     // are used.
-    let refused = match reply(results.first(), "rpc", Reason::AuthorizationUnavailable, parse_access_key)? {
-        AccessKey::FullAccess => None,
-        AccessKey::FunctionCall => Some("authorization: function_call_key"),
-        AccessKey::Missing => Some("authorization: unknown_key"),
-    };
-    if let Some(detail) = refused {
-        return Err(Refusal::new(Reason::NotAuthorized, detail));
+    if public_key.is_some() {
+        let refused = match reply(results.first(), "rpc", Reason::AuthorizationUnavailable, parse_access_key)? {
+            AccessKey::FullAccess => None,
+            AccessKey::FunctionCall => Some("authorization: function_call_key"),
+            AccessKey::Missing => Some("authorization: unknown_key"),
+        };
+        if let Some(detail) = refused {
+            return Err(Refusal::new(Reason::NotAuthorized, detail));
+        }
     }
 
     let mut embeddings = Vec::with_capacity(ENROLL_RECORDINGS);
     for (index, (clip, nonce)) in clips.iter().zip(&nonces).enumerate() {
-        embeddings.push(speaker_reply(results.get(index + 1), clip, nonce, pins)?.embedding);
+        embeddings.push(if pins.local_speaker {
+            local_embedding(flight.local.as_ref(), index)?
+        } else {
+            speaker_reply(results.get(speakers_at + index), clip, nonce, pins)?.embedding
+        });
     }
     let template = match agreement(&embeddings) {
         Agreement::Agreed { template, agreement_milli } => {

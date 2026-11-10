@@ -49,15 +49,20 @@ pub enum PunctuatedRefusal {
 ///
 /// 1. If the word without edge punctuation is in [`PUNCTUATED_ALIASES`], it
 ///    becomes the alias target.
-/// 2. If the word directly follows "version" and holds digits with only `,`
+/// 2. If the word is a whole number after `$`, the euro sign or the pound
+///    sign, it becomes the number and "dollars", "euros" or "pounds" ("$40"
+///    becomes "40 dollars"; one unit is "dollar"). A number before `%`
+///    becomes the number and "percent". An amount with a decimal point
+///    ("$2.50") has no single spoken form and is not read.
+/// 3. If the word directly follows "version" and holds digits with only `,`
 ///    or `-` between them, each digit becomes one word ("10374" becomes
 ///    "one zero three seven four"). The check digits of a "set verifier
 ///    version" proposal are not a number.
-/// 3. If the word without edge punctuation holds a letter and a separator
+/// 4. If the word without edge punctuation holds a letter and a separator
 ///    (`-` `_` `.`), or letters and digits, it is an account id: each digit
 ///    becomes one word and each separator its word ("ops-42.testnet" becomes
 ///    "ops dash four two dot testnet").
-/// 4. Any other word keeps its letters and numerals: final `. , ! ?` are
+/// 5. Any other word keeps its letters and numerals: final `. , ! ?` are
 ///    removed, a `,` between two digits is removed, a `.` between two
 ///    characters that are not both digits becomes "dot", and `-` and `_`
 ///    become "dash" and "underscore".

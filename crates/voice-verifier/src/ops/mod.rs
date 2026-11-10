@@ -1,4 +1,4 @@
-//! The operations `enroll` and `verify`.
+//! The operations `enroll`, `verify`, `select`, `transcribe` and `detect`.
 //!
 //! `verify` sends the canonical WAV to the speaker service and to NEAR AI at
 //! the same time, reads the template and the used-audio marker while those
@@ -15,10 +15,13 @@
 //! Each flow has its own file. `request.rs` types the request of a `verify`
 //! input, `multisig.rs` builds and records the multisig kinds, and
 //! `steps.rs` holds the steps that both flows use.
+mod detect;
 mod enroll;
 mod multisig;
 mod request;
+mod select;
 mod steps;
+mod transcribe;
 mod verify;
 
 use serde_json::Value;
@@ -34,12 +37,20 @@ pub use request::transfer_request;
 /// because their fake service signs with its own key.
 #[derive(Clone, Copy, Debug)]
 pub struct Pins {
+    /// The key of the speaker service. Not used with `local_speaker`.
     pub speaker_key: [u8; 32],
+    /// `true`: the embeddings come from the model inside the worker
+    /// ([`Host::embed_local`]), and no request goes to the speaker service.
+    /// The release value is the feature `local-speaker`.
+    pub local_speaker: bool,
 }
 
 impl Pins {
     fn production() -> Self {
-        Self { speaker_key: from_hex::<32>(SPEAKER_PINNED_KEY_HEX).expect("pinned hex") }
+        Self {
+            speaker_key: from_hex::<32>(SPEAKER_PINNED_KEY_HEX).expect("pinned hex"),
+            local_speaker: cfg!(feature = "local-speaker"),
+        }
     }
 }
 
@@ -55,6 +66,9 @@ pub fn run_with(input: &[u8], host: &mut dyn Host, pins: &Pins) -> Vec<u8> {
     match value.get("op").and_then(Value::as_str) {
         Some("enroll") => json_bytes(&enroll::enroll(value, host, pins)),
         Some("verify") => json_bytes(&verify::verify(value, host, pins)),
+        Some("select") => json_bytes(&select::select(value, host, pins)),
+        Some("transcribe") => json_bytes(&transcribe::transcribe(value, host, pins)),
+        Some("detect") => json_bytes(&detect::detect(value, host, pins)),
         _ => json_bytes(&UnknownOp {
             kind: ERROR_OUTPUT_KIND,
             verifier: VERIFIER_VERSION,

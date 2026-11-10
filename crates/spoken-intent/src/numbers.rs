@@ -138,7 +138,7 @@ pub(crate) fn is_multiplier_word(word: &str) -> bool {
 }
 
 /// True for every word that can appear in an integer.
-pub(crate) fn is_number_word(word: &str) -> bool {
+pub fn is_number_word(word: &str) -> bool {
     small_value(word).is_some() || is_multiplier_word(word)
 }
 

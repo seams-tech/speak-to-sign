@@ -11,7 +11,9 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::{MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, VERDICT_DOMAIN, VERIFIER_VERSION};
+use crate::config::{
+    INTENT_DOMAIN, MAX_HEARD_BYTES, MAX_OUTPUT_BYTES, TRANSCRIPT_DOMAIN, VERDICT_DOMAIN, VERIFIER_VERSION,
+};
 use crate::digest::{b64, near_ed25519_key, sha256};
 use crate::host::Host;
 use crate::words::cut_at;
@@ -70,12 +72,15 @@ pub enum Reason {
     /// This member said the wrong words for this multisig proposal too many
     /// times.
     AttemptsExhausted,
+    /// `detect` only: the chat model did not answer, or its reply was not
+    /// one intent of the list.
+    DetectorUnavailable,
 }
 
 #[cfg(test)]
 impl Reason {
     /// Every reason, in declaration order.
-    const ALL: [Reason; 16] = [
+    const ALL: [Reason; 17] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -92,6 +97,7 @@ impl Reason {
         Reason::ProposalMissing,
         Reason::SameSpeaker,
         Reason::AttemptsExhausted,
+        Reason::DetectorUnavailable,
     ];
 }
 
@@ -182,6 +188,11 @@ impl Stages {
         value
     }
 
+    /// The recorded time of the stage `name`, or 0.
+    pub fn get(&self, name: &str) -> u64 {
+        self.0.get(name).copied().unwrap_or(0)
+    }
+
     /// Records a time that another party measured.
     pub fn record(&mut self, name: &'static str, ms: u64) {
         self.0.insert(name, ms);
@@ -213,6 +224,11 @@ pub struct VerifyOutput {
     /// accept of a proposal (not signed). Other outputs leave the field out.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multisig: Option<MultisigOpening>,
+    /// `select` only: the index of the request that the owner said, in the
+    /// input order (not signed; the verdict binds the request digest). Other
+    /// outputs leave the field out.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected: Option<usize>,
 }
 
 /// What the proposer needs from the worker: the commitment for `propose`,
@@ -236,7 +252,7 @@ impl VerifyOutput {
         detail: Option<String>,
     ) -> Self {
         let (signature_b64, public_key) = signed.unzip();
-        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail, multisig: None }
+        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail, multisig: None, selected: None }
     }
 }
 
@@ -263,12 +279,14 @@ pub fn fit_heard(
     ms: &Stages,
     detail: Option<&str>,
     multisig: Option<&MultisigOpening>,
+    selected: Option<usize>,
 ) -> String {
     let heard = verdict.heard.take();
     let longest_signature = ("A".repeat(SIGNATURE_B64_LEN), format!("ed25519:{}", "1".repeat(KEY_BASE58_MAX_LEN)));
     let detail = detail.map(str::to_owned);
     let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), policy_text, ms.clone(), detail);
     sized.multisig = multisig.cloned();
+    sized.selected = selected;
     for cap in HEARD_CAPS {
         verdict.heard = heard.as_ref().filter(|_| cap > 0).map(|text| cut_at(text, cap));
         sized.verdict_json = verdict_json(&verdict);
@@ -289,6 +307,205 @@ pub fn sign_verdict(host: &mut dyn Host, verdict_json: &str) -> Result<(String, 
         return Err("length".to_string());
     }
     Ok((b64(&signature), near_ed25519_key(&public_key)))
+}
+
+/// The transcript kind. It is not a verdict: it approves no request.
+const TRANSCRIPT_KIND: &str = "seams_voice_signed_transcript_v1";
+const TRANSCRIPT_OUTPUT_KIND: &str = "seams_voice_transcript_output_v1";
+
+/// The signed transcript: 9 fields, always all present, in this order. It
+/// says that the voice of `owner` passed the speaker check on this audio,
+/// and what the speech-to-text model heard. It binds no request, so a
+/// checker of verdicts must not accept it; its `kind` and its signing
+/// prefix ([`crate::config::TRANSCRIPT_DOMAIN`]) are not those of a verdict.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Transcript {
+    pub kind: String,
+    pub verifier: String,
+    /// The owner whose template the voice was compared with.
+    pub owner: Option<String>,
+    /// base64url SHA-256 of the canonical WAV.
+    pub audio_digest: Option<String>,
+    /// `accept` or `refuse`.
+    pub outcome: Outcome,
+    /// Set only on `refuse`.
+    pub reason: Option<Reason>,
+    pub expires_at_ms: u64,
+    pub speaker_score_milli: Option<i32>,
+    /// The heard words: lowercase ASCII letters, digits and apostrophes,
+    /// with single spaces. Set only on `accept`. The speech-to-text model
+    /// gives it with no signature of its own.
+    pub text: Option<String>,
+}
+
+impl Transcript {
+    /// An empty transcript that refuses as `unsupported` until filled.
+    pub fn new() -> Self {
+        Self {
+            kind: TRANSCRIPT_KIND.to_string(),
+            verifier: VERIFIER_VERSION.to_string(),
+            owner: None,
+            audio_digest: None,
+            outcome: Outcome::Refuse,
+            reason: Some(Reason::Unsupported),
+            expires_at_ms: 0,
+            speaker_score_milli: None,
+            text: None,
+        }
+    }
+}
+
+impl Default for Transcript {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The 32-byte message that the signing key signs for a transcript.
+pub fn transcript_message(transcript_json: &[u8]) -> [u8; 32] {
+    let mut preimage = Vec::with_capacity(TRANSCRIPT_DOMAIN.len() + transcript_json.len());
+    preimage.extend_from_slice(TRANSCRIPT_DOMAIN);
+    preimage.extend_from_slice(transcript_json);
+    sha256(&preimage)
+}
+
+/// The `transcribe` output. `transcript_json` is the only signed object.
+#[derive(Clone, Debug, Serialize)]
+pub struct TranscribeOutput {
+    pub kind: &'static str,
+    pub transcript_json: String,
+    /// Standard base64 of the 64-byte ed25519 signature.
+    pub signature_b64: Option<String>,
+    /// `ed25519:<base58>`.
+    pub public_key: Option<String>,
+    pub ms: Stages,
+    pub detail: Option<String>,
+}
+
+impl TranscribeOutput {
+    /// Signs the transcript with the manifest signing key.
+    pub fn signed(host: &mut dyn Host, transcript: &Transcript, mut ms: Stages, detail: Option<String>) -> Self {
+        let transcript_json = serde_json::to_string(transcript).expect("transcript serializes");
+        let message = transcript_message(transcript_json.as_bytes());
+        let signed = ms.time("sign", || match (host.sign(&message), host.public_key()) {
+            (Ok(signature), Ok(key)) if signature.len() == 64 && key.len() == 32 => {
+                Ok((b64(&signature), near_ed25519_key(&key)))
+            }
+            (Err(error), _) | (_, Err(error)) => Err(error),
+            _ => Err("length".to_string()),
+        });
+        let (signature_b64, public_key, detail) = match signed {
+            Ok((signature, key)) => (Some(signature), Some(key), detail),
+            Err(error) => (None, None, Some(short(&format!("sign: {error}")))),
+        };
+        Self { kind: TRANSCRIPT_OUTPUT_KIND, transcript_json, signature_b64, public_key, ms, detail }
+    }
+}
+
+/// The intent kind. It is not a verdict: it approves no request.
+const INTENT_KIND: &str = "seams_voice_signed_intent_v1";
+const DETECT_OUTPUT_KIND: &str = "seams_voice_intent_output_v1";
+
+/// The signed result of `detect`: 13 fields, always all present, in this
+/// order. It says that the voice of `owner` passed the speaker check, what
+/// the speech-to-text model heard, and which intent of the application's
+/// list a chat model named for those words. It is a proposal: two models
+/// made it, and neither signs its part. Its `kind` and its signing prefix
+/// ([`crate::config::INTENT_DOMAIN`]) are not those of a verdict.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IntentResult {
+    pub kind: String,
+    pub verifier: String,
+    pub owner: Option<String>,
+    /// base64url SHA-256 of the canonical WAV.
+    pub audio_digest: Option<String>,
+    /// base64url [`crate::intent::intents_digest`] of the list of the input.
+    pub intents_digest: Option<String>,
+    /// `accept` or `refuse`. An accept can have no intent.
+    pub outcome: Outcome,
+    pub reason: Option<Reason>,
+    pub expires_at_ms: u64,
+    pub speaker_score_milli: Option<i32>,
+    /// The heard words, as in a transcript, cut to
+    /// [`crate::config::MAX_INTENT_TEXT_BYTES`].
+    pub text: Option<String>,
+    /// The chat model that named the intent.
+    pub model: Option<String>,
+    /// The name of one intent of the list, or `null` if the model named
+    /// none.
+    pub intent: Option<String>,
+    /// A value or `null` for each slot of the intent, in name order.
+    pub slots: Option<BTreeMap<String, serde_json::Value>>,
+}
+
+impl IntentResult {
+    /// An empty result that refuses as `unsupported` until filled.
+    pub fn new() -> Self {
+        Self {
+            kind: INTENT_KIND.to_string(),
+            verifier: VERIFIER_VERSION.to_string(),
+            owner: None,
+            audio_digest: None,
+            intents_digest: None,
+            outcome: Outcome::Refuse,
+            reason: Some(Reason::Unsupported),
+            expires_at_ms: 0,
+            speaker_score_milli: None,
+            text: None,
+            model: None,
+            intent: None,
+            slots: None,
+        }
+    }
+}
+
+impl Default for IntentResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The 32-byte message that the signing key signs for an intent result.
+pub fn intent_message(intent_json: &[u8]) -> [u8; 32] {
+    let mut preimage = Vec::with_capacity(INTENT_DOMAIN.len() + intent_json.len());
+    preimage.extend_from_slice(INTENT_DOMAIN);
+    preimage.extend_from_slice(intent_json);
+    sha256(&preimage)
+}
+
+/// The `detect` output. `intent_json` is the only signed object.
+#[derive(Clone, Debug, Serialize)]
+pub struct DetectOutput {
+    pub kind: &'static str,
+    pub intent_json: String,
+    /// Standard base64 of the 64-byte ed25519 signature.
+    pub signature_b64: Option<String>,
+    /// `ed25519:<base58>`.
+    pub public_key: Option<String>,
+    pub ms: Stages,
+    pub detail: Option<String>,
+}
+
+impl DetectOutput {
+    /// Signs the result with the manifest signing key.
+    pub fn signed(host: &mut dyn Host, result: &IntentResult, mut ms: Stages, detail: Option<String>) -> Self {
+        let intent_json = serde_json::to_string(result).expect("intent result serializes");
+        let message = intent_message(intent_json.as_bytes());
+        let signed = ms.time("sign", || match (host.sign(&message), host.public_key()) {
+            (Ok(signature), Ok(key)) if signature.len() == 64 && key.len() == 32 => {
+                Ok((b64(&signature), near_ed25519_key(&key)))
+            }
+            (Err(error), _) | (_, Err(error)) => Err(error),
+            _ => Err("length".to_string()),
+        });
+        let (signature_b64, public_key, detail) = match signed {
+            Ok((signature, key)) => (Some(signature), Some(key), detail),
+            Err(error) => (None, None, Some(short(&format!("sign: {error}")))),
+        };
+        Self { kind: DETECT_OUTPUT_KIND, intent_json, signature_b64, public_key, ms, detail }
+    }
 }
 
 /// The `enroll` output.
@@ -375,7 +592,7 @@ mod tests {
         let text = verdict_json(&Verdict::new());
         assert_eq!(
             text,
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.9.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.11.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);
@@ -403,7 +620,8 @@ mod tests {
                 "authorization_unavailable",
                 "proposal_missing",
                 "same_speaker",
-                "attempts_exhausted"
+                "attempts_exhausted",
+                "detector_unavailable"
             ])
         );
     }

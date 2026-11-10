@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice confirmation</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #17202a;
+        --muted: #5b6672;
+        --line: #d5dae0;
+        --surface: #f5f6f8;
+        --page: #ffffff;
+        --accent: #0b5fb3;
+        --good: #156c3a;
+        --bad: #a3271f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e8ebee;
+          --muted: #9aa5b1;
+          --line: #353c45;
+          --surface: #1c2128;
+          --page: #12161b;
+          --accent: #6db3f2;
+          --good: #6fd08c;
+          --bad: #f08a80;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 32px 16px 64px;
+        background: var(--page);
+        color: var(--ink);
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      main { max-width: 560px; margin: 0 auto; }
+      h1 { font-size: 24px; line-height: 1.25; margin: 0 0 8px; text-wrap: balance; }
+      h2 { font-size: 17px; margin: 0 0 8px; }
+      p { margin: 0 0 12px; color: var(--muted); }
+      section { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 16px; background: var(--surface); }
+      label { display: block; font-weight: 600; margin-bottom: 4px; }
+      input, select, button { font: inherit; min-height: 44px; border-radius: 8px; border: 1px solid var(--line); padding: 8px 12px; }
+      input, select { width: 100%; background: var(--page); color: var(--ink); }
+      button { background: var(--accent); color: var(--page); border-color: transparent; font-weight: 600; cursor: pointer; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+      ul { margin: 0 0 12px; padding-left: 20px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+      .status { margin: 12px 0 0; min-height: 24px; color: var(--ink); }
+      .status[data-kind='good'] { color: var(--good); }
+      .status[data-kind='bad'] { color: var(--bad); }
+      .note { font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Confirm an action with your voice</h1>
+      <p>This page has no wallet. The server calls the Speak-to-Sign verifier and checks the signed verdict.</p>
+      <p id="fake-note" class="note" hidden>The server runs a fake verifier. It checks no voice. Select the sentence that the fake hears.</p>
+
+      <section>
+        <label for="user">User id</label>
+        <input id="user" value="user-42" autocomplete="off" spellcheck="false" />
+      </section>
+
+      <section aria-labelledby="enroll-title">
+        <h2 id="enroll-title">1. Enroll your voice</h2>
+        <p>Record three clips. Say one different sentence in each clip, for two to four seconds. Each recording ends by itself when you stop.</p>
+        <div class="row">
+          <button id="enroll-record" type="button">Record clip 1 of 3</button>
+        </div>
+        <p id="enroll-status" class="status" role="status"></p>
+      </section>
+
+      <section aria-labelledby="confirm-title">
+        <h2 id="confirm-title">2. Say one of these sentences</h2>
+        <ul id="actions"></ul>
+        <div id="fake-said-row" hidden>
+          <label for="fake-said">The fake verifier hears</label>
+          <select id="fake-said"></select>
+        </div>
+        <div class="row">
+          <button id="confirm-record" type="button">Record</button>
+        </div>
+        <p id="confirm-status" class="status" role="status"></p>
+      </section>
+    </main>
+
+    <!-- The page has no bundler, so it names where the capture library is. -->
+    <script type="importmap">
+      { "imports": { "@seams/voice-capture": "/voice-capture/browser/index.js" } }
+    </script>
+    <script type="module">
+      import { configureSpeakToSign, recordSentence } from '/speak-to-sign/browser.js';
+
+      configureSpeakToSign({ assetBase: '/voice-capture/assets/', label: 'Voice confirmation' });
+
+      const $ = (id) => document.getElementById(id);
+      const say = (id, text, kind = '') => {
+        $(id).textContent = text;
+        $(id).dataset.kind = kind;
+      };
+      const post = async (path, body) => {
+        const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return response.json();
+      };
+
+      const { fake, actions } = await (await fetch('/api/actions')).json();
+      $('actions').replaceChildren(...actions.map(({ summary }) => Object.assign(document.createElement('li'), { textContent: `"${summary}"` })));
+      if (fake) {
+        $('fake-note').hidden = false;
+        $('fake-said-row').hidden = false;
+        const options = [...actions.map(({ summary }, index) => [index, summary]), [-1, 'Other words']];
+        $('fake-said').replaceChildren(...options.map(([value, text]) => Object.assign(document.createElement('option'), { value, textContent: text })));
+      }
+
+      /**
+       * One button that records one sentence. The recording ends by itself at the pause after
+       * the speech. A second click stops it. `done` gets the WAV as base64.
+       */
+      function recorder(button, idleLabel, status, done) {
+        let stop = null;
+        button.addEventListener('click', async () => {
+          if (stop !== null) return stop.abort();
+          stop = new AbortController();
+          button.textContent = 'Stop';
+          say(status, 'Say the sentence now. The recording ends when you stop.');
+          try {
+            const recording = await recordSentence(null, { signal: stop.signal });
+            button.disabled = true;
+            if (recording.kind === 'recorded') await done(recording.wavBase64);
+            else say(status, recording.message, 'bad');
+          } catch (cause) {
+            if (stop.signal.aborted) say(status, 'The recording stopped.');
+            else say(status, cause?.name === 'NotAllowedError' ? 'Allow the microphone for this page, then record again.' : `The recording failed. ${cause?.message ?? ''}`, 'bad');
+          } finally {
+            stop = null;
+            button.disabled = false;
+            button.textContent = idleLabel();
+          }
+        });
+      }
+
+      const clips = [];
+      recorder($('enroll-record'), () => `Record clip ${clips.length + 1} of 3`, 'enroll-status', async (wav) => {
+        clips.push(wav);
+        if (clips.length < 3) return say('enroll-status', `Clip ${clips.length} of 3 is ready.`);
+        say('enroll-status', 'The verifier makes your voice template.');
+        const result = await post('/api/enroll', { user: $('user').value, clips: clips.splice(0) });
+        if (result.outcome === 'accept') say('enroll-status', 'Your voice is enrolled.', 'good');
+        else say('enroll-status', `The enrollment did not pass (${result.reason ?? result.error}). Record three new clips.`, 'bad');
+      });
+
+      recorder($('confirm-record'), () => 'Record', 'confirm-status', async (wav) => {
+        say('confirm-status', 'The verifier checks your voice and your words.');
+        const body = { user: $('user').value, audio: wav };
+        if (fake) body.fakeSaid = Number($('fake-said').value);
+        const result = await post('/api/confirm', body);
+        if (result.confirmed) say('confirm-status', `Confirmed: "${result.summary}".`, 'good');
+        else say('confirm-status', `Not confirmed (${result.reason ?? result.error}).${result.heard ? ` Heard: "${result.heard}".` : ''} Record again.`, 'bad');
+      });
+    </script>
+  </body>
+</html>

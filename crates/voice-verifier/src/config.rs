@@ -2,7 +2,7 @@
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.9.0";
+pub const VERIFIER_VERSION: &str = "0.11.0";
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.
@@ -17,6 +17,17 @@ pub const SIGNING_KEY_PATH: &str = "verdict";
 /// The prefix of the signed preimage:
 /// `signed message = SHA-256(VERDICT_DOMAIN || verdict JSON bytes)`.
 pub const VERDICT_DOMAIN: &[u8] = b"seams:outlayer:voice-verdict:v2";
+
+/// The prefix of the signed preimage of a transcript:
+/// `signed message = SHA-256(TRANSCRIPT_DOMAIN || transcript JSON bytes)`.
+/// It is not the verdict prefix, so no signature of a transcript is a
+/// signature of a verdict.
+pub const TRANSCRIPT_DOMAIN: &[u8] = b"seams:outlayer:voice-transcript:v1";
+
+/// The text of a signed transcript is cut to this many bytes (8 s of speech
+/// are about 20 words), so that the output stays below [`MAX_OUTPUT_BYTES`]
+/// with the longest owner and stage times.
+pub const MAX_TRANSCRIPT_BYTES: usize = 200;
 
 /// A verdict expires this long after the worker clock read before signing.
 pub const VERDICT_TTL_MS: u64 = 120_000;
@@ -43,9 +54,81 @@ pub const SPEAKER_PINNED_KEY_HEX: &str = "1f704027a643874bc8f4d9391065881cf66c9c
 /// The prefix of the preimage that the speaker service signs.
 pub const SPEAKER_EMBED_DOMAIN: &[u8] = b"seams:speaker-embedding:v1";
 
-/// ReDimNet B1: the model that the speaker service must name (lowercase hex
-/// SHA-256). A template records it.
-pub const REDIMNET_SHA256_HEX: &str = "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269";
+/// The host of the model file for the `local-speaker` build: FastFS, the
+/// file store on NEAR. The worker downloads the file only if its storage
+/// does not hold the model (`model_cache`). It refuses the bytes unless
+/// their SHA-256 is the pinned digest, so the host is not trusted for the
+/// model. To move
+/// the file, change this name and the same `host` in
+/// `manifest/outlayer-local-speaker.json` (a test checks that the two agree).
+macro_rules! model_host {
+    () => {
+        "test.fastfs.io"
+    };
+}
+
+/// One speaker model: every value that changes with the model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SpeakerModel {
+    /// A short name, for people.
+    pub name: &'static str,
+    /// Lowercase hex SHA-256 of the ONNX file. The speaker service must name
+    /// it, the `local-speaker` build refuses any other bytes, and a template
+    /// records it.
+    pub sha256_hex: &'static str,
+    /// Where the `local-speaker` build fetches the file.
+    pub url: &'static str,
+    /// The size of the file. A larger download is an error.
+    pub bytes: usize,
+    /// The number of values of one embedding.
+    pub embedding_dim: usize,
+    /// The speaker cutoff in thousandths of cosine. It belongs to the
+    /// model: another model needs its own measured cutoff.
+    pub cutoff_milli: i32,
+    /// The name of the ONNX output node with the embedding.
+    pub output: &'static str,
+}
+
+/// ReDimNet B1, the model of the Wallet (`@seams/voiceid`) and of the
+/// speaker service. The Wallet uses the cutoff 0.45
+/// (`VOICE_MATCH_THRESHOLD`).
+pub const REDIMNET_B1: SpeakerModel = SpeakerModel {
+    name: "redimnet-b1",
+    sha256_hex: "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269",
+    // Uploaded from `seams-v1.testnet` on 2026-11-10 (9 transactions to
+    // `outlayer.testnet`; the first is HVcxZzvRH2ne3uq4cELgmHEBkhmf96nxM5uiFFztVvbw).
+    url: concat!(
+        "https://",
+        model_host!(),
+        "/seams-v1.testnet/outlayer.testnet/e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269.onnx"
+    ),
+    bytes: 8_859_593,
+    embedding_dim: 192,
+    cutoff_milli: 450,
+    output: "embedding",
+};
+
+/// The speaker model of this build. To use another model (for example
+/// another ReDimNet size), add its [`SpeakerModel`] and name it here. The
+/// speaker service must run the same file. A template of another model is
+/// not read: its owner enrolls again. See README.md, "Another speaker
+/// model".
+pub const SPEAKER_MODEL: SpeakerModel = REDIMNET_B1;
+
+/// The digest of [`SPEAKER_MODEL`].
+pub const REDIMNET_SHA256_HEX: &str = SPEAKER_MODEL.sha256_hex;
+
+/// [`SPEAKER_MODEL`] values for the `local-speaker` build.
+pub const REDIMNET_BYTES: usize = SPEAKER_MODEL.bytes;
+pub const REDIMNET_URL: &str = SPEAKER_MODEL.url;
+pub const REDIMNET_TIMEOUT_SECS: u64 = 30;
+#[cfg(test)]
+const MODEL_HOST: &str = model_host!();
+
+/// The manifest of the `local-speaker` build. `main.rs` links it in place of
+/// `manifest/outlayer.json`.
+#[cfg(test)]
+const LOCAL_SPEAKER_MANIFEST_JSON: &str = include_str!("../manifest/outlayer-local-speaker.json");
 
 /// The NEAR AI Cloud host, endpoint, model and language.
 #[cfg(test)]
@@ -57,6 +140,32 @@ pub const NEAR_AI_LANGUAGE: &str = "en";
 pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
+
+/// The chat model of `detect`, on the same host as the speech-to-text
+/// model. The market resolver of this repository uses the same model.
+pub const NEAR_AI_CHAT_URL: &str = "https://cloud-api.near.ai/v1/chat/completions";
+pub const NEAR_AI_CHAT_MODEL: &str = "Qwen/Qwen3.8-27B";
+
+/// The prefix of the signed preimage of an intent result:
+/// `signed message = SHA-256(INTENT_DOMAIN || intent JSON bytes)`. It is not
+/// the prefix of a verdict or of a transcript.
+pub const INTENT_DOMAIN: &[u8] = b"seams:outlayer:voice-intent:v1";
+
+/// The prefix of the digest of the intent list of a `detect` input.
+pub const INTENTS_DIGEST_DOMAIN: &[u8] = b"seams:voice-intent:intents:v1";
+
+/// `detect` takes 1 to this many intents.
+pub const MAX_INTENTS: usize = 16;
+
+/// The heard words of a signed intent result are cut to this many bytes,
+/// and a text slot value is at most [`MAX_SLOT_VALUE_BYTES`], so that the
+/// output stays below [`MAX_OUTPUT_BYTES`].
+pub const MAX_INTENT_TEXT_BYTES: usize = 80;
+pub const MAX_SLOT_VALUE_BYTES: usize = 40;
+
+/// The slots of a signed intent result, as JSON, have at most this many
+/// bytes. A longer result has no slots.
+pub const MAX_SLOTS_JSON_BYTES: usize = 100;
 
 /// The NEAR RPC endpoint that `enroll` reads the owner's access key from
 /// (`view_access_key`, finality `final`). The verifier trusts this endpoint
@@ -87,12 +196,11 @@ pub const ENROLLMENT_RECIPIENT: &str = "seams-v1.testnet/voice-verifier";
 /// before the Borsh payload, so the signed bytes are never a transaction.
 pub const NEP413_TAG: u32 = 2_147_484_061;
 
-/// The speaker cutoff in thousandths of cosine. The Wallet uses 0.45
-/// (`VOICE_MATCH_THRESHOLD`).
-pub const SPEAKER_CUTOFF_MILLI: i32 = 450;
+/// The speaker cutoff of [`SPEAKER_MODEL`], in thousandths of cosine.
+pub const SPEAKER_CUTOFF_MILLI: i32 = SPEAKER_MODEL.cutoff_milli;
 
-/// ReDimNet embedding size.
-pub const EMBEDDING_DIM: usize = 192;
+/// The embedding size of [`SPEAKER_MODEL`].
+pub const EMBEDDING_DIM: usize = SPEAKER_MODEL.embedding_dim;
 
 /// Audio sample rate.
 pub const SAMPLE_RATE: u32 = 16_000;
@@ -114,6 +222,9 @@ pub const GATE_MAX_CLIPPED_PERMILLE: u32 = 10;
 
 /// At most this many contacts in a verify input.
 pub const MAX_CONTACTS: usize = 32;
+
+/// `select` takes 2 to this many candidate requests.
+pub const MAX_SELECT_REQUESTS: usize = 16;
 
 /// `enroll` takes exactly this many recordings.
 pub const ENROLL_RECORDINGS: usize = 3;
@@ -148,7 +259,7 @@ mod tests {
     #[test]
     fn manifest_matches_the_constants() {
         let manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
-        assert_eq!(manifest["operations"], json!(["enroll", "verify"]));
+        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select", "transcribe", "detect"]));
         // HTTPS calls: no callers block, and the default storage cell (the
         // payment-key owner).
         assert!(manifest.get("callers").is_none());
@@ -166,6 +277,20 @@ mod tests {
         );
         assert!(SPEAKER_EMBED_URL.starts_with(&format!("https://{SPEAKER_HOST}/")));
         assert!(NEAR_AI_TRANSCRIPTIONS_URL.starts_with(&format!("https://{NEAR_AI_HOST}/")));
+    }
+
+    /// The `local-speaker` manifest is the default manifest with the model
+    /// host in place of the speaker service host.
+    #[test]
+    fn local_speaker_manifest_differs_only_in_the_first_host() {
+        let mut manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
+        let local: Value = serde_json::from_str(LOCAL_SPEAKER_MANIFEST_JSON).unwrap();
+        assert_eq!(local["capabilities"]["network"][0]["host"], MODEL_HOST);
+        assert_eq!(local["capabilities"]["network"][0]["timeout_secs"], REDIMNET_TIMEOUT_SECS);
+        assert!(REDIMNET_URL.starts_with(&format!("https://{MODEL_HOST}/")));
+        manifest["capabilities"]["network"][0] = local["capabilities"]["network"][0].clone();
+        manifest["display"] = local["display"].clone();
+        assert_eq!(manifest, local);
     }
 
     #[test]

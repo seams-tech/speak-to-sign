@@ -410,7 +410,7 @@ first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'
 | VoiceID speech verification. | `seams-wallet`: commits that name VoiceID; `packages/voiceid` from 2026-10-26 | 2026-10-22 16:36, `9ace901f` | `TZ=UTC git -C seams-wallet log -i --grep=voiceid --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' \| sed -n 2p` |
 | The `spoken-intent` crate. It moved here from `seams-wallet` `crates/spoken-intent` with its history. | `speak-to-sign`: `crates/spoken-intent/` (was `spoken-intent/`) | 2026-11-07 06:50, `923e576` | `first speak-to-sign spoken-intent` |
 | The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `crates/voice-verifier/`, `crates/speaker-service/`, `research/gate0/` (was `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/`) | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
-| Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/speak-to-sign/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | `first seams-wallet packages/speak-to-sign` |
+| Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/speak-to-sign-wallet/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | `first seams-wallet packages/speak-to-sign` |
 | Spoken notes in the verifier (version 0.4.0). | `speak-to-sign`: `crates/voice-verifier/src` (was `voice-verifier/src`) | 2026-11-09 10:14, `ff1409b` | `TZ=UTC git -C speak-to-sign log -S community_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- voice-verifier/src \| head -1` |
 | The community notes contract. | `speak-to-sign`: `demo/contracts/community-notes/` (was `community-notes/`, then `contracts/community-notes/`) | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
 | Spoken notes in the Wallet. | `seams-wallet`: `packages/wallet/src` | 2026-11-09 10:25, `bec40080` | `TZ=UTC git -C seams-wallet log -S add_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- packages/wallet/src \| head -1` |
@@ -483,7 +483,12 @@ Each top-level folder says what its contents are for.
 | `crates/spoken-intent/` | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
 | `crates/voice-verifier/` | The OutLayer worker: `enroll` and `verify`. `scripts/fastfs_chunks.py` splits its WASM for the FastFS upload. See its README. |
 | `crates/speaker-service/` | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
-| `packages/speak-to-sign/` | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
+| `packages/speak-to-sign-wallet/` | `@seams/speak-to-sign-wallet` (until 0.65.0: `@seams/speak-to-sign`), the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
+| `packages/speak-to-sign/` | `@seams/speak-to-sign`, the library for an application with no wallet: record a sentence, call the verifier, check the verdict. It joins `voice-capture` and `voice-verdict`. |
+| `packages/voice-capture/` | `@seams/voice-capture`: records one spoken sentence in the browser. |
+| `packages/voice-verdict/` | `@seams/voice-verdict`: checks a signed verdict, a signed transcript and the TDX quote of a call. No dependency. |
+| `crates/voice-verdict/` | The verdict check in Rust, for a server or a contract. |
+| `examples/voice-confirm/` | A Web2 page and server with no wallet: enroll a voice and confirm an action. |
 | `demo/frontend/` | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
 | `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
 | `demo/contracts/jev-prediction-market/` | The note market `pm-notes.seams-v1.testnet`: parimutuel bets in testnet USDC on a community note, resolved by JEV through OutLayer (`resolver/`), with a JEV-weighted payout. See its README. |

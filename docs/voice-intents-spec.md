@@ -29,7 +29,7 @@ This document is the specification. The diagrams are in
 | `spoken-intent` | `crates/spoken-intent/` | Renders a request to its sentence, computes the digests, and reads transcripts. `no_std`, with no floats, clock or randomness. |
 | Verifier | `crates/voice-verifier/` | The operations `enroll` and `verify`. It keeps the templates and signs the verdicts. |
 | Speaker service | `crates/speaker-service/` | ReDimNet B1 in a Phala dstack CVM. It returns a signed speaker embedding. It gives no verdict. |
-| Plugin | `packages/speak-to-sign/` | `@seams/speak-to-sign`, the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
+| Plugin | `packages/speak-to-sign-wallet/` | `@seams/speak-to-sign-wallet`, the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
 | Wallet core | `seams-wallet` | Records the audio, checks the verdict against a pinned key, and signs the one transaction. |
 | Contracts | `demo/contracts/` | The targets of the requests. The voice multisig also checks the verdict on chain. |
 
@@ -45,6 +45,14 @@ decoding refuses it. Tag 3 is reserved.
 | 4 | `CommunityNote` | `community_note` | the summary of the note, 1 to 12 words | network, owner, contract, post id, SHA-256 of the note text |
 | 5 | `NoteRating` | `note_rating` | "this note is helpful", "this note is somewhat helpful" or "this note is not helpful" | network, owner, contract, note id |
 | 6 | `MergeApproval` | `merge_approval` | "merge pull request forty two into main" | network, owner, contract, SHA-256 of the repository name, head commit |
+
+Later tags, with their own sections in `crates/voice-verifier/README.md`:
+7 `MarketBet`, 8 `Transaction`, 9 `SignedMessage` and 10 `Confirmation`.
+Tag 10 is for an application owner (`app:<id>`) and has no network and no
+NEAR account: `{owner, context, payload_sha256, summary}`. The operation
+`select` takes 2 to 16 candidate requests and signs a verdict for the one
+that the owner said. The plan for use with no wallet is in
+[`standalone-library.md`](standalone-library.md).
 
 The types hold the grammar rules, so `render` cannot fail:
 
@@ -350,6 +358,6 @@ has the interface.
 | Grammar types and digests | `crates/spoken-intent/src/lib.rs`, `request.rs` |
 | Near misses | `crates/spoken-intent/src/confusion.rs` |
 | Word decision | `crates/voice-verifier/src/words.rs` |
-| Plugin files | `packages/speak-to-sign/src/README.md` |
+| Plugin files | `packages/speak-to-sign-wallet/src/README.md` |
 | Voice multisig contract | `demo/contracts/voice-multisig/README.md` |
 | Deployed accounts and versions | The "Testnet facts" table of the root `README.md` |

@@ -23,6 +23,21 @@ pub struct Timed {
     pub ms: u64,
 }
 
+/// The result of [`Host::embed_local`].
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LocalEmbeddings {
+    /// The raw model output (192 values, not normalized) of each clip, in
+    /// input order.
+    pub embeddings: Vec<Vec<f32>>,
+    /// The time to get the model, from the storage or by a download, in ms.
+    pub fetch_ms: u64,
+    /// `true` if the model came from the storage of the worker, with no
+    /// download.
+    pub model_cached: bool,
+    /// The time of the model runs (plan and inference), in ms.
+    pub run_ms: u64,
+}
+
 /// The worker environment.
 pub trait Host {
     /// A project secret (an OutLayer secret arrives as an environment
@@ -54,6 +69,14 @@ pub trait Host {
     fn post_wait(&mut self) -> Vec<Timed>;
     /// Drops the started batch without waiting (after a refusal).
     fn post_cancel(&mut self);
+    /// Runs the speaker model inside the worker on each clip (16 kHz mono
+    /// samples). Only the `local-speaker` build has the model; any other
+    /// host returns an error. The host reads the model from its storage, or
+    /// downloads it, and checks its pinned digest before it runs it. A batch that [`Host::post_start`]
+    /// started stays in flight during the call.
+    fn embed_local(&mut self, _clips: &[&[i16]]) -> Result<LocalEmbeddings, String> {
+        Err("no_local_model".to_string())
+    }
     /// 32 random bytes.
     fn random32(&mut self) -> Result<[u8; 32], String>;
     /// The wall clock, in ms since the UNIX epoch. It sets the verdict expiry.

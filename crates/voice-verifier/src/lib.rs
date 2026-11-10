@@ -11,6 +11,9 @@
 //!   (`bind: "project"`), and the Wallet checks that signature against the
 //!   key that it pins.
 //!
+//! The feature `local-speaker` gives a second variant of the worker: ReDimNet
+//! runs inside the worker (`local_model`), and no request goes to Phala.
+//!
 //! The pure parts live here and build natively for tests. The binary adds
 //! the OutLayer host in `wasm_host.rs` (storage, secrets, signing, the clock
 //! and `wasi:http`).
@@ -23,6 +26,10 @@ pub mod digest;
 mod embedding;
 pub mod host;
 pub mod input;
+pub mod intent;
+#[cfg(feature = "local-speaker")]
+pub mod local_model;
+pub mod model_cache;
 pub mod ops;
 pub mod output;
 pub mod policy;

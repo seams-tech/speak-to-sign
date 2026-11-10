@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>voice-capture example</title>
+    <style>
+      body { margin: 0; padding: 2rem 1rem; font-family: system-ui, sans-serif; background: #f5f6f8; color: #14161a; }
+      main { max-width: 26.25rem; margin: 0 auto; display: grid; gap: 1rem; }
+      .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      button.start { padding: 0.6rem 1rem; border-radius: 0.75rem; border: 1px solid #c9ced6; background: #fff; font: inherit; cursor: pointer; }
+      pre { margin: 0; padding: 0.75rem; background: #fff; border: 1px solid #dfe3e8; border-radius: 0.75rem; white-space: pre-wrap; font-size: 0.8rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>voice-capture</h1>
+      <p>This page uses only <code>@seams/voice-capture</code>. The audio stays in the page.</p>
+      <label><input type="checkbox" id="level" /> Record with no model download (the detector <code>level</code>)</label>
+      <div class="row">
+        <button class="start" id="sentence">Record one sentence</button>
+        <button class="start" id="enroll">Record three enrollment phrases</button>
+      </div>
+      <pre id="log" aria-live="polite">Nothing recorded yet.</pre>
+      <div id="card"></div>
+    </main>
+    <script type="module" src="./example.js"></script>
+  </body>
+</html>

@@ -3,12 +3,16 @@
 //! ed25519 signing key. `fake.rs` holds the fake host and the shared input
 //! builders; each other file tests one operation or one request kind.
 mod bets;
+mod detect;
 mod enroll;
 mod fake;
+mod local_speaker;
 mod merges;
 mod multisig;
 mod notes;
+mod transcribe;
 mod verify;
+mod web2;
 
 use serde_json::json;
 

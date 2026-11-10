@@ -1,0 +1,58 @@
+{
+  "name": "@seams/speak-to-sign-wallet",
+  "version": "0.65.0",
+  "type": "module",
+  "description": "The Speak-to-Sign host plugin for Seams Wallet, built on VoiceID (until 0.65.0: @seams/speak-to-sign)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/speak-to-sign.git",
+    "directory": "packages/speak-to-sign-wallet"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./hosting": {
+      "types": "./dist/hosting.d.mts",
+      "import": "./dist/hosting.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE.md",
+    "!dist/**/*.map",
+    "src/README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs && tsrs -p tsconfig.build.json",
+    "type-check": "tsrs --noEmit",
+    "test": "playwright test"
+  },
+  "peerDependencies": {
+    "@seams/voiceid": "0.65.0",
+    "@seams/wallet": "0.65.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@seams/voiceid": "0.65.0",
+    "@seams/wallet": "0.65.0",
+    "@types/node": "24.2.0",
+    "rolldown": "1.0.0-rc.9",
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
+  "bin": {
+    "seams-speak-to-sign-host": "dist/compose-host.mjs"
+  }
+}

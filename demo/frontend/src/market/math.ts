@@ -75,10 +75,13 @@ export function percentText(bps: number): string {
   return `${Math.round(bps / 100)}%`;
 }
 
-/** "2 d left", "5 h left", "closing". */
+/** "2 d left", "5 h left", "2 min 30 s left", "45 s left", "closing". */
 export function timeLeftText(closesAtMs: number, nowMs = Date.now()): string {
-  const minutes = Math.floor((closesAtMs - nowMs) / 60_000);
-  if (minutes <= 0) return 'closing';
+  const seconds = Math.floor((closesAtMs - nowMs) / 1_000);
+  if (seconds <= 0) return 'closing';
+  if (seconds < 60) return `${seconds} s left`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 10) return `${minutes} min ${seconds % 60} s left`;
   if (minutes < 60) return `${minutes} min left`;
   const hours = Math.floor(minutes / 60);
   if (hours < 48) return `${hours} h left`;
@@ -98,4 +101,13 @@ export function betSentence(side: Side, amount: bigint, currency: Currency = NEA
   const tenth = Number(tenths % 10n);
   const number = whole < 10 ? (tenth === 0 ? DIGITS[whole] : `${DIGITS[whole]} point ${DIGITS[tenth]}`) : String(whole);
   return `bet ${number} ${currency.spoken} ${side} on this note`;
+}
+
+/** JEV's answer in plain words, for the resolved strip. */
+export function jevSentence(verdictBps: number): string {
+  if (verdictBps >= 9_000) return 'JEV is sure that this note holds up.';
+  if (verdictBps >= 6_000) return 'JEV thinks that this note probably holds up.';
+  if (verdictBps > 4_000) return 'JEV is not sure either way.';
+  if (verdictBps > 1_000) return 'JEV thinks that this note probably does not hold up.';
+  return 'JEV is sure that this note does not hold up.';
 }

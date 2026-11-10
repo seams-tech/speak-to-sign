@@ -45,6 +45,67 @@
 .nm-bar-no {
   background: var(--red);
 }
+/* The bar slides to new odds after a bet, and to JEV's split when JEV answers. */
+.nm-bar-yes,
+.nm-bar-no {
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* A bet that went out and is not in the market's view yet. */
+.nm-bar-pending {
+  animation: nm-pulse 1.2s ease-in-out infinite;
+}
+/* "Close betting and ask JEV now" and "Ask JEV now": one full-width button. */
+.nm-ask {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
+  gap: 6px;
+  justify-content: center;
+}
+/* While JEV decides: a spinner and two lines. */
+.nm-jev {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
+.nm-jev > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nm-spinner {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: nm-spin 0.8s linear infinite;
+}
+@keyframes nm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* JEV's answer in plain words. */
+.nm-verdict {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+/* The result slides in when JEV answers in this view. */
+.nm-reveal {
+  animation: nm-reveal 0.5s ease-out both;
+}
+@keyframes nm-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
 .nm-spark {
   display: block;
   width: 100%;
@@ -177,7 +238,16 @@
 @media (prefers-reduced-motion: reduce) {
   .nm-loading .nm-bar,
   .nm-loading .nm-sk,
-  .nm-loading .nm-bet {
+  .nm-loading .nm-bet,
+  .nm-bar-pending,
+  .nm-reveal {
     animation: none;
+  }
+  .nm-bar-yes,
+  .nm-bar-no {
+    transition: none;
+  }
+  .nm-spinner {
+    animation-duration: 2.4s;
   }
 }

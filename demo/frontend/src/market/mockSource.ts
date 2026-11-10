@@ -3,7 +3,15 @@
 
 import type { SignResult } from '../signer/notesSigner';
 import { yesShareBps } from './math';
-import { NEAR_CURRENCY, type Currency, type MarketPosition, type MarketSource, type NoteMarket, type OddsPoint } from './types';
+import {
+  NEAR_CURRENCY,
+  type Currency,
+  type MarketPosition,
+  type MarketSource,
+  type NoteMarket,
+  type OddsPoint,
+  type SignProgress,
+} from './types';
 
 export interface MockMarketSource extends MarketSource {
   /** Ends betting, as the close time would. */
@@ -22,6 +30,8 @@ interface MockOptions {
   jevAnswer?: { verdictBps: number; rationale: string };
   /** The money of the markets. Default: NEAR. With USDC, the pools are 10 times larger. */
   currency?: Currency;
+  /** The signed-in account: the creator of the markets that it opens. */
+  account?: string;
 }
 
 const DAY_MS = 86_400_000;
@@ -38,6 +48,13 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
   const histories = new Map<number, OddsPoint[]>();
   const positions = new Map<number, MarketPosition>();
   const delay = () => new Promise((resolve) => setTimeout(resolve, options.delayMs ?? 700));
+  /** The Wallet's confirm, then the transaction: each takes one delay. */
+  const signed = async (progress?: SignProgress) => {
+    progress?.('confirm');
+    await delay();
+    progress?.('sent');
+    await delay();
+  };
   const currency = options.currency ?? NEAR_CURRENCY;
   // A tenth of the pool unit: 0.1 NEAR, or 1 USDC.
   const tenth = currency.symbol === 'NEAR' ? 10n ** BigInt(currency.decimals) / 10n : 10n ** BigInt(currency.decimals);
@@ -66,6 +83,7 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
   };
 
   const sent = (): SignResult => ({ kind: 'sent', transactionHash: `mock${Math.random().toString(36).slice(2, 12)}` });
+  const answer = answerWith(options, sent);
 
   return {
     signsByVoice: options.signsByVoice ?? true,
@@ -87,8 +105,8 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
       return [...(histories.get(marketId) ?? [])];
     },
 
-    async bet({ marketId, side, amount }) {
-      await delay();
+    async bet({ marketId, side, amount }, progress) {
+      await signed(progress);
       const market = markets.get(marketId);
       if (!market || market.status !== 'open') return { kind: 'refused', reason: 'This market is closed for bets.' };
       if (side === 'yes') market.yesPool += amount;
@@ -102,8 +120,8 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
       return sent();
     },
 
-    async claim(marketId) {
-      await delay();
+    async claim(marketId, progress) {
+      await signed(progress);
       const market = markets.get(marketId);
       const position = positions.get(marketId);
       if (!market || market.status !== 'resolved' || !position) return { kind: 'refused', reason: 'Nothing to claim yet.' };
@@ -111,24 +129,41 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
       return sent();
     },
 
-    async requestResolution(marketId) {
+    async requestResolution(marketId, progress) {
+      await signed(progress);
       await delay();
+      return answer(markets.get(marketId), false);
+    },
+
+    async closeAndRequestResolution(marketId, progress) {
+      await signed(progress);
+      await delay();
+      return answer(markets.get(marketId), true);
+    },
+
+    async closeMarket(marketId) {
       await delay();
       const market = markets.get(marketId);
-      if (!market || market.status !== 'closed') return { kind: 'refused', reason: 'Only a closed market can go to JEV.' };
-      const answer = options.jevAnswer ?? {
-        verdictBps: 9_300,
-        rationale: 'The note links the original study, and the post misquotes its main number. The sources agree.',
-      };
-      applyVerdict(market, answer.verdictBps, answer.rationale);
+      if (!market || market.status !== 'open') return { kind: 'refused', reason: 'This market is not open.' };
+      market.status = 'closed';
       return sent();
     },
 
-    async createMarket({ noteId, question, closesAtMs, seed }) {
-      await delay();
+    async createMarket({ noteId, question, closesAtMs, seed }, progress) {
+      await signed(progress);
       if (markets.has(noteId)) return { kind: 'refused', reason: 'This note has a market.' };
       const half = seed / 2n;
-      const market: NoteMarket = { id: noteId, noteId, question, closesAtMs, status: 'open', yesPool: half, noPool: seed - half, bets: 0 };
+      const market: NoteMarket = {
+        id: noteId,
+        noteId,
+        question,
+        closesAtMs,
+        status: 'open',
+        yesPool: half,
+        noPool: seed - half,
+        bets: 0,
+        creator: options.account,
+      };
       markets.set(noteId, market);
       histories.set(noteId, [{ atMs: Date.now(), yesBps: 5_000 }]);
       positions.set(noteId, { yes: half, no: seed - half, claimed: false });
@@ -144,6 +179,23 @@ export function createMockMarketSource(options: MockOptions = {}): MockMarketSou
       const market = marketOf(noteId);
       if (market) applyVerdict(market, verdictBps, rationale);
     },
+  };
+}
+
+/** Tells whether a closed market (or an open one with `closeFirst`) went to JEV, and applies JEV's answer. */
+function answerWith(
+  options: MockOptions,
+  sent: () => SignResult,
+): (market: NoteMarket | undefined, closeFirst: boolean) => SignResult {
+  return (market, closeFirst) => {
+    const ready = market && (market.status === 'closed' || (closeFirst && market.status === 'open'));
+    if (!market || !ready) return { kind: 'refused', reason: 'Only a closed market can go to JEV.' };
+    const answer = options.jevAnswer ?? {
+      verdictBps: 9_300,
+      rationale: 'The note links the original study, and the post misquotes its main number. The sources agree.',
+    };
+    applyVerdict(market, answer.verdictBps, answer.rationale);
+    return sent();
   };
 }
 

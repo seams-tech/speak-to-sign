@@ -12,6 +12,15 @@ import type { SignResult } from '../signer/notesSigner';
 export type Side = 'yes' | 'no';
 
 /**
+ * Where a signed change is: `confirm` while the Wallet shows its confirm step, `sent` after the
+ * user approved and the transaction went out. The strip uses it to say what happens now.
+ */
+export type SignStage = 'confirm' | 'sent';
+
+/** Reports the stages of one signed change. */
+export type SignProgress = (stage: SignStage) => void;
+
+/**
  * `open`: bets are on. `closed`: bets are off, and the market waits for JEV. `resolving`: a
  * request to JEV waits for its answer. `resolved`: final.
  */
@@ -84,21 +93,29 @@ export interface MarketSource {
   /** The newest points of the odds chart, oldest first (the contract keeps about 50). */
   getOddsHistory(marketId: number): Promise<OddsPoint[]>;
   /** Puts `amount` on `side`. The Wallet signs; a spoken bet when `signsByVoice`. */
-  bet(input: { marketId: number; side: Side; amount: bigint }): Promise<SignResult>;
+  bet(input: { marketId: number; side: Side; amount: bigint }, progress?: SignProgress): Promise<SignResult>;
   /** Takes the account's payout of a resolved market. */
-  claim(marketId: number): Promise<SignResult>;
+  claim(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /**
    * Asks JEV to decide a closed market (the contract's `request_resolution`, which needs a fee).
    * Leave it out to hide the "Ask JEV now" button, for example when a script resolves markets.
    */
-  requestResolution?(marketId: number): Promise<SignResult>;
+  requestResolution?(marketId: number, progress?: SignProgress): Promise<SignResult>;
+  /**
+   * Stops the betting and asks JEV in one transaction (the creator of the market): one confirm
+   * in place of two. Leave it out to hide "Close and ask JEV now".
+   */
+  closeAndRequestResolution?(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /** True when the Wallet signs a bet by voice: the sheet then shows the sentence to say. */
   signsByVoice: boolean;
   /**
    * Opens a market on a note (the contract's `create_market`). `seed` goes half on yes and half
    * on no. Leave it out to hide "Open a market".
    */
-  createMarket?(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }): Promise<SignResult>;
+  createMarket?(
+    input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint },
+    progress?: SignProgress,
+  ): Promise<SignResult>;
   /** Stops the betting now (the creator of the market). Leave it out to hide "Close betting now". */
   closeMarket?(marketId: number): Promise<SignResult>;
   /** False while new markets cannot open, for example before the contract is on testnet. */

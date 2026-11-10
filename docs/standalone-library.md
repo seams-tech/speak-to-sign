@@ -475,7 +475,7 @@ pushed, published or deployed.
 | Variant `local-speaker` (ReDimNet in the worker) | `crates/voice-verifier/src/local_model.rs`, `build.sh --local-speaker` | Fake host, and the real model in a native run |
 | One constant for the speaker model | `config::SPEAKER_MODEL` | Existing tests |
 | Request builder, verifier client, transcript check | `packages/voice-verdict/src/request.ts`, `client.ts`, `verdict.ts` | Golden vectors, fake OutLayer |
-| TDX quote of a call | `packages/voice-verdict/src/attestation.ts` | A real testnet attestation |
+| TDX quote of a call | `packages/voice-verdict/src/attestation.ts`, and in Rust `crates/voice-verdict/src/attestation.rs` (2026-11-11) | Two real testnet attestations (0.5.2, and 0.11.0 with an input in unsorted key order) |
 | Web2 example with no wallet | `examples/voice-confirm` | Run with its fake verifier |
 
 ### 4.3 The TDX quote: what the probe measured

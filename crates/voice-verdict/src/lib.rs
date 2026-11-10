@@ -18,10 +18,20 @@
 //!     |signature, message, key| env::ed25519_verify(signature, message, key),
 //! );
 //! ```
+//!
+//! [`check_attestation_binding`] checks the TDX quote of an OutLayer call:
+//! that it binds the output of the call to a WASM that you accept.
 #![no_std]
 #![forbid(unsafe_code)]
 
 extern crate alloc;
+
+pub mod attestation;
+
+pub use attestation::{
+    check_attestation_binding, parse_attestation_record, AttestationRecord, AttestationRefusal,
+    Binding, Bound, Measurements,
+};
 
 use alloc::boxed::Box;
 use alloc::string::String;

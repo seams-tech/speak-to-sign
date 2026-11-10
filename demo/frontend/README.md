@@ -458,9 +458,8 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
   grid, flows it and adds grain. The page has two themes, and each has
   one of the site's gradients: Light mode (Apricot Beam, the default) and
-  Dark mode (Aqua Evergreen, with the dark blue of Twitter's dark mode, X's
-  Dim). The theme picker (`ThemePicker.tsx`, `theme.ts`), in the nav's brand
-  pill, is a round button with a picture of the field. It opens a menu of
+  Dark mode (Onyx Black, with X's black, Lights out). The theme picker
+  (`ThemePicker.tsx`, `theme.ts`), in the nav's brand pill, is a round button with a picture of the field. It opens a menu of
   the two, each with a picture; the arrow keys change the theme as they move.
   The choice stays in this browser (`localStorage`), and `?theme=light` or
   `?theme=dark` picks one for a link. The page puts it on the root element as `data-theme`. The

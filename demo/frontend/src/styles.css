@@ -35,29 +35,29 @@
 }
 
 /* The dark theme of the Community Notes page (its theme picker sets data-theme on the root):
-   the dark blue of Twitter's dark mode, now X's Dim. Blue, green, red and gold stay as in the
-   light theme, as on X. It applies to the notes app, its dialogs on document.body and the
-   page's sheet, but not to the hero and the nav: those keep the light colours on the hero's
-   field, also where they use the app's classes (the setup steps). */
+   X's black, Lights out. Blue, green, red and gold stay as in the light theme, as on X. It
+   applies to the notes app, its dialogs on document.body and the page's sheet, but not to the
+   hero and the nav: those keep the light colours on the hero's field, also where they use the
+   app's classes (the setup steps). */
 :root[data-theme='dark'] :is(.notes-app, .overlay, .wallet-wait, .ss-sheet) {
-  --bg: #15202b;
-  --ink: #f7f9f9;
+  --bg: #000;
+  --ink: #e7e9ea;
   --on-ink: #0f1419;
   --ink-hover: #d7dbdc;
-  --muted: #8b98a5;
-  --line: #38444d;
-  --line-strong: #425364;
-  --accent-bg: #162f43;
-  --panel: #1e2732;
-  --hover: rgba(247, 249, 249, 0.1);
+  --muted: #71767b;
+  --line: #2f3336;
+  --line-strong: #3e4246;
+  --accent-bg: #031018;
+  --panel: #16181c;
+  --hover: rgba(231, 233, 234, 0.1);
   --hover-soft: rgba(255, 255, 255, 0.03);
-  --media: #273340;
-  --faint: #536471;
+  --media: #202327;
+  --faint: #464a4f;
   --contrast: #fff;
-  --warn-bg: #2b2b1f;
-  --warn-line: #4d4526;
+  --warn-bg: #1a1708;
+  --warn-line: #3a3315;
   --warn-ink: #f0d175;
-  --stripe: #1c2a37;
+  --stripe: #121416;
   color-scheme: dark;
 }
 

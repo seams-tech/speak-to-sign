@@ -8,10 +8,10 @@
 import { useSyncExternalStore } from 'react';
 import { grainFieldSource, type GrainFieldName } from './grain/fields';
 
-/** The themes, in the picker's order. "Dark mode" is the dark blue of Twitter's dark mode (X's Dim). */
+/** The themes, in the picker's order. "Dark mode" is X's black (Lights out). */
 export const THEMES = {
   light: { label: 'Light mode', field: 'apricot-beam' },
-  dark: { label: 'Dark mode', field: 'aqua-evergreen' },
+  dark: { label: 'Dark mode', field: 'onyx-black' },
 } as const satisfies Record<string, { label: string; field: GrainFieldName }>;
 
 export type ThemeName = keyof typeof THEMES;

@@ -75,8 +75,8 @@ Each deploy is the project owner's decision.
 | Part | What | Note |
 | --- | --- | --- |
 | Contract | `team.seams-v1.testnet`, built from `../contracts/voice-multisig/` | `new` with the members, the threshold and the verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. Fund it with a plain transfer. |
-| Verifier | An OutLayer verifier version with `multisig_propose` and `multisig_confirm` (0.6.0 or later) | The active version does not know these kinds. Its WASM hash goes in `VOICE_OUTLAYER_VERSION_KEY`. |
-| Pages secrets | The six `VOICE_OUTLAYER_*` variables (see Settings) | The same payment key, project and secrets profile as the Seams staging verify route. |
+| Verifier | An OutLayer verifier version with `multisig_propose` and `multisig_confirm` (0.6.0 or later) | 0.6.0, `566e8cbc…`, added on 2026-11-10 and not active. The active version does not know these kinds. Its WASM hash goes in `VOICE_OUTLAYER_VERSION_KEY`. |
+| Pages secrets | The six `VOICE_OUTLAYER_*` variables (see Settings) | Set in production on 2026-11-10: the same payment key, project and secrets profile (`main`, `cyan-loong.testnet`) as the Seams staging verify route, with the 0.6.0 version key. A probe with this key gave the verdict key `ed25519:E8E53y…o751U`. They take effect at the next Pages deploy. |
 
 **Why the same OutLayer payment key.** Over HTTPS, OutLayer derives the
 verifier's storage cell and its verdict signing key from the owner of the

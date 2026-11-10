@@ -188,10 +188,10 @@ The proposal is hidden from the chain and from the members' pages until
 2. Is the speaker cutoff safe as a refusal cutoff between two members, or
    does it refuse two different people with similar voices? Measure it with
    the enrolled test voices.
-3. Deploys: the verifier 0.6.0 (a new version key; the active 0.5.2 does not
-   know the multisig kinds), the contract (`team.seams-v1.testnet`) and the
-   page's OutLayer secrets (the Seams payment key). Each waits for the
-   owner's go-ahead.
+3. Deploys: the verifier 0.6.0 and the page's OutLayer secrets are done
+   (2026-11-10; 0.6.0 is added but not active, and the route selects it by
+   version key). The contract (`team.seams-v1.testnet`) waits for the member
+   list.
 4. The 1,024-byte output cap comes from the on-chain OutLayer path, which the
    verifier no longer uses. If the HTTPS path allows more, a confirmation can
    also return the salt, so that any member who confirmed can execute.

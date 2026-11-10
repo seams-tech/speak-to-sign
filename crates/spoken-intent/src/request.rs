@@ -149,6 +149,43 @@ pub enum SpokenRequestV1 {
         /// The stake that the text says.
         amount: UsdcAmount,
     } = 7,
+    /// Any NEAR transaction from the owner's own account: any number of
+    /// actions of any kind, for any receiver. Only the summary is said. The
+    /// actions are bound by their SHA-256, so the verdict approves exactly
+    /// one list of actions for one receiver.
+    ///
+    /// The summary is free text from the application. The voice proves who
+    /// approves and that this person said the summary; it does not prove
+    /// that the summary describes the actions. The Wallet shows the
+    /// transaction itself with the summary.
+    Transaction {
+        /// The network of the transaction.
+        network: Network,
+        /// The signer, named or implicit. The text does not say it.
+        owner: NearAccount,
+        /// The receiver of the transaction. The text does not say it.
+        receiver: NearAccount,
+        /// SHA-256 of the Borsh of the transaction's `Vec<Action>`, as the
+        /// bytes stand in the unsigned transaction (the length, then each
+        /// action).
+        actions_sha256: [u8; 32],
+        /// The summary that the owner says.
+        summary: SpokenSummary,
+    } = 8,
+    /// A NEP-413 message that the owner signs with the key of the account.
+    /// Only the summary is said, as for [`SpokenRequestV1::Transaction`].
+    SignedMessage {
+        /// The network of the account.
+        network: Network,
+        /// The signer, named or implicit. The text does not say it.
+        owner: NearAccount,
+        /// The 32 bytes that the key signs: SHA-256 of the Borsh of the
+        /// NEP-413 tag (2^31 + 413, a `u32`) and of the payload (message,
+        /// nonce, recipient, callback URL).
+        payload_sha256: [u8; 32],
+        /// The summary that the owner says.
+        summary: SpokenSummary,
+    } = 9,
 }
 
 /// The outcome of a market that a bet backs.

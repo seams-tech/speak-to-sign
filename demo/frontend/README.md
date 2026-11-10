@@ -286,7 +286,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |
 | `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` | Secret. The OAuth 1.0a Access Token and secret of the same account. Required. A Bearer Token does not work on this endpoint. |
 | `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 20.               |
-| `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 3600, minimum 60. |
+| `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 21600 (6 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
 | `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment`. `all` turns the filter off. The filter needs `NEAR_AI_API_KEY`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://api.outlayer.fastnear.com`. |
@@ -346,8 +346,8 @@ mode and never sends a note to X.
   signs with OAuth 1.0a (`functions/lib/oauth1.ts`).
 - **Cost.** X bills each post ($0.005) and each author ($0.010) that it
   returns, once for each UTC day. The route keeps one snapshot and asks X again
-  only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults, one call costs $0.30
-  at most.
+  only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults (20 posts, each 6
+  hours), one call costs $0.30 at most and one day costs $1.20 at most.
 - **Snapshot.** Without a binding, the snapshot is in Cloudflare's Cache API,
   one copy for each Cloudflare location. Bind a KV namespace as `X_CACHE` for
   one copy for all locations.

@@ -32,7 +32,7 @@ X_API_KEY=
 X_API_SECRET=
 X_ACCESS_TOKEN=
 X_ACCESS_TOKEN_SECRET=
-# Optional. Posts for each call to X (default 20), seconds between calls (default 3600), and
+# Optional. Posts for each call to X (default 20), seconds between calls (default 21600), and
 # a language code or "all" (X's default is English).
 X_ELIGIBLE_MAX=
 X_ELIGIBLE_TTL_SECONDS=

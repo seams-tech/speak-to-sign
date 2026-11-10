@@ -27,7 +27,7 @@ export interface Env {
   X_ACCESS_TOKEN_SECRET?: string;
   /** Optional. Posts for each call to X, 1 to 100. Default 20. */
   X_ELIGIBLE_MAX?: string;
-  /** Optional. The age at which the route asks X again. Default 3600, minimum 60. */
+  /** Optional. The age at which the route asks X again. Default 21600 (6 hours), minimum 60. */
   X_ELIGIBLE_TTL_SECONDS?: string;
   /** Optional. A language code such as "ja", or "all". X's default is English. */
   X_ELIGIBLE_LANG?: string;
@@ -106,7 +106,8 @@ export interface Deps {
 
 const X_URL = 'https://api.x.com/2/notes/search/posts_eligible_for_notes';
 const DEFAULT_MAX = 20;
-const DEFAULT_TTL_SECONDS = 3_600;
+// The demo needs some fresh posts each day, not a live feed. Four calls a day keep the X bill low.
+const DEFAULT_TTL_SECONDS = 6 * 3_600;
 const MIN_TTL_SECONDS = 60;
 /** After a failed call, the route waits this long before it asks X again. */
 export const RETRY_AFTER_FAILURE_MS = 60_000;

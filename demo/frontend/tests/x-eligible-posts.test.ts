@@ -20,7 +20,7 @@ import {
 import { oauth1Header, queryString, rfc3986 } from '../functions/lib/oauth1.ts';
 import { classifyPosts, parseTopicLines } from '../functions/lib/topicFilter.ts';
 
-const ENV: Env = { X_API_KEY: 'ck', X_API_SECRET: 'SECRET-ONE', X_ACCESS_TOKEN: 'at', X_ACCESS_TOKEN_SECRET: 'SECRET-TWO', X_ELIGIBLE_TOPICS: 'all' };
+const ENV: Env = { X_API_KEY: 'ck', X_API_SECRET: 'SECRET-ONE', X_ACCESS_TOKEN: 'at', X_ACCESS_TOKEN_SECRET: 'SECRET-TWO', X_ELIGIBLE_TOPICS: 'all', X_ELIGIBLE_TTL_SECONDS: '3600' };
 /** The settings with the subject filter on. */
 const FILTER_ENV: Env = { ...ENV, X_ELIGIBLE_TOPICS: undefined, NEAR_AI_API_KEY: 'SECRET-AI' };
 const T0 = 1_800_000_000_000;
@@ -143,12 +143,12 @@ test('oauth1Header agrees with an HMAC-SHA1 from node:crypto for the route reque
 test('readSettings needs all four keys and clamps the optional values', () => {
   assert.equal(readSettings({}), 'no-keys');
   assert.equal(readSettings({ ...ENV, X_ACCESS_TOKEN_SECRET: ' ' }), 'no-keys');
-  const defaults = settingsOf(ENV);
-  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [20, 3_600_000, null]);
+  const defaults = settingsOf({ ...ENV, X_ELIGIBLE_TTL_SECONDS: undefined });
+  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang], [20, 21_600_000, null]);
   const set = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '500', X_ELIGIBLE_TTL_SECONDS: '5', X_ELIGIBLE_LANG: ' JA ' });
   assert.deepEqual([set?.maxResults, set?.ttlMs, set?.lang], [100, 60_000, 'ja']);
   const bad = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '-3', X_ELIGIBLE_TTL_SECONDS: 'soon', X_ELIGIBLE_LANG: 'feed_size:xxl' });
-  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [20, 3_600_000, null]);
+  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [20, 21_600_000, null]);
 });
 
 test('parseEligiblePosts keeps the good posts and checks every field', () => {

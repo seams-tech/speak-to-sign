@@ -1800,7 +1800,7 @@ fieldset:disabled .choice {
 /* In a dialog's foot, the voice button is the dialog's primary action: an X blue pill, as X's
    Post button (.btn-blue), with white text and a white microphone. A pointer makes it the darker
    blue. The colours are the same on both themes. The waits that follow a click keep the pill's
-   shape on the panel grey, so the foot does not change its height. */
+   shape, so the foot does not change its height, on the darker blue with a white spinner. */
 .dialog-foot .speak-btn,
 .dialog-foot .speak-wait {
   padding: 8px 20px 8px 8px;
@@ -1811,7 +1811,37 @@ fieldset:disabled .choice {
   height: 40px;
 }
 .dialog-foot .speak-wait {
-  background: var(--panel);
+  background: var(--accent-ink);
+  color: #fff;
+}
+.dialog-foot .speak-wait .mic {
+  background: #fff;
+  color: var(--accent-ink);
+}
+.dialog-foot .speak-wait .muted {
+  color: rgba(255, 255, 255, 0.85);
+}
+.dialog-foot .speak-wait .spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+/* The live microphone: white on the blue, with a white ring that stays inside the pill. */
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-foot .speak-wait .mic-live {
+    animation-name: pulse-white;
+  }
+}
+@keyframes pulse-white {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
 }
 .dialog-foot .speak-btn {
   background: var(--accent);

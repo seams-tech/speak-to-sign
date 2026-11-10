@@ -200,6 +200,18 @@ export class BrowserInferenceModel {
     return this.session;
   }
 
+  /** Runs the model on one row of samples, as its `samples` input. Dispose the outputs. */
+  async run(samples: Float32Array): Promise<InferenceSession.ReturnType> {
+    const session = await this.prepare();
+    const { Tensor } = await import('onnxruntime-web/wasm');
+    const input = new Tensor('float32', samples, [1, samples.length]);
+    try {
+      return await session.run({ samples: input });
+    } finally {
+      input.dispose();
+    }
+  }
+
   private readonly failed = (error: unknown): never => {
     this.session = null;
     throw error;

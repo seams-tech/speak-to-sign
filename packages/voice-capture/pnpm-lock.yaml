@@ -11,6 +11,9 @@ importers:
       onnxruntime-web:
         specifier: 1.30.0
         version: 1.30.0
+      preact:
+        specifier: 10.29.8
+        version: 10.29.8
     devDependencies:
       '@playwright/test':
         specifier: 1.56.1
@@ -21,9 +24,6 @@ importers:
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18
-      preact:
-        specifier: 10.29.8
-        version: 10.29.8
       rolldown:
         specifier: 1.0.0-rc.9
         version: 1.0.0-rc.9(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)

@@ -41,13 +41,13 @@
     "example": "node scripts/serve-example.mjs"
   },
   "dependencies": {
-    "onnxruntime-web": "1.30.0"
+    "onnxruntime-web": "1.30.0",
+    "preact": "10.29.8"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
     "@types/node": "24.2.0",
     "@types/react": "19.2.18",
-    "preact": "10.29.8",
     "rolldown": "1.0.0-rc.9",
     "tsrs": "0.18.0-ts7.1.0-dev.20260929",
     "voice-glow": "0.2.1"

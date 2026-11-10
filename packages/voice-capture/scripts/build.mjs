@@ -10,14 +10,15 @@ process.chdir(root);
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, 'assets'), { recursive: true });
 
-// The React parts of the glow run on Preact, which is bundled, so an application needs no React.
+// The React parts of the glow run on Preact, so an application needs no React.
 const alias = { react: 'preact/compat', 'react/jsx-runtime': 'preact/jsx-runtime' };
 const entries = { index: 'src/index.ts', card: 'src/card/index.ts' };
 
-// The library keeps onnxruntime-web as an import, so the application's bundler loads it once.
+// The library keeps onnxruntime-web and Preact as imports, so the application's bundler loads
+// each of them once.
 // The two entries share their chunks, so the card uses the settings of configureVoiceCapture.
 await build(
-  { input: entries, external: [/^onnxruntime-web/], resolve: { alias } },
+  { input: entries, external: [/^onnxruntime-web/, /^preact/], resolve: { alias } },
   {
     dir: path.join(dist, 'esm'),
     format: 'esm',

@@ -419,7 +419,9 @@ For a new deployment, and what is left:
    `pm-notes.seams-v1.testnet` (transaction
    `FsEcB2wGg6YmjVAHJVa8TJFiWQV8zGE4L5WH4tJnUojt`). The contract then had about
    3.3 NEAR above its storage: about 200 markets at about 0.015 NEAR each.
-   `seams-v1.testnet` kept about 25 NEAR free.
+   It also sent 10 NEAR to the faucet `seams-faucet.testnet` (transaction
+   `98nhKZHsgN8N261deLhywDpeEXxrCkaH838pDm1pNpsN`; then about 28 NEAR free,
+   about 140 new visitors at 0.2 NEAR each), and kept about 15 NEAR free.
 
 Checks:
 

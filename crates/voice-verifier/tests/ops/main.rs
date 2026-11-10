@@ -5,6 +5,7 @@
 mod enroll;
 mod fake;
 mod merges;
+mod multisig;
 mod notes;
 mod verify;
 

@@ -127,7 +127,7 @@ mod tests {
     use super::*;
 
     /// The fixed words of every rendered request, near miss and account
-    /// suffix, besides number words and challenge words.
+    /// suffix, besides number words.
     const GRAMMAR_WORDS: [&str; 39] = [
         "send",
         "near",
@@ -172,11 +172,8 @@ mod tests {
 
     #[test]
     fn aliases_are_not_grammar_words() {
-        let grammar = |word: &str| {
-            crate::numbers::is_number_word(word)
-                || crate::CHALLENGE_WORDS.contains(&word)
-                || GRAMMAR_WORDS.contains(&word)
-        };
+        let grammar =
+            |word: &str| crate::numbers::is_number_word(word) || GRAMMAR_WORDS.contains(&word);
         for (from, to) in PUNCTUATED_ALIASES {
             assert!(!grammar(from), "{from}");
             assert!(grammar(to), "{to}");

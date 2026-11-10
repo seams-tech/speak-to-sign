@@ -1,10 +1,9 @@
 // Concept screens drawn in the style of the real apps (a code host's pull request page and a
-// multisig wallet's transaction queue), with neutral logo slots. Each fills a fixed screen that
+// multisig wallet's transaction queue on NEAR), with neutral logo slots. Each fills a fixed screen that
 // ScaledScreen shrinks, and sits inside a DrawnFrame so it reads as an example.
 
 import {
   IconAddressBook,
-  IconApps,
   IconBell,
   IconBook,
   IconCaretDownFilled,
@@ -16,7 +15,6 @@ import {
   IconCoins,
   IconCopy,
   IconDots,
-  IconExternalLink,
   IconGitMerge,
   IconGitPullRequest,
   IconHome,
@@ -233,8 +231,12 @@ export function MergeScreen({ say }: { say: string }) {
   );
 }
 
-/** A transaction queue in the style of a multisig wallet app. */
-export function MultisigScreen({ say }: { say: string }) {
+/**
+ * A transaction queue in the style of a multisig wallet app, on NEAR testnet. The amount and
+ * the receiver are hidden: a member says them from memory. The live screen is
+ * src/multisig/LiveMultisigScreen.tsx; this drawing stands in for it without a Seams key.
+ */
+export function MultisigScreen() {
   return (
     <div className="sf">
       <header className="sf-header">
@@ -248,15 +250,15 @@ export function MultisigScreen({ say }: { say: string }) {
         <span className="sf-pill">
           <IconBell size={16} stroke={1.8} />
         </span>
+        <span className="sf-pill sf-network">
+          <i className="sf-netdot" /> NEAR testnet
+        </span>
         <span className="sf-pill sf-wallet">
           <span className="sf-identicon sf-identicon-c" />
           <span>
-            <b>bob.eth</b>
-            <i>0x2F9a…41D7</i>
+            <b>bob.testnet</b>
+            <i>Member</i>
           </span>
-        </span>
-        <span className="sf-pill sf-network">
-          <i className="sf-netdot" /> Ethereum
         </span>
       </header>
       <aside className="sf-side">
@@ -265,14 +267,14 @@ export function MultisigScreen({ say }: { say: string }) {
             <i className="sf-threshold">2/3</i>
           </span>
           <div>
-            <b>Grants Treasury</b>
+            <b>Team multisig</b>
             <span>
-              eth:0x5aF3…9b21 <IconCopy size={12} stroke={1.8} />
+              team.seams-v1.testnet <IconCopy size={12} stroke={1.8} />
             </span>
           </div>
         </div>
-        <p className="sf-total">$1,204,880.32</p>
-        <span className="sf-new">New transaction</span>
+        <p className="sf-total">1,250 NEAR</p>
+        <span className="sf-new">New proposal</span>
         <nav className="sf-nav">
           <span>
             <IconHome size={20} stroke={1.6} /> Home
@@ -284,10 +286,7 @@ export function MultisigScreen({ say }: { say: string }) {
             <IconListDetails size={20} stroke={1.6} /> Transactions <i className="sf-count">1</i>
           </span>
           <span>
-            <IconAddressBook size={20} stroke={1.6} /> Address book
-          </span>
-          <span>
-            <IconApps size={20} stroke={1.6} /> Apps
+            <IconAddressBook size={20} stroke={1.6} /> Members
           </span>
           <span>
             <IconSettings size={20} stroke={1.6} /> Settings
@@ -299,9 +298,9 @@ export function MultisigScreen({ say }: { say: string }) {
         <div className="sf-tabs">
           <span className="sf-tab-on">Queue</span>
           <span>History</span>
-          <span>Messages</span>
+          <span>New proposal</span>
         </div>
-        <p className="sf-label">Next transaction</p>
+        <p className="sf-label">Next proposal</p>
         <div className="sf-tx">
           <div className="sf-txrow">
             <span className="sf-nonce">7</span>
@@ -309,7 +308,7 @@ export function MultisigScreen({ say }: { say: string }) {
               <IconSend size={18} stroke={1.8} /> Send
             </span>
             <span className="sf-amount">
-              <i className="sf-token">$</i> −25,000 USDC
+              <i className="sf-token">N</i> <span className="sf-muted">Hidden until executed</span>
             </span>
             <span className="sf-time">2:15 PM</span>
             <span className="sf-confs">
@@ -320,24 +319,16 @@ export function MultisigScreen({ say }: { say: string }) {
           <div className="sf-txbody">
             <div className="sf-details">
               <p>
-                Send <b>25,000 USDC</b> to:
+                Send <b>___</b> NEAR to <b>___</b>
               </p>
-              <div className="sf-addr">
-                <span className="sf-identicon sf-identicon-b" />
-                <div>
-                  <b>grants.eth</b>
-                  <span>
-                    eth:0x8B1d…C3e0 <IconCopy size={12} stroke={1.8} /> <IconExternalLink size={12} stroke={1.8} />
-                  </span>
-                </div>
-              </div>
+              <p className="sf-muted">The chain holds only a salted hash of the transfer. Each member says it from memory.</p>
               <dl>
-                <dt>Nonce</dt>
+                <dt>Proposal</dt>
                 <dd>7</dd>
-                <dt>safeTxHash</dt>
-                <dd>0x4f2a…91bd</dd>
-                <dt>Created</dt>
-                <dd>Nov 9, 2026 · 2:15 PM</dd>
+                <dt>Proposer</dt>
+                <dd>alice.testnet</dd>
+                <dt>Commitment</dt>
+                <dd>4f2a6c1e9b…2d91bd</dd>
               </dl>
             </div>
             <div className="sf-steps">
@@ -345,7 +336,7 @@ export function MultisigScreen({ say }: { say: string }) {
                 <span className="sf-stepdot">
                   <IconCheck size={12} stroke={3} />
                 </span>
-                Created
+                Proposed
               </p>
               <p className="sf-step sf-step-done">
                 <span className="sf-stepdot">
@@ -354,25 +345,24 @@ export function MultisigScreen({ say }: { say: string }) {
                 Confirmations <span className="sf-muted">(1 of 2)</span>
               </p>
               <p className="sf-owner">
-                <span className="sf-identicon sf-identicon-a sf-identicon-xs" /> alice.eth
+                <span className="sf-identicon sf-identicon-a sf-identicon-xs" /> alice.testnet
               </p>
               <p className="sf-owner sf-owner-wait">
-                <span className="sf-identicon sf-identicon-c sf-identicon-xs" /> bob.eth <span className="sf-muted">(you)</span>
+                <span className="sf-identicon sf-identicon-c sf-identicon-xs" /> bob.testnet <span className="sf-muted">(you)</span>
               </p>
               <p className="sf-step">
                 <span className="sf-stepdot sf-stepdot-wait" />
-                Can be executed once the threshold is reached
+                The proposer executes it at the threshold
               </p>
               <div className="sf-btns">
-                <span className="sf-btn">Confirm</span>
-                <span className="sf-btn sf-btn-ghost">Reject</span>
+                <span className="sf-btn">Confirm by voice</span>
               </div>
             </div>
           </div>
         </div>
       </main>
       <div className="ss-overlay-card">
-        <WalletVoiceCard say={say} compact />
+        <WalletVoiceCard say="approve proposal seven, send ___ NEAR to ___" compact />
       </div>
     </div>
   );

@@ -13,8 +13,10 @@
 //! again; the template is replaced and its epoch grows by 1.
 //!
 //! Each flow has its own file. `request.rs` types the request of a `verify`
-//! input, and `steps.rs` holds the steps that both flows use.
+//! input, `multisig.rs` builds and records the multisig kinds, and
+//! `steps.rs` holds the steps that both flows use.
 mod enroll;
+mod multisig;
 mod request;
 mod steps;
 mod verify;

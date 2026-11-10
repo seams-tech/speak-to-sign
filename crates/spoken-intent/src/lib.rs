@@ -2,9 +2,10 @@
 //!
 //! The verifier links this crate. The Wallet has a TypeScript port of the
 //! rules, and the golden vectors in `fixtures/` check that the port renders,
-//! normalizes and digests the same text. No contract links this crate. The
-//! crate uses no floats, no locale, no clock and no randomness: the caller
-//! passes the challenge words in.
+//! normalizes and digests the same text. The voice multisig contract
+//! (`demo/contracts/voice-multisig`) links it for the multisig commitment and
+//! digest. The crate uses no floats, no locale, no clock and no randomness:
+//! the caller passes the salt of a multisig commitment in.
 //!
 //! Types carry the grammar rules. Each account that the text says is a
 //! [`SpokenAccount`], which holds only an account that the grammar can speak.
@@ -26,7 +27,6 @@ extern crate alloc;
 mod account;
 mod amount;
 mod branch;
-mod challenge;
 mod confusion;
 mod normalize;
 mod numbers;
@@ -44,7 +44,6 @@ use sha2::{Digest, Sha256};
 pub use account::{InvalidAccountId, NearAccount, SpokenAccount};
 pub use amount::NearAmount;
 pub use branch::{InvalidBranch, SpokenBranch, MAX_BRANCH_LETTERS};
-pub use challenge::{ChallengeWord, CHALLENGE_WORDS};
 pub use confusion::confusion_set;
 pub use normalize::normalize;
 pub use parse::{parse_transfer, ParseRefusal, ParseResult, ParsedTransfer};
@@ -75,13 +74,82 @@ pub enum UnsupportedReason {
     AccountNotSpeakable,
 }
 
-/// `sha256(REQUEST_DIGEST_DOMAIN || borsh(request))`.
+/// Domain prefix of [`multisig_commitment`].
+pub const MULTISIG_COMMITMENT_DOMAIN: &[u8] = b"seams:spoken-intent:multisig-commitment:v1";
+
+/// The Borsh tag of [`SpokenRequestV1::MultisigApproval`].
+const MULTISIG_APPROVAL_TAG: u8 = 1;
+
+/// `sha256(REQUEST_DIGEST_DOMAIN || borsh(request))`, except for a multisig
+/// approval, whose digest is [`multisig_approval_digest`].
 pub fn request_digest(request: &SpokenRequestV1) -> [u8; 32] {
+    if let SpokenRequestV1::MultisigApproval {
+        network,
+        owner,
+        multisig,
+        proposal_id,
+        proposal,
+        salt,
+    } = request
+    {
+        let commitment = multisig_commitment(multisig, *proposal_id, proposal, salt);
+        return multisig_approval_digest(*network, owner, multisig, *proposal_id, &commitment);
+    }
+    sha256_borsh(REQUEST_DIGEST_DOMAIN, request, &[])
+}
+
+/// The salted hash of one multisig proposal, which the contract stores in
+/// place of the proposal:
+/// `sha256(MULTISIG_COMMITMENT_DOMAIN || borsh(multisig, proposal_id, proposal) || salt)`.
+///
+/// The salt is 32 random bytes. Without it, a member could hash each likely
+/// amount and receiver and compare the result with the commitment.
+pub fn multisig_commitment(
+    multisig: &NearAccount,
+    proposal_id: u64,
+    proposal: &ProposalV1,
+    salt: &[u8; 32],
+) -> [u8; 32] {
+    sha256_borsh(
+        MULTISIG_COMMITMENT_DOMAIN,
+        &(multisig, proposal_id, proposal),
+        salt,
+    )
+}
+
+/// The request digest of a multisig approval:
+/// `sha256(REQUEST_DIGEST_DOMAIN || 1 || borsh(network, owner, multisig, proposal_id, commitment))`.
+/// It holds the commitment in place of the proposal and the salt, so the
+/// contract computes it from its own state.
+pub fn multisig_approval_digest(
+    network: Network,
+    owner: &NearAccount,
+    multisig: &NearAccount,
+    proposal_id: u64,
+    commitment: &[u8; 32],
+) -> [u8; 32] {
+    sha256_borsh(
+        REQUEST_DIGEST_DOMAIN,
+        &(
+            MULTISIG_APPROVAL_TAG,
+            network,
+            owner,
+            multisig,
+            proposal_id,
+            commitment,
+        ),
+        &[],
+    )
+}
+
+/// `sha256(domain || borsh(value) || suffix)`.
+fn sha256_borsh(domain: &[u8], value: &impl borsh::BorshSerialize, suffix: &[u8]) -> [u8; 32] {
     // Every field serializes infallibly into a Vec.
-    let bytes = borsh::to_vec(request).expect("borsh serialization into a Vec");
+    let bytes = borsh::to_vec(value).expect("borsh serialization into a Vec");
     let mut hasher = Sha256::new();
-    hasher.update(REQUEST_DIGEST_DOMAIN);
+    hasher.update(domain);
     hasher.update(&bytes);
+    hasher.update(suffix);
     hasher.finalize().into()
 }
 

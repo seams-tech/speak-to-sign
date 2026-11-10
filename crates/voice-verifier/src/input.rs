@@ -80,6 +80,35 @@ pub enum RequestInput {
         /// The head commit id, 40 lowercase hex characters.
         head_commit_hex: String,
     },
+    /// A new multisig transfer, said by its proposer. The verifier draws the
+    /// salt and keeps the proposal; the contract gets only its commitment.
+    MultisigPropose {
+        /// The multisig contract.
+        multisig: String,
+        /// The id that the contract gives the proposal next.
+        proposal_id: u64,
+        receiver: String,
+        /// Decimal yoctoNEAR (a JSON string: it does not fit a JSON number).
+        amount_yocto: String,
+    },
+    /// A confirmation of a stored multisig proposal. The member says the
+    /// proposal from memory: the input names only its commitment.
+    MultisigConfirm {
+        /// The multisig contract.
+        multisig: String,
+        proposal_id: u64,
+        /// The commitment that the contract holds, 64 lowercase hex
+        /// characters.
+        commitment_hex: String,
+    },
+}
+
+impl RequestInput {
+    /// `true` for the two multisig kinds, whose request needs the worker's
+    /// storage and randomness.
+    pub fn is_multisig(&self) -> bool {
+        matches!(self, Self::MultisigPropose { .. } | Self::MultisigConfirm { .. })
+    }
 }
 
 /// The rating of a `note_rating` request.

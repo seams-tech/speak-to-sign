@@ -14,6 +14,8 @@ import { ExampleWindow } from './window';
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
 const MERGE_INTRO =
   'Your merge approval is signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
+const MULTISIG_INTRO =
+  'Your proposals and approvals are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
 const SETUP_INTRO = 'Create a Seams Wallet with a passkey, or sign in to yours. It is a NEAR testnet account.';
 
 // One page. The hash names the open window: #/notes (and the notes app's own pages under it),
@@ -112,7 +114,12 @@ export function Showcase({ seams }: { seams: boolean }) {
         </ExampleWindow>
       )}
 
-      <LiveApps seams={seams} mergeSay={merge?.say ?? ''} onMergeSignIn={() => setSignIn(MERGE_INTRO)} />
+      <LiveApps
+        seams={seams}
+        mergeSay={merge?.say ?? ''}
+        onMergeSignIn={() => setSignIn(MERGE_INTRO)}
+        onMultisigSignIn={() => setSignIn(MULTISIG_INTRO)}
+      />
       {seams && signIn && <SignInModal intro={signIn} onClose={() => setSignIn(null)} onSignedIn={() => setSignIn(null)} />}
     </>
   );
@@ -216,7 +223,7 @@ function SmallScreen({ example, seams, away }: { example: VoiceExample; seams: b
   return (
     <ScaledScreen width={1120} height={700}>
       {example.id === 'merge' && (seams ? <LiveSlot id="merge" active={!away} /> : <MergeScreen say={example.say} />)}
-      {example.id === 'multisig' && <MultisigScreen say={example.say} />}
+      {example.id === 'multisig' && (seams ? <LiveSlot id="multisig" active={!away} /> : <MultisigScreen />)}
     </ScaledScreen>
   );
 }
@@ -227,7 +234,7 @@ function WindowScreen({ example, seams }: { example: VoiceExample; seams: boolea
   return (
     <FitScreen width={1120} height={700}>
       {example.id === 'merge' && (seams ? <LiveSlot id="merge" /> : <MergeScreen say={example.say} />)}
-      {example.id === 'multisig' && <MultisigScreen say={example.say} />}
+      {example.id === 'multisig' && (seams ? <LiveSlot id="multisig" /> : <MultisigScreen />)}
     </FitScreen>
   );
 }

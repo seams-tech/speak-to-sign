@@ -3,13 +3,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Range;
 
-use crate::challenge::CHALLENGE_LEN;
 use crate::numbers::{digit_value, digit_word, push_integer_words};
 use crate::render::VERSION_CHECK_DIGITS;
 use crate::token::SpokenToken;
 use crate::{
-    render, ChallengeWord, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch,
-    SpokenRequestV1,
+    render, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
 };
 
 /// The verbs of the grammar: the two request verbs, "reject" (the opposite
@@ -42,8 +40,8 @@ type NearMisses = BTreeSet<Vec<SpokenToken>>;
 ///   (if exact), and each digit of the amount in hundredths (padded to three
 ///   digits) changed to each other digit, where the result is speakable.
 /// - A receiver or member: each other account in `contacts`.
-/// - A proposal: the id one lower and one higher, the two challenge words
-///   swapped, add and remove member exchanged, the threshold one lower and one
+/// - A proposal: the id one lower and one higher, add and remove member
+///   exchanged, the threshold one lower and one
 ///   higher, and each of the eight version digits changed to each other digit.
 ///
 /// Sentence changes, at each verb (the first word, and for an approval also
@@ -54,8 +52,7 @@ type NearMisses = BTreeSet<Vec<SpokenToken>>;
 ///   after it.
 /// - A dropped clause: a transfer without its amount, without its amount and
 ///   "near", without its receiver, or without its verb; an approval without
-///   "proposal" and its id, without its proposal, without one or both
-///   challenge words.
+///   "proposal" and its id, or without its proposal.
 /// - An added clause: "and" and the transfer or proposal again, for the
 ///   request itself and for each of its field changes with the same id.
 ///
@@ -95,29 +92,24 @@ pub fn confusion_set(
         }
         SpokenRequestV1::MultisigApproval {
             network,
+            owner,
             multisig,
             proposal_id,
             proposal,
-            challenge,
+            salt,
         } => {
-            let approval = |proposal_id, proposal, challenge| {
+            let approval = |proposal_id, proposal| {
                 render(&SpokenRequestV1::MultisigApproval {
                     network: *network,
+                    owner: owner.clone(),
                     multisig: multisig.clone(),
                     proposal_id,
                     proposal,
-                    challenge,
+                    salt: *salt,
                 })
                 .spoken
             };
-            approval_near_misses(
-                &expected,
-                *proposal_id,
-                proposal,
-                challenge,
-                contacts,
-                approval,
-            )
+            approval_near_misses(&expected, *proposal_id, proposal, contacts, approval)
         }
         SpokenRequestV1::CommunityNote { .. } => note_near_misses(&expected, Vec::new()),
         SpokenRequestV1::NoteRating {
@@ -193,14 +185,13 @@ fn transfer_near_misses(
 }
 
 /// The near misses of a multisig approval. `approval` gives the spoken form
-/// of the approval with another id, proposal or challenge.
+/// of the approval with another id or proposal.
 fn approval_near_misses(
     expected: &[SpokenToken],
     proposal_id: u64,
     proposal: &ProposalV1,
-    challenge: &[ChallengeWord; CHALLENGE_LEN],
     contacts: &[SpokenAccount],
-    approval: impl Fn(u64, ProposalV1, [ChallengeWord; CHALLENGE_LEN]) -> Vec<SpokenToken>,
+    approval: impl Fn(u64, ProposalV1) -> Vec<SpokenToken>,
 ) -> NearMisses {
     let mut set = NearMisses::new();
     let clause = proposal_clause(proposal_id, expected);
@@ -209,14 +200,11 @@ fn approval_near_misses(
         .into_iter()
         .flatten()
     {
-        set.insert(approval(id, proposal.clone(), *challenge));
+        set.insert(approval(id, proposal.clone()));
     }
-    let mut swapped = *challenge;
-    swapped.reverse();
-    set.insert(approval(proposal_id, proposal.clone(), swapped));
     set.insert(added_clause(expected, &expected[clause.clone()]));
     for variant in proposal_variants(proposal, contacts) {
-        let variant = approval(proposal_id, variant, *challenge);
+        let variant = approval(proposal_id, variant);
         set.insert(added_clause(
             expected,
             &variant[proposal_clause(proposal_id, &variant)],
@@ -239,14 +227,9 @@ fn approval_near_misses(
     if let ProposalV1::Transfer { .. } = proposal {
         transfer_drops(expected, clause.clone(), &mut set);
     }
-    // Without "proposal" and its id, without the proposal, without all the
-    // challenge words, and without each one.
+    // Without "proposal" and its id, and without the proposal.
     set.insert(spliced(expected, 1, clause.start, &[]));
     set.insert(spliced(expected, clause.start, clause.end, &[]));
-    set.insert(expected[..clause.end].to_vec());
-    for position in clause.end..expected.len() {
-        set.insert(spliced(expected, position, position + 1, &[]));
-    }
     set
 }
 
@@ -399,12 +382,11 @@ fn proposal_variants(proposal: &ProposalV1, contacts: &[SpokenAccount]) -> Vec<P
 }
 
 /// The position of the proposal in the spoken form of an approval with
-/// `proposal_id`: after "approve proposal" and the id words, and before the
-/// challenge words.
+/// `proposal_id`: after "approve proposal" and the id words, to the end.
 fn proposal_clause(proposal_id: u64, approval: &[SpokenToken]) -> Range<usize> {
     let mut id_words = Vec::new();
     push_integer_words(proposal_id, &mut id_words);
-    2 + id_words.len()..approval.len() - CHALLENGE_LEN
+    2 + id_words.len()..approval.len()
 }
 
 /// A changed verb at `position`, each negation before it, and "not" after

@@ -2,8 +2,7 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::challenge::CHALLENGE_LEN;
-use crate::{ChallengeWord, NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary};
+use crate::{NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary};
 
 /// The NEAR network of a request. It is part of the request digest, not of
 /// the spoken text.
@@ -27,18 +26,32 @@ pub enum Network {
 #[borsh(use_discriminant = true)]
 #[repr(u8)]
 pub enum SpokenRequestV1 {
-    /// A spoken approval of a typed multisig proposal.
+    /// A spoken approval of a typed multisig proposal, from one member's
+    /// own account. The text says the proposal id and the proposal.
+    ///
+    /// The multisig contract holds only the [`multisig_commitment`] of the
+    /// proposal, so a member's page and the chain do not show it before the
+    /// members confirm it. [`request_digest`] of this kind binds that
+    /// commitment and not the proposal (see [`multisig_approval_digest`]), so
+    /// the contract checks a verdict without the proposal.
+    ///
+    /// [`multisig_commitment`]: crate::multisig_commitment
+    /// [`request_digest`]: crate::request_digest
+    /// [`multisig_approval_digest`]: crate::multisig_approval_digest
     MultisigApproval {
         /// The network of the multisig.
         network: Network,
-        /// The multisig contract.
+        /// The member who approves, named or implicit. The text does not say
+        /// it.
+        owner: NearAccount,
+        /// The multisig contract. The text does not say it.
         multisig: NearAccount,
         /// The proposal id.
         proposal_id: u64,
         /// The proposal. No kind holds free text or a free function call.
         proposal: ProposalV1,
-        /// The two fresh words that the contract issued.
-        challenge: [ChallengeWord; CHALLENGE_LEN],
+        /// The random salt of the commitment. The text does not say it.
+        salt: [u8; 32],
     } = 1,
     /// A native NEAR transfer from the owner's own account to a named account.
     AccountTransfer {

@@ -7,7 +7,7 @@ use spoken_intent::{
     normalize, parse_transfer, render, NearAmount, Network, ParseRefusal, ParseResult, ProposalV1,
     SpokenRequestV1, UnsupportedReason,
 };
-use support::{account, challenge_word, contacts, near, near_account, parse, ONE_NEAR};
+use support::{account, contacts, near, near_account, parse, MULTISIG_SALT, ONE_NEAR};
 
 fn account_transfer(receiver: &str, amount: NearAmount) -> SpokenRequestV1 {
     SpokenRequestV1::AccountTransfer {
@@ -49,21 +49,22 @@ fn plan_examples_render_exactly() {
 
     let rendered = render(&SpokenRequestV1::MultisigApproval {
         network: Network::Testnet,
+        owner: near_account("owner.testnet"),
         multisig: near_account("multisig.testnet"),
         proposal_id: 42,
         proposal: ProposalV1::Transfer {
             receiver: account("payroll.testnet"),
             amount: near(1_000),
         },
-        challenge: [challenge_word("river"), challenge_word("lantern")],
+        salt: MULTISIG_SALT,
     });
     assert_eq!(
         rendered.display_text,
-        "Approve proposal 42: send 10 NEAR to payroll.testnet. Then say: river lantern."
+        "Approve proposal 42: send 10 NEAR to payroll.testnet"
     );
     assert_eq!(
         rendered.spoken_text,
-        "approve proposal forty two send ten near to payroll dot testnet river lantern"
+        "approve proposal forty two send ten near to payroll dot testnet"
     );
 }
 

@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 
 use crate::numbers::{digit_word, push_integer_words};
 use crate::token::{spoken_text, SpokenToken};
-use crate::{ChallengeWord, NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
+use crate::{NearAmount, NoteRatingV1, ProposalV1, SpokenAccount, SpokenRequestV1};
 
 /// The text of one request.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,21 +32,13 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
         SpokenRequestV1::MultisigApproval {
             proposal_id,
             proposal,
-            challenge,
             ..
         } => {
             words.push("approve");
             words.push("proposal");
             words.push_integer(*proposal_id);
             let body = push_proposal_words(&mut words, proposal);
-            let challenge_words = challenge.map(ChallengeWord::as_str);
-            for word in challenge_words {
-                words.push(word);
-            }
-            format!(
-                "Approve proposal {proposal_id}: {body}. Then say: {}.",
-                challenge_words.join(" ")
-            )
+            format!("Approve proposal {proposal_id}: {body}")
         }
         SpokenRequestV1::CommunityNote { summary, .. } => {
             words.0.extend(summary.spoken_tokens());

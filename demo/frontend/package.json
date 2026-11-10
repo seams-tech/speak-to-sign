@@ -9,6 +9,7 @@
     "dev:api": "wrangler pages dev public --port 8788",
     "build": "vite build",
     "preview": "wrangler pages dev dist --port 8788",
+    "test": "node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p functions/tsconfig.json --noEmit",
     "build:site": "node scripts/build-site.mjs",
     "dev:https": "caddy run --config Caddyfile --adapter caddyfile"

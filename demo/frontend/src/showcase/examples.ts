@@ -1,7 +1,10 @@
 // The applications on the Speak-to-Sign page. A click on one opens it in a window on the page.
 // Community Notes is live on NEAR testnet. The pull request screen works too, but its contract
-// and the Wallet's merge request are not live yet. The multisig screen is a drawing. All copy
-// the style of the real apps, with neutral logos, inside a hand-drawn frame.
+// and the Wallet's merge request are not live yet. The voice multisig works against its testnet
+// contract, and shows example data until the contract is deployed. All copy the style of the
+// real apps, with neutral logos, inside a hand-drawn frame.
+
+import { config } from '../config';
 
 export type ExampleId = 'notes' | 'merge' | 'multisig';
 
@@ -49,11 +52,11 @@ export const EXAMPLES: VoiceExample[] = [
     id: 'multisig',
     chip: 'Confirm a multisig',
     title: 'Confirm a multisig transaction',
-    say: 'confirm transaction seven, send twenty five thousand USDC to grants dot eth',
-    signs: 'confirm(safeTx #7, hash 0x4f2a…91bd)',
-    target: 'one owner confirmation · 2 of 3 needed',
-    status: 'concept',
+    say: 'approve proposal seven, send twenty five NEAR to grants dot testnet',
+    signs: 'confirm({ proposal_id: 7, verdict_json, signature_b64 })',
+    target: 'team.seams-v1.testnet · 0 NEAR · 30 Tgas · 2 of 3 needed',
+    status: 'live',
     blurb: 'Each owner reads the amount and the receiver aloud. You cannot blind-sign what you must say, so a phishing transaction is harder to approve.',
-    url: 'app.safe.global/transactions/queue',
+    url: `${config.multisigContract}/transactions/queue`,
   },
 ];

@@ -3,8 +3,7 @@
 //! use gives no dead-code warning.
 
 use spoken_intent::{
-    normalize, parse_transfer, ChallengeWord, NearAccount, NearAmount, ParseResult, ParsedTransfer,
-    SpokenAccount, CHALLENGE_WORDS,
+    normalize, parse_transfer, NearAccount, NearAmount, ParseResult, ParsedTransfer, SpokenAccount,
 };
 
 pub const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -25,13 +24,8 @@ pub fn near(hundredths: u64) -> NearAmount {
     NearAmount::from_hundredths(hundredths).expect("speakable amount")
 }
 
-pub fn challenge_word(word: &str) -> ChallengeWord {
-    let index = CHALLENGE_WORDS
-        .iter()
-        .position(|candidate| *candidate == word)
-        .expect("challenge word");
-    ChallengeWord::from_index(index as u8).expect("index below 64")
-}
+/// The salt of every multisig approval in the tests.
+pub const MULTISIG_SALT: [u8; 32] = [0x5a; 32];
 
 /// The contacts of the parse and transcript checks. No two keys are
 /// confusable.

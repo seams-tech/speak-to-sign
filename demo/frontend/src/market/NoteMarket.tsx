@@ -306,9 +306,14 @@ export function NoteMarketStrip({
     return (
       <div className="nm-strip nm-loading" aria-busy="true" onClick={(event) => event.stopPropagation()}>
         <span className="nm-bar" aria-hidden="true" />
+        {/* Each grey bar holds a blank text line, so the row is as high as the odds line. */}
         <div className="nm-row" aria-hidden="true">
-          <span className="nm-sk" style={{ width: 120 }} />
-          <span className="nm-sk" style={{ width: 100 }} />
+          <span className="nm-sk" style={{ width: 120 }}>
+            {'\u200b'}
+          </span>
+          <span className="nm-sk" style={{ width: 100 }}>
+            {'\u200b'}
+          </span>
         </div>
         <div className="nm-buttons">
           <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>

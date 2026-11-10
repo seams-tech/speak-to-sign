@@ -224,14 +224,11 @@
 .nm-loading .nm-bar {
   background: var(--line-strong);
 }
-.nm-loading .nm-row {
-  min-height: 20px;
-}
+/* A grey bar of 12 px in a blank text line: the row has the height of a loaded line of text. */
 .nm-sk {
   display: inline-block;
-  height: 12px;
   border-radius: 6px;
-  background: var(--line-strong);
+  background: linear-gradient(var(--line-strong), var(--line-strong)) center / 100% 12px no-repeat;
 }
 .nm-loading .nm-bar,
 .nm-loading .nm-sk,

@@ -3,7 +3,7 @@
 // writes, rates and bets on the card itself, and the dialogs open over the timeline. A click on
 // a card opens its bet (when its market takes bets) or the write dialog.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconChevronDown, IconUsers } from '@tabler/icons-react';
 import { ActionRow, AuthorBadge, Avatar, Media, PostText } from '../components/bits';
 import { NoteRateLine, shownNote } from '../components/NotesBox';
@@ -52,7 +52,7 @@ export function marketTab(market: NoteMarket | null | undefined, nowMs: number):
 }
 
 export function Timeline() {
-  const { notesByPost, xPosts, xPostsState } = useDemo();
+  const { notesByPost, xPosts, xPostsState, xPostsMore } = useDemo();
   const source = useMarketSource();
   const [tab, setTab] = useState<Tab>('fresh');
   const [markets, setMarkets] = useState<Record<number, NoteMarket | null>>({});
@@ -97,12 +97,58 @@ export function Timeline() {
         <PostCard key={post.id} post={post} note={note} market={note ? markets[note.marketNoteId] : null} />
       ))}
       {visible.length === 0 && <p className="xt-foot muted">No posts here yet.</p>}
-      <p className="xt-foot muted">
-        {xPostsState === 'loading' && 'Loading the posts from X…'}
-        {xPostsState === 'error' && 'The posts from X are not available now.'}
-        {xPostsState === 'ready' && 'New posts from X 3 times a day. Sport, science, technology, business and entertainment only.'}
-      </p>
+      <MorePosts />
+      {!xPostsMore && (
+        <p className="xt-foot muted">
+          {xPostsState === 'loading' && 'Loading the posts from X…'}
+          {xPostsState === 'error' && 'The posts from X are not available now.'}
+          {xPostsState === 'ready' && 'New posts from X 3 times a day. Sport, science, technology, business and entertainment only.'}
+        </p>
+      )}
     </>
+  );
+}
+
+/**
+ * The end of the loaded posts, while the route has more: the next page of 10 loads before the
+ * visitor gets there (800 px ahead). After each page the line is watched again, so a short page
+ * that leaves it in sight loads the next one too.
+ */
+function MorePosts() {
+  const { xPosts, xPostsMore, xPostsMoreState, loadMoreXPosts } = useDemo();
+  const line = useRef<HTMLDivElement>(null);
+  const load = useRef(loadMoreXPosts);
+  useEffect(() => {
+    load.current = loadMoreXPosts;
+  });
+  useEffect(() => {
+    const element = line.current;
+    if (!element || !xPostsMore || xPostsMoreState !== 'idle') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) load.current();
+      },
+      { rootMargin: '0px 0px 800px 0px' },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [xPostsMore, xPostsMoreState, xPosts.length]);
+  if (!xPostsMore) return null;
+  return (
+    <div ref={line} className="xt-more-posts" aria-live="polite">
+      {xPostsMoreState === 'error' ? (
+        <>
+          The next posts did not load.{' '}
+          <button type="button" className="link-btn" onClick={() => loadMoreXPosts()}>
+            Try again
+          </button>
+        </>
+      ) : (
+        <span className="muted">
+          <span className="spinner" aria-hidden="true" /> Loading more posts…
+        </span>
+      )}
+    </div>
   );
 }
 

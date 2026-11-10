@@ -202,3 +202,14 @@ a.rail-item {
   padding: 8px 12px 10px;
   background: var(--panel);
 }
+
+/* The end of the loaded posts while the route has more: the next page loads before it. */
+.xt-more-posts {
+  padding: 20px 16px 28px;
+  text-align: center;
+  font-size: 14px;
+}
+.xt-more-posts .spinner {
+  vertical-align: -2px;
+  margin-right: 6px;
+}

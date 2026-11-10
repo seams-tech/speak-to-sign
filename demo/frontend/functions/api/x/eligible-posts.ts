@@ -1,4 +1,5 @@
-// GET /api/x/eligible-posts  ->  { posts, fetchedAtMs, stale }  or  { error }
+// GET /api/x/eligible-posts[?offset=<n>&limit=<n>]
+//   ->  { posts, fetchedAtMs, stale, total, nextOffset }  or  { error }
 //
 // A fresh list of X posts that can get a Community Note: the posts where people asked for a
 // note. It comes from the X API's AI Note Writer endpoint
@@ -7,8 +8,15 @@
 // to X, so the route always calls X in test mode.
 //
 // X bills each post and each author that it returns. The route therefore keeps one snapshot for
-// every visitor and asks X again only when the snapshot is older than X_ELIGIBLE_TTL_SECONDS.
-// If X fails, the route serves the old snapshot.
+// every visitor and asks X again only when the snapshot is older than X_ELIGIBLE_TTL_SECONDS
+// (8 hours). If X fails, the route serves the old snapshot.
+//
+// The snapshot keeps the posts (up to MAX_KEPT_POSTS, newest first), so it grows by the new posts
+// of each call: with 10 posts a call and a call every 8 hours, about 60 posts after two days.
+// A visitor's request makes the call when the snapshot is old; a scheduled Worker
+// (demo/x-refresh-worker) asks every 8 hours, so the posts come also when no one visits. The
+// timeline reads the posts in pages: `limit` posts (1 to 50) from `offset` (0 is the newest).
+// Without `limit`, the answer has all the posts.
 //
 // The posts are about what people on X dispute, so most are about politics or war. A NEAR AI
 // model sorts each new post by subject once (functions/lib/topicFilter.ts), and the route gives
@@ -31,6 +39,8 @@ export interface Env {
   X_ACCESS_TOKEN_SECRET?: string;
   /** Optional. Posts for each call to X, 1 to 100. Default 10. */
   X_ELIGIBLE_MAX?: string;
+  /** Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. */
+  X_ELIGIBLE_KEEP?: string;
   /** Optional. The age at which the route asks X again. Default 28800 (8 hours), minimum 60. */
   X_ELIGIBLE_TTL_SECONDS?: string;
   /** Optional. A language code such as "ja", or "all". X's default is English. */
@@ -69,6 +79,8 @@ export interface SnapshotStore {
 export interface Settings {
   keys: OAuth1Keys;
   maxResults: number;
+  /** The most posts that the snapshot keeps. */
+  maxKept: number;
   ttlMs: number;
   lang: string | null;
   /** Null when the filter is off. */
@@ -96,8 +108,21 @@ const TIMEOUT_MS = 15_000;
 const MAX_TEXT_CHARS = 4_000;
 const MAX_MEDIA = 4;
 const STORE_KEY = 'x-eligible-posts-v2';
-/** The most posts in the snapshot, and the most subjects that it remembers. */
-export const MAX_KEPT_POSTS = 30;
+/**
+ * The most posts in the snapshot (X_ELIGIBLE_KEEP changes it), and the most subjects that it
+ * remembers. 600 posts is 20 days of 30 posts a day, about 1 MB in the store.
+ */
+export const MAX_KEPT_POSTS = 600;
+const MAX_KEEP_SETTING = 2_000;
+/**
+ * The schedule asks once every TTL, and its request can come a little early. So a snapshot is
+ * old enough for a new call this much before the TTL: 10 minutes, or a tenth of a short TTL.
+ */
+export function refreshAgeMs(ttlMs: number): number {
+  return ttlMs - Math.min(10 * 60_000, ttlMs / 10);
+}
+/** The most posts in one page of the answer. */
+export const MAX_PAGE = 50;
 const MAX_KEPT_TOPICS = 1_000;
 
 export const NO_KEYS = 'The posts service has no X API keys.';
@@ -123,22 +148,36 @@ export async function handleEligiblePosts(request: Request, env: Env, deps: Deps
   if (settings === 'no-keys') return json({ error: NO_KEYS }, 503);
   if (settings === 'no-filter-key') return json({ error: NO_FILTER_KEY }, 503);
 
+  const page = readPage(new URL(request.url).searchParams);
   const now = deps.now();
   const old = await deps.store.get().catch(() => null);
-  const isFresh = old?.fetchedAtMs != null && now - old.fetchedAtMs < settings.ttlMs;
+  const isFresh = old?.fetchedAtMs != null && now - old.fetchedAtMs < refreshAgeMs(settings.ttlMs);
   const failedLately = old?.failedAtMs != null && now - old.failedAtMs < RETRY_AFTER_FAILURE_MS;
-  if (old && (isFresh || failedLately)) return answer(old, !isFresh);
+  if (old && (isFresh || failedLately)) return answer(old, !isFresh, page);
 
   const result = await refresh(settings, old, deps);
   if (result.ok) {
     const fresh: Snapshot = { fetchedAtMs: now, posts: result.posts, failedAtMs: null, topics: result.topics };
     await deps.store.put(fresh).catch(() => undefined);
-    return answer(fresh, false);
+    return answer(fresh, false, page);
   }
   console.error(`eligible-posts: ${result.error}`);
   const failed: Snapshot = { fetchedAtMs: old?.fetchedAtMs ?? null, posts: old?.posts ?? [], failedAtMs: now, topics: old?.topics ?? {} };
   await deps.store.put(failed).catch(() => undefined);
-  return answer(failed, true);
+  return answer(failed, true, page);
+}
+
+/** A page of the posts: `limit` posts from `offset`. No `limit`: all the posts. */
+export interface Page {
+  offset: number;
+  limit: number | null;
+}
+
+/** The page of the query. A value that is not a whole number gives the default. */
+export function readPage(params: URLSearchParams): Page {
+  const offset = clampInteger(params.get('offset') ?? undefined, 0, 0, MAX_KEEP_SETTING);
+  const limitText = params.get('limit');
+  return { offset, limit: limitText === null ? null : clampInteger(limitText, 10, 1, MAX_PAGE) };
 }
 
 type RefreshResult = { ok: true; posts: XPost[]; topics: Record<string, Topic> } | { ok: false; error: string };
@@ -174,7 +213,7 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
   });
   const posts = [...shown, ...kept]
     .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0))
-    .slice(0, MAX_KEPT_POSTS);
+    .slice(0, settings.maxKept);
   // Each post gets the draft of a note once: from the model when the route has its key, and the
   // careful draft of its subject if not. A post keeps the draft that it has.
   const oldDrafts = new Map((old?.posts ?? []).map((post) => [post.id, post.draft]));
@@ -190,10 +229,15 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
   return { ok: true, posts, topics: Object.fromEntries(entries.slice(Math.max(0, entries.length - MAX_KEPT_TOPICS))) };
 }
 
-function answer(snapshot: Snapshot, stale: boolean): Response {
+function answer(snapshot: Snapshot, stale: boolean, page: Page): Response {
   if (snapshot.fetchedAtMs == null) return json({ error: X_FAILED }, 502);
-  // The browser may keep the list for a minute. The snapshot itself is on the server.
-  return json({ posts: snapshot.posts, fetchedAtMs: snapshot.fetchedAtMs, stale }, 200, { 'Cache-Control': 'public, max-age=60' });
+  const total = snapshot.posts.length;
+  const end = page.limit === null ? total : Math.min(total, page.offset + page.limit);
+  const posts = snapshot.posts.slice(page.offset, end);
+  // The browser may keep a page for a minute. The snapshot itself is on the server.
+  return json({ posts, fetchedAtMs: snapshot.fetchedAtMs, stale, total, nextOffset: end < total ? end : null }, 200, {
+    'Cache-Control': 'public, max-age=60',
+  });
 }
 
 /** The settings, or the name of what is missing. */
@@ -210,6 +254,7 @@ export function readSettings(env: Env): Settings | 'no-keys' | 'no-filter-key' {
   return {
     keys: { consumerKey, consumerSecret, token, tokenSecret },
     maxResults: clampInteger(env.X_ELIGIBLE_MAX, DEFAULT_MAX, 1, 100),
+    maxKept: clampInteger(env.X_ELIGIBLE_KEEP, MAX_KEPT_POSTS, 10, MAX_KEEP_SETTING),
     ttlMs: clampInteger(env.X_ELIGIBLE_TTL_SECONDS, DEFAULT_TTL_SECONDS, MIN_TTL_SECONDS, KEEP_SECONDS) * 1_000,
     lang: /^[a-z]{2,3}$/.test(lang) ? lang : null,
     filter: allowed && apiKey ? { apiKey, model: env.NEAR_AI_MODEL?.trim() || DEFAULT_TOPIC_MODEL, allowed } : null,

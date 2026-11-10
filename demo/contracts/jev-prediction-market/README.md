@@ -415,9 +415,11 @@ For a new deployment, and what is left:
    near contract call-function as-transaction 3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af ft_transfer_call json-args '{"receiver_id":"pm-notes.seams-v1.testnet","amount":"10000000","msg":"{\"action\":\"create_market\",\"question\":\"Will this note hold up?\",\"context\":\"...\",\"note_id\":2,\"closes_at_ms\":1794500000000}"}' prepaid-gas '100 Tgas' attached-deposit '1 yoctoNEAR' sign-as cyan-loong.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. **NEAR.** On 10 Nov 2026, `seams-v1.testnet` has about 0.5 NEAR free, and
-   `pm-notes.seams-v1.testnet` about 0.3 NEAR above its storage (about 10
-   markets). Add NEAR from `cyan-loong.testnet` before a busy demo.
+3. **NEAR.** On 10 Nov 2026, `seams-v1.testnet` sent 3 NEAR to
+   `pm-notes.seams-v1.testnet` (transaction
+   `FsEcB2wGg6YmjVAHJVa8TJFiWQV8zGE4L5WH4tJnUojt`). The contract then had about
+   3.3 NEAR above its storage: about 200 markets at about 0.015 NEAR each.
+   `seams-v1.testnet` kept about 25 NEAR free.
 
 Checks:
 

@@ -1,19 +1,27 @@
 # Speak-to-Sign demo site
 
-The site is one page (`/`): what a spoken approval is, and the applications as
-small screens in hand-drawn frames. A click on a screen grows it into a window
-of about 90% of the screen, and the app in it works. Community Notes is live
-(`#/notes`); the
-voice multisig (`#/multisig`) works against its testnet contract, and shows
-example data if the contract account has no code. The page style follows the
-Seams Wallet site. Its code is in `src/showcase/`.
+The site has one page for each example. Each page says what a spoken approval
+is, has the Set up card, and shows its application as a small screen in a
+hand-drawn frame. A click on the screen grows it into a window of about 90% of
+the screen, and the app in it works.
 
-Each live app renders once (`src/showcase/live.tsx`), and its element moves
+- `/` (`index.html`): Community Notes, live on NEAR testnet (window `#/notes`).
+- `/multisig/` (`multisig/index.html`): the voice multisig (window
+  `#/multisig`). It works against its testnet contract, and shows example data
+  if the contract account has no code. An old link to `/#/multisig` goes to
+  `/multisig/#/multisig`.
+
+Both pages load the same script (`src/showcase/main.tsx`). The `data-page`
+attribute on `<html>` names the example. A link under the example and the
+footer lead to the other page. The page style follows the Seams Wallet site.
+Its code is in `src/showcase/`.
+
+The live app renders once (`src/showcase/live.tsx`), and its element moves
 between its small screen and the window, so the app keeps its page, sign-in
 and data. The notes app scrolls itself, and its layout follows the window size
 (container queries), not the screen size.
 
-## Voice multisig (`#/multisig`)
+## Voice multisig (`/multisig/`)
 
 A NEAR multisig where a new visitor moves a small amount of testnet NEAR with
 one spoken approval. The spec is `../../docs/voice-multisig-guests.md`. The
@@ -121,7 +129,7 @@ call spends admin gas, so add Cloudflare rate-limiting rules on
 
 1. Sign in with a wallet that is not an admin, and use **Set up your voice**
    in the Set up card. The card also gets testnet NEAR from the faucet.
-2. Open the multisig window. It opens on **New proposal**. Keep
+2. Open the multisig window on `/multisig/`. It opens on **New proposal**. Keep
    `seams-grants.testnet` and `0.01`, press **Record**, and read the
    sentence. Then confirm in the Wallet.
 3. Wait for the three ticks and the receipt. If a step fails, press
@@ -149,11 +157,11 @@ signed output: one call, for a short time.
 There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
-The site has two pages on one origin, `https://seams-voice-intents.pages.dev`:
-the Speak-to-Sign page at `/` (`index.html`, with Community Notes and the voice
-multisig in its windows), and the Speak to pay example
-(`../../examples/speak-to-pay`) at `/pay/`. Both use the same Seams project, so
-one wallet works on both.
+The site has three pages on one origin, `https://seams-voice-intents.pages.dev`:
+Community Notes at `/` (`index.html`), the voice multisig at `/multisig/`
+(`multisig/index.html`), and the Speak to pay example
+(`../../examples/speak-to-pay`) at `/pay/`. All use the same Seams project, so
+one wallet works on all three.
 
 ## What must be live
 
@@ -190,8 +198,9 @@ pnpm dev         # Vite on http://localhost:5173, sends /api/* to port 8788
 pnpm dev:https   # Caddy: https://localhost:5443 → 5173, https://localhost:8443 → 8788
 ```
 
-Open https://localhost:5443 for the Speak-to-Sign page, and
-https://localhost:5443/#/notes for the Community Notes window. Passkeys in the Wallet iframe need the app on
+Open https://localhost:5443 for the Community Notes page,
+https://localhost:5443/#/notes for its window, and
+https://localhost:5443/multisig/ for the voice multisig page. Passkeys in the Wallet iframe need the app on
 trusted HTTPS: on plain `http://localhost` the Wallet says "Passkeys require
 trusted HTTPS for the app and wallet". Caddy signs the certificates with its
 local CA (`tls internal`). If the browser does not trust it yet, run

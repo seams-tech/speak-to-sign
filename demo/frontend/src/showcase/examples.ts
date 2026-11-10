@@ -1,4 +1,5 @@
-// The applications on the Speak-to-Sign page. A click on one opens it in a window on the page.
+// The applications of the Speak-to-Sign site. Each one has its own page: Community Notes at /,
+// the voice multisig at /multisig/. A click on the app's screen opens it in a window on its page.
 // Community Notes is live on NEAR testnet. The voice multisig works against its testnet
 // contract, and shows example data if the contract account has no code. Both copy the style of
 // the real apps, with neutral logos, inside a hand-drawn frame.
@@ -6,6 +7,12 @@
 import { config } from '../config';
 
 export type ExampleId = 'notes' | 'multisig';
+
+/** The page of each example. The HTML file of a page sets `data-page` on <html>. */
+export const PAGE_PATH: Record<ExampleId, string> = {
+  notes: '/',
+  multisig: '/multisig/',
+};
 
 export interface VoiceExample {
   id: ExampleId;

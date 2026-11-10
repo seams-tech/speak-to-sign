@@ -1,15 +1,12 @@
 // The steps of one dialog, in place of a dialog on top of a dialog. When `view` changes, the old
 // step fades out, then the parts of the new step fade in one after another. The dialog itself
-// (Modal) animates to the new size, so it reads as one window that changes.
+// (Modal) animates to the new size, so it reads as one window that changes. With reduced
+// motion the steps only fade.
 
 import { Children, isValidElement, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /** How long the old step takes to fade out (the CSS `.morph-out`). */
 const OUT_MS = 120;
-
-function lessMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 interface ViewProps {
   name: string;
@@ -59,7 +56,6 @@ export function Morph({ view, flex = false, children }: { view: string; flex?: b
       setEntered(view);
       setShown(view);
     };
-    if (lessMotion()) return swap();
     setLeaving(true);
     const timer = window.setTimeout(swap, OUT_MS);
     return () => window.clearTimeout(timer);

@@ -81,8 +81,9 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* The darker blue: X's own blue is 2.8:1 on the grey panels, and a ring needs 3:1. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 
@@ -98,8 +99,10 @@ code {
 .lk {
   color: var(--accent);
 }
-a.lk:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  a.lk:hover {
+    text-decoration: underline;
+  }
 }
 .sr-only,
 .sr-only-input {
@@ -173,8 +176,10 @@ a.lk:hover {
   color: var(--ink);
   transition: background-color 0.2s;
 }
-.rail-logo:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .rail-logo:hover {
+    background: var(--hover);
+  }
 }
 /* The menu items copy the look only, so they are a dim grey that does not invite a click. */
 .rail-item {
@@ -190,8 +195,10 @@ a.lk:hover {
   border-radius: 9999px;
   transition: background-color 0.2s;
 }
-.rail-link:hover .rail-item-pill {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .rail-link:hover .rail-item-pill {
+    background: var(--hover);
+  }
 }
 .rail-label {
   display: none;
@@ -215,16 +222,26 @@ a.lk:hover {
   justify-content: center;
   cursor: pointer;
   box-shadow: rgba(15, 20, 25, 0.08) 0 8px 24px;
-  transition: background-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.2s,
+    scale 150ms ease-out;
 }
-.rail-cta:hover {
-  background: #272c30;
+@media (prefers-reduced-motion: no-preference) {
+  .rail-cta:not(:disabled):active {
+    scale: 0.96;
+  }
 }
 .rail-cta.rail-cta-blue {
   background: var(--accent);
 }
-.rail-cta.rail-cta-blue:hover {
-  background: var(--accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .rail-cta:hover {
+    background: #272c30;
+  }
+  .rail-cta.rail-cta-blue:hover {
+    background: var(--accent-ink);
+  }
 }
 .rail-cta-label {
   display: none;
@@ -245,8 +262,10 @@ a.lk:hover {
   color: var(--muted);
   transition: background-color 0.2s;
 }
-.rail-me-btn:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .rail-me-btn:hover {
+    background: var(--hover);
+  }
 }
 .rail-me-btn {
   cursor: pointer;
@@ -343,8 +362,10 @@ a.lk:hover {
   color: var(--muted);
   font-weight: 500;
 }
-.tab:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover {
+    background: var(--hover);
+  }
 }
 .tab span {
   display: flex;
@@ -381,7 +402,16 @@ a.lk:hover {
   font-size: 15px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.15s,
+    scale 150ms ease-out;
+}
+/* A press shrinks a button a little; a disabled one stays still. */
+@media (prefers-reduced-motion: no-preference) {
+  .btn:not(:disabled):active {
+    scale: 0.96;
+  }
 }
 .btn:disabled {
   opacity: 0.5;
@@ -402,16 +432,18 @@ a.lk:hover {
   border-color: var(--ink);
   color: #fff;
 }
-.btn-dark:not(:disabled):hover {
-  background: #272c30;
-}
 .btn-outline {
   background: #fff;
   border-color: var(--line-strong);
   color: var(--ink);
 }
-.btn-outline:not(:disabled):hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .btn-dark:not(:disabled):hover {
+    background: #272c30;
+  }
+  .btn-outline:not(:disabled):hover {
+    background: var(--hover);
+  }
 }
 .btn-choice {
   min-width: 64px;
@@ -434,9 +466,20 @@ a.lk:hover {
   border-radius: 9999px;
   background: transparent;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.15s,
+    scale 150ms ease-out;
 }
-.icon-btn:hover:not(:disabled) {
-  background: var(--hover);
+@media (prefers-reduced-motion: no-preference) {
+  .icon-btn:not(:disabled):active {
+    scale: 0.96;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover:not(:disabled) {
+    background: var(--hover);
+  }
 }
 .icon-btn:disabled {
   opacity: 0.4;
@@ -583,8 +626,10 @@ a.lk:hover {
   cursor: pointer;
   transition: background-color 0.15s;
 }
-.tl-post:hover {
-  background: var(--hover-soft);
+@media (hover: hover) and (pointer: fine) {
+  .tl-post:hover {
+    background: var(--hover-soft);
+  }
 }
 .tl-main {
   flex: 1;
@@ -661,23 +706,25 @@ a.lk:hover {
   display: inline-flex;
   gap: 20px;
 }
-.act-blue:hover {
-  color: var(--accent);
-}
-.act-blue:hover .act-icon {
-  background: rgba(29, 155, 240, 0.1);
-}
-.act-green:hover {
-  color: var(--green);
-}
-.act-green:hover .act-icon {
-  background: rgba(0, 186, 124, 0.1);
-}
-.act-pink:hover {
-  color: #f91880;
-}
-.act-pink:hover .act-icon {
-  background: rgba(249, 24, 128, 0.1);
+@media (hover: hover) and (pointer: fine) {
+  .act-blue:hover {
+    color: var(--accent);
+  }
+  .act-blue:hover .act-icon {
+    background: rgba(29, 155, 240, 0.1);
+  }
+  .act-green:hover {
+    color: var(--green);
+  }
+  .act-green:hover .act-icon {
+    background: rgba(0, 186, 124, 0.1);
+  }
+  .act-pink:hover {
+    color: #f91880;
+  }
+  .act-pink:hover .act-icon {
+    background: rgba(249, 24, 128, 0.1);
+  }
 }
 .actions-wide {
   margin-top: 0;
@@ -729,10 +776,12 @@ a.lk:hover {
 .cue-icon {
   color: var(--accent);
 }
+/* The hand and the pulse stop after about 4 seconds (moving content that runs longer than 5
+   seconds needs a pause control); the highlighted row stays as the cue. */
 .cue-hand {
   flex: none;
   color: var(--accent);
-  animation: cue-point 1.1s ease-in-out infinite;
+  animation: cue-point 1.1s ease-in-out 4 forwards;
 }
 /* The main calls to action of the demo: "Write a note" and "Bet". Solid blue; the next step
    also pulses. */
@@ -744,12 +793,14 @@ a.lk:hover {
   font-weight: 700;
 }
 .btn-cue {
-  animation: cue-ring 1.8s ease-out infinite;
+  animation: cue-ring 1.8s ease-out 2;
 }
-.btn-blue:not(:disabled):hover,
-.btn-cue:not(:disabled):hover {
-  background: var(--accent-ink);
-  border-color: var(--accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .btn-blue:not(:disabled):hover,
+  .btn-cue:not(:disabled):hover {
+    background: var(--accent-ink);
+    border-color: var(--accent-ink);
+  }
 }
 @keyframes cue-point {
   0%,
@@ -894,9 +945,10 @@ a.lk:hover {
   display: grid;
   gap: 4px;
 }
+/* 12 px: the dialog's 32 px corner less its 20 px inset, so the two corners are concentric. */
 .pc-note {
   border: 1px solid var(--line-strong);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
 }
 .pc-post {
@@ -1012,7 +1064,9 @@ a.lk:hover {
   color: #fff;
   font-size: 19px;
   font-weight: 700;
-  transition: filter 120ms ease;
+  transition:
+    filter 120ms ease,
+    scale 150ms ease-out;
 }
 /* Blue for yes and red for no, even to the eye: both are OKLCH lightness 0.57 and chroma 0.16
    (the strongest blue that sRGB holds at that lightness), with hues 250 and 15. White text on
@@ -1034,8 +1088,10 @@ a.lk:hover {
   opacity: 0.55;
   box-shadow: none;
 }
-.pc-bet .nm-bet:not(:disabled):hover {
-  filter: brightness(0.93);
+@media (hover: hover) and (pointer: fine) {
+  .pc-bet .nm-bet:not(:disabled):hover {
+    filter: brightness(0.93);
+  }
 }
 .pc-bet .nm-bar-yes {
   background: var(--bet-yes);
@@ -1146,8 +1202,10 @@ a.lk:hover {
   padding: 12px 16px;
   transition: background-color 0.2s;
 }
-.trend:hover {
-  background: var(--hover-soft);
+@media (hover: hover) and (pointer: fine) {
+  .trend:hover {
+    background: var(--hover-soft);
+  }
 }
 .trend-kicker {
   font-size: 13px;
@@ -1178,8 +1236,10 @@ a.lk:hover {
   margin-top: 8px;
   color: var(--accent);
 }
-.side-more:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .side-more:hover {
+    text-decoration: underline;
+  }
 }
 .side-title-row {
   display: flex;
@@ -1306,8 +1366,10 @@ a.lk:hover {
 .seg-btn + .seg-btn {
   border-left: 1px solid var(--line-strong);
 }
-.seg-btn:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .seg-btn:hover {
+    background: var(--hover);
+  }
 }
 .seg-on,
 .seg-on:hover {
@@ -1365,45 +1427,50 @@ a.lk:hover {
   vertical-align: -2px;
 }
 
-/* Dialogs. They fade and grow in; Modal adds overlay-leaving to fade them out. */
-@keyframes overlay-in {
-  from {
+/* Dialogs. They fade and grow in from a starting style; Modal adds overlay-leaving to fade them
+   out. Transitions, not keyframes: a dialog closed while it opens turns back from where it is.
+   The exit is shorter than the entrance, and also eases out. With reduced motion they only fade. */
+.overlay:not(.overlay-bare),
+.overlay-backdrop {
+  transition: opacity 180ms ease-out;
+}
+.dialog {
+  transition:
+    opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 180ms ease;
+}
+@starting-style {
+  .overlay:not(.overlay-bare),
+  .overlay-backdrop,
+  .dialog:not(.dialog-bare) {
     opacity: 0;
   }
 }
-@keyframes overlay-out {
-  to {
-    opacity: 0;
-  }
+.overlay-leaving {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: 140ms;
 }
-@keyframes dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
+.overlay-leaving .dialog:not(.dialog-bare) {
+  opacity: 0;
+  transition-duration: 140ms;
+  transition-timing-function: ease-out;
 }
-@keyframes dialog-out {
-  to {
-    opacity: 0;
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .dialog:not(.dialog-bare) {
+      transform: translateY(10px) scale(0.98);
+    }
+  }
+  .overlay-leaving .dialog:not(.dialog-bare) {
     transform: translateY(6px) scale(0.98);
   }
 }
-.overlay,
-.overlay-backdrop {
-  animation: overlay-in 180ms ease-out;
-}
-.overlay.overlay-bare {
-  animation: none;
-}
-.dialog:not(.dialog-bare) {
-  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.overlay-leaving {
-  animation: overlay-out 140ms ease-in forwards;
-  pointer-events: none;
-}
-.overlay-leaving .dialog:not(.dialog-bare) {
-  animation: dialog-out 140ms ease-in forwards;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Steps of one dialog (Morph): the old step fades out, then the parts of the new one fade in
@@ -1419,7 +1486,7 @@ a.lk:hover {
 }
 .morph-out {
   opacity: 0;
-  transition: opacity 120ms ease-in;
+  transition: opacity 120ms ease-out;
 }
 @keyframes morph-part-in {
   from {
@@ -1429,7 +1496,7 @@ a.lk:hover {
 }
 .morph-in > *,
 .morph-in > .dialog-body > * {
-  animation: morph-part-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: morph-part-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 .morph-in > :nth-child(2) {
   animation-delay: 50ms;
@@ -1453,11 +1520,8 @@ a.lk:hover {
 .morph-in > .dialog-body > :nth-child(n + 4) {
   animation-delay: 210ms;
 }
-/* The sign-in step: the dialog shrinks to the Wallet's card, and its own white goes once the
-   card is painted (the SDK marks the anchor ready), so the card is the dialog. */
-.dialog {
-  transition: background-color 180ms ease;
-}
+/* The sign-in step: the dialog shrinks to the Wallet's card, and its own white fades out once
+   the card is painted (the SDK marks the anchor ready), so the card is the dialog. */
 .dialog:has(.morph-view:not([hidden]) > .signin-step) {
   max-width: 420px;
 }
@@ -1473,7 +1537,7 @@ a.lk:hover {
 .card-corner {
   position: fixed;
   z-index: 61;
-  animation: overlay-in 200ms ease-out 200ms backwards;
+  animation: fade-in 200ms ease-out 200ms backwards;
 }
 .overlay {
   position: fixed;
@@ -1485,6 +1549,7 @@ a.lk:hover {
   justify-content: center;
   padding: 5vh 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .dialog {
   /* The corner radius, also for the voice button that fills the dialog's foot (--foot-r). */
@@ -1524,6 +1589,7 @@ a.lk:hover {
   flex: 1 1 auto;
   padding: 0 20px 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   min-height: 0;
 }
 /* With no footer under it, the body keeps the same space below as at its sides. */
@@ -1622,8 +1688,10 @@ a.lk:hover {
   cursor: pointer;
   position: relative;
 }
-.choice:hover {
-  background: var(--panel);
+@media (hover: hover) and (pointer: fine) {
+  .choice:hover {
+    background: var(--panel);
+  }
 }
 .choice-check.choice-on,
 .choice-check.choice-on:hover {
@@ -1673,7 +1741,7 @@ q.say {
   border-color: var(--accent);
 }
 .choice:has(.sr-only-input:focus-visible) {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: -2px;
 }
 fieldset:disabled .choice {
@@ -1684,7 +1752,8 @@ fieldset:disabled .choice {
   display: block;
   width: 100%;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  /* As the note box above it: 12 px, concentric with the dialog's corner. */
+  border-radius: 12px;
   padding: 10px 12px;
   font-size: 15px;
   resize: vertical;
@@ -1692,8 +1761,8 @@ fieldset:disabled .choice {
 }
 .input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--accent-ink);
+  box-shadow: 0 0 0 1px var(--accent-ink);
 }
 .input:disabled {
   background: var(--panel);
@@ -1718,7 +1787,7 @@ fieldset:disabled .choice {
   resize: vertical;
 }
 .wn-note:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: -1px;
   background: #fff;
 }
@@ -1814,6 +1883,7 @@ fieldset:disabled .choice {
 .speak-btn {
   cursor: pointer;
   border-radius: 12px;
+  -webkit-tap-highlight-color: transparent;
 }
 .speak-btn:disabled {
   cursor: default;
@@ -1838,33 +1908,47 @@ fieldset:disabled .choice {
     background-color 0.16s,
     color 0.16s;
 }
-.dialog-foot .speak-btn .mic,
 .dialog-foot .speak-btn .muted {
-  transition:
-    background-color 0.16s,
-    color 0.16s;
+  transition: color 0.16s;
 }
-.dialog-foot .speak-btn:not(:disabled):hover,
+/* Keyboard focus lights the foot as a pointer does. */
 .dialog-foot .speak-btn:not(:disabled):focus-visible {
   background: var(--ink);
   color: #fff;
   outline: none;
 }
-.dialog-foot .speak-btn:not(:disabled):hover .mic,
 .dialog-foot .speak-btn:not(:disabled):focus-visible .mic {
   background: #fff;
   color: var(--ink);
 }
-.dialog-foot .speak-btn:not(:disabled):hover .muted,
 .dialog-foot .speak-btn:not(:disabled):focus-visible .muted {
   color: rgba(255, 255, 255, 0.72);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dialog-foot .speak-btn:not(:disabled):hover {
+    background: var(--ink);
+    color: #fff;
+  }
+  .dialog-foot .speak-btn:not(:disabled):hover .mic {
+    background: #fff;
+    color: var(--ink);
+  }
+  .dialog-foot .speak-btn:not(:disabled):hover .muted {
+    color: rgba(255, 255, 255, 0.72);
+  }
+  /* Outside a dialog's foot, only the microphone answers the pointer. */
+  .speak-btn:not(:disabled):hover .mic {
+    background: #272c30;
+  }
 }
 .dialog-foot .speak-btn:not(:disabled):active {
   background: #272c30;
 }
-/* Outside a dialog's foot, only the microphone answers the pointer. */
-.speak-btn:not(:disabled):hover .mic {
-  background: #272c30;
+/* A press shrinks the microphone: the foot itself keeps the dialog's edges. */
+@media (prefers-reduced-motion: no-preference) {
+  .speak-btn:not(:disabled):active .mic {
+    scale: 0.96;
+  }
 }
 .speak-text {
   display: flex;
@@ -1885,6 +1969,10 @@ fieldset:disabled .choice {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition:
+    background-color 0.16s,
+    color 0.16s,
+    scale 150ms ease-out;
 }
 .mic-live {
   background: var(--accent);
@@ -2004,14 +2092,14 @@ fieldset:disabled .choice {
   .mic-live,
   .spinner,
   .toast,
-  .overlay,
-  .overlay-backdrop,
-  .dialog:not(.dialog-bare),
   .step-just-done .step-mark,
-  .note-card.note-fresh,
+  .note-card.note-fresh {
+    animation: none;
+  }
+  /* The parts of a new step only fade in. */
   .morph-in > *,
   .morph-in > .dialog-body > * {
-    animation: none;
+    animation-name: fade-in;
   }
 }
 
@@ -2156,8 +2244,10 @@ fieldset:disabled .choice {
   cursor: pointer;
   font: inherit;
 }
-.link-btn:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .link-btn:hover {
+    text-decoration: underline;
+  }
 }
 .step-detail {
   white-space: nowrap;

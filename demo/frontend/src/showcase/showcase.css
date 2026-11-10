@@ -103,9 +103,18 @@ h1.ss-display {
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background-color 150ms ease,
-    border-color 150ms ease;
+    border-color 150ms ease,
+    scale 150ms ease-out;
+}
+
+/* A press shrinks a button a little; a disabled one stays still. */
+@media (prefers-reduced-motion: no-preference) {
+  .ss-btn:not(:disabled):active {
+    scale: 0.96;
+  }
 }
 
 .ss-btn-lg {
@@ -209,9 +218,6 @@ h1.ss-display {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
-}
-
-@media (hover: hover) and (pointer: fine) {
 }
 
 /* ---------- column and hairlines ---------- */
@@ -949,9 +955,11 @@ h1.ss-display {
   cursor: pointer;
 }
 
-.ss-browser-close:hover {
-  background: var(--stone);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .ss-browser-close:hover {
+    background: var(--stone);
+    color: var(--ink);
+  }
 }
 
 .ss-overlay-card {

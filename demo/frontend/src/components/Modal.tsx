@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
-/** How long the close animation runs (the CSS `overlay-out` and `dialog-out`). */
+/** How long the close fade runs (the CSS `.overlay-leaving`). */
 const EXIT_MS = 140;
 /** How long the dialog takes to change size when its content changes. */
 const RESIZE_MS = 280;
@@ -28,7 +28,7 @@ let bodyOverflow = '';
  * A `bare` dialog has no panel of its own, for content that brings its own card.
  *
  * It fades and grows in when it opens. Escape, a click outside and `handle.close()` fade it out
- * first; a parent that removes it at once skips that.
+ * first; a parent that removes it at once skips that. With reduced motion it only fades.
  */
 export function Modal({
   labelledBy,
@@ -63,7 +63,6 @@ export function Modal({
   const close = useCallback((after?: () => void) => {
     const done = after ?? (() => onCloseRef.current());
     if (leaveTimer.current) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
     setLeaving(true);
     leaveTimer.current = window.setTimeout(done, EXIT_MS);
   }, []);

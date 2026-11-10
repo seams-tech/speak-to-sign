@@ -71,6 +71,8 @@
   padding: 8px 12px 10px;
   border-top: 1px solid var(--line);
   background: var(--panel);
+  /* The odds and the pool change after a bet: the figures keep their width. */
+  font-variant-numeric: tabular-nums;
 }
 .xt-market .nm-bar {
   margin: 0 0 6px;
@@ -187,8 +189,10 @@ a.rail-item {
   color: var(--accent-ink);
   cursor: pointer;
 }
-.xt-more:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .xt-more:hover {
+    text-decoration: underline;
+  }
 }
 .xt-more svg {
   transition: transform 0.2s;

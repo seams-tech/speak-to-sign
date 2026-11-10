@@ -12,6 +12,8 @@
   padding: 10px 16px 12px;
   border-top: 1px solid var(--line);
   font-size: 14px;
+  /* The odds and the pool change after a bet: the figures keep their width. */
+  font-variant-numeric: tabular-nums;
   cursor: auto;
 }
 .nm-row {

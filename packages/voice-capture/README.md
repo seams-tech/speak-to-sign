@@ -149,7 +149,8 @@ await recordVoice(stop.signal, observer, { detector: 'level' });
 | `microphonePreference` | kept until the page reloads | `{ read, save }` to keep the chosen microphone |
 | `label` | `Voice capture` | The product name in messages |
 | `place` | `this page` | The place name in messages ("Keep this page open and focused ...") |
-| `recoveryHint` | `Reload the page and try again.` | The last sentence when a file cannot load |
+| `site` | `this site` | The site name in messages ("... is unavailable from this site.") |
+| `recoveryHint` | `Reload the page and try again.` | What the person can do when a file cannot load |
 | `cacheName` | `seams-voice-capture-models-v1` | The browser cache of the model files |
 | `styleNonce` | none | The nonce of the page's style policy, for an older browser that needs a style element |
 

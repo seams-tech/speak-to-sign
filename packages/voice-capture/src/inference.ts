@@ -2,7 +2,13 @@ import type { InferenceSession } from 'onnxruntime-web';
 import { assetUrl, captureConfig } from './config';
 
 /** One file under the asset folder, with the exact bytes that the page accepts. */
-export type ModelAsset = Readonly<{ fileName: string; sha256: string; bytes: number; label: string }>;
+export type ModelAsset = Readonly<{
+  fileName: string;
+  sha256: string;
+  bytes: number;
+  /** The name in messages for the person. A function reads the settings when it is needed. */
+  label: string | (() => string);
+}>;
 export type VoiceAssetProgress =
   { kind: 'checking_cache' } | { kind: 'downloading'; received: number } | { kind: 'ready' };
 const DOWNLOAD_IDLE_TIMEOUT_MS = 30_000;
@@ -108,7 +114,8 @@ class BrowserInferenceAsset {
   }
 
   private async fetchBytes(): Promise<ArrayBuffer> {
-    const { label, fileName } = this.asset;
+    const { fileName } = this.asset;
+    const label = typeof this.asset.label === 'function' ? this.asset.label() : this.asset.label;
     const controller = new AbortController();
     let idle = setTimeout(abortDownload.bind(null, controller), DOWNLOAD_IDLE_TIMEOUT_MS);
     this.publish({ kind: 'downloading', received: 0 });
@@ -124,7 +131,7 @@ class BrowserInferenceAsset {
           transient ? 'connection' : 'unavailable',
           transient
             ? `${label} download was interrupted. Check your connection and retry.`
-            : `${label} is unavailable. ${captureConfig().recoveryHint}`,
+            : `${label} is unavailable from ${captureConfig().site}. ${captureConfig().recoveryHint}`,
         );
       }
       const reader = response.body.getReader();
@@ -177,7 +184,7 @@ export const voiceInferenceEngine = new BrowserInferenceAsset({
   fileName: 'ort-wasm-simd-threaded.wasm',
   sha256: '3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2',
   bytes: 14_239_897,
-  label: 'Voice engine',
+  label: () => `${captureConfig().label} engine`,
 });
 
 export class BrowserInferenceModel {
@@ -213,7 +220,7 @@ export class BrowserInferenceModel {
       console.error(`[${label}] inference engine could not start`, error);
       throw new VoiceAssetLoadError(
         'initialization',
-        `${label} could not start. Retry loading. If it still fails: ${recoveryHint}`,
+        `${label} could not start. Retry loading. If it still fails, ${recoveryHint.charAt(0).toLowerCase()}${recoveryHint.slice(1)}`,
         { cause: error },
       );
     }

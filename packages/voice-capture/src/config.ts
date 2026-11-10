@@ -24,7 +24,9 @@ export type VoiceCaptureConfig = Readonly<{
   label?: string;
   /** The place that the person must keep open, such as "the Wallet". */
   place?: string;
-  /** The last sentence of a message about a file that cannot load. */
+  /** The site that serves the asset files, such as "this Wallet". */
+  site?: string;
+  /** What the person can do when a file cannot load. It is one sentence. */
   recoveryHint?: string;
   /** The name of the browser cache that keeps the model files. */
   cacheName?: string;
@@ -47,6 +49,7 @@ const DEFAULTS: ResolvedConfig = {
   styleNonce: null,
   label: 'Voice capture',
   place: 'this page',
+  site: 'this site',
   recoveryHint: 'Reload the page and try again.',
   cacheName: 'seams-voice-capture-models-v1',
 };
@@ -64,6 +67,7 @@ export function configureVoiceCapture(config: VoiceCaptureConfig): void {
     styleNonce: config.styleNonce ?? null,
     label: config.label ?? DEFAULTS.label,
     place: config.place ?? DEFAULTS.place,
+    site: config.site ?? DEFAULTS.site,
     recoveryHint: config.recoveryHint ?? DEFAULTS.recoveryHint,
     cacheName: config.cacheName ?? DEFAULTS.cacheName,
   };

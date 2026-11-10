@@ -1769,8 +1769,73 @@ h1.ss-display {
   margin-left: auto;
 }
 
-.ss-spa .ss-field-pick + .ss-nav-source {
+.ss-spa .ss-field-pick ~ .ss-nav-source {
   margin-left: 0;
+}
+
+/* "Built on NEAR" between the picker and GitHub: the words and NEAR's wordmark, in white, as on
+   tatchi.xyz. */
+.ss-near {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.92;
+  transition: opacity 150ms ease;
+}
+
+.ss-near svg {
+  width: 48px;
+  height: auto;
+  /* The wordmark's letters sit a little low in its box. */
+  margin-top: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-near:hover {
+    opacity: 1;
+  }
+}
+
+/* While the setup steps are in the nav, and on a phone, the wordmark stands alone. */
+.ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near-words {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .ss-near-words {
+    display: none;
+  }
+}
+
+/* From 1041px to 1180px the three setup steps need the badge's room: it goes while they are in
+   the nav. Narrower, the nav shows one step (below), and the badge comes back. */
+@media (min-width: 1041px) and (max-width: 1180px) {
+  .ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-near {
+    display: none;
+  }
+}
+
+/* From 861px to 1040px the three steps would run under the picker: the nav shows one step, the
+   first that is not done, as on a phone. The name stays. */
+@media (min-width: 861px) and (max-width: 1040px) {
+  .ss-nav-setup .step-done,
+  .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
+    display: none;
+  }
+  .ss-nav-setup .step + .step {
+    margin-left: 0;
+  }
+  .ss-nav-setup .step + .step::before {
+    display: none;
+  }
 }
 
 /* The setup steps in the nav. They come in when the sheet covers the hero, and they go when
@@ -1944,6 +2009,21 @@ h1.ss-display {
 /* The moving grain field (GrainField, a canvas) fills the ground. Its shader draws the grain. */
 .ss-ground > .grain-field {
   z-index: -2;
+}
+
+/* NEAR's N, big and faint, behind the right side of the hero: turned 30 degrees as on
+   tatchi.xyz. Its centre is right of the middle, near the signature card; the ground crops it. */
+.ss-ground-near {
+  position: absolute;
+  z-index: -1;
+  top: 56%;
+  left: calc(50% + min(26vw, 360px));
+  width: clamp(560px, 68vw, 980px);
+  height: auto;
+  transform: translate(-50%, -50%) rotate(30deg);
+  color: #ffffff;
+  opacity: 0.1;
+  pointer-events: none;
 }
 
 /* A soft shade over the left of the ground, where the text is. A light field gets more of it

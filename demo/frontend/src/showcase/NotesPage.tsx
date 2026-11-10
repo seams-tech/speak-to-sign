@@ -18,6 +18,7 @@ import type { CSSProperties } from 'react';
 import { BrandMark } from '../components/BrandMark';
 import { SignInModal } from '../components/SignInModal';
 import { FieldPicker } from './FieldPicker';
+import { NearMark, NearWordmark } from './nearMarks';
 import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
 import { fieldScrim, useHeroField } from './heroField';
@@ -26,6 +27,7 @@ import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
 import { SignatureCard } from './SignatureCard';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
+const NEAR_URL = 'https://near.org';
 /** The part of the way at which the hero's setup strip is out of sight. */
 const COVERED_AT = 0.6;
 /** The hero field moves at half the site pace, as on the Seams home page. */
@@ -102,6 +104,8 @@ export function NotesPage({ seams }: { seams: boolean }) {
         <div className="ss-ground" aria-hidden="true">
           {/* While the sheet is at the nav, only the nav's strip of the field shows: it holds still. */}
           <GrainField field={field} pace={HERO_FIELD_PACE} playing={!docked} />
+          {/* NEAR's N, big and faint, behind the right side of the hero. */}
+          <NearMark className="ss-ground-near" />
         </div>
         <header className="ss-nav">
           <div className="ss-nav-inner">
@@ -115,6 +119,10 @@ export function NotesPage({ seams }: { seams: boolean }) {
               {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
             </div>
             <FieldPicker />
+            <a className="ss-near" href={NEAR_URL} target="_blank" rel="noopener noreferrer" aria-label="Built on NEAR">
+              <span className="ss-near-words">Built on</span>
+              <NearWordmark />
+            </a>
             <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
               <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
               <span>GitHub</span>

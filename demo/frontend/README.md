@@ -408,12 +408,16 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 - **The sheet**, white, with the notes app in the page itself, not in a
   window.
 
-The page scrolls by the height of the hero. The hero stays in place, and the
-sheet moves up over it like paper. While the sheet covers it, the hero goes
-back a little, blurs and dims (`--cover`, set from the scroll position).
-When the sheet is at the nav, the notes app scrolls inside the sheet. At the
-top of the app, a scroll up brings the hero back. A post that opens moves the
-sheet up.
+The page is the one scroll area. The hero stays in place, and the sheet moves
+up over it like paper. While the sheet covers it, the hero goes back a little,
+blurs and dims (`--cover`, set from the scroll position). The same scroll then
+goes on down the feed: on this page the notes app does not scroll itself
+(`.ss-sheet .notes-app` in `showcase.css`), so one gesture is enough. The
+app's sticky parts (the tabs, the navigation, the right column) stick under
+the nav, and the phone's bottom bar sticks to the bottom of the screen. The
+part of the sheet above the nav's lower edge is cut off (`clip-path`, set in
+the scroll handler), so the hero's gradient stays behind the nav. A post
+that opens starts at the top of the sheet.
 
 The app opens on the timeline. Its right column, "Signed by voice"
 (`src/x/VoiceFeed.tsx`), lists the newest notes with the sentence that each

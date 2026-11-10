@@ -4,9 +4,9 @@
 // hidden here. When the sheet covers the hero, the setup steps show in the nav.
 //
 // The hero has the grainy blue and rose field of the Seams Wallet site.
-// The page scrolls by the height of the hero. The nav stays in place. The hero stays too, and the
-// sheet moves up over it like a sheet of paper, while the hero goes back a little, blurs and
-// dims. When the sheet is at the nav ("docked"), the notes app scrolls inside the sheet.
+// The page is the one scroll area. The nav stays in place. The hero stays too, and the sheet
+// moves up over it like a sheet of paper, while the hero goes back a little, blurs and dims.
+// The same scroll then goes on down the feed: the notes app does not scroll itself here.
 
 import { useEffect, useRef, useState } from 'react';
 import { IconBrandGithub } from '@tabler/icons-react';
@@ -22,26 +22,42 @@ const COVERED_AT = 0.6;
 
 export function NotesPage({ seams }: { seams: boolean }) {
   const [signIn, setSignIn] = useState(false);
-  const [docked, setDocked] = useState(false);
   // The sheet covers most of the hero: the setup steps show in the nav.
   const [covered, setCovered] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
 
-  // The page's scroll position drives the hero (--cover: 0 = open, 1 = covered) and the dock.
+  /** How far the page scrolls until the sheet is at the nav. */
+  const coverDistance = () => {
+    const page = pageRef.current;
+    const sheet = sheetRef.current;
+    if (!page || !sheet) return 0;
+    const nav = page.querySelector<HTMLElement>('.ss-nav');
+    return Math.max(0, sheet.offsetTop - (nav?.offsetHeight ?? 0));
+  };
+
+  // The page's scroll position drives the hero (--cover: 0 = open, 1 = covered).
   useEffect(() => {
     const page = pageRef.current;
     const hero = heroRef.current;
     if (!page || !hero) return;
-    // The work is two style writes, so it runs in the scroll event itself. A frame callback
-    // does not run while the tab is in the background, and the sheet would not dock then.
+    // The work is one style write, so it runs in the scroll event itself. A frame callback does
+    // not run while the tab is in the background.
     const update = () => {
-      const distance = page.scrollHeight - page.clientHeight;
+      const distance = coverDistance();
       const cover = distance > 0 ? Math.min(1, Math.max(0, page.scrollTop / distance)) : 1;
       hero.style.setProperty('--cover', cover.toFixed(3));
-      // One pixel of slack: a zoomed page stops a fraction before the end.
-      setDocked(distance <= 0 || page.scrollTop >= distance - 1);
       setCovered(cover >= COVERED_AT);
+      // The nav has no ground of its own: the top of the hero shows behind it. When the feed
+      // scrolls on, the sheet would go up behind the nav and hide that strip. So the part of
+      // the sheet above the nav's lower edge is cut off, with the sheet's round corners.
+      const sheet = sheetRef.current;
+      const nav = page.querySelector<HTMLElement>('.ss-nav');
+      if (sheet && nav) {
+        const above = nav.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top;
+        sheet.style.clipPath = above > 0 ? `inset(${above.toFixed(1)}px 0 0 0 round var(--sheet-r) var(--sheet-r) 0 0)` : '';
+      }
     };
     update();
     page.addEventListener('scroll', update, { passive: true });
@@ -52,11 +68,15 @@ export function NotesPage({ seams }: { seams: boolean }) {
     };
   }, []);
 
-  // A post opens: the sheet goes up, so the post has the whole screen.
+  // A new page of the app (a post, or back to the timeline) starts at the top of the sheet. A
+  // post that opens while the hero shows moves the sheet up, so the post has the whole screen.
   useEffect(() => {
     const onHash = () => {
       const page = pageRef.current;
-      if (page && /^#\/notes\/post\//.test(window.location.hash)) page.scrollTo({ top: page.scrollHeight, behavior: 'smooth' });
+      if (!page) return;
+      const top = coverDistance();
+      if (page.scrollTop > top) page.scrollTo({ top });
+      else if (/^#\/notes\/post\//.test(window.location.hash)) page.scrollTo({ top, behavior: 'smooth' });
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -106,7 +126,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
           </div>
         </section>
 
-        <main className="ss-sheet" data-docked={docked || undefined} aria-label="Community Notes">
+        <main className="ss-sheet" ref={sheetRef} aria-label="Community Notes">
           <div className="ss-sheet-app">
             <LiveSlot id="notes" />
           </div>

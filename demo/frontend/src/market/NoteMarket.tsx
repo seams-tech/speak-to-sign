@@ -6,9 +6,12 @@
 // 3 minutes), the creator closes the betting and asks JEV in one transaction, and an action that
 // starts while signed out runs after the sign-in.
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { IconChartBar, IconChevronDown, IconMicrophone, IconScale, IconX } from '@tabler/icons-react';
-import { Modal } from '../components/Modal';
+import { Modal, type ModalHandle } from '../components/Modal';
+import { Morph, MorphView } from '../components/Morph';
+import { SignInStep } from '../components/SignInModal';
+import { DemoContext } from '../demoContext';
 import type { SignResult } from '../signer/notesSigner';
 import {
   amountText,
@@ -138,6 +141,8 @@ export function NoteMarketStrip({
   /** The note has no market, and a new one can open: show "Open a market". */
   const [canOpen, setCanOpen] = useState(false);
   const [opening, setOpening] = useState(false);
+  /** The open sheet starts with the sign-in: "Open a market" was tapped while signed out. */
+  const [openSignInFirst, setOpenSignInFirst] = useState(false);
   /** The action that waits for the sign-in. */
   const [intent, setIntent] = useState<{ action: Action; atMs: number } | null>(null);
   /** The action whose button waits for the page's sign-in promise. */
@@ -193,6 +198,16 @@ export function NoteMarketStrip({
   /** Runs one action. Signed out, it asks for the sign-in and runs after it. */
   const run = async (action: Action): Promise<string | null> => {
     setNotice(null);
+    // The sheets open at once, also signed out: each one shows the sign-in as its own step.
+    if (action.kind === 'bet' && !directBet) {
+      setBetSide(action.side);
+      return null;
+    }
+    if (action.kind === 'open' && !account) {
+      setOpenSignInFirst(true);
+      setOpening(true);
+      return null;
+    }
     if (!account) {
       const asked = onSignIn();
       if (!isPromise(asked)) {
@@ -204,10 +219,6 @@ export function NoteMarketStrip({
       // Ready: the button keeps its look until the action starts (the effect below).
       if (ready) setIntent({ action, atMs: Date.now() });
       else setWaiting(null);
-      return null;
-    }
-    if (action.kind === 'bet' && !directBet) {
-      setBetSide(action.side);
       return null;
     }
     const start = (stage: SignStage = 'confirm') =>
@@ -232,7 +243,6 @@ export function NoteMarketStrip({
       }
       await load().catch(() => undefined);
       setBusy(null);
-      setOpening(false);
       setNotice({ text: `The market is open. JEV decides in ${durationText(action.durationMs)}.`, isError: false });
       return null;
     }
@@ -346,7 +356,15 @@ export function NoteMarketStrip({
         </div>
         <p className="nm-muted nm-small">
           Seed {amountText(seed, currency)} · people bet for {durationText(DEFAULT_DURATION_MS)} · then JEV decides.{' '}
-          <button type="button" className="link-btn nm-small" disabled={openBusy || waiting !== null} onClick={() => (account ? setOpening(true) : void onSignIn())}>
+          <button
+            type="button"
+            className="link-btn nm-small"
+            disabled={openBusy || waiting !== null}
+            onClick={() => {
+              setOpenSignInFirst(false);
+              setOpening(true);
+            }}
+          >
             Change
           </button>
         </p>
@@ -354,7 +372,10 @@ export function NoteMarketStrip({
         {opening && (
           <OpenSheet
             currency={currency}
+            account={account}
             busyStage={openStage}
+            signInFirst={openSignInFirst}
+            onSignIn={onSignIn}
             onClose={() => setOpening(false)}
             onOpen={(chosenSeed, durationMs) => run({ kind: 'open', seed: chosenSeed, durationMs })}
           />
@@ -479,9 +500,10 @@ export function NoteMarketStrip({
           initialSide={betSide}
           source={source}
           account={account}
+          onSignIn={onSignIn}
           onClose={() => setBetSide(null)}
           onDone={(text) => {
-            setBetSide(null);
+            // The sheet closes itself with its close animation.
             setNotice({ text, isError: false });
             void load().catch(() => undefined);
           }}
@@ -659,11 +681,92 @@ function Sparkline({ points }: { points: OddsPoint[] }) {
   );
 }
 
+/** The page's hosted sign-in, when the page has one (the preview has none). */
+function useHostedSignIn(): { signingIn: boolean; end: (signedIn: boolean) => void } {
+  const demo = useContext(DemoContext);
+  const host = demo?.hostSignIn;
+  useEffect(() => (host ? host() : undefined), [host]);
+  return { signingIn: demo?.signingIn ?? false, end: (signedIn) => demo?.endSignIn(signedIn) };
+}
+
+const SIGN_IN_INTRO = 'Your bets are signed from your own NEAR testnet account. Use a passkey to sign in, or create a new wallet.';
+
+/**
+ * One dialog for one flow: the sheet, and the page's sign-in as a step of the same dialog. While
+ * the sign-in shows, the sheet stays mounted (hidden), so it can go on after the sign-in.
+ */
+function SheetDialog({
+  titleId,
+  locked,
+  onClose,
+  children,
+}: {
+  titleId: string;
+  /** True while the Wallet works on the sheet's transaction. */
+  locked: boolean;
+  onClose: () => void;
+  /** The sheet. `close` plays the dialog's close animation. */
+  children: (close: () => void) => ReactNode;
+}) {
+  const { signingIn, end } = useHostedSignIn();
+  const modal = useRef<ModalHandle>(null);
+  const signInTitleId = useId();
+  return (
+    <Modal
+      labelledBy={signingIn ? signInTitleId : titleId}
+      onClose={onClose}
+      locked={locked && !signingIn}
+      handle={modal}
+      onOutside={signingIn ? () => end(false) : undefined}
+    >
+      <Morph view={signingIn ? 'signin' : 'sheet'} flex>
+        <MorphView name="sheet" keep>
+          {children(() => modal.current?.close())}
+        </MorphView>
+        {signingIn && (
+          <MorphView name="signin">
+            <SignInStep titleId={signInTitleId} intro={SIGN_IN_INTRO} onSignedIn={() => end(true)} onBack={() => end(false)} />
+          </MorphView>
+        )}
+      </Morph>
+    </Modal>
+  );
+}
+
+/**
+ * Signs in from inside a sheet, then runs the sheet's action with the fresh props (the source of
+ * a signed-in account). `start` asks; the action runs in an effect when `account` is there.
+ */
+function useSignInThen(account: string | undefined, onSignIn: () => void | Promise<boolean>, action: () => Promise<void>) {
+  const [waiting, setWaiting] = useState(false);
+  const [ready, setReady] = useState(false);
+  const actionRef = useRef(action);
+  useEffect(() => {
+    actionRef.current = action;
+  });
+  useEffect(() => {
+    if (!ready || !account) return;
+    setReady(false);
+    setWaiting(false);
+    void actionRef.current();
+  }, [ready, account]);
+  const start = async () => {
+    setWaiting(true);
+    const asked = onSignIn();
+    // Without a promise, the action runs when the account arrives.
+    const ok = isPromise<boolean>(asked) ? await asked.catch(() => false) : true;
+    if (ok) setReady(true);
+    else setWaiting(false);
+  };
+  return { waiting, start };
+}
+
 function BetSheet({
   market,
   initialSide,
   source,
   account,
+  onSignIn,
   onClose,
   onDone,
 }: {
@@ -671,6 +774,7 @@ function BetSheet({
   initialSide: Side;
   source: MarketSource;
   account?: string;
+  onSignIn: () => void | Promise<boolean>;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
@@ -680,7 +784,10 @@ function BetSheet({
   const [amount, setAmount] = useState<bigint>(currency.chips[1] ?? 0n);
   const [balance, setBalance] = useState<bigint | null>(null);
   useEffect(() => {
-    if (!account || !source.getBalance) return;
+    if (!account || !source.getBalance) {
+      setBalance(null);
+      return;
+    }
     source.getBalance(account).then(setBalance, () => setBalance(null));
   }, [account, source]);
   const short = balance !== null && balance < amount;
@@ -689,97 +796,132 @@ function BetSheet({
   const share = yesShareBps(market.yesPool, market.noPool);
   const win = estimatePayout(market, side, amount, side === 'yes' ? 10_000 : 0);
 
-  const place = async () => {
+  const place = async (close: () => void) => {
     setStage('confirm');
     setError(null);
     const result = await source.bet({ marketId: market.id, side, amount }, setStage);
     setStage(null);
+    if (result.kind === 'sent') close();
     if (result.kind === 'sent') onDone(`Your bet of ${amountText(amount, currency)} on ${side} is in.`);
     else if (result.kind === 'cancelled') setError(CANCELLED);
     else setError(result.reason);
   };
+  const closeRef = useRef<() => void>(() => undefined);
+  const signIn = useSignInThen(account, onSignIn, () => place(closeRef.current));
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={stage !== null}>
-      <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" disabled={stage !== null}>
-          <IconX size={20} />
-        </button>
-        <h2 id={titleId}>Bet on this note</h2>
-      </header>
-      <div className="dialog-body nm-sheet">
-        <p className="nm-muted">At the close, JEV reads the post, the note and its sources. A grey answer pays by its probability.</p>
-        <div className="nm-buttons" role="group" aria-label="Side">
-          {(['yes', 'no'] as const).map((choice) => (
-            <button
-              key={choice}
-              type="button"
-              aria-pressed={side === choice}
-              className={`btn btn-outline nm-side ${side === choice ? `nm-side-on nm-side-${choice}` : ''}`}
-              onClick={() => setSide(choice)}
-            >
-              {choice === 'yes' ? 'Yes' : 'No'} · {percentText(choice === 'yes' ? share : 10_000 - share)}
-            </button>
-          ))}
-        </div>
-        <div className="nm-buttons" role="group" aria-label="Amount">
-          {currency.chips.map((chip) => (
-            <button
-              key={chip.toString()}
-              type="button"
-              aria-pressed={amount === chip}
-              className={`btn btn-outline btn-sm nm-chip ${amount === chip ? 'btn-choice-on' : ''}`}
-              onClick={() => setAmount(chip)}
-            >
-              {chipText(chip, currency)} {currency.symbol}
-            </button>
-          ))}
-        </div>
-        <p>
-          Win about <b>{amountText(win, currency)}</b> if JEV says {side} fully, and the pool stays as it is.
-        </p>
-        {source.signsByVoice && (
-          <div className="nm-say">
-            <span className="nm-muted">
-              <IconMicrophone size={14} stroke={2} aria-hidden="true" /> Say this to sign
-            </span>
-            <b>“{betSentence(side, amount, currency)}”</b>
-          </div>
-        )}
-        {balance !== null && (
-          <p className={short ? 'nm-error' : 'nm-muted'}>
-            You have {amountText(balance, currency)}.
-            {short && currency.symbol === 'USDC' && ' Get test USDC at faucet.circle.com (network: Near Testnet).'}
-          </p>
-        )}
-        {error && (
-          <p className="nm-error" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
-      <div className="dialog-foot dialog-foot-end">
-        <button type="button" className="btn btn-dark" onClick={() => void place()} disabled={stage !== null || short}>
-          {stage
-            ? stageText(stage, 'Placing your bet…')
-            : source.signsByVoice
-              ? 'Say it to bet'
-              : `Bet ${amountText(amount, currency)} on ${side}`}
-        </button>
-      </div>
-    </Modal>
+    <SheetDialog titleId={titleId} locked={stage !== null} onClose={onClose}>
+      {(close) => {
+        closeRef.current = close;
+        return (
+          <>
+            <header className="dialog-head">
+              <button type="button" className="icon-btn" onClick={close} aria-label="Close" disabled={stage !== null}>
+                <IconX size={20} />
+              </button>
+              <h2 id={titleId}>Bet on this note</h2>
+            </header>
+            <div className="dialog-body nm-sheet">
+              <p className="nm-muted">At the close, JEV reads the post, the note and its sources. A grey answer pays by its probability.</p>
+              <div className="nm-buttons" role="group" aria-label="Side">
+                {(['yes', 'no'] as const).map((choice) => (
+                  <button
+                    key={choice}
+                    type="button"
+                    aria-pressed={side === choice}
+                    className={`btn btn-outline nm-side ${side === choice ? `nm-side-on nm-side-${choice}` : ''}`}
+                    onClick={() => setSide(choice)}
+                  >
+                    {choice === 'yes' ? 'Yes' : 'No'} · {percentText(choice === 'yes' ? share : 10_000 - share)}
+                  </button>
+                ))}
+              </div>
+              <div className="nm-buttons" role="group" aria-label="Amount">
+                {currency.chips.map((chip) => (
+                  <button
+                    key={chip.toString()}
+                    type="button"
+                    aria-pressed={amount === chip}
+                    className={`btn btn-outline btn-sm nm-chip ${amount === chip ? 'btn-choice-on' : ''}`}
+                    onClick={() => setAmount(chip)}
+                  >
+                    {chipText(chip, currency)} {currency.symbol}
+                  </button>
+                ))}
+              </div>
+              <p>
+                Win about <b>{amountText(win, currency)}</b> if JEV says {side} fully, and the pool stays as it is.
+              </p>
+              {source.signsByVoice && (
+                <div className="nm-say">
+                  <span className="nm-muted">
+                    <IconMicrophone size={14} stroke={2} aria-hidden="true" /> Say this to sign
+                  </span>
+                  <b>“{betSentence(side, amount, currency)}”</b>
+                </div>
+              )}
+              <Morph view={account ? (short ? 'short' : 'balance') : 'signed-out'}>
+                {!account ? (
+                  <p className="nm-muted">You sign in first. A new wallet gets test USDC from the faucet.</p>
+                ) : (
+                  balance !== null && (
+                    <p className={short ? 'nm-error' : 'nm-muted'}>
+                      You have {amountText(balance, currency)}.
+                      {short && currency.symbol === 'USDC' && ' Get test USDC at faucet.circle.com (network: Near Testnet).'}
+                    </p>
+                  )
+                )}
+              </Morph>
+              {error && (
+                <p className="nm-error" role="alert">
+                  {error}
+                </p>
+              )}
+            </div>
+            <div className="dialog-foot dialog-foot-end">
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={() => void (account ? place(close) : signIn.start())}
+                disabled={stage !== null || signIn.waiting || short}
+              >
+                <Morph view={stage ?? (signIn.waiting ? 'signin' : 'idle')}>
+                  {stage
+                    ? stageText(stage, 'Placing your bet…')
+                    : signIn.waiting
+                      ? SETTING_UP
+                      : source.signsByVoice
+                        ? 'Say it to bet'
+                        : `Bet ${amountText(amount, currency)} on ${side}`}
+                </Morph>
+              </button>
+            </div>
+          </>
+        );
+      }}
+    </SheetDialog>
   );
 }
 
-/** Opens a market with another seed or close time. `onOpen` gives an error text, or null. */
+/**
+ * Opens a market with another seed or close time. `onOpen` gives an error text, or null. With
+ * `signInFirst` (a tap on "Open a market" while signed out), the sheet starts with the sign-in
+ * and then opens the market with its defaults, all in this one dialog.
+ */
 function OpenSheet({
   currency,
+  account,
   busyStage,
+  signInFirst,
+  onSignIn,
   onClose,
   onOpen,
 }: {
   currency: Currency;
+  account?: string;
   busyStage: SignStage | null;
+  signInFirst: boolean;
+  onSignIn: () => void | Promise<boolean>;
   onClose: () => void;
   onOpen: (seed: bigint, durationMs: number) => Promise<string | null>;
 }) {
@@ -790,74 +932,93 @@ function OpenSheet({
   const [error, setError] = useState<string | null>(null);
   const busy = busyStage !== null;
 
+  const closeRef = useRef<() => void>(() => undefined);
   const open = async () => {
     setError(null);
     const problem = await onOpen(seed, duration);
     if (problem) setError(problem);
+    else closeRef.current();
   };
+  const signIn = useSignInThen(account, onSignIn, open);
+  // "Open a market" while signed out: the sign-in comes first, once.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!signInFirst || account || started.current) return;
+    started.current = true;
+    void signIn.start();
+  });
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} locked={busy}>
-      <header className="dialog-head">
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" disabled={busy}>
-          <IconX size={20} />
-        </button>
-        <h2 id={titleId}>Open a market on this note</h2>
-      </header>
-      <div className="dialog-body nm-sheet">
-        <p>
-          <b>{MARKET_QUESTION}</b>
-        </p>
-        <p className="nm-muted">
-          People bet yes or no. At the close, JEV reads the post and this note as they are now, and its answer splits the pool.
-        </p>
-        <div>
-          <p className="nm-small">
-            <b>Your seed</b>: half goes on yes and half on no, so the odds start at 50%. It is paid like any other bet.
-          </p>
-          <div className="nm-buttons" role="group" aria-label="Seed">
-            {seedChips.map((chip) => (
-              <button
-                key={chip.toString()}
-                type="button"
-                aria-pressed={seed === chip}
-                className={`btn btn-outline btn-sm nm-chip ${seed === chip ? 'btn-choice-on' : ''}`}
-                onClick={() => setSeed(chip)}
-              >
-                {chipText(chip, currency)} {currency.symbol}
+    <SheetDialog titleId={titleId} locked={busy} onClose={onClose}>
+      {(close) => {
+        closeRef.current = close;
+        return (
+          <>
+            <header className="dialog-head">
+              <button type="button" className="icon-btn" onClick={close} aria-label="Close" disabled={busy}>
+                <IconX size={20} />
               </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="nm-small">
-            <b>Betting closes in</b> (you can close it earlier and ask JEV at once)
-          </p>
-          <div className="nm-buttons" role="group" aria-label="Betting closes in">
-            {DURATIONS.map((option) => (
-              <button
-                key={option.ms}
-                type="button"
-                aria-pressed={duration === option.ms}
-                className={`btn btn-outline btn-sm nm-chip ${duration === option.ms ? 'btn-choice-on' : ''}`}
-                onClick={() => setDuration(option.ms)}
-              >
-                {option.label}
+              <h2 id={titleId}>Open a market on this note</h2>
+            </header>
+            <div className="dialog-body nm-sheet">
+              <p>
+                <b>{MARKET_QUESTION}</b>
+              </p>
+              <p className="nm-muted">
+                People bet yes or no. At the close, JEV reads the post and this note as they are now, and its answer splits the pool.
+              </p>
+              <div>
+                <p className="nm-small">
+                  <b>Your seed</b>: half goes on yes and half on no, so the odds start at 50%. It is paid like any other bet.
+                </p>
+                <div className="nm-buttons" role="group" aria-label="Seed">
+                  {seedChips.map((chip) => (
+                    <button
+                      key={chip.toString()}
+                      type="button"
+                      aria-pressed={seed === chip}
+                      className={`btn btn-outline btn-sm nm-chip ${seed === chip ? 'btn-choice-on' : ''}`}
+                      onClick={() => setSeed(chip)}
+                    >
+                      {chipText(chip, currency)} {currency.symbol}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="nm-small">
+                  <b>Betting closes in</b> (you can close it earlier and ask JEV at once)
+                </p>
+                <div className="nm-buttons" role="group" aria-label="Betting closes in">
+                  {DURATIONS.map((option) => (
+                    <button
+                      key={option.ms}
+                      type="button"
+                      aria-pressed={duration === option.ms}
+                      className={`btn btn-outline btn-sm nm-chip ${duration === option.ms ? 'btn-choice-on' : ''}`}
+                      onClick={() => setDuration(option.ms)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {error && (
+                <p className="nm-error" role="alert">
+                  {error}
+                </p>
+              )}
+            </div>
+            <div className="dialog-foot dialog-foot-end">
+              <button type="button" className="btn btn-dark" onClick={() => void (account ? open() : signIn.start())} disabled={busy || signIn.waiting}>
+                <Morph view={busyStage ?? (signIn.waiting ? 'signin' : 'idle')}>
+                  {busyStage ? stageText(busyStage, 'Opening…') : signIn.waiting ? SETTING_UP : `Open market · ${amountText(seed, currency)}`}
+                </Morph>
               </button>
-            ))}
-          </div>
-        </div>
-        {error && (
-          <p className="nm-error" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
-      <div className="dialog-foot dialog-foot-end">
-        <button type="button" className="btn btn-dark" onClick={() => void open()} disabled={busy}>
-          {busyStage ? stageText(busyStage, 'Opening…') : `Open market · ${amountText(seed, currency)}`}
-        </button>
-      </div>
-    </Modal>
+            </div>
+          </>
+        );
+      }}
+    </SheetDialog>
   );
 }

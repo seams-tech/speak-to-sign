@@ -40,6 +40,14 @@ one Wallet confirm.
    plain words.
 5. **Claim.** "Claim 1.62 USDC" sends the payout to the wallet.
 
+One flow is one dialog (the user's rule): no dialog opens on top of, or after,
+another. The bet sheet and the open sheet open at once, also signed out. Each
+one hosts the page's sign-in as its own step (`hostSignIn` and `SignInStep`
+from the page, `Morph` for the change in place), and goes on in the same
+dialog after it. A tap on "Open a market" while signed out opens the sheet at
+its sign-in step, then opens the market with the defaults. The preview has no
+page context, so its sheets ask `onSignIn` without a hosted step.
+
 An action that starts while signed out asks for the sign-in (`onSignIn`) and
 runs after it. If `onSignIn` returns a promise, the tapped button says
 "Setting up your wallet…", and the action runs only when the promise resolves

@@ -1,7 +1,7 @@
 // The live voice multisig example, on its own page (/multisig/, window #/multisig). It draws the
 // transactions of a multisig wallet app (the sf-* classes of src/showcase/showcase.css), at
 // 1120 × 700, and it works on NEAR testnet against the voice multisig contract
-// (demo/contracts/voice-multisig, docs/voice-multisig-guests.md). It opens on the New proposal
+// (demo/contracts/voice-multisig, docs/voice-intents-spec.md). It opens on the New proposal
 // tab; the History tab lists the open and the executed proposals, newest first.
 //
 // - Propose: the visitor types a transfer and reads it aloud; the contract gets its hash.

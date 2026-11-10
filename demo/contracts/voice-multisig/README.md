@@ -13,8 +13,8 @@ calls its `hide_note`. The contract has no cap: a
 transfer is any amount that the grammar can speak (0.01 to 1,000,000 NEAR),
 and the balance of the multisig limits it. Testnet only.
 
-The plan is in `docs/voice-multisig-guests.md`. The threat table of the
-first design, with voice members, is in `docs/voice-multisig.md`.
+The specification is in `docs/voice-intents-spec.md`, section 10. The
+sequence diagram is in `docs/architecture.md`, section 7.
 
 ## Toolchain
 

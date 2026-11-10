@@ -30,7 +30,6 @@ tests that hold the binding rules, and they read the live testnet state. Each
 expected output below comes from a run on 2026-11-09 on macOS 15.7.1 (arm64)
 with rustc 1.97.1, Node 24.18.0 and pnpm 11.11.0. Times, and the hashes in
 `target/debug/deps/` paths, can be different on your computer.
-`docs/reproduce-run-2026-11-09.md` has the full record of that run.
 
 You need:
 
@@ -470,8 +469,10 @@ The diffs:
 4. It returns a verdict signed with a project-bound ed25519 key. The verdict expires after 120 s. Its outcome is `accept`, `step_up` or `refuse`.
 5. Wallet core checks the verdict against the key that the Wallet pins, then signs the transfer through the owner's Wallet Session. On `step_up`, the owner approves again.
 
-Design and record: `seams-wallet/docs/refactor-227-speak-to-sign-without-passkey.md`
-and `seams-monorepo/docs/refactor-210-voice-intents.md`.
+The specification is `docs/voice-intents-spec.md`. The diagrams are in
+`docs/architecture.md`. Design and record:
+`seams-wallet/docs/refactor-227-speak-to-sign-without-passkey.md` and
+`seams-monorepo/docs/refactor-210-voice-intents.md`.
 
 ## Repository
 
@@ -488,7 +489,7 @@ Each top-level folder says what its contents are for.
 | `demo/contracts/jev-prediction-market/` | The note market `pm-notes.seams-v1.testnet`: parimutuel bets in testnet USDC on a community note, resolved by JEV through OutLayer (`resolver/`), with a JEV-weighted payout. See its README. |
 | `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
 | `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |
-| `docs/` | The record of the screener commands and their outputs. |
+| `docs/` | The voice intents specification (`voice-intents-spec.md`) and the architecture diagrams (`architecture.md`). |
 
 The code is under the Apache License 2.0 (`LICENSE`).
 

@@ -30,7 +30,7 @@ proposal 1, hide note 42", and the two admins approve. The multisig is the
 moderator of the notes contract, so it hides the note: the contract removes
 its text. No single key can hide a note. The visitor can also propose a
 small transfer of testnet NEAR in the same way (**Send NEAR**). The spec of
-the transfer is `../../docs/voice-multisig-guests.md`. The
+the transfer is `../../docs/voice-intents-spec.md`. The
 screen, `LiveMultisigScreen` in `src/multisig/`, draws the transactions of a
 multisig wallet and works on NEAR testnet against the contract in
 `VITE_MULTISIG_CONTRACT` (default `multisig.seams-v1.testnet`,

@@ -14,7 +14,7 @@
 //! that `set_notes_contract` names, and `execute` calls its `hide_note`.
 //!
 //! The method names and JSON shapes are fixed: the demo page and the approve
-//! route use them. See `README.md` and `docs/voice-multisig-guests.md`.
+//! route use them. See `README.md` and `docs/voice-intents-spec.md`.
 
 use near_sdk::json_types::U128;
 use near_sdk::serde::Serialize;

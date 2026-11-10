@@ -2,7 +2,7 @@
 //                          or  { proposal_id, note_id, salt_hex }
 //   ->  { proposal, executeTransactionHash, executed }  or  { error, step? }
 //
-// The two admin signers of the voice multisig demo (docs/voice-multisig-guests.md). A visitor
+// The two admin signers of the voice multisig demo (docs/voice-intents-spec.md). A visitor
 // proposes a transfer, or "hide note N" for a reported community note, by voice, and the chain
 // holds only its commitment. Then the page sends the opening here. Admin A calls `approve`,
 // admin B calls `approve`, and admin B calls `execute` with the opening. The contract checks the

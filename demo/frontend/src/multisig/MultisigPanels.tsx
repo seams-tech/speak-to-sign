@@ -6,7 +6,7 @@
 // Admin B) and the receipt. Until the proposal is executed, this browser keeps the opening, and
 // **Finish the proposal** calls the route again.
 //
-// The admins approve by key (docs/voice-multisig-guests.md). For the demo, the page shows them
+// The admins approve by key (docs/voice-intents-spec.md). For the demo, the page shows them
 // as signers like the visitor: no key icon and no words about keys.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';

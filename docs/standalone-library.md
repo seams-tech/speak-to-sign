@@ -557,22 +557,9 @@ and the manifest. That is an upload, so it is not done.
    The plugin has no verdict check of its own: Wallet core has it.
 8. **The demo contracts keep their copies of `verdict.rs`.**
 
-### 4.6 Capture and VoiceID (decision of the owner, 2026-11-10)
+### 4.6 Capture
 
-VoiceID stays in the `seams-wallet` repository, and `@seams/speak-to-sign`
-keeps its dependency on it. No capture library is taken out of VoiceID. The
-reason: the user must not enroll two times. Today `enroll` turns on VoiceID
-and uses its three samples as the recordings of the verifier, and that
-stays.
-
-- Inside Seams Wallet, capture is the phrase surface of VoiceID. Item (e) of
-  section 2.2 does not apply there.
-- `packages/voice-verdict/src/capture.ts` was built before this decision. It
-  holds no VoiceID code: it is a new WAV writer, the energy gate of the
-  verifier and a plain recorder. It has no voice activity detection, no
-  phrase tracking and no phrase card. Only `examples/voice-confirm` uses it.
-- No more capture work is planned. For a developer with no Seams Wallet,
-  capture is an open question (question 6 below).
+Section 5 replaces the earlier text of this section.
 
 ### 4.7 Open questions
 
@@ -584,7 +571,115 @@ stays.
 4. For `detect`: which chat model on NEAR AI, and is a proposal with no
    authority the correct contract?
 5. Does `@seams/voice-verdict` go to npm now, or after the first deploy?
-6. Capture for a developer with no Seams Wallet: does the small module
-   `@seams/voice-verdict/capture` stay, or must it go, so that VoiceID is the
-   only capture code? An application with its own recorder needs only the
-   WAV format, which the verifier README states.
+
+Section 5.5 has the current list of questions.
+
+## 5. Target structure and the standalone flow (2026-11-10, third round)
+
+Where this section differs from the sections above, this section is correct.
+
+### 5.1 Decisions of the owner
+
+1. A developer with no Seams Wallet must be able to do the whole flow with
+   packages of this repository only: capture a sentence, enroll a voice, get
+   a verdict, check the verdict.
+2. Inside Seams Wallet nothing changes. VoiceID stays in `seams-wallet`. The
+   plugin uses the phrase surface of VoiceID. One set of three recordings
+   enrolls VoiceID and Speak-to-Sign.
+3. The repository has three npm libraries:
+
+| Library | Job | State |
+| --- | --- | --- |
+| `voice-capture` | Records one sentence in a browser, with no wallet | Built by another session: branch `voice-capture`, commit `077fa81`, plan `docs/voice-capture-package.md`. Not on this branch |
+| `voice-verdict` | Checks what the verifier signed | Built on this branch: `packages/voice-verdict`, npm name `@seams/voice-verdict`. The name and the folder are correct |
+| `speak-to-sign` | The top layer. It depends on both. It joins capture, the verifier call and the check | Today this name is the Wallet host plugin (`packages/speak-to-sign`). The standalone layer does not exist as a package |
+
+### 5.2 What moves
+
+`packages/voice-verdict` holds more than the check today, because it was
+built before decision 3. The plan:
+
+| Part of `voice-verdict` today | Target |
+| --- | --- |
+| `checkVerdict`, `checkTranscript`, `requestDigest`, `parseVerdict` | Stay |
+| `confirmationRequest` (request and digest) | Stays. The checker needs the digest |
+| `checkAttestationBinding`, `measurementsApproved`, `fetchAttestation` | Stay. They check a proof |
+| `callVerifier` (`src/client.ts`) | Moves to the top layer |
+| `src/capture.ts` and the export `./capture` | **Removed.** It is a second capture module. `voice-capture` replaces it |
+
+`voice-verdict` then has no network call except the two optional fetches of
+the attestation, and no browser API. It keeps zero dependencies.
+
+### 5.3 The standalone flow, end to end
+
+The flow has a browser side and a server side. The OutLayer payment key pays
+for each run and is the authority for the enrollment of an application
+owner. So the verifier call is on the developer's server.
+
+| # | Step | Side | Package | Exists | Needs a verifier change | Needs a deploy |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Record a sentence: `recordVoice`, then `pcm16Wav` | Browser | `voice-capture` | Yes, on branch `voice-capture`. Its phrase card is not built | No | No. The developer hosts its model and worklet files |
+| 2 | Enroll: three recordings, owner `app:<id>`, no key | Server | top layer | The verifier source has it (0.8.0). The call exists (`callVerifier`) | Done in source | **Yes** |
+| 3 | Confirm: `verify` for one request, or `select` for 2 to 16 | Server | top layer and `voice-verdict` (request) | The verifier source has both. The request builder exists | Done in source | **Yes** |
+| 4 | Check the verdict: key, digest, expiry, audio digest | Server | `voice-verdict` | Yes | No | No |
+| 5 | Optional: check the TDX quote of the call | Server or third party | `voice-verdict` | Yes, except the signature chain to Intel | No | No |
+
+What each need of the flow is, and its state:
+
+- **An owner with no NEAR full-access key:** `app:<id>` (section 4.2). It is
+  in the verifier source. The application is trusted for the identity.
+- **An enrollment authorization with no NEAR key:** none is necessary for
+  `app:<id>`. The caller of the worker is the authority.
+- **A verifier endpoint that a third party calls with its own key:** the
+  OutLayer HTTPS API with the developer's own payment key. The developer's
+  key gives an own storage cell and an own verdict key. Two points are not
+  measured: a call of the Seams project by a payment key of another
+  account, and the secrets profile of that account for `NEAR_AI_API_KEY`.
+  The one key on this machine belongs to the Seams staging account.
+- **The capture module:** `voice-capture`.
+- **The top layer:** not built. `examples/voice-confirm` shows the flow with
+  hand-written glue.
+
+So the verifier needs no more source change for the flow. It needs one
+deploy of version 0.8.0.
+
+### 5.4 Order of slices
+
+1. **Merge order (no build).** `voice-capture` and this branch both start
+   at `bf04e00` and add separate folders. `voice-capture` goes to `dev`
+   first. This branch then takes `dev`.
+2. **Clean `voice-verdict`.** Remove `src/capture.ts`, its tests and the
+   export `./capture`. Move `src/client.ts` out with the top layer.
+3. **The top layer.** Two entry points with no `@seams/wallet`:
+   - server: `enroll`, `confirm`, `select`, `transcribe`. Each one calls the
+     verifier and returns a checked result, not a raw output;
+   - browser: record with `voice-capture`, send the WAV to the developer's
+     server.
+   It needs the answer to question 1 of section 5.5 for its name and place.
+4. **Deploy verifier 0.8.0** (needs a yes), then run
+   `examples/voice-confirm` with a real voice. Measure the two open points
+   of the endpoint with a second payment key.
+5. **Change the example** to `voice-capture` and the top layer.
+6. **The Wallet plugin imports `voice-verdict`** where it reads a verdict.
+7. Later: `detect`, the Rust checks, the check of the quote's signature.
+
+Slices 2 and 3 need no deploy. Slice 2 is small. Nothing of this section is
+built yet.
+
+### 5.5 Open questions
+
+1. **The name `speak-to-sign`.** The Wallet plugin has this name and needs
+   `@seams/wallet` and `@seams/voiceid` as peers. The standalone top layer
+   must install with no wallet. Options:
+   - the top layer takes the name `@seams/speak-to-sign`, and the plugin
+     becomes a second package (for example `@seams/speak-to-sign-wallet`);
+   - or one package with two entry points, and the Wallet peers optional.
+   The first option keeps the installs clean. It changes the import of the
+   Wallet host.
+2. May verifier 0.8.0 go to OutLayer testnet, in both variants?
+3. May the model file of `local-speaker` go to FastFS?
+4. Is a second OutLayer account available, to measure a call with another
+   payment key?
+5. Which other speaker models do you want first?
+6. For `detect`: which chat model on NEAR AI?
+7. Does `@seams/voice-verdict` go to npm now, or after the first deploy?

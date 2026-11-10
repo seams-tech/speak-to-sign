@@ -122,7 +122,8 @@ pub fn confusion_set(
         }
         SpokenRequestV1::CommunityNote { .. }
         | SpokenRequestV1::Transaction { .. }
-        | SpokenRequestV1::SignedMessage { .. } => note_near_misses(&expected, Vec::new()),
+        | SpokenRequestV1::SignedMessage { .. }
+        | SpokenRequestV1::Confirmation { .. } => note_near_misses(&expected, Vec::new()),
         SpokenRequestV1::NoteRating {
             network,
             owner,

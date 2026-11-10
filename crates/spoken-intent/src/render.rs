@@ -46,7 +46,8 @@ pub fn render(request: &SpokenRequestV1) -> RenderedIntentV1 {
         }
         SpokenRequestV1::CommunityNote { summary, .. }
         | SpokenRequestV1::Transaction { summary, .. }
-        | SpokenRequestV1::SignedMessage { summary, .. } => {
+        | SpokenRequestV1::SignedMessage { summary, .. }
+        | SpokenRequestV1::Confirmation { summary, .. } => {
             words.0.extend(summary.spoken_tokens());
             summary.as_str().to_owned()
         }

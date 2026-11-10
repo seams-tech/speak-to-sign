@@ -10,7 +10,10 @@ pub struct EnrollInput {
     pub owner: String,
     /// Exactly three 16 kHz mono PCM16 WAVs, standard base64.
     pub audio_wav_b64: Vec<String>,
-    pub authorization: EnrollAuthorization,
+    /// Required for a NEAR owner. An application owner (`app:<id>`) must
+    /// not have one: the caller of the worker is the authority for it.
+    #[serde(default)]
+    pub authorization: Option<EnrollAuthorization>,
 }
 
 /// A NEP-413 signature of the enrollment message by a key of the owner.
@@ -35,6 +38,23 @@ pub struct VerifyInput {
     pub request: RequestInput,
     /// Accounts that the owner knows, for the account names and the
     /// confusion set. At most 32. The receiver is added if it is missing.
+    pub contacts: Vec<String>,
+    /// One 16 kHz mono PCM16 WAV, standard base64.
+    pub audio_wav_b64: String,
+}
+
+/// `select`: the owner, 2 to 16 candidate requests, the known accounts and
+/// one WAV. The verdict is for the one request whose sentence the owner
+/// said.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SelectInput {
+    pub op: String,
+    pub owner: String,
+    /// The candidates. No multisig kind. Each one must have its own
+    /// sentence.
+    pub requests: Vec<RequestInput>,
+    /// As in [`VerifyInput`].
     pub contacts: Vec<String>,
     /// One 16 kHz mono PCM16 WAV, standard base64.
     pub audio_wav_b64: String,
@@ -108,6 +128,17 @@ pub enum RequestInput {
     /// A NEP-413 message. The owner says only the summary.
     SignedMessage {
         /// The 32 bytes that the key signs, 64 lowercase hex characters.
+        payload_sha256_hex: String,
+        summary: String,
+    },
+    /// A confirmation of any payload for an application owner (`app:<id>`).
+    /// The owner says only the summary; the verdict binds the context and
+    /// the SHA-256 of the payload.
+    Confirmation {
+        /// The action, as the application names it: 1 to 64 characters of
+        /// `a-z`, `0-9`, `.`, `_`, `-`, `:` and `/`.
+        context: String,
+        /// SHA-256 of the payload bytes, 64 lowercase hex characters.
         payload_sha256_hex: String,
         summary: String,
     },
@@ -190,6 +221,9 @@ mod tests {
         let mut extra = value.clone();
         extra["extra"] = json!(1);
         assert!(serde_json::from_value::<EnrollInput>(extra).is_err());
+        // An application owner sends no authorization.
+        let app = json!({ "op": "enroll", "owner": "app:u", "audio_wav_b64": [] });
+        assert!(serde_json::from_value::<EnrollInput>(app).unwrap().authorization.is_none());
         let mut inner = value;
         inner["authorization"]["extra"] = json!(1);
         assert!(serde_json::from_value::<EnrollInput>(inner).is_err());
@@ -231,6 +265,12 @@ mod tests {
         let mut with_actions = transaction;
         with_actions["actions"] = json!([]);
         assert!(serde_json::from_value::<RequestInput>(with_actions).is_err());
+        let confirmation =
+            json!({ "kind": "confirmation", "context": "shop.example/login", "payload_sha256_hex": "00", "summary": "Log in" });
+        assert!(matches!(
+            serde_json::from_value::<RequestInput>(confirmation).unwrap(),
+            RequestInput::Confirmation { .. }
+        ));
         let message = json!({ "kind": "signed_message", "payload_sha256_hex": "00", "summary": "Log in" });
         assert!(matches!(
             serde_json::from_value::<RequestInput>(message).unwrap(),

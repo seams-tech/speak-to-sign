@@ -50,7 +50,7 @@ pub(super) fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> VerifyOu
             (None, refusal.detail)
         }
     };
-    finish(verdict, ms, policy_text, detail, opening, host, started)
+    finish(verdict, ms, policy_text, detail, opening, None, host, started)
 }
 
 /// The checks in order. Each one fills the verdict fields that it knows, so
@@ -188,7 +188,7 @@ fn verify_steps(
 /// later write. So a refusal or a service outage also uses up the recording.
 /// The Wallet records new audio for each try. An owner without a template
 /// uses up nothing.
-fn verify_storage(
+pub(super) fn verify_storage(
     host: &mut dyn Host,
     owner: &str,
     digest_b64u: &str,
@@ -209,13 +209,15 @@ fn verify_storage(
 }
 
 /// Sets the expiry, fits the output below the size limit, then signs the
-/// verdict.
-fn finish(
+/// verdict. `selected` is the index of the said request of a `select`.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn finish(
     mut verdict: Verdict,
     mut ms: Stages,
     policy_text: Option<&'static str>,
     detail: Option<String>,
     opening: Option<MultisigOpening>,
+    selected: Option<usize>,
     host: &mut dyn Host,
     started: Instant,
 ) -> VerifyOutput {
@@ -224,7 +226,7 @@ fn finish(
         // The stage times make room for the commitment and the salt.
         ms = Stages::default();
     }
-    let verdict_json = fit_heard(verdict, policy_text, &ms, detail.as_deref(), opening.as_ref());
+    let verdict_json = fit_heard(verdict, policy_text, &ms, detail.as_deref(), opening.as_ref(), selected);
     let signed = ms.time("sign", || sign_verdict(host, &verdict_json));
     ms.since("total", started);
     let mut output = match signed {
@@ -234,5 +236,6 @@ fn finish(
         }
     };
     output.multisig = opening;
+    output.selected = selected;
     output
 }

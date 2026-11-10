@@ -10,6 +10,7 @@ mod merges;
 mod multisig;
 mod notes;
 mod verify;
+mod web2;
 
 use serde_json::json;
 

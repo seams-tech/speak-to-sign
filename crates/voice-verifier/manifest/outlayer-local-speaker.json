@@ -1,6 +1,6 @@
 {
   "display": { "name": "Seams voice verifier (speaker model in the worker)" },
-  "operations": ["enroll", "verify"],
+  "operations": ["enroll", "verify", "select"],
   "capabilities": {
     "network": [
       { "host": "test.sign.seams.sh", "timeout_secs": 30 },

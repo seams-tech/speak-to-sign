@@ -178,6 +178,9 @@ pub const GATE_MAX_CLIPPED_PERMILLE: u32 = 10;
 /// At most this many contacts in a verify input.
 pub const MAX_CONTACTS: usize = 32;
 
+/// `select` takes 2 to this many candidate requests.
+pub const MAX_SELECT_REQUESTS: usize = 16;
+
 /// `enroll` takes exactly this many recordings.
 pub const ENROLL_RECORDINGS: usize = 3;
 
@@ -211,7 +214,7 @@ mod tests {
     #[test]
     fn manifest_matches_the_constants() {
         let manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
-        assert_eq!(manifest["operations"], json!(["enroll", "verify"]));
+        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select"]));
         // HTTPS calls: no callers block, and the default storage cell (the
         // payment-key owner).
         assert!(manifest.get("callers").is_none());

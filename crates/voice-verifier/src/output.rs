@@ -213,6 +213,11 @@ pub struct VerifyOutput {
     /// accept of a proposal (not signed). Other outputs leave the field out.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multisig: Option<MultisigOpening>,
+    /// `select` only: the index of the request that the owner said, in the
+    /// input order (not signed; the verdict binds the request digest). Other
+    /// outputs leave the field out.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected: Option<usize>,
 }
 
 /// What the proposer needs from the worker: the commitment for `propose`,
@@ -236,7 +241,7 @@ impl VerifyOutput {
         detail: Option<String>,
     ) -> Self {
         let (signature_b64, public_key) = signed.unzip();
-        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail, multisig: None }
+        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail, multisig: None, selected: None }
     }
 }
 
@@ -263,12 +268,14 @@ pub fn fit_heard(
     ms: &Stages,
     detail: Option<&str>,
     multisig: Option<&MultisigOpening>,
+    selected: Option<usize>,
 ) -> String {
     let heard = verdict.heard.take();
     let longest_signature = ("A".repeat(SIGNATURE_B64_LEN), format!("ed25519:{}", "1".repeat(KEY_BASE58_MAX_LEN)));
     let detail = detail.map(str::to_owned);
     let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), policy_text, ms.clone(), detail);
     sized.multisig = multisig.cloned();
+    sized.selected = selected;
     for cap in HEARD_CAPS {
         verdict.heard = heard.as_ref().filter(|_| cap > 0).map(|text| cut_at(text, cap));
         sized.verdict_json = verdict_json(&verdict);

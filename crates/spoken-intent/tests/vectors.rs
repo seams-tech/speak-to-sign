@@ -11,6 +11,7 @@ pub mod support;
 
 use serde_json::{json, Value};
 use spoken_intent::{
+    AppOwner, ConfirmationContext,
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
     request_digest, spoken_text, spoken_text_digest, BetOutcomeV1, NearAmount, Network,
     NoteRatingV1, ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
@@ -171,6 +172,15 @@ fn transaction(owner: &str, receiver: &str, summary: &str) -> SpokenRequestV1 {
     }
 }
 
+fn confirmation(owner: &str, context: &str, summary: &str) -> SpokenRequestV1 {
+    SpokenRequestV1::Confirmation {
+        owner: AppOwner::new(owner).expect("application owner"),
+        context: ConfirmationContext::new(context).expect("context"),
+        payload_sha256: [0x42; 32],
+        summary: SpokenSummary::new(summary).expect("speakable summary"),
+    }
+}
+
 fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
     let mut sequential_hash = [0u8; 32];
     for (index, byte) in sequential_hash.iter_mut().enumerate() {
@@ -310,6 +320,18 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 payload_sha256: [0x41; 32],
                 summary: SpokenSummary::new("Log in to the example app").expect("speakable summary"),
             },
+        ),
+        (
+            "confirmation_login",
+            confirmation("app:user-42", "shop.example/login", "Log in to the example shop"),
+        ),
+        (
+            "confirmation_order",
+            confirmation("app:shop.example:42", "shop.example/checkout", "Pay forty dollars for two books."),
+        ),
+        (
+            "confirmation_other_chain",
+            confirmation("app:u", "eip155:1/transfer", "Approve"),
         ),
     ]);
     cases

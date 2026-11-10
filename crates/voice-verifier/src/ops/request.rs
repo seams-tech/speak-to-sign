@@ -2,7 +2,7 @@
 //! field must parse as its `spoken-intent` type. Any other value refuses as
 //! `unsupported`.
 use spoken_intent::{
-    BetOutcomeV1, NearAccount, NearAmount, Network, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch,
+    AppOwner, BetOutcomeV1, ConfirmationContext, NearAccount, NearAmount, Network, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch,
     SpokenRequestV1, SpokenSummary, UsdcAmount,
 };
 
@@ -35,9 +35,45 @@ fn transfer(owner: NearAccount, receiver: &str, amount_yocto: u128) -> Result<Sp
     Ok(SpokenRequestV1::AccountTransfer { network: SERVED_NETWORK, owner, receiver, amount })
 }
 
-/// The typed request of a `verify` input.
+/// The owner of an input: a NEAR account, or an owner that an application
+/// names (`app:<id>`).
+pub(super) enum Owner {
+    Near(NearAccount),
+    App(AppOwner),
+}
+
+impl Owner {
+    pub(super) fn parse(text: &str) -> Result<Self, Reason> {
+        if text.starts_with(spoken_intent::APP_OWNER_PREFIX) {
+            AppOwner::new(text).map(Self::App).map_err(unsupported)
+        } else {
+            NearAccount::new(text).map(Self::Near).map_err(unsupported)
+        }
+    }
+
+    pub(super) fn as_str(&self) -> &str {
+        match self {
+            Self::Near(account) => account.as_str(),
+            Self::App(owner) => owner.as_str(),
+        }
+    }
+}
+
+/// The typed request of a `verify` input. A `confirmation` needs an
+/// application owner. Every other kind needs a NEAR owner.
 pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<SpokenRequestV1, Reason> {
-    let owner = NearAccount::new(owner).map_err(unsupported)?;
+    let owner = match (Owner::parse(owner)?, request) {
+        (Owner::App(owner), RequestInput::Confirmation { context, payload_sha256_hex, summary }) => {
+            return Ok(SpokenRequestV1::Confirmation {
+                owner,
+                context: ConfirmationContext::new(context).map_err(unsupported)?,
+                payload_sha256: lowercase_hex::<32>(payload_sha256_hex)?,
+                summary: SpokenSummary::new(summary).map_err(unsupported)?,
+            });
+        }
+        (Owner::App(_), _) | (Owner::Near(_), RequestInput::Confirmation { .. }) => return Err(Reason::Unsupported),
+        (Owner::Near(owner), _) => owner,
+    };
     match request {
         RequestInput::Transfer { receiver, amount_yocto } => {
             transfer(owner, receiver, parse_yocto(amount_yocto).ok_or(Reason::Unsupported)?)
@@ -109,6 +145,8 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
                 summary: SpokenSummary::new(summary).map_err(unsupported)?,
             })
         }
+        // Handled before this match.
+        RequestInput::Confirmation { .. } => Err(Reason::Unsupported),
         // `multisig::prepare` builds these: they need the worker's storage
         // and randomness.
         RequestInput::MultisigPropose { .. }

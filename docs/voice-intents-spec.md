@@ -46,6 +46,14 @@ decoding refuses it. Tag 3 is reserved.
 | 5 | `NoteRating` | `note_rating` | "this note is helpful", "this note is somewhat helpful" or "this note is not helpful" | network, owner, contract, note id |
 | 6 | `MergeApproval` | `merge_approval` | "merge pull request forty two into main" | network, owner, contract, SHA-256 of the repository name, head commit |
 
+Later tags, with their own sections in `crates/voice-verifier/README.md`:
+7 `MarketBet`, 8 `Transaction`, 9 `SignedMessage` and 10 `Confirmation`.
+Tag 10 is for an application owner (`app:<id>`) and has no network and no
+NEAR account: `{owner, context, payload_sha256, summary}`. The operation
+`select` takes 2 to 16 candidate requests and signs a verdict for the one
+that the owner said. The plan for use with no wallet is in
+[`standalone-library.md`](standalone-library.md).
+
 The types hold the grammar rules, so `render` cannot fail:
 
 - `SpokenAccount`: a named NEAR account that the text can say. It is not an

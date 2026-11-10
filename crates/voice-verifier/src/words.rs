@@ -61,7 +61,8 @@ pub fn check_words(
 const SUMMARY_FORGIVE_MIN_WORDS: usize = 4;
 
 /// The word decision. A transfer, an approval, a rating and a merge
-/// approval need the exact words. A summary (of a note, a transaction or a signed message) also passes with one word
+/// approval need the exact words. A summary (of a note, a transaction, a signed message or a
+/// confirmation) also passes with one word
 /// changed or dropped, when the heard words are still closer to the summary
 /// than to every near miss. An added word is as close to the near miss with
 /// "not" in its place, so it does not pass, and an added or dropped "not"
@@ -75,6 +76,7 @@ pub(crate) fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected_
         SpokenRequestV1::CommunityNote { .. }
             | SpokenRequestV1::Transaction { .. }
             | SpokenRequestV1::SignedMessage { .. }
+            | SpokenRequestV1::Confirmation { .. }
     )
         && expected_words >= SUMMARY_FORGIVE_MIN_WORDS
         && check.distance == Some(1)

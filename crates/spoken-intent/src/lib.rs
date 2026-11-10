@@ -30,6 +30,7 @@ mod branch;
 mod confusion;
 mod normalize;
 mod numbers;
+mod owner;
 mod parse;
 mod phonetic;
 mod punctuated;
@@ -46,6 +47,9 @@ pub use amount::{NearAmount, UsdcAmount};
 pub use branch::{InvalidBranch, SpokenBranch, MAX_BRANCH_LETTERS};
 pub use confusion::confusion_set;
 pub use normalize::normalize;
+pub use owner::{
+    AppOwner, ConfirmationContext, InvalidIdentifier, APP_OWNER_PREFIX, MAX_APP_OWNER_BYTES, MAX_CONTEXT_BYTES,
+};
 pub use parse::{parse_transfer, ParseRefusal, ParseResult, ParsedTransfer};
 pub use phonetic::{phonetic_key, PhoneticKey};
 pub use punctuated::{normalize_punctuated, PunctuatedRefusal, PUNCTUATED_ALIASES};

@@ -3159,6 +3159,52 @@
       "request_digest_hex": "fe31b02d8d535357061920f9581c3684404cc09792543bd8836a3de7cae8049f",
       "spoken_text": "log in to the example app",
       "spoken_text_digest_hex": "f60ce9d4d743e15564cd8db3693aafe17662813a5a738d276a581b399bc83a5b"
+    },
+    {
+      "borsh_hex": "0a0b0000006170703a757365722d34321200000073686f702e6578616d706c652f6c6f67696e42424242424242424242424242424242424242424242424242424242424242421a0000004c6f6720696e20746f20746865206578616d706c652073686f70",
+      "confusion_set": [
+        "log in not to the example shop",
+        "log in to not the example shop",
+        "log in to the example not shop",
+        "log in to the example shop not",
+        "log in to the not example shop",
+        "log not in to the example shop",
+        "not log in to the example shop"
+      ],
+      "display_text": "Log in to the example shop",
+      "name": "confirmation_login",
+      "request_digest_hex": "bf1b5097109707298799cb1619bb46eac6dc62ce887e25236ead3eba1a968a95",
+      "spoken_text": "log in to the example shop",
+      "spoken_text_digest_hex": "c0b18990439634f956d5e747105341787afa44bd3b53edb16fe1af8da834ef3b"
+    },
+    {
+      "borsh_hex": "0a130000006170703a73686f702e6578616d706c653a34321500000073686f702e6578616d706c652f636865636b6f757442424242424242424242424242424242424242424242424242424242424242422000000050617920666f72747920646f6c6c61727320666f722074776f20626f6f6b732e",
+      "confusion_set": [
+        "not pay forty dollars for two books",
+        "pay forty dollars for not two books",
+        "pay forty dollars for two books not",
+        "pay forty dollars for two not books",
+        "pay forty dollars not for two books",
+        "pay forty not dollars for two books",
+        "pay not forty dollars for two books"
+      ],
+      "display_text": "Pay forty dollars for two books.",
+      "name": "confirmation_order",
+      "request_digest_hex": "f1dffae281a49e2d3cae136745cf520301f0955d4b6d803b3663be5117064fed",
+      "spoken_text": "pay forty dollars for two books",
+      "spoken_text_digest_hex": "f56658e1ddfd4804bd2ebe3378c5f74e6fd168fc24916b875269ace81c7a52c4"
+    },
+    {
+      "borsh_hex": "0a050000006170703a75110000006569703135353a312f7472616e73666572424242424242424242424242424242424242424242424242424242424242424207000000417070726f7665",
+      "confusion_set": [
+        "approve not",
+        "not approve"
+      ],
+      "display_text": "Approve",
+      "name": "confirmation_other_chain",
+      "request_digest_hex": "2864424e59905b8ef0d43fb3287e0264e38d02bf4daaf2945c5a143305cb99eb",
+      "spoken_text": "approve",
+      "spoken_text_digest_hex": "2c26309414e7d33472e359330d3566018dfb4d09e4daef51bfe5a15be91f43bd"
     }
   ],
   "spoken_text_digest_domain": "seams:spoken-intent:spoken:v1",

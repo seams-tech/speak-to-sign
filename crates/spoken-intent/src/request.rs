@@ -2,7 +2,9 @@ use core::num::NonZeroU8;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary, UsdcAmount};
+use crate::{
+    AppOwner, ConfirmationContext, NearAccount, NearAmount, SpokenAccount, SpokenBranch, SpokenSummary, UsdcAmount,
+};
 
 /// The NEAR network of a request. It is part of the request digest, not of
 /// the spoken text.
@@ -186,6 +188,28 @@ pub enum SpokenRequestV1 {
         /// The summary that the owner says.
         summary: SpokenSummary,
     } = 9,
+    /// A confirmation of any payload, for an application that is not a NEAR
+    /// application: a login, an order, an approval, a transaction of another
+    /// chain. Only the summary is said, as for
+    /// [`SpokenRequestV1::Transaction`]. The payload is bound by its
+    /// SHA-256, and the application defines what the payload bytes are.
+    ///
+    /// This kind has no network and no NEAR account. The same limit holds
+    /// as for a transaction: the voice proves who approves and that this
+    /// person said the summary; it does not prove that the summary
+    /// describes the payload.
+    Confirmation {
+        /// The owner, as the application names its user. The text does not
+        /// say it.
+        owner: AppOwner,
+        /// The action that the confirmation is for. The text does not say
+        /// it.
+        context: ConfirmationContext,
+        /// SHA-256 of the payload bytes.
+        payload_sha256: [u8; 32],
+        /// The summary that the owner says.
+        summary: SpokenSummary,
+    } = 10,
 }
 
 /// The outcome of a market that a bet backs.

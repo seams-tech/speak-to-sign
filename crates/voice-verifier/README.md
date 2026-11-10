@@ -27,7 +27,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
 | 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route selects it by `version_key`. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
 | 0.7.0   | not built for OutLayer yet | The source on this branch. It adds `multisig_hide_note` for the voice multisig page ("hide note N"). The other kinds are unchanged, except the version in the verdict. Build it with `build.sh --docker`, add it to the OutLayer project, and set its hash as `VOICE_OUTLAYER_VERSION_KEY` of the demo site. |
-| 0.8.0   | not built for OutLayer yet | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). Not on OutLayer yet. |
+| 0.8.0   | not built for OutLayer yet | Adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"), and the general kinds `transaction` (any NEAR transaction: the owner says a summary, the verdict binds the receiver and the SHA-256 of the actions) and `signed_message` (a NEP-413 message: the verdict binds the 32 bytes that the key signs). It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operation `select`, and the variant `local-speaker`. Not on OutLayer yet. |
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
@@ -279,6 +279,14 @@ Stage times (`ms`, not signed), in ms:
       one proposal give `attempts_exhausted`; only refusals after the
       speaker check passed count. A voice that passes against another
       member who already said the proposal refuses `same_speaker`.
+    - `confirmation`: `{"context","payload_sha256_hex","summary"}`, as
+      `SpokenRequestV1::Confirmation` (tag 10). It is for an application
+      that is not a NEAR application: a login, an order, a transaction of
+      another chain. The owner must be an application owner (`app:<id>`),
+      and an application owner can use only this kind. The owner says the
+      summary. The verdict binds the owner, the context (1 to 64 characters
+      of `a-z`, `0-9`, `.`, `_`, `-`, `:`, `/`) and the SHA-256 of the
+      payload. The application defines the payload bytes.
     - The contract `demo/contracts/voice-multisig` checks each verdict of
       these kinds on chain. `Transfer` and `HideNote` proposals exist. A
       0.6 record of a transfer still reads in 0.7.0.
@@ -307,6 +315,17 @@ Stage times (`ms`, not signed), in ms:
   - `contacts`: at most 32 named accounts that the owner knows, for the
     account names and the confusion set. The receiver is added if missing,
     except for `multisig_confirm`.
+- `select`: `{"op":"select","owner","requests":[2 to 16 requests],"contacts":[...],"audio_wav_b64"}`.
+  - The verdict is for the one request whose sentence the owner said. The
+    output is the output of `verify`, with `"selected"`: the index of that
+    request (not signed; the verdict binds its request digest).
+  - The heard words must equal the sentence of exactly one candidate. No
+    summary passes with a changed word, because the other candidates are
+    the near misses. No match refuses with `words`; two matches refuse with
+    `words` and the detail `select: ambiguous`.
+  - Two candidates with one sentence, fewer than 2 or more than 16
+    candidates, or a multisig kind refuse with `unsupported`.
+  - The policy step runs for the selected request.
 - Unknown fields are refused at every level.
 - WAV: 16 kHz mono PCM16, at most 8 s, standard base64. The worker writes it
   again with a 44-byte header (the canonical WAV); the audio digest is the
@@ -350,6 +369,24 @@ Exactly 10 NEAR is allowed. A step-up still marks the audio used.
 - `policy_text` (not signed): the sentence of the rule on `step_up`, else
   `null`.
 - The output stays below 1,024 bytes; `heard` is cut to fit.
+
+## Owners
+
+- A NEAR account. `enroll` needs the NEP-413 authorization of the section
+  below.
+- An application owner: `app:` and then the id that the application gives
+  its user, for example `app:user-42`. The id is 1 or more characters of
+  `a-z`, `0-9`, `.`, `_`, `-` and `:`; the whole text is at most 100 bytes.
+  A NEAR account id cannot hold ":", so the two kinds never collide.
+  - `enroll` takes no `authorization` for it:
+    `{"op":"enroll","owner":"app:user-42","audio_wav_b64":[3 WAVs]}`. It
+    makes no NEAR RPC call.
+  - The authority is the caller of the worker: the owner of the OutLayer
+    payment key. The storage cell and the verdict key belong to that payment
+    key. So a developer with an own payment key has an own set of users and
+    an own verdict key. The application is trusted for the identity of its
+    users: any holder of the payment key can enroll, or enroll again, any
+    application owner of that cell. Keep the payment key on a server.
 
 ## Owner-authorized enrollment
 

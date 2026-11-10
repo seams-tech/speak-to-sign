@@ -1,10 +1,8 @@
-# @seams/speak-to-sign-wallet
+# @seams/speak-to-sign
 
-The Speak-to-Sign host plugin for Seams Wallet. Up to version 0.65.0 its npm
-name was `@seams/speak-to-sign`. That name now belongs to the library for
-an application with no wallet (`packages/speak-to-sign`). The first release
-under the new name is not made yet: version 0.65.0 on npm is
-`@seams/speak-to-sign@0.65.0`.
+The Speak-to-Sign host plugin for Seams Wallet. It lives in
+`packages/speak-to-sign-wallet`. The library for an application with no wallet
+(`packages/speak-to-sign`) is not released yet and needs an npm name of its own.
 
 > **Experimental. NEAR testnet only.** First released in 0.54.0. `enroll` is new in 0.56.0.
 
@@ -40,7 +38,7 @@ Speak-to-Sign needs `@seams/voiceid` for the enrollment, the capture surface
 and the speech assets. Install all three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.65.0 @seams/voiceid@0.65.0 @seams/speak-to-sign@0.65.0
+pnpm add @seams/wallet@0.66.0 @seams/voiceid@0.66.0 @seams/speak-to-sign@0.66.0
 ```
 
 `@seams/wallet` does not depend on this package. An app without the
@@ -54,7 +52,7 @@ Add the descriptor to `transactionFeatures`:
 ```ts
 import { SeamsWeb } from '@seams/wallet';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/speak-to-sign-wallet';
+import { speakToSign } from '@seams/speak-to-sign';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration
@@ -104,7 +102,7 @@ const enrollment = await seams.near.speakToSign.enroll({ walletId });
 `enroll` shows three short phrases on the VoiceID surface, one at a time. If
 the wallet has no VoiceID yet, the Wallet turns it on first, and the three
 samples of that VoiceID enrollment are the verifier's recordings too, so the
-owner reads one set for both (Wallet 0.64.0 and later, host API 9). Then the owner
+owner reads one set for both (Wallet 0.64.0 and later). Then the owner
 approves one signed message (NEP-413) on the wallet confirm. The VoiceID card
 steps aside while the confirm is open, and stays open from the last phrase to
 the result. The message names the digest of exactly these three recordings. The Wallet sends
@@ -414,7 +412,7 @@ A release has these steps:
 2. Set the same version here: `version`, and the `@seams/wallet` and
    `@seams/voiceid` entries of `peerDependencies` and `devDependencies`. Run
    `pnpm install` and commit `pnpm-lock.yaml`.
-3. Run the "Release @seams/speak-to-sign-wallet" workflow with that version.
+3. Run the "Release @seams/speak-to-sign" workflow with that version.
 
 Before the Wallet packages of a new version are on npm, build against a local
 seams-wallet checkout with `pnpm link <path to packages/wallet>` and

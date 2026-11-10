@@ -1,7 +1,7 @@
-name: Release @seams/speak-to-sign-wallet
+name: Release @seams/speak-to-sign
 
-# The Speak-to-Sign host plugin (@seams/speak-to-sign-wallet; until 0.65.0 its name was
-# @seams/speak-to-sign) is released after the Seams Wallet packages of the same
+# The Speak-to-Sign host plugin (@seams/speak-to-sign, in packages/speak-to-sign-wallet) is
+# released after the Seams Wallet packages of the same
 # version (@seams/wallet and @seams/voiceid, released from seams-tech/seams-wallet). It
 # builds against those published packages, so a release fails until they are on npm.
 
@@ -61,5 +61,5 @@ jobs:
           path: .artifacts/npm/*.tgz
           if-no-files-found: error
           retention-days: 30
-      - name: Publish @seams/speak-to-sign-wallet
+      - name: Publish @seams/speak-to-sign
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"

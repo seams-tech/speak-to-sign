@@ -1,5 +1,12 @@
 # Release 0.66.0: Speak-to-Sign with no wallet
 
+**Decision of the owner, 2026-11-11:** the npm name `@seams/speak-to-sign` stays with the
+Wallet plugin in 0.66.0, because the Wallet 0.66.0 release names it. The plugin 0.66.0 is
+released from `packages/speak-to-sign-wallet` with that name. The library of
+`packages/speak-to-sign` needs another npm name before `release-standalone.yml` can publish
+it; until then, the workflow cannot publish it (npm has `@seams/speak-to-sign@0.66.0`).
+The steps below that move the name to the library do not apply.
+
 Status, 2026-11-11: prepared on `dev`. Nothing is published. The release
 needs the steps of section 4, which only the owner of the npm organization
 and of the OutLayer project can do.

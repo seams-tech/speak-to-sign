@@ -18,10 +18,9 @@ It has two entry points:
 | `@seams/speak-to-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
 | `@seams/speak-to-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
 
-Until version 0.65.0, the npm name `@seams/speak-to-sign` was the host
-plugin for Seams Wallet. The plugin is now `@seams/speak-to-sign-wallet`
-(`packages/speak-to-sign-wallet`). From version 0.66.0, this name is this
-library.
+The npm name `@seams/speak-to-sign` stays with the host plugin for Seams
+Wallet (`packages/speak-to-sign-wallet`), also in 0.66.0. This library is not
+released yet: it needs an npm name of its own before its first release.
 
 A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).

@@ -6,7 +6,7 @@ name: Release the standalone libraries
 #   2. @seams/voice-capture   records one sentence in the browser
 #   3. @seams/speak-to-sign   joins both; it depends on the exact versions of 1 and 2
 #
-# They need no Seams Wallet package. The Wallet plugin (@seams/speak-to-sign-wallet) has its own
+# They need no Seams Wallet package. The Wallet plugin (@seams/speak-to-sign) has its own
 # workflow and is released with the Wallet.
 #
 # A package whose version is on npm already is not published again, so a failed run can be run

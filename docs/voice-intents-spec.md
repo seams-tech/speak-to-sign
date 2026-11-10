@@ -29,7 +29,7 @@ This document is the specification. The diagrams are in
 | `spoken-intent` | `crates/spoken-intent/` | Renders a request to its sentence, computes the digests, and reads transcripts. `no_std`, with no floats, clock or randomness. |
 | Verifier | `crates/voice-verifier/` | The operations `enroll` and `verify`. It keeps the templates and signs the verdicts. |
 | Speaker service | `crates/speaker-service/` | ReDimNet B1 in a Phala dstack CVM. It returns a signed speaker embedding. It gives no verdict. |
-| Plugin | `packages/speak-to-sign-wallet/` | `@seams/speak-to-sign-wallet`, the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
+| Plugin | `packages/speak-to-sign-wallet/` | `@seams/speak-to-sign`, the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
 | Wallet core | `seams-wallet` | Records the audio, checks the verdict against a pinned key, and signs the one transaction. |
 | Contracts | `demo/contracts/` | The targets of the requests. The voice multisig also checks the verdict on chain. |
 

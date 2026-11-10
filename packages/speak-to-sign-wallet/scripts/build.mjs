@@ -13,7 +13,7 @@ const walletVersion = JSON.parse(await readFile(path.join(root, 'package.json'),
   .peerDependencies['@seams/wallet'];
 if (!/^\d+\.\d+\.\d+$/.test(walletVersion)) {
   throw new Error(
-    `@seams/speak-to-sign-wallet must pin one exact @seams/wallet version, not ${walletVersion}`,
+    `@seams/speak-to-sign must pin one exact @seams/wallet version, not ${walletVersion}`,
   );
 }
 process.chdir(root);

@@ -7,6 +7,14 @@ released from `packages/speak-to-sign-wallet` with that name. The library of
 it; until then, the workflow cannot publish it (npm has `@seams/speak-to-sign@0.66.0`).
 The steps below that move the name to the library do not apply.
 
+**State, 2026-11-11 (later):** `@seams/voice-verdict@0.66.0` and
+`@seams/voice-capture@0.66.0` were published by hand from the owner's npm
+account, because npm allows trusted publishing only for a package that
+exists. `release-standalone.yml` now publishes only these two; it builds and
+tests the joining library and refuses to run unless that library is
+`private`. `scripts/npm-trust-standalone.sh` sets the workflow as their
+trusted publisher, for the next release.
+
 Status, 2026-11-11: prepared on `dev`. Nothing is published. The release
 needs the steps of section 4, which only the owner of the npm organization
 and of the OutLayer project can do.

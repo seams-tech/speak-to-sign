@@ -61,12 +61,21 @@ pub enum Reason {
     NotAuthorized,
     /// `enroll` only: the NEAR RPC access-key view failed.
     AuthorizationUnavailable,
+    /// A multisig confirmation names a proposal that the worker does not
+    /// hold, or holds under another id.
+    ProposalMissing,
+    /// The voice is the voice of another member who already said this
+    /// multisig proposal.
+    SameSpeaker,
+    /// This member said the wrong words for this multisig proposal too many
+    /// times.
+    AttemptsExhausted,
 }
 
 #[cfg(test)]
 impl Reason {
     /// Every reason, in declaration order.
-    const ALL: [Reason; 13] = [
+    const ALL: [Reason; 16] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -80,6 +89,9 @@ impl Reason {
         Reason::TranscriberUnavailable,
         Reason::NotAuthorized,
         Reason::AuthorizationUnavailable,
+        Reason::ProposalMissing,
+        Reason::SameSpeaker,
+        Reason::AttemptsExhausted,
     ];
 }
 
@@ -197,6 +209,20 @@ pub struct VerifyOutput {
     pub ms: Stages,
     /// A short error text for a refusal or a failed signature (not signed).
     pub detail: Option<String>,
+    /// The commitment and the salt of a new multisig proposal, only on the
+    /// accept of a proposal (not signed). Other outputs leave the field out.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub multisig: Option<MultisigOpening>,
+}
+
+/// What the proposer needs from the worker: the commitment for `propose`,
+/// and the salt for `execute`. The proposer's page has the receiver and the
+/// amount. Both values are base64url, so the output stays below
+/// [`MAX_OUTPUT_BYTES`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct MultisigOpening {
+    pub commitment: String,
+    pub salt: String,
 }
 
 impl VerifyOutput {
@@ -210,7 +236,7 @@ impl VerifyOutput {
         detail: Option<String>,
     ) -> Self {
         let (signature_b64, public_key) = signed.unzip();
-        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail }
+        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail, multisig: None }
     }
 }
 
@@ -231,11 +257,18 @@ const STAGE_TIME_ROOM: usize = 48;
 /// output stays below [`MAX_OUTPUT_BYTES`]. `heard` is part of the signed
 /// bytes, so the fit comes before the signature. It sizes the output with a
 /// signature and a key of full length.
-pub fn fit_heard(mut verdict: Verdict, policy_text: Option<&'static str>, ms: &Stages, detail: Option<&str>) -> String {
+pub fn fit_heard(
+    mut verdict: Verdict,
+    policy_text: Option<&'static str>,
+    ms: &Stages,
+    detail: Option<&str>,
+    multisig: Option<&MultisigOpening>,
+) -> String {
     let heard = verdict.heard.take();
     let longest_signature = ("A".repeat(SIGNATURE_B64_LEN), format!("ed25519:{}", "1".repeat(KEY_BASE58_MAX_LEN)));
     let detail = detail.map(str::to_owned);
     let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), policy_text, ms.clone(), detail);
+    sized.multisig = multisig.cloned();
     for cap in HEARD_CAPS {
         verdict.heard = heard.as_ref().filter(|_| cap > 0).map(|text| cut_at(text, cap));
         sized.verdict_json = verdict_json(&verdict);
@@ -342,7 +375,7 @@ mod tests {
         let text = verdict_json(&Verdict::new());
         assert_eq!(
             text,
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.5.2","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.6.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);
@@ -367,7 +400,10 @@ mod tests {
                 "template_exists",
                 "transcriber_unavailable",
                 "not_authorized",
-                "authorization_unavailable"
+                "authorization_unavailable",
+                "proposal_missing",
+                "same_speaker",
+                "attempts_exhausted"
             ])
         );
     }

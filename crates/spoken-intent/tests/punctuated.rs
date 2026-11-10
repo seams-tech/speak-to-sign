@@ -7,7 +7,7 @@ use spoken_intent::{
     normalize, normalize_punctuated, parse_transfer, render, Network, ParseRefusal, ParseResult,
     ProposalV1, PunctuatedRefusal, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
 };
-use support::{account, challenge_word, contacts, near_account, parsed};
+use support::{account, contacts, near_account, parsed, MULTISIG_SALT};
 
 #[test]
 fn punctuated_transcripts_read_like_the_rendered_text() {
@@ -15,10 +15,11 @@ fn punctuated_transcripts_read_like_the_rendered_text() {
     hash[0] = 0x17;
     let rendered = render(&SpokenRequestV1::MultisigApproval {
         network: Network::Testnet,
+        owner: near_account("owner.testnet"),
         multisig: near_account("multisig.testnet"),
         proposal_id: 999,
         proposal: ProposalV1::SetVerifierVersion { version_hash: hash },
-        challenge: [challenge_word("compass"), challenge_word("meadow")],
+        salt: MULTISIG_SALT,
     });
     let digits: String = rendered.display_text
         ["Approve proposal 999: set verifier version ".len()..]
@@ -26,7 +27,7 @@ fn punctuated_transcripts_read_like_the_rendered_text() {
         .take_while(char::is_ascii_digit)
         .collect();
     assert_eq!(digits.len(), 8, "{}", rendered.display_text);
-    let heard = format!("Approved Proposal 999 Set Verifier Version {digits} Compass Meadow.");
+    let heard = format!("Approved Proposal 999 Set Verifier Version {digits}.");
     assert_eq!(
         normalize_punctuated(&heard, &[]).expect("readable"),
         rendered.spoken

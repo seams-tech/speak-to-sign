@@ -2,7 +2,8 @@
 //! field must parse as its `spoken-intent` type. Any other value refuses as
 //! `unsupported`.
 use spoken_intent::{
-    NearAccount, NearAmount, Network, NoteRatingV1, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
+    NearAccount, NearAmount, Network, NoteRatingV1, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1,
+    SpokenSummary,
 };
 
 use crate::digest::from_hex;
@@ -10,7 +11,7 @@ use crate::input::{parse_yocto, RatingInput, RequestInput};
 use crate::output::Reason;
 
 /// The network that this version serves.
-const SERVED_NETWORK: Network = Network::Testnet;
+pub(super) const SERVED_NETWORK: Network = Network::Testnet;
 
 /// The refusal of an input that this version does not handle, for
 /// `map_err`.
@@ -72,18 +73,27 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
                 head_commit: lowercase_hex::<20>(head_commit_hex)?,
             })
         }
+        // `multisig::prepare` builds these: they need the worker's storage
+        // and randomness.
+        RequestInput::MultisigPropose { .. } | RequestInput::MultisigConfirm { .. } => Err(Reason::Unsupported),
     }
 }
 
 /// The accounts of the word check: the contacts of the input, and the
-/// receiver of a transfer if it is not one of them.
+/// receiver of a transfer or of a multisig transfer if it is not one of
+/// them.
 pub(super) fn known_accounts(contacts: &[String], request: &SpokenRequestV1) -> Result<Vec<SpokenAccount>, Reason> {
     let mut accounts = contacts
         .iter()
         .map(|contact| SpokenAccount::new(contact))
         .collect::<Result<Vec<_>, _>>()
         .map_err(unsupported)?;
-    if let SpokenRequestV1::AccountTransfer { receiver, .. } = request {
+    let receiver = match request {
+        SpokenRequestV1::AccountTransfer { receiver, .. } => Some(receiver),
+        SpokenRequestV1::MultisigApproval { proposal: ProposalV1::Transfer { receiver, .. }, .. } => Some(receiver),
+        _ => None,
+    };
+    if let Some(receiver) = receiver {
         if !accounts.contains(receiver) {
             accounts.push(receiver.clone());
         }
@@ -92,7 +102,7 @@ pub(super) fn known_accounts(contacts: &[String], request: &SpokenRequestV1) -> 
 }
 
 /// `2 * N` lowercase hex characters.
-fn lowercase_hex<const N: usize>(text: &str) -> Result<[u8; N], Reason> {
+pub(super) fn lowercase_hex<const N: usize>(text: &str) -> Result<[u8; N], Reason> {
     let lowercase = text.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
     from_hex::<N>(text).filter(|_| lowercase).ok_or(Reason::Unsupported)
 }

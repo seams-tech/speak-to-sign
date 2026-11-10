@@ -5,7 +5,8 @@ use std::time::Instant;
 use serde_json::Value;
 use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest};
 
-use super::request::{known_accounts, typed_request, unsupported};
+use super::multisig::{self, Prepared};
+use super::request::{known_accounts, typed_request, unsupported, SERVED_NETWORK};
 use super::steps::{consume, decode_clip, in_flight, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
@@ -14,7 +15,9 @@ use crate::digest::b64u;
 use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
 use crate::input::VerifyInput;
-use crate::output::{fit_heard, short, sign_verdict, Outcome, Reason, Stages, Verdict, VerifyOutput};
+use crate::output::{
+    fit_heard, short, sign_verdict, MultisigOpening, Outcome, Reason, Stages, Verdict, VerifyOutput,
+};
 use crate::policy::{self, Decision};
 use crate::speaker_client::service_request;
 use crate::template::{model_sha256, TemplateRecord};
@@ -27,7 +30,8 @@ pub(super) fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> VerifyOu
     let started = Instant::now();
     let mut verdict = Verdict::new();
     let mut ms = Stages::default();
-    let (policy_text, detail) = match verify_steps(value, host, pins, &mut verdict, &mut ms) {
+    let mut opening = None;
+    let (policy_text, detail) = match verify_steps(value, host, pins, &mut verdict, &mut ms, &mut opening) {
         Ok(Decision::Allow) => {
             verdict.outcome = Outcome::Accept;
             verdict.reason = None;
@@ -42,31 +46,49 @@ pub(super) fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> VerifyOu
         Err(refusal) => {
             verdict.outcome = Outcome::Refuse;
             verdict.reason = Some(refusal.reason);
+            opening = None;
             (None, refusal.detail)
         }
     };
-    finish(verdict, ms, policy_text, detail, host, started)
+    finish(verdict, ms, policy_text, detail, opening, host, started)
 }
 
 /// The checks in order. Each one fills the verdict fields that it knows, so
-/// a refusal keeps the fields from before it.
+/// a refusal keeps the fields from before it. A multisig accept also fills
+/// `opening`.
 fn verify_steps(
     value: Value,
     host: &mut dyn Host,
     pins: &Pins,
     verdict: &mut Verdict,
     ms: &mut Stages,
+    opening: &mut Option<MultisigOpening>,
 ) -> Result<Decision, Refusal> {
     let started = Instant::now();
     let input: VerifyInput = serde_json::from_value(value).map_err(unsupported)?;
     if input.op != "verify" || input.contacts.len() > MAX_CONTACTS {
         return Err(Reason::Unsupported.into());
     }
-    // 1. The request, as the Wallet builds it.
-    let request = typed_request(&input.owner, &input.request)?;
+    // 1. The request, as the Wallet builds it, or a multisig request with
+    //    a new salt or with the stored proposal. For a recalled proposal
+    //    the spoken-text digest waits for the accept: it would let the
+    //    member test guesses offline.
+    let prepared: Option<Prepared> = if input.request.is_multisig() {
+        Some(ms.time("multisig", || multisig::prepare(host, &input.owner, &input.request, SERVED_NETWORK))?)
+    } else {
+        None
+    };
+    let recalled = prepared.as_ref().is_some_and(|ready| ready.recalled);
+    let request = match &prepared {
+        Some(ready) => ready.request.clone(),
+        None => typed_request(&input.owner, &input.request)?,
+    };
     let rendered = render(&request);
+    let text_digest = b64u(&spoken_text_digest(&rendered));
     verdict.request_digest = Some(b64u(&request_digest(&request)));
-    verdict.spoken_text_digest = Some(b64u(&spoken_text_digest(&rendered)));
+    if !recalled {
+        verdict.spoken_text_digest = Some(text_digest.clone());
+    }
     let contacts = known_accounts(&input.contacts, &request)?;
 
     // 2. The audio.
@@ -109,6 +131,9 @@ fn verify_steps(
     if !speaker_passes(score) {
         return Err(Reason::Speaker.into());
     }
+    if let Some(ready) = &prepared {
+        ms.time("voices", || multisig::check_other_voices(host, ready, &speaker.embedding))?;
+    }
 
     // 6. The transcript.
     let transcript = reply(results.get(1), "transcriber", Reason::TranscriberUnavailable, parse_reply)?;
@@ -119,14 +144,26 @@ fn verify_steps(
     let check = check_words(&transcript, &contacts, &rendered.spoken, &confusions);
     let passed = words_pass(&request, &check, rendered.spoken.len());
     verdict.heard = Some(check.heard);
-    verdict.word_margin_milli = check.margin_milli;
     if !passed {
+        if let Some(ready) = prepared.as_ref().filter(|ready| ready.recalled) {
+            multisig::count_try(host, ready)?;
+        } else {
+            verdict.word_margin_milli = check.margin_milli;
+        }
         return Err(Reason::Words.into());
     }
+    verdict.word_margin_milli = check.margin_milli;
+    verdict.spoken_text_digest = Some(text_digest);
 
     // 8. The policy step, after the deterministic checks. It can only
     //    tighten an accept into a step-up.
-    Ok(ms.time("policy", || policy::decide(&request)))
+    let decision = ms.time("policy", || policy::decide(&request));
+
+    // 9. A multisig accept: keep a new proposal, and count the voice.
+    if let (Decision::Allow, Some(ready)) = (&decision, &prepared) {
+        *opening = ms.time("record", || multisig::record_accept(host, ready))?;
+    }
+    Ok(decision)
 }
 
 /// The owner's template for the pinned model, then the used-audio mark.
@@ -163,15 +200,24 @@ fn finish(
     mut ms: Stages,
     policy_text: Option<&'static str>,
     detail: Option<String>,
+    opening: Option<MultisigOpening>,
     host: &mut dyn Host,
     started: Instant,
 ) -> VerifyOutput {
     verdict.expires_at_ms = host.now_ms().saturating_add(VERDICT_TTL_MS);
-    let verdict_json = fit_heard(verdict, policy_text, &ms, detail.as_deref());
+    if opening.is_some() {
+        // The stage times make room for the commitment and the salt.
+        ms = Stages::default();
+    }
+    let verdict_json = fit_heard(verdict, policy_text, &ms, detail.as_deref(), opening.as_ref());
     let signed = ms.time("sign", || sign_verdict(host, &verdict_json));
     ms.since("total", started);
-    match signed {
+    let mut output = match signed {
         Ok(signed) => VerifyOutput::new(verdict_json, Some(signed), policy_text, ms, detail),
-        Err(error) => VerifyOutput::new(verdict_json, None, policy_text, ms, Some(short(&format!("sign: {error}")))),
-    }
+        Err(error) => {
+            return VerifyOutput::new(verdict_json, None, policy_text, ms, Some(short(&format!("sign: {error}"))))
+        }
+    };
+    output.multisig = opening;
+    output
 }

@@ -14,7 +14,7 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   words: 'The words did not match the sentence.',
   audio_reused: 'The verifier already saw this audio.',
   audio_invalid: 'The verifier could not read the audio.',
-  template_missing: 'The verifier has no voice template for you. Do step 2 first.',
+  template_missing: 'The verifier has no voice template for you. Do step 1 first.',
   unsupported: 'The verifier does not support this request.',
   speaker_unavailable: 'The speaker check did not answer.',
   storage: 'The verifier storage failed.',

@@ -193,9 +193,9 @@ dependencies = [
 
 [[package]]
 name = "borsh"
-version = "1.8.1"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "553c5d846a6ba5150c65e3b1b8ec073bcf1abc20f9b7220de384a4443ea4e20a"
+checksum = "cfd1e3f8955a5d7de9fab72fc8373fade9fb8a703968cb200ae3dc6cf08e185a"
 dependencies = [
  "borsh-derive",
  "bytes",
@@ -204,15 +204,15 @@ dependencies = [
 
 [[package]]
 name = "borsh-derive"
-version = "1.8.1"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12cdfe656708a01f89b451a7d36466e6fe6c414de0aa18fc54f864f6f9ca9f56"
+checksum = "bfcfdc083699101d5a7965e49925975f2f55060f94f9a05e7187be95d530ca59"
 dependencies = [
  "once_cell",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 3.0.10",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1721,23 +1721,6 @@ name = "memory_units"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
-
-[[package]]
-name = "merge-approvals"
-version = "1.0.0"
-dependencies = [
- "near-sdk",
-]
-
-[[package]]
-name = "merge-approvals-sandbox"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "near-workspaces",
- "serde_json",
- "tokio",
-]
 
 [[package]]
 name = "miniz_oxide"
@@ -3466,6 +3449,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "spoken-intent"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4018,6 +4009,30 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "voice-multisig"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "near-sdk",
+ "spoken-intent",
+]
+
+[[package]]
+name = "voice-multisig-sandbox"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bs58 0.5.1",
+ "ed25519-dalek",
+ "near-workspaces",
+ "serde_json",
+ "sha2 0.10.9",
+ "spoken-intent",
+ "tokio",
+]
 
 [[package]]
 name = "walkdir"

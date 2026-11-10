@@ -1,0 +1,274 @@
+/* Extra rules for LiveMultisigScreen. The look comes from the sf-* classes in
+   src/showcase/showcase.css; these add the parts that work: real buttons and fields, the
+   spoken sentence, the recorder and the messages. */
+.lms a {
+  color: inherit;
+  text-decoration: none;
+}
+.lms a:hover {
+  text-decoration: underline;
+}
+.lms button {
+  font: inherit;
+  color: inherit;
+}
+.lms-btn {
+  border: 0;
+  gap: 8px;
+  cursor: pointer;
+}
+.lms-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.lms-btn.sf-btn-ghost {
+  border: 1px solid #121312;
+}
+.sf-btn.lms-btn {
+  color: #ffffff;
+}
+.sf-btn.sf-btn-ghost.lms-btn {
+  color: #121312;
+}
+.lms-btn-sm {
+  height: 34px;
+  padding: 0 16px;
+}
+.lms-btn-stop {
+  background: #d1242f;
+}
+.lms .sf-new {
+  gap: 6px;
+  color: #ffffff;
+}
+.lms .sf-nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.lms .sf-nav button.sf-nav-on {
+  background: #effff4;
+  font-weight: 700;
+}
+.lms .sf-tabs button {
+  padding: 0 0 10px;
+  border: 0;
+  background: transparent;
+  color: #636669;
+  cursor: pointer;
+}
+.lms .sf-tabs button.sf-tab-on {
+  color: #121312;
+}
+.lms-members {
+  display: grid;
+  gap: 6px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+.lms-members p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lms-main {
+  overflow-y: auto;
+}
+.lms-list {
+  display: grid;
+  gap: 10px;
+}
+.lms-txrow {
+  width: 100%;
+  grid-template-columns: 36px 90px 1fr 170px 110px 150px;
+  border: 0;
+  border-bottom: 1px solid #dcdee0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.sf-tx > .lms-txrow:last-child {
+  border-bottom: 0;
+}
+.lms-status-ready {
+  color: #00a058;
+}
+.lms-status-done {
+  color: #636669;
+}
+.lms .sf-amount .sf-muted {
+  font-weight: 400;
+}
+.lms .sf-owner {
+  gap: 8px;
+}
+.lms-ok {
+  color: #00b460;
+}
+.lms-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  border: 2px solid #dcdee0;
+  flex: none;
+}
+.lms-panel {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+  padding: 20px;
+  border: 1px solid #dcdee0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+.lms-panel p,
+.lms-action p {
+  margin: 0;
+}
+.lms-panel .sf-label,
+.lms-action .sf-label {
+  margin: 0;
+}
+.lms-fields {
+  display: grid;
+  grid-template-columns: 1fr 160px;
+  gap: 12px;
+}
+.lms-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #636669;
+}
+.lms-field input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dcdee0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #121312;
+  font: inherit;
+  font-size: 15px;
+}
+.lms-field input:focus {
+  outline: 2px solid #121312;
+  outline-offset: -1px;
+}
+.lms-field em {
+  font-style: normal;
+  color: #d1242f;
+}
+.lms-say {
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: #f4f4f4;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.lms-say-empty {
+  color: #a1a3a7;
+}
+.lms-blank {
+  display: inline-block;
+  min-width: 48px;
+  border-bottom: 2px solid #121312;
+  color: transparent;
+  line-height: 1.1;
+}
+.lms-hint {
+  color: #636669;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lms-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fff4e0;
+  color: #8a5300;
+  font-size: 13px;
+}
+.lms-error {
+  margin: 0;
+  color: #d1242f;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lms-error p {
+  margin: 0;
+}
+.lms-main > .lms-error {
+  margin-bottom: 12px;
+}
+.lms-action {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+/* .sf-steps p is a flex row; text in the action and the hints is ordinary text. */
+.lms .sf-steps .lms-action p,
+.lms .sf-steps p.lms-hint,
+.lms .sf-steps .lms-error p {
+  display: block;
+}
+.lms .sf-steps .lms-rec {
+  margin: 0;
+}
+.lms-txrow .sf-time {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lms-action .lms-say {
+  font-size: 15px;
+}
+.lms-rec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.lms-rec .lms-error {
+  flex-basis: 100%;
+}
+.lms-rec-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #636669;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.lms-rec-bar {
+  width: 90px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #dcdee0;
+  overflow: hidden;
+}
+.lms-rec-bar i {
+  display: block;
+  height: 100%;
+  background: #d1242f;
+}
+.lms-done-title,
+.lms-ok-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.lms-done a,
+.lms-ok-line a {
+  font-weight: 400;
+  text-decoration: underline;
+}

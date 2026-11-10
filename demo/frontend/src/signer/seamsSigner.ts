@@ -66,15 +66,13 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
       const id = walletId;
       return await withFreshUnlock(seams, id, async () => {
         const availability = await seams.registration.getAuthMethodAvailability({ walletId: id, method: 'voiceid' });
-        if (availability.kind === 'enabled') return { kind: 'done', message: 'VoiceID is on.' };
         if (availability.kind === 'disabled') {
           await seams.registration.setAuthMethodEnabled({ walletId: id, method: 'voiceid', enabled: true });
           return { kind: 'done', message: 'VoiceID is on again.' };
         }
-        const result = await seams.registration.activateAuthMethod({ walletId: id, method: 'voiceid' });
-        return result.kind === 'activated'
-          ? { kind: 'done', message: 'VoiceID is on.' }
-          : { kind: 'cancelled', message: 'You closed the VoiceID window. Nothing changed.' };
+        // A wallet without VoiceID gets it in the enrollment: the Wallet turns it on and enrolls
+        // the verifier from the same three recordings.
+        return { kind: 'done', message: availability.kind === 'enabled' ? 'VoiceID is on.' : 'The enrollment turns on VoiceID.' };
       });
     },
 
@@ -161,7 +159,6 @@ const REFUSALS: Record<string, string> = {
   transcriber_unavailable: 'The speech-to-text service did not answer.',
   summary_not_speakable: 'The summary must be 1 to 12 words of letters A to Z.',
   note_not_valid: 'The note, the contract or the id is not valid.',
-  merge_not_valid: 'The repository, the pull request, the base branch or the commit is not valid.',
   verdict_mismatch: 'The signed verdict did not match this request, so the Wallet signed nothing.',
   transaction_failed: 'The transaction failed on chain.',
   // SDK 0.60.0: the Seams co-signer refused the verdict. `detail` holds its reason.

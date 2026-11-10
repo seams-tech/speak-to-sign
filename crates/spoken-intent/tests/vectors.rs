@@ -14,9 +14,9 @@ use spoken_intent::{
     confusion_set, normalize, normalize_punctuated, parse_transfer, phonetic_key, render,
     request_digest, spoken_text, spoken_text_digest, NearAmount, Network, NoteRatingV1,
     ParseResult, ProposalV1, SpokenAccount, SpokenBranch, SpokenRequestV1, SpokenSummary,
-    CHALLENGE_WORDS, PUNCTUATED_ALIASES, RENDERER_VERSION,
+    PUNCTUATED_ALIASES, RENDERER_VERSION,
 };
-use support::{account, challenge_word, contacts, near, near_account, IMPLICIT_ACCOUNT, ONE_NEAR};
+use support::{account, contacts, near, near_account, IMPLICIT_ACCOUNT, MULTISIG_SALT, ONE_NEAR};
 
 const HUNDREDTH: u128 = ONE_NEAR / 100;
 
@@ -104,13 +104,14 @@ fn merge(owner: &str, pull_request: u64, base: &str) -> SpokenRequestV1 {
     }
 }
 
-fn approval(proposal_id: u64, proposal: ProposalV1, words: [&str; 2]) -> SpokenRequestV1 {
+fn approval(proposal_id: u64, proposal: ProposalV1) -> SpokenRequestV1 {
     SpokenRequestV1::MultisigApproval {
         network: Network::Testnet,
+        owner: near_account("owner.testnet"),
         multisig: near_account("payroll-multisig.testnet"),
         proposal_id,
         proposal,
-        challenge: words.map(challenge_word),
+        salt: MULTISIG_SALT,
     }
 }
 
@@ -152,7 +153,6 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                     receiver: account("payroll.testnet"),
                     amount: near(1_000),
                 },
-                ["river", "lantern"],
             ),
         ),
         (
@@ -162,7 +162,6 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 ProposalV1::AddMember {
                     member: account("carol.testnet"),
                 },
-                ["tiger", "piano"],
             ),
         ),
         (
@@ -172,7 +171,6 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 ProposalV1::RemoveMember {
                     member: account("bob.testnet"),
                 },
-                ["orchard", "river"],
             ),
         ),
         (
@@ -182,7 +180,6 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 ProposalV1::SetThreshold {
                     threshold: NonZeroU8::new(2).expect("nonzero"),
                 },
-                ["umbrella", "volcano"],
             ),
         ),
         (
@@ -192,7 +189,6 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 ProposalV1::SetVerifierVersion {
                     version_hash: sequential_hash,
                 },
-                ["compass", "meadow"],
             ),
         ),
         (
@@ -202,7 +198,6 @@ fn request_cases() -> Vec<(&'static str, SpokenRequestV1)> {
                 ProposalV1::SetVerifierVersion {
                     version_hash: [0u8; 32],
                 },
-                ["river", "river"],
             ),
         ),
         (
@@ -375,12 +370,13 @@ fn merge_bytes(base: &str) -> Vec<u8> {
     out
 }
 
-fn threshold_bytes(threshold: u8, challenge: [u8; 2]) -> Vec<u8> {
+fn threshold_bytes(threshold: u8) -> Vec<u8> {
     let mut out = vec![1, 0];
+    borsh_string(&mut out, "owner.testnet");
     borsh_string(&mut out, "payroll-multisig.testnet");
     out.extend_from_slice(&0u64.to_le_bytes());
     out.extend_from_slice(&[3, threshold]);
-    out.extend_from_slice(&challenge);
+    out.extend_from_slice(&MULTISIG_SALT);
     out
 }
 
@@ -391,13 +387,12 @@ fn invalid_borsh_vectors() -> Value {
         borsh::to_vec(&transfer(Network::Testnet, "alice.testnet", 2_500)).expect("borsh"),
     );
     assert_eq!(
-        threshold_bytes(2, [0, 1]),
+        threshold_bytes(2),
         borsh::to_vec(&approval(
             0,
             ProposalV1::SetThreshold {
                 threshold: NonZeroU8::new(2).expect("nonzero")
             },
-            ["river", "lantern"],
         ))
         .expect("borsh"),
     );
@@ -440,8 +435,7 @@ fn invalid_borsh_vectors() -> Value {
             account_transfer_bytes(2, "alice.testnet", 25 * ONE_NEAR),
         ),
         ("trailing_byte", trailing),
-        ("threshold_zero", threshold_bytes(0, [0, 1])),
-        ("challenge_index_64", threshold_bytes(2, [0, 64])),
+        ("threshold_zero", threshold_bytes(0)),
         ("retired_vault_transfer_kind", vec![0, 0]),
         ("unknown_request_kind", vec![3, 0]),
         // Tag 6 is now a merge approval; these bytes end after its network.
@@ -674,7 +668,6 @@ fn generated_vectors_json() -> String {
         "renderer": RENDERER_VERSION,
         "request_digest_domain": String::from_utf8(spoken_intent::REQUEST_DIGEST_DOMAIN.to_vec()).expect("ascii"),
         "spoken_text_digest_domain": String::from_utf8(spoken_intent::SPOKEN_TEXT_DIGEST_DOMAIN.to_vec()).expect("ascii"),
-        "challenge_words": CHALLENGE_WORDS.as_slice(),
         "confusion_contacts": contacts().iter().map(SpokenAccount::as_str).collect::<Vec<_>>(),
         "requests": request_vectors(),
         "unsupported_amounts": unsupported_amount_vectors(),

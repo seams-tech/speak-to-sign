@@ -65,6 +65,8 @@ pub(crate) struct Fake {
     pub(crate) speaker_down: bool,
     pub(crate) speaker_tamper: bool,
     pub(crate) access: Access,
+    /// The accounts whose full-access key is `OWNER_SEED`.
+    pub(crate) accounts: Vec<String>,
     pub(crate) posts: Vec<String>,
     /// Host calls in order: "start", "wait", "cancel", "get", "marker_get",
     /// "marker_set", "set".
@@ -76,6 +78,7 @@ impl Fake {
     pub(crate) fn new() -> Self {
         let mut fake = Fake::default();
         fake.secrets.insert(NEAR_AI_API_KEY_ENV.into(), "sk-test".into());
+        fake.accounts.push(OWNER.into());
         fake
     }
 
@@ -121,7 +124,8 @@ impl Fake {
         assert_eq!(params["request_type"], "view_access_key");
         assert_eq!(params["finality"], "final");
         let owner_key = near_ed25519_key(&SigningKey::from_bytes(&OWNER_SEED).verifying_key().to_bytes());
-        let reply = if params["account_id"] != OWNER || params["public_key"] != owner_key.as_str() {
+        let known = self.accounts.iter().any(|account| params["account_id"] == account.as_str());
+        let reply = if !known || params["public_key"] != owner_key.as_str() {
             json!({ "jsonrpc": "2.0", "id": body["id"], "error": {
                 "name": "HANDLER_ERROR", "cause": { "name": "UNKNOWN_ACCESS_KEY", "info": {} } } })
         } else if self.access == Access::FunctionCall {
@@ -232,19 +236,32 @@ pub(crate) fn call(fake: &mut Fake, input: Value) -> Value {
 
 /// The enrollment digest text of these clips for `OWNER`.
 pub(crate) fn digest_of(clips: &[Vec<u8>]) -> String {
+    digest_for(OWNER, clips)
+}
+
+fn digest_for(owner: &str, clips: &[Vec<u8>]) -> String {
     let digests: Vec<[u8; 32]> = clips.iter().map(|wav| Sha256::digest(wav).into()).collect();
-    b64u(&enrollment_digest(OWNER, &digests))
+    b64u(&enrollment_digest(owner, &digests))
 }
 
 /// An enroll input whose authorization the key `seed` signed over the
 /// digest of `signed_clips`.
 pub(crate) fn enroll_input_signed(clips: &[Vec<u8>], signed_clips: &[Vec<u8>], seed: [u8; 32]) -> Value {
+    enroll_input_for(OWNER, clips, signed_clips, seed)
+}
+
+/// An enroll input of `owner`, authorized by `OWNER_SEED`.
+pub(crate) fn enroll_input_as(owner: &str, clips: &[Vec<u8>]) -> Value {
+    enroll_input_for(owner, clips, clips, OWNER_SEED)
+}
+
+fn enroll_input_for(owner: &str, clips: &[Vec<u8>], signed_clips: &[Vec<u8>], seed: [u8; 32]) -> Value {
     let key = SigningKey::from_bytes(&seed);
     let nonce = [0x44u8; 32];
-    let hash = nep413_hash(&authorization_message(&digest_of(signed_clips)), &nonce, ENROLLMENT_RECIPIENT);
+    let hash = nep413_hash(&authorization_message(&digest_for(owner, signed_clips)), &nonce, ENROLLMENT_RECIPIENT);
     json!({
         "op": "enroll",
-        "owner": OWNER,
+        "owner": owner,
         "audio_wav_b64": clips.iter().map(|wav| STANDARD.encode(wav)).collect::<Vec<_>>(),
         "authorization": {
             "public_key": near_ed25519_key(&key.verifying_key().to_bytes()),

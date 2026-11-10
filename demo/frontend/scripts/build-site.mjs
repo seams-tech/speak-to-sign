@@ -1,5 +1,5 @@
 // Builds the whole site into dist/: the Speak-to-Sign page at / (with Community Notes and the
-// PR merge in its windows), then the Speak to pay example (../../examples/speak-to-pay) at /pay/.
+// voice multisig in its windows), then the Speak to pay example (../../examples/speak-to-pay) at /pay/.
 // All use one Seams project, so the
 // pay build gets the VITE_SEAMS_* settings of demo/frontend/ (.env.local, .env.production.local, or the
 // environment). Nothing is written into examples/.
@@ -32,4 +32,4 @@ run('pnpm', ['exec', 'vite', 'build', '--base', '/pay/', '--outDir', resolve(dem
   ...process.env,
   ...seamsEnv,
 });
-console.log('Site built: dist/ (Speak-to-Sign at /, with Community Notes and the PR merge in its windows) and dist/pay/ (Speak to pay at /pay/).');
+console.log('Site built: dist/ (Speak-to-Sign at /, with Community Notes and the voice multisig in its windows) and dist/pay/ (Speak to pay at /pay/).');

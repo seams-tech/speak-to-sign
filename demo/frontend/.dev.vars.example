@@ -6,3 +6,12 @@ NEAR_AI_MODEL=
 FAUCET_PRIVATE_KEY=
 # Optional. The default is seams-faucet.testnet.
 FAUCET_ACCOUNT=
+# The voice multisig route /api/voice-verify. Use the OutLayer settings of the Seams staging
+# verify route: the payment key decides where the voice templates are and which key signs.
+VOICE_OUTLAYER_BASE_URL=
+VOICE_OUTLAYER_PROJECT=
+# The WASM hash of a verifier version with the multisig kinds (0.6.0 or later).
+VOICE_OUTLAYER_VERSION_KEY=
+VOICE_OUTLAYER_PAYMENT_KEY=
+VOICE_OUTLAYER_SECRETS_PROFILE=
+VOICE_OUTLAYER_SECRETS_ACCOUNT_ID=

@@ -138,8 +138,9 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
     window.setTimeout(loadBalance, 2500);
   };
 
-  // One step for the user: turn on VoiceID when it is off, then enroll with the verifier.
-  // enableVoice answers "done" at once when VoiceID is already on.
+  // One step and one set of recordings for the user: turn VoiceID back on if it was turned
+  // off, then enroll. For a wallet without VoiceID, the enrollment turns it on and the Wallet
+  // uses the same three recordings for VoiceID and the verifier.
   const setUpVoice = async () => {
     setOutcome(null);
     setBusy('voice');
@@ -260,7 +261,7 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
         <p className="side-note">
           {voiceReady
             ? 'Set up once. You read three short phrases, then confirm one signed message.'
-            : 'Set up once. The Wallet may ask for your passkey. Then you read short phrases twice (first for VoiceID on this device, then for the verifier) and confirm one signed message.'}
+            : 'Set up once. The Wallet may ask for your passkey. Then you read three short phrases, which set up VoiceID on this device and the verifier, and confirm one signed message.'}
         </p>
       )}
       {outcome && (
@@ -311,8 +312,8 @@ function WalletWait({ step }: { step: VoicePhase }) {
         <b>Setting up your voice</b>
         <span className="muted small">
           {step === 'enroll'
-            ? 'Enrolling your voice with the verifier. After the three phrases, the Wallet prepares one signed message to confirm.'
-            : 'Checking VoiceID. If it is off, the Wallet turns it on first. Follow the Seams Wallet window.'}
+            ? 'Setting up your voice. Read the three phrases in the Seams Wallet window, then confirm one signed message.'
+            : 'Checking VoiceID. Follow the Seams Wallet window.'}
         </span>
       </div>
     </div>,

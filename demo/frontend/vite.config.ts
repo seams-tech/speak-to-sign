@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // One page: the Speak-to-Sign page at /. Its examples open in a window on the same page
-// (#/notes, #/merge, #/multisig). `pnpm dev` serves it with hot reload. `/api/*` goes to the
+// (#/notes, #/multisig). `pnpm dev` serves it with hot reload. `/api/*` goes to the
 // Pages Function that `pnpm dev:api` runs with wrangler on port 8788.
 export default defineConfig({
   plugins: [react()],

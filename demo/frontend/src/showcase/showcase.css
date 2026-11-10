@@ -1551,68 +1551,174 @@ h1.ss-display {
   }
 }
 
-/* The picker of the hero's gradient (FieldPicker): a glass pill like GitHub, with a swatch of
-   the field's mean colour. The native select gives the list. */
+/* The picker of the hero's gradient (FieldPicker): a round glass button like GitHub's, with only
+   a picture of the field, and a menu of dark glass under it. Keyboard focus shows as darker
+   glass, with no ring. */
 .ss-field-pick {
   position: relative;
   flex: none;
+}
+
+.ss-field-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 28px;
   height: 28px;
+  padding: 0;
+  border: 0;
   border-radius: 9999px;
   background: rgba(10, 10, 10, 0.26);
   color: #ffffff;
+  font: inherit;
   font-size: 13px;
   font-weight: 500;
-}
-
-.ss-field-pick select {
-  appearance: none;
-  /* A native select is as wide as its longest option: this one has a width of its own. */
-  width: 150px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  height: 100%;
-  margin: 0;
-  padding: 0 28px 0 30px;
-  border: 0;
-  border-radius: inherit;
-  background: none;
-  color: inherit;
-  font: inherit;
   cursor: pointer;
+  transition: background-color 150ms ease;
 }
 
-.ss-field-pick select:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
+.ss-field-button:focus,
+.ss-field-button:focus-visible {
+  outline: none;
 }
 
-/* The list of the native select is on a light ground. */
-.ss-field-pick option {
-  color: var(--ink);
-}
-
-.ss-field-swatch {
-  position: absolute;
-  left: 9px;
-  width: 13px;
-  height: 13px;
-  border-radius: 9999px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
-  pointer-events: none;
-}
-
-.ss-field-pick svg {
-  position: absolute;
-  right: 9px;
-  pointer-events: none;
+.ss-field-button:focus-visible,
+.ss-field-pick[data-open] .ss-field-button {
+  background: rgba(10, 10, 10, 0.48);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .ss-field-pick:hover {
+  .ss-field-button:hover {
     background: rgba(10, 10, 10, 0.42);
+  }
+}
+
+.ss-field-swatch {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  transition: transform 150ms ease;
+  border-radius: 9999px;
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.ss-field-pick[data-open] .ss-field-swatch {
+  transform: scale(1.12);
+}
+
+/* The menu: dark glass under the pill, at its right edge. */
+.ss-field-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 252px;
+  max-width: calc(100vw - 24px);
+  padding: 6px;
+  border-radius: 16px;
+  background: rgba(22, 24, 28, 0.78);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 24px 48px -16px rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  transform-origin: 100% 0;
+  animation: ss-field-menu-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes ss-field-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+.ss-field-menu-head {
+  margin: 0;
+  padding: 6px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.ss-field-list {
+  position: relative;
+  max-height: min(66vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.ss-field-list:focus,
+.ss-field-list:focus-visible {
+  outline: none;
+}
+
+.ss-field-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px 0 7px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ss-field-option-active {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.ss-field-option[aria-selected='true'] {
+  font-weight: 600;
+}
+
+.ss-field-thumb {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.ss-field-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ss-field-tag {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ss-field-check {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-field-menu {
+    animation: none;
+  }
+  .ss-field-swatch {
+    transition: none;
   }
 }
 
@@ -1623,22 +1729,6 @@ h1.ss-display {
 
 .ss-spa .ss-field-pick + .ss-nav-source {
   margin-left: 0;
-}
-
-/* While the setup steps are in the nav, and on a phone, the picker is its swatch and its arrow:
-   the steps need the room. The list still names every field. */
-.ss-nav-inner:has(.ss-nav-setup[data-shown]) .ss-field-pick select {
-  width: 46px;
-  padding-right: 0;
-  color: transparent;
-}
-
-@media (max-width: 720px) {
-  .ss-field-pick select {
-    width: 46px;
-    padding-right: 0;
-    color: transparent;
-  }
 }
 
 /* The setup steps in the nav. They come in when the sheet covers the hero, and they go when

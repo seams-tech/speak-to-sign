@@ -5,10 +5,14 @@
 import { useSyncExternalStore } from 'react';
 import { GRAIN_FIELD_NAMES, grainFieldSource, type GrainFieldName } from './grain/fields';
 
-/** The field of the Seams home hero, and the colours that this hero had before the picker. */
-export const DEFAULT_FIELD: GrainFieldName = 'teal-peach-wisp';
+/** The field of the hero until the visitor picks another. */
+export const DEFAULT_FIELD: GrainFieldName = 'apricot-beam';
 
-const STORAGE_KEY = 'speak-to-sign:hero-field';
+/** The field of the Seams home hero. The menu tags it. */
+export const SEAMS_HOME_FIELD: GrainFieldName = 'teal-peach-wisp';
+
+// v2: the default changed to Apricot Beam, so an older pick does not hide it.
+const STORAGE_KEY = 'speak-to-sign:hero-field:v2';
 
 function isFieldName(value: string | null): value is GrainFieldName {
   return value !== null && (GRAIN_FIELD_NAMES as string[]).includes(value);

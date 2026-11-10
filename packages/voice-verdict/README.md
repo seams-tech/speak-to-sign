@@ -168,6 +168,13 @@ it made no word check. A wrong word of the model is a wrong word of the
 text. Use a transcript for a search, a note or a command with no value. For
 an action with value, show the sentence and use `verify` or `select`.
 
+## A signed intent
+
+`checkIntent` checks the result of `op: 'detect'`: the proposed intent of
+your list for free words. `intentsDigest(intents)` gives the digest of your
+list, which the result names. The result is a proposal of two models: do not
+let it approve an action with value.
+
 ## Audio
 
 `audioDigest(wav)` gives the audio digest of a verdict for a WAV that you

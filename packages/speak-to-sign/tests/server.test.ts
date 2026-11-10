@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { audioDigest, confirmationRequest, TRANSCRIPT_DOMAIN, VERDICT_DOMAIN } from '@seams/voice-verdict';
+import { audioDigest, confirmationRequest, INTENT_DOMAIN, intentsDigest, TRANSCRIPT_DOMAIN, VERDICT_DOMAIN } from '@seams/voice-verdict';
 
 import { createSpeakToSign, type Action, type SpeakToSignConfig } from '../src/server.ts';
 
@@ -53,6 +53,10 @@ interface Fake {
   signFor?: number;
   speaker?: boolean;
   attestationUrl?: string | null;
+  /** `detect`: the intent that the fake model names. */
+  intent?: string;
+  /** `detect`: the fake signs for this list, not for the list of the input. */
+  signedIntents?: { name: string; description: string }[];
   calls: Record<string, unknown>[];
 }
 
@@ -95,6 +99,31 @@ function fakeVerifier(fake: Fake): typeof fetch {
         kind: 'seams_voice_transcript_output_v1',
         transcript_json: transcript,
         signature_b64: await sign(TRANSCRIPT_DOMAIN, transcript),
+        public_key: PUBLIC_KEY,
+        ms: {},
+        detail: null,
+      });
+    }
+    if (input.op === 'detect') {
+      const result = JSON.stringify({
+        kind: 'seams_voice_signed_intent_v1',
+        verifier: 'test',
+        owner: input.owner,
+        audio_digest: recording,
+        intents_digest: Buffer.from(await intentsDigest(fake.signedIntents ?? input.intents)).toString('base64url'),
+        outcome: fake.speaker === false ? 'refuse' : 'accept',
+        reason: fake.speaker === false ? 'speaker' : null,
+        expires_at_ms: NOW + 120_000,
+        speaker_score_milli: 700,
+        text: fake.speaker === false ? null : 'book a table for two at eight',
+        model: fake.speaker === false ? null : 'test-model',
+        intent: fake.speaker === false ? null : (fake.intent ?? null),
+        slots: fake.speaker === false || !fake.intent ? null : { people: 2, time: 'eight' },
+      });
+      return reply({
+        kind: 'seams_voice_intent_output_v1',
+        intent_json: result,
+        signature_b64: await sign(INTENT_DOMAIN, result),
         public_key: PUBLIC_KEY,
         ms: {},
         detail: null,
@@ -240,4 +269,28 @@ test('with the attestation setting, a call with no quote confirms nothing', asyn
     recording: wav(51),
   });
   assert.equal(!wrong.ok && wrong.reason, 'attestation_unavailable');
+});
+
+test('detect gives the proposed intent of your list', async () => {
+  const intents = [
+    { name: 'book_table', description: 'Book a table at a restaurant', slots: { people: 'number', time: 'text' } as const },
+    { name: 'cancel_booking', description: 'Cancel a booking' },
+  ];
+  const fake: Fake = { said: null, intent: 'book_table', calls: [] };
+  const detected = await server(fake).detect({ owner: OWNER, intents, recording: wav(60) });
+  assert.deepEqual(detected, { ok: true, intent: 'book_table', slots: { people: 2, time: 'eight' }, text: 'book a table for two at eight' });
+  assert.equal(fake.calls[0]!.op, 'detect');
+  const none = await server({ said: null, calls: [] }).detect({ owner: OWNER, intents, recording: wav(61) });
+  assert.deepEqual(none, { ok: true, intent: null, slots: {}, text: 'book a table for two at eight' });
+  // A result for another list, an intent that is not in your list, and another voice.
+  const otherList = await server({ said: null, intent: 'book_table', signedIntents: [{ name: 'book_table', description: 'Other' }], calls: [] }).detect({
+    owner: OWNER,
+    intents,
+    recording: wav(62),
+  });
+  assert.equal(!otherList.ok && otherList.reason, 'intents_mismatch');
+  const unknown = await server({ said: null, intent: 'delete_account', calls: [] }).detect({ owner: OWNER, intents, recording: wav(63) });
+  assert.equal(!unknown.ok && unknown.reason, 'intents_mismatch');
+  const voice = await server({ said: null, speaker: false, intent: 'book_table', calls: [] }).detect({ owner: OWNER, intents, recording: wav(64) });
+  assert.deepEqual(voice, { ok: false, reason: 'speaker', heard: null });
 });

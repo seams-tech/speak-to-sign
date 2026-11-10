@@ -26,6 +26,7 @@ pub mod digest;
 mod embedding;
 pub mod host;
 pub mod input;
+pub mod intent;
 #[cfg(feature = "local-speaker")]
 pub mod local_model;
 pub mod model_cache;

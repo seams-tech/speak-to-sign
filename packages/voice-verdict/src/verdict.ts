@@ -427,3 +427,190 @@ export async function checkTranscript(input: CheckTranscriptInput): Promise<Tran
   }
   return { ok: true, transcript: transcript as VoiceTranscript & { owner: string; text: string } };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Signed intent results (the operation `detect`).
+
+/** The prefix of the signed message of an intent result. */
+export const INTENT_DOMAIN = 'seams:outlayer:voice-intent:v1';
+/** The kind of a signed intent result. */
+export const INTENT_KIND = 'seams_voice_signed_intent_v1';
+/** The prefix of the digest of an intent list. */
+export const INTENTS_DIGEST_DOMAIN = 'seams:voice-intent:intents:v1';
+
+/** One intent that your application offers to `detect`. */
+export interface IntentSpec {
+  /** 1 to 32 characters of `a-z`, `0-9` and `_`. */
+  name: string;
+  /** What the intent means, for the model: 1 to 120 ASCII letters, digits, spaces and `. , ' -`. */
+  description: string;
+  /** At most 6 slots: the name (as an intent name) and the kind of its value. */
+  slots?: Record<string, 'text' | 'number'>;
+}
+
+/**
+ * The 13 signed fields of a `detect` result: the voice of `owner` passed the speaker check, the
+ * speech-to-text model heard `text`, and a chat model named `intent` of your list for those
+ * words. It is a proposal. It approves no request.
+ */
+export interface VoiceIntent {
+  kind: typeof INTENT_KIND;
+  verifier: string;
+  owner: string | null;
+  /** base64url, no padding. */
+  audio_digest: string | null;
+  /** base64url, no padding: the digest of the intent list that the model saw. */
+  intents_digest: string | null;
+  outcome: 'accept' | 'refuse';
+  reason: string | null;
+  expires_at_ms: number;
+  speaker_score_milli: number | null;
+  text: string | null;
+  /** The chat model that named the intent. */
+  model: string | null;
+  /** The name of one intent of the list, or `null` if the model named none. */
+  intent: string | null;
+  /** A value or `null` for each slot of the intent. `null` with no intent. */
+  slots: Record<string, string | number | null> | null;
+}
+
+export type IntentRefusal =
+  | { code: 'bad_public_key' }
+  | { code: 'bad_signature_encoding' }
+  | { code: 'bad_signature' }
+  | { code: 'malformed'; detail: string }
+  | { code: 'wrong_kind'; kind: string }
+  /** The verifier refused, for example with `speaker` or `detector_unavailable`. */
+  | { code: 'refused'; reason: string | null; result: VoiceIntent }
+  | { code: 'expired'; expiresAtMs: number; result: VoiceIntent }
+  | { code: 'owner_mismatch'; result: VoiceIntent }
+  | { code: 'audio_mismatch'; result: VoiceIntent }
+  /** The result is for another intent list than yours, or names an intent or a slot that is not in it. */
+  | { code: 'intents_mismatch'; result: VoiceIntent };
+
+export type IntentCheck =
+  | { ok: true; result: VoiceIntent & { owner: string; text: string } }
+  | { ok: false; refusal: IntentRefusal };
+
+export interface CheckIntentInput {
+  /** `intent_json` of the detect output, exactly as the verifier gave it. */
+  intentJson: string;
+  signatureB64: string;
+  /** The verifier key that you pin. */
+  publicKey: string | Uint8Array;
+  /** The intent list that you sent. Without it, a result for any list passes. */
+  intents?: readonly IntentSpec[];
+  /** The owner that you asked for. */
+  owner?: string;
+  audioDigest?: Digest;
+  /** Default: `Date.now()`. */
+  nowMs?: number;
+}
+
+/**
+ * The canonical JSON of an intent list, as the verifier writes it: each intent as `name`,
+ * `description`, `slots`, and the slots in name order. The name and description rules of the
+ * verifier keep it free of escapes.
+ */
+export function intentsJson(intents: readonly IntentSpec[]): string {
+  return JSON.stringify(
+    intents.map(({ name, description, slots }) => ({
+      name,
+      description,
+      slots: Object.fromEntries(Object.entries(slots ?? {}).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))),
+    })),
+  );
+}
+
+/** `SHA-256(INTENTS_DIGEST_DOMAIN || intentsJson)`: the `intents_digest` of a result. */
+export function intentsDigest(intents: readonly IntentSpec[]): Promise<Uint8Array<ArrayBuffer>> {
+  return sha256(concat(utf8.encode(INTENTS_DIGEST_DOMAIN), utf8.encode(intentsJson(intents))));
+}
+
+const INTENT_FIELDS = [
+  'kind',
+  'verifier',
+  'owner',
+  'audio_digest',
+  'intents_digest',
+  'outcome',
+  'reason',
+  'expires_at_ms',
+  'speaker_score_milli',
+  'text',
+  'model',
+  'intent',
+  'slots',
+] as const;
+
+/**
+ * Checks a signed result of `detect`: key, signature, shape, kind, outcome, expiry, owner, audio
+ * digest, and that the intent and its slots are of your list.
+ *
+ * The result is a proposal. A speech-to-text model and a chat model made it, and neither signs
+ * its part: a wrong word or a wrong intent is possible. Do not let it approve an action with
+ * value. Show the proposed action, then confirm it with `verify` or `select`.
+ */
+export async function checkIntent(input: CheckIntentInput): Promise<IntentCheck> {
+  const refuse = (refusal: IntentRefusal): IntentCheck => ({ ok: false, refusal });
+  const key = parsePublicKey(input.publicKey);
+  if (key === null) return refuse({ code: 'bad_public_key' });
+  const signature = fromBase64(input.signatureB64);
+  if (signature === null || signature.length !== 64) return refuse({ code: 'bad_signature_encoding' });
+  const message = await sha256(concat(utf8.encode(INTENT_DOMAIN), utf8.encode(input.intentJson)));
+  if (!(await verifyEd25519(key, signature, message))) return refuse({ code: 'bad_signature' });
+
+  const bad = (detail: string) => refuse({ code: 'malformed', detail });
+  let value: unknown;
+  try {
+    value = JSON.parse(input.intentJson);
+  } catch {
+    return bad('not JSON');
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return bad('not an object');
+  const record = value as Record<string, unknown>;
+  for (const name of INTENT_FIELDS) if (!Object.hasOwn(record, name)) return bad(`no field ${name}`);
+  if (Object.keys(record).length !== INTENT_FIELDS.length) return bad('unknown field');
+  if (typeof record.kind !== 'string') return bad('kind');
+  if (record.kind !== INTENT_KIND) return refuse({ code: 'wrong_kind', kind: record.kind });
+  if (typeof record.verifier !== 'string') return bad('verifier');
+  for (const name of ['owner', 'reason', 'text', 'model', 'intent'] as const) {
+    if (record[name] !== null && typeof record[name] !== 'string') return bad(name);
+  }
+  for (const name of ['audio_digest', 'intents_digest'] as const) {
+    const digest = record[name];
+    if (digest !== null && (typeof digest !== 'string' || fromBase64Url(digest)?.length !== 32)) return bad(name);
+  }
+  if (record.outcome !== 'accept' && record.outcome !== 'refuse') return bad('outcome');
+  const expires = record.expires_at_ms;
+  if (typeof expires !== 'number' || !Number.isSafeInteger(expires) || expires < 0) return bad('expires_at_ms');
+  if (record.speaker_score_milli !== null && !Number.isSafeInteger(record.speaker_score_milli)) return bad('speaker_score_milli');
+  const slots = record.slots;
+  if (slots !== null) {
+    if (typeof slots !== 'object' || Array.isArray(slots)) return bad('slots');
+    const values = Object.values(slots as Record<string, unknown>);
+    if (!values.every((item) => item === null || typeof item === 'string' || typeof item === 'number')) return bad('slots');
+  }
+  const result = record as unknown as VoiceIntent;
+
+  if (result.outcome === 'refuse') return refuse({ code: 'refused', reason: result.reason, result });
+  if (result.owner === null || result.text === null) return bad('an accept with no owner or no text');
+  if ((result.intent === null) !== (result.slots === null)) return bad('an intent with no slots, or slots with no intent');
+  if (result.expires_at_ms < (input.nowMs ?? Date.now())) {
+    return refuse({ code: 'expired', expiresAtMs: result.expires_at_ms, result });
+  }
+  if (input.owner !== undefined && result.owner !== input.owner) return refuse({ code: 'owner_mismatch', result });
+  if (input.audioDigest !== undefined && !sameDigest(result.audio_digest, input.audioDigest)) {
+    return refuse({ code: 'audio_mismatch', result });
+  }
+  if (input.intents !== undefined) {
+    if (!sameDigest(result.intents_digest, await intentsDigest(input.intents))) return refuse({ code: 'intents_mismatch', result });
+    // The verifier checked this. Check it again: the list is yours.
+    if (result.intent !== null) {
+      const spec = input.intents.find((intent) => intent.name === result.intent);
+      const known = spec !== undefined && Object.keys(result.slots ?? {}).every((slot) => Object.hasOwn(spec.slots ?? {}, slot));
+      if (!known) return refuse({ code: 'intents_mismatch', result });
+    }
+  }
+  return { ok: true, result: result as VoiceIntent & { owner: string; text: string } };
+}

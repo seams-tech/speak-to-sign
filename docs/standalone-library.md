@@ -832,7 +832,13 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
    record a short time after a call returns, so the server waits for it (up
    to 15 s). One call took 4 to 7 s with the default build and 18 to 31 s
    with `local-speaker` in this run, with the quote check.
-4. **`detect`** is not built.
+4. Done in the source (verifier 0.11.0): the operation `detect`
+   (`crates/voice-verifier/src/ops/detect.rs`, `src/intent.rs`), the check
+   `checkIntent` and the server function `detect`. A live call of the chat
+   model with the worker's exact request gave the correct intent for five
+   sentences, also for a sentence that tells the model to ignore the list
+   (`tests/detect_live.rs`). Verifier 0.11.0 is not on OutLayer, so `detect`
+   did not run in the worker there.
 5. **The demo contracts keep their own `verdict.rs`.** A change of their
    dependencies changes their code hash, and the root README pins the hash
    of each deployed contract. So this needs a new deploy of each contract.

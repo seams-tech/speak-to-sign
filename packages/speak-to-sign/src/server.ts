@@ -11,19 +11,22 @@
 import {
   audioDigest,
   checkAttestationBinding,
+  checkIntent,
   checkTranscript,
   checkVerdict,
   confirmationRequest,
   fetchAttestation,
   measurementsApproved,
   type ConfirmationRequest,
+  type IntentSpec,
   type VoiceVerdict,
 } from '@seams/voice-verdict';
 
 import { callVerifierWithAttestation, type VerifierConfig, type VerifyOutput } from './client.ts';
 
 export { callVerifier, callVerifierWithAttestation, VerifierCallError } from './client.ts';
-export type { EnrollOutput, TranscribeOutput, VerifierCall, VerifierConfig, VerifierInput, VerifyOutput } from './client.ts';
+export type { IntentSpec } from '@seams/voice-verdict';
+export type { DetectOutput, EnrollOutput, TranscribeOutput, VerifierCall, VerifierConfig, VerifierInput, VerifyOutput } from './client.ts';
 
 /** A recording: a 16 kHz mono PCM16 WAV, as bytes or as standard base64. */
 export type Recording = Uint8Array | string;
@@ -90,6 +93,17 @@ export type Enrolled =
 export type Confirmed = { ok: true; verdict: VoiceVerdict; heard: string | null } | Refused;
 export type Selected = { ok: true; index: number; verdict: VoiceVerdict; heard: string | null } | Refused;
 export type Transcribed = { ok: true; text: string } | Refused;
+export type Detected =
+  | {
+      ok: true;
+      /** The name of one intent of your list, or `null` if the model named none. */
+      intent: string | null;
+      /** A value or `null` for each slot of the intent. Empty with no intent. */
+      slots: Record<string, string | number | null>;
+      /** The heard words. */
+      text: string;
+    }
+  | Refused;
 
 export interface SpeakToSign {
   /** Makes the voice template of `owner` (`app:<id>`) from three recordings of three sentences. */
@@ -104,6 +118,12 @@ export interface SpeakToSign {
    * it approve an action with value.
    */
   transcribe(input: { owner: string; recording: Recording }): Promise<Transcribed>;
+  /**
+   * Which of these 1 to 16 intents did `owner` mean, in free words? The result is a proposal: a
+   * speech-to-text model and a chat model made it, and it can be wrong. Do not let it approve
+   * an action with value. Show the proposed action, then use `confirm` or `select`.
+   */
+  detect(input: { owner: string; intents: readonly IntentSpec[]; recording: Recording }): Promise<Detected>;
 }
 
 /** Makes the server side for one verifier and one pinned key. */
@@ -267,6 +287,33 @@ export function createSpeakToSign(config: SpeakToSignConfig): SpeakToSign {
         return refused(refusal.code === 'refused' ? (refusal.reason ?? 'refused') : refusal.code);
       }
       return { ok: true, text: checked.transcript.text };
+    },
+
+    async detect({ owner, intents, recording }) {
+      const wav = wavBytes(recording);
+      if (wav === null) return refused('bad_audio');
+      const { output } = await callVerifierWithAttestation(config.verifier, {
+        op: 'detect',
+        owner,
+        intents,
+        audio_wav_b64: base64(wav),
+      });
+      const checked = await checkIntent({
+        intentJson: output.intent_json,
+        signatureB64: output.signature_b64 ?? '',
+        publicKey: config.verifierPublicKey,
+        intents,
+        owner,
+        audioDigest: await audioDigest(wav),
+        nowMs: now(),
+      });
+      if (!checked.ok) {
+        const refusal = checked.refusal;
+        const heard = 'result' in refusal ? refusal.result.text : null;
+        return refused(refusal.code === 'refused' ? (refusal.reason ?? 'refused') : refusal.code, heard);
+      }
+      const { intent, slots, text } = checked.result;
+      return { ok: true, intent, slots: slots ?? {}, text };
     },
   };
 }

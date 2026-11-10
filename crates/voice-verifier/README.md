@@ -14,7 +14,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.10.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.11.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -33,6 +33,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.8.0 (standalone preview, `local-speaker`) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
 | 0.10.0  | `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb` | The source on this branch at commit `d3e02bc` (460,283 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `AVaXXBDYpERq5bNef7fAM7CF4HaZNeXuZpJiTr4jGEhw`, `add_version` tx `S4RvnDPMhkxkCoxHG8Rx9KtUyfSAstG4kmjj2BhaU4t`). **Not active.** It adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`. For every summary kind it reads "$40" as "forty dollars", and one changed word is never a number word. |
 | 0.10.0 `local-speaker` | `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | The same source with ReDimNet inside the worker (`build.sh --local-speaker --docker`). Added on 2026-11-11 (first FastFS chunk tx `GRbHuHVDmf6Ya9YH8CRiexxCLxU1hCovjqEaDsrg7hx3`, `add_version` tx `6hQKZyNrVTbCY5V5GKYuFCh4SfZKWfdL3nwVqa3vjscq`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
+| 0.11.0  | not built for OutLayer yet | The source on this branch. It adds the operation `detect`. |
 
 Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
 `b0f53da4…bff3` and the two "standalone preview" builds. So that text does
@@ -433,6 +434,43 @@ Stage times (`ms`, not signed), in ms:
     value.
   - Shared vectors: `testdata/signed_transcript_v1.json`
     (`tests/signed_transcript_vector.rs`).
+- `detect` (0.11.0 and later):
+  `{"op":"detect","owner","intents":[1 to 16 intents],"audio_wav_b64"}`.
+  - An intent is `{"name","description","slots":{"<slot>":"text"|"number"}}`.
+    A name is 1 to 32 characters of `a-z`, `0-9` and `_`. A description is
+    1 to 120 ASCII letters, digits, spaces and `. , ' -`. An intent has at
+    most 6 slots.
+  - The worker checks the speaker and gets the heard words, as `transcribe`
+    does. Then it sends the words and the list to a chat model on NEAR AI
+    (`config::NEAR_AI_CHAT_MODEL`, `Qwen/Qwen3.8-27B`). A voice that does
+    not pass gets no model call.
+  - The output is
+    `{"kind":"seams_voice_intent_output_v1","intent_json","signature_b64","public_key","ms","detail"}`.
+  - `intent_json` is the only signed object: 13 fields, in this order:
+    `kind` (`seams_voice_signed_intent_v1`), `verifier`, `owner`,
+    `audio_digest`, `intents_digest`, `outcome`, `reason`, `expires_at_ms`,
+    `speaker_score_milli`, `text` (cut to 80 bytes), `model`, `intent`,
+    `slots`.
+  - `intents_digest` is base64url
+    `SHA-256("seams:voice-intent:intents:v1" || canonical JSON of the list)`.
+    The canonical JSON is compact, each intent as `name`, `description`,
+    `slots`, with the slots in name order.
+  - The signed message is
+    `SHA-256("seams:outlayer:voice-intent:v1" || intent_json bytes)`.
+  - The worker checks the form of the model's reply: the intent is a name of
+    the list or `null`; each slot is a slot of that intent; a text value has
+    only heard words and at most 40 bytes; a number value is a JSON number.
+    Any other value becomes `null`. An unknown intent or slot refuses with
+    `detector_unavailable`.
+  - An accept with `"intent":null` means: the model named no intent.
+  - This is the weakest operation. Two models make the result, and neither
+    signs its part. The result is a proposal: show the action, then confirm
+    it with `verify` or `select`.
+  - The chat model took about 11 s for each of 5 calls from a desktop
+    computer (`tests/detect_live.rs`). So a `detect` call needs
+    `max_execution_seconds` of 40 or more.
+  - Shared vectors: `testdata/signed_intent_v1.json`
+    (`tests/signed_intent_vector.rs`).
 - Unknown fields are refused at every level.
 - WAV: 16 kHz mono PCM16, at most 8 s, standard base64. The worker writes it
   again with a 44-byte header (the canonical WAV); the audio digest is the

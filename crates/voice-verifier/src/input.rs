@@ -71,6 +71,19 @@ pub struct TranscribeInput {
     pub audio_wav_b64: String,
 }
 
+/// `detect`: the owner, the intents that the application offers, and one
+/// WAV. The output is a signed proposal of one intent.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DetectInput {
+    pub op: String,
+    pub owner: String,
+    /// 1 to 16 intents.
+    pub intents: Vec<crate::intent::IntentSpec>,
+    /// One 16 kHz mono PCM16 WAV, standard base64.
+    pub audio_wav_b64: String,
+}
+
 /// The typed request, by `kind`.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

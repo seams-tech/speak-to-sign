@@ -16,7 +16,7 @@ It has two entry points:
 | Import | Where | Job |
 | --- | --- | --- |
 | `@seams/speak-to-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
-| `@seams/speak-to-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`: each result is checked |
+| `@seams/speak-to-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
 
 Until version 0.65.0, the npm name `@seams/speak-to-sign` was the host
 plugin for Seams Wallet. The plugin is now `@seams/speak-to-sign-wallet`
@@ -122,6 +122,29 @@ servers, give `usedVerdicts` a shared store with an atomic `addIfAbsent`.
 is weaker than `confirm`: the verifier expected no sentence, so a wrong word
 of the speech-to-text model is a wrong word of the text. Do not let it
 approve an action with value.
+
+### `detect`
+
+`detect` takes free words and a list of intents, and proposes one intent.
+It needs verifier 0.11.0 or later.
+
+```ts
+const result = await speakToSign.detect({
+  owner: 'app:user-42',
+  intents: [
+    { name: 'book_table', description: 'Book a table at a restaurant', slots: { people: 'number', time: 'text' } },
+    { name: 'cancel_booking', description: 'Cancel a booking' },
+  ],
+  recording: wav,
+});
+// { ok: true, intent: 'book_table', slots: { people: 2, time: 'eight tonight' }, text: '...' }
+```
+
+The result is a proposal. A speech-to-text model and a chat model made it,
+and it can be wrong. Do not let it approve an action with value: show the
+proposed action, then use `confirm` or `select`. `intent: null` means that
+the model named no intent of the list. The chat model is slow (about 11 s),
+so set `verifier.timeoutMs` and `verifier.resourceLimits` for it.
 
 ## Limits
 

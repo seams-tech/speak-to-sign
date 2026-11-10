@@ -2,7 +2,7 @@
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.10.0";
+pub const VERIFIER_VERSION: &str = "0.11.0";
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.
@@ -141,6 +141,32 @@ pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
 
+/// The chat model of `detect`, on the same host as the speech-to-text
+/// model. The market resolver of this repository uses the same model.
+pub const NEAR_AI_CHAT_URL: &str = "https://cloud-api.near.ai/v1/chat/completions";
+pub const NEAR_AI_CHAT_MODEL: &str = "Qwen/Qwen3.8-27B";
+
+/// The prefix of the signed preimage of an intent result:
+/// `signed message = SHA-256(INTENT_DOMAIN || intent JSON bytes)`. It is not
+/// the prefix of a verdict or of a transcript.
+pub const INTENT_DOMAIN: &[u8] = b"seams:outlayer:voice-intent:v1";
+
+/// The prefix of the digest of the intent list of a `detect` input.
+pub const INTENTS_DIGEST_DOMAIN: &[u8] = b"seams:voice-intent:intents:v1";
+
+/// `detect` takes 1 to this many intents.
+pub const MAX_INTENTS: usize = 16;
+
+/// The heard words of a signed intent result are cut to this many bytes,
+/// and a text slot value is at most [`MAX_SLOT_VALUE_BYTES`], so that the
+/// output stays below [`MAX_OUTPUT_BYTES`].
+pub const MAX_INTENT_TEXT_BYTES: usize = 80;
+pub const MAX_SLOT_VALUE_BYTES: usize = 40;
+
+/// The slots of a signed intent result, as JSON, have at most this many
+/// bytes. A longer result has no slots.
+pub const MAX_SLOTS_JSON_BYTES: usize = 100;
+
 /// The NEAR RPC endpoint that `enroll` reads the owner's access key from
 /// (`view_access_key`, finality `final`). The verifier trusts this endpoint
 /// for that read (see README.md).
@@ -233,7 +259,7 @@ mod tests {
     #[test]
     fn manifest_matches_the_constants() {
         let manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
-        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select", "transcribe"]));
+        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select", "transcribe", "detect"]));
         // HTTPS calls: no callers block, and the default storage cell (the
         // payment-key owner).
         assert!(manifest.get("callers").is_none());

@@ -40,6 +40,24 @@ test('the quote commits to the record, and the record to the output and the WASM
   assert.ok((await checkAttestationBinding({ ...good, output: reordered })).ok);
 });
 
+test('the input hash keeps the key order that was sent (a real call of verifier 0.11.0)', async () => {
+  const call = JSON.parse(
+    readFileSync(new URL('./fixtures/outlayer_attestation_0_11_0.json', import.meta.url), 'utf8'),
+  ) as { input: Record<string, unknown>; output: unknown; record: AttestationRecord };
+  const binding = {
+    record: call.record,
+    output: call.output,
+    acceptedWasmHashes: ['d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8'],
+    projectId: 'seams-v1.testnet/voice-verifier',
+    callerAccountId: 'cyan-loong.testnet',
+  };
+  assert.deepEqual(Object.keys(call.input), ['zeta', 'op', 'alpha']);
+  assert.ok((await checkAttestationBinding({ ...binding, input: call.input })).ok);
+  const sorted = { alpha: call.input.alpha, op: call.input.op, zeta: call.input.zeta };
+  const result = await checkAttestationBinding({ ...binding, input: sorted });
+  assert.equal(result.ok ? 'ok' : result.refusal.code, 'input_mismatch');
+});
+
 test('the task hash is the first 32 bytes of the report data', async () => {
   const parsed = parseTdxQuote(record.tdx_quote);
   assert.ok(parsed);

@@ -145,6 +145,18 @@ test('the collateral of Intel PCS gives the same result as dcap-qvl 0.7.1', asyn
   assert.equal(await at(AT_MS), 'collateral_not_yet_valid');
 });
 
+test('the quote of a verifier 0.11.0 call is UpToDate at its call time, as dcap-qvl 0.7.1 says', async () => {
+  const call = fixture('outlayer_attestation_0_11_0.json') as { record: AttestationRecord };
+  const pcs = (fixture('intel_pcs_collateral_0_11_0.json') as { collateral: QuoteCollateral }).collateral;
+  const signature = await checkQuoteSignature({ quote: call.record.tdx_quote, nowMs: call.record.timestamp * 1000 });
+  assert.ok(signature.ok);
+  for (const nowMs of [call.record.timestamp * 1000, Date.UTC(2026, 10, 10, 18, 36)]) {
+    const result = await checkQuoteCollateral({ quote: call.record.tdx_quote, nowMs, collateral: pcs });
+    assert.ok(result.ok, String(nowMs));
+    assert.equal(result.tcbStatus, 'UpToDate');
+  }
+});
+
 test('the collateral is valid only in its time window, as in dcap-qvl', async () => {
   // dcap-qvl 0.5.2 at 1797000000: "TCBInfo expired"; at 1794000000: "issue date is in the future".
   assert.equal(await full({}, 1_797_000_000_000), 'collateral_expired');

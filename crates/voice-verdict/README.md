@@ -108,7 +108,7 @@ let verified = dcap_qvl::verify::verify(&bound.quote, &collateral, now_secs)?;
 
 `tests/dcap.rs` does this with no network: it checks both real quotes of the
 fixtures with `dcap-qvl` 0.7.1 and the collateral that Intel PCS gave on
-2026-11-10 (`*.collateral.json` next to each fixture). Both are `UpToDate`,
+2026-11-10 (`intel_pcs_collateral_*.json` in the fixtures). Both are `UpToDate`,
 and the report that the chain covers has the task hash of its record. This
 crate has `dcap-qvl` only as a test dependency, so a contract build does not
 change.

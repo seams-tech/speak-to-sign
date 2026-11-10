@@ -1,7 +1,9 @@
 //! The binding check and a DCAP verifier together: `dcap-qvl` checks that each
 //! real quote of the fixtures chains to Intel's root, with the collateral that
-//! Intel PCS gave on 2026-11-10 (stored next to the fixture), and that the
-//! quote that it checked is the one that binds the record.
+//! Intel PCS gave on 2026-11-10 (`intel_pcs_collateral_*.json`, also fixtures
+//! of the TypeScript DCAP check), and that the quote that it checked is the one
+//! that binds the record. dcap-qvl checks the QE report with the PCK chain of
+//! the collateral, so each quote has the collateral of its own platform.
 use voice_verdict::{check_attestation_binding, parse_attestation_record, Binding};
 
 const FIXTURES: &str = concat!(
@@ -12,10 +14,12 @@ const FIXTURES: &str = concat!(
 /// (17:27:12Z) and before its next update (2026-12-10).
 const CHECKED_AT: u64 = 1_794_335_760;
 
-fn check(name: &str, wasm_hash: &str) -> (Vec<u8>, dcap_qvl::QuoteCollateralV3) {
+fn check(name: &str, collateral: &str, wasm_hash: &str) -> (Vec<u8>, dcap_qvl::QuoteCollateralV3) {
     let read = |file: String| std::fs::read_to_string(format!("{FIXTURES}/{file}")).unwrap();
     let fixture: serde_json::Value = serde_json::from_str(&read(format!("{name}.json"))).unwrap();
-    let collateral = serde_json::from_str(&read(format!("{name}.collateral.json"))).unwrap();
+    let collateral: serde_json::Value =
+        serde_json::from_str(&read(format!("{collateral}.json"))).unwrap();
+    let collateral = serde_json::from_value(collateral["collateral"].clone()).unwrap();
     let record = parse_attestation_record(&fixture["record"].to_string()).unwrap();
     let output = fixture["output"].to_string();
     let bound = check_attestation_binding(&record, &Binding::new(&output, &[wasm_hash])).unwrap();
@@ -41,10 +45,12 @@ fn check(name: &str, wasm_hash: &str) -> (Vec<u8>, dcap_qvl::QuoteCollateralV3) 
 fn the_real_quotes_chain_to_intel_and_bind_their_records() {
     check(
         "outlayer_attestation_testnet",
+        "intel_pcs_collateral_testnet",
         "96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5",
     );
     let (quote, collateral) = check(
         "outlayer_attestation_0_11_0",
+        "intel_pcs_collateral_0_11_0",
         "d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8",
     );
 

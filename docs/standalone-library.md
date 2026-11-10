@@ -856,7 +856,9 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
    of each deployed contract. So this needs a new deploy of each contract.
 6. **The check of the quote's signature chain to Intel** is in the source
    of `@seams/voice-verdict` after 0.66.0 (`checkQuoteSignature`,
-   `checkQuoteCollateral`). The Rust crate does not have it.
+   `checkQuoteCollateral`). The Rust crate leaves it to a DCAP crate:
+   `crates/voice-verdict/tests/dcap.rs` checks both real quotes with
+   `dcap-qvl` 0.7.1 and the stored Intel collateral.
 7. **npm.** No package of this work is on npm. `@seams/speak-to-sign` is
    `private` in its `package.json`, so that no release can publish the
    library under the name of the plugin by accident.

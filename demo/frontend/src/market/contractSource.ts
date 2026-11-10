@@ -41,10 +41,11 @@ export function createContractMarketSource(signer: MarketSigner, store = new Mar
     async getOddsHistory(marketId) {
       return (await store.oddsHistory(marketId)).map((point) => ({ atMs: point.at_ms, yesBps: point.yes_bps }));
     },
-    bet: (input) => signer.bet(input),
-    claim: (marketId) => signer.claim(marketId),
-    requestResolution: (marketId) => signer.requestResolution(marketId),
-    createMarket: (input) => signer.createMarket(input),
+    bet: (input, progress) => signer.bet(input, progress),
+    claim: (marketId, progress) => signer.claim(marketId, progress),
+    requestResolution: (marketId, progress) => signer.requestResolution(marketId, progress),
+    closeAndRequestResolution: (marketId, progress) => signer.closeAndRequestResolution(marketId, progress),
+    createMarket: (input, progress) => signer.createMarket(input, progress),
     closeMarket: (marketId) => signer.closeMarket(marketId),
     canOpenMarkets: isDeployed,
     currency: USDC_CURRENCY,

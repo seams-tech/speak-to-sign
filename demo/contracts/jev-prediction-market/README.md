@@ -279,17 +279,20 @@ that interface from this contract: views over NEAR RPC, and changes signed by
 the Seams Wallet with its normal confirm step. Bets and seeds are the USDC
 token's `ft_transfer_call`. `NoteCard` mounts the strip on the post page:
 
-- No market: "Will this note hold up?" and **Open a market** (a seed of 1, 2
-  or 5 USDC, and a close time of 10 minutes to 3 days). The context that JEV
-  reads is the post text and the note text, frozen at the open.
+- No market: "Will this note hold up?" and **Open a market**, which opens one
+  at once with a 1 USDC seed and 3 minutes of betting. **Change** gives a
+  seed of 1, 2 or 5 USDC and a close time of 3 minutes to 3 days. The context
+  that JEV reads is the post text and the note text, frozen at the open.
 - Open: the pool bar, the odds, the odds line from `get_odds_history`, the
-  pool size, the bet count, and **Bet yes** / **Bet no** (chips 0.1, 0.5 and 1
-  USDC, with the account's USDC balance). The creator sees **Close betting
-  now**.
-- Closed: **Ask JEV now** (0.01 NEAR, 300 Tgas; OutLayer refunds the unused part). A `resolution_failed` event
-  shows its reason.
-- Resolved: "JEV: 72% this note holds up", the split of the pool, the
-  account's payout with **Claim**, and "Why JEV decided this".
+  pool size, the bet count, a countdown, and **Bet yes** / **Bet no** (chips
+  0.1, 0.5 and 1 USDC, with the account's USDC balance). The creator sees
+  **Close betting and ask JEV now**: `close_market` and `request_resolution`
+  in one transaction (290 Tgas for the request).
+- Closed: **Ask JEV now** (0.01 NEAR, 300 Tgas; OutLayer refunds the unused
+  part). A `resolution_failed` event shows its reason.
+- Resolved: "JEV: 72% this note holds up", JEV's answer in plain words, the
+  split of the pool, the account's payout with **Claim**, and "How JEV
+  decided".
 
 Spoken bets need a new spoken request kind in the Wallet, so the source has
 `signsByVoice: false`.
@@ -455,14 +458,18 @@ What a judge can do on the demo page (`#/notes/post/1`):
    `ft_transfer_call`; the Seams Wallet asks for a confirm. The bar, the odds
    and the pool move after the transaction.
 3. **Open a market.** After someone writes a note on the post, its card shows
-   "Will this note hold up?" and **Open a market** (a seed of 1, 2 or 5 USDC,
-   and a close time from 10 minutes to 3 days). The creator can close the
-   betting early.
-4. **Ask JEV.** After the close, **Ask JEV now** sends `request_resolution`
-   (0.01 NEAR, 300 Tgas). OutLayer runs the resolver: JEV on NEAR AI gives the
-   probability that the note holds up. The strip then shows "JEV: 72% this
-   note holds up", how the pool is split, and "Why JEV decided this".
-5. **Claim.** **Claim** sends the account's USDC payout.
+   "Will this note hold up?" and **Open a market**: one tap and one confirm
+   open a 3-minute market with a 1 USDC seed.
+4. **Ask JEV.** The creator taps **Close betting and ask JEV now** (one
+   transaction). Anyone else taps **Ask JEV now** after the close (0.01 NEAR,
+   300 Tgas). OutLayer runs the resolver: JEV on NEAR AI gives the
+   probability that the note holds up, in about 10 seconds. The bar slides to
+   JEV's split, and the strip shows "JEV: 72% this note holds up" in plain
+   words, with the split of the pool.
+5. **Claim.** **Claim 1.62 USDC** sends the account's payout.
+
+A judge can do steps 3 to 5 in about a minute: open, bet, close and ask JEV,
+claim.
 
 Checked on testnet on 10 Nov 2026: create, bet, close (by the creator and by
 the close time), the admin resolve, Ask JEV on five markets (see "JEV checks"),

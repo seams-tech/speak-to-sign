@@ -6,7 +6,7 @@
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
-import { YOCTO_PER_NEAR, type Side } from './types';
+import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 
@@ -19,16 +19,24 @@ const CLAIM_GAS = (50n * TGAS).toString();
 const FT_CALL_GAS = (100n * TGAS).toString();
 /** `request_resolution` calls OutLayer and waits for the AI answer. */
 const REQUEST_GAS = (300n * TGAS).toString();
+/**
+ * "Close and ask JEV" in one transaction: `close_market`, then `request_resolution` in the same
+ * receipt. A transaction holds at most 300 Tgas, and `request_resolution` needs 250 Tgas or more.
+ */
+const CLOSE_IN_BATCH_GAS = (10n * TGAS).toString();
+const REQUEST_IN_BATCH_GAS = (290n * TGAS).toString();
 /** The OutLayer fee that `request_resolution` attaches: 0.01 NEAR. OutLayer refunds the unused part. */
 export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 100n;
 
 export interface MarketSigner {
-  createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }): Promise<SignResult>;
-  bet(input: { marketId: number; side: Side; amount: bigint }): Promise<SignResult>;
-  closeMarket(marketId: number): Promise<SignResult>;
+  createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }, progress?: SignProgress): Promise<SignResult>;
+  bet(input: { marketId: number; side: Side; amount: bigint }, progress?: SignProgress): Promise<SignResult>;
+  closeMarket(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /** A sent request whose AI answer did not count is `refused`, with the contract's reason. */
-  requestResolution(marketId: number): Promise<SignResult>;
-  claim(marketId: number): Promise<SignResult>;
+  requestResolution(marketId: number, progress?: SignProgress): Promise<SignResult>;
+  /** `close_market` and `request_resolution` in one transaction (the creator). */
+  closeAndRequestResolution(marketId: number, progress?: SignProgress): Promise<SignResult>;
+  claim(marketId: number, progress?: SignProgress): Promise<SignResult>;
 }
 
 const NO_KEY = 'This build has no Seams publishable key (VITE_SEAMS_PUBLISHABLE_KEY), so it cannot reach the Wallet.';
@@ -39,27 +47,60 @@ export const missingKeyMarketSigner: MarketSigner = {
   bet: async () => ({ kind: 'unavailable', reason: NO_KEY }),
   closeMarket: async () => ({ kind: 'unavailable', reason: NO_KEY }),
   requestResolution: async () => ({ kind: 'unavailable', reason: NO_KEY }),
+  closeAndRequestResolution: async () => ({ kind: 'unavailable', reason: NO_KEY }),
   claim: async () => ({ kind: 'unavailable', reason: NO_KEY }),
 };
+
+/** One function call of a transaction. */
+interface Call {
+  method: string;
+  args: Record<string, unknown>;
+  deposit: bigint;
+  gas: string;
+}
+
+/** What the Wallet's confirm step says about the transaction. */
+interface ConfirmText {
+  title: string;
+  body: string;
+}
+
+/** The Wallet's signing phases that the strip shows (see SigningEventPhase in @seams/wallet). */
+const CONFIRM_PHASES = new Set(['signing.confirmation.displayed']);
+const SENT_PHASES = new Set(['signing.confirmation.approved', 'signing.broadcast.started', 'signing.broadcast.accepted']);
 
 export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string | null; contract: string; token: string }): MarketSigner {
   const { seams, walletId, contract, token } = owner;
 
-  /** Sends one call. `check` can turn a sent transaction into a refusal (from its events). */
+  /**
+   * Sends one transaction of `calls` to `receiverId`. `check` can turn a sent transaction into a
+   * refusal (from its events). `progress` hears when the Wallet asks and when the transaction
+   * went out.
+   */
   const send = async (
-    method: string,
-    args: Record<string, unknown>,
-    deposit: bigint,
-    gas: string,
+    calls: Call[],
+    confirm: ConfirmText,
+    progress: SignProgress | undefined,
     check?: (events: ContractEvent[], outcome: unknown) => string | null,
     receiverId = contract,
   ): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
+    let sent = false;
     try {
       const result = await seams.near.signAndSendTransaction({
         walletSession: walletId,
         receiverId,
-        actions: [functionCall({ method, args, gas, deposit: deposit.toString() })],
+        actions: calls.map(({ method, args, gas, deposit }) => functionCall({ method, args, gas, deposit: deposit.toString() })),
+        options: {
+          confirmerText: confirm,
+          onEvent: (event) => {
+            if (CONFIRM_PHASES.has(event.phase)) progress?.('confirm');
+            else if (!sent && SENT_PHASES.has(event.phase)) {
+              sent = true;
+              progress?.('sent');
+            }
+          },
+        },
       });
       if (result.success) {
         const refusal = check?.(eventsOf(result.result), result.result) ?? null;
@@ -85,12 +126,11 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
    * Sends USDC to the market with `ft_transfer_call`. If the market refuses, the token gives the
    * USDC back and the transaction still succeeds, so the market's event tells a refusal apart.
    */
-  const sendUsdc = (amount: bigint, msg: Record<string, unknown>, expectedEvent: string) =>
+  const sendUsdc = (amount: bigint, msg: Record<string, unknown>, expectedEvent: string, confirm: ConfirmText, progress?: SignProgress) =>
     send(
-      'ft_transfer_call',
-      { receiver_id: contract, amount: amount.toString(), msg: JSON.stringify(msg) },
-      1n,
-      FT_CALL_GAS,
+      [{ method: 'ft_transfer_call', args: { receiver_id: contract, amount: amount.toString(), msg: JSON.stringify(msg) }, deposit: 1n, gas: FT_CALL_GAS }],
+      confirm,
+      progress,
       (events, outcome) =>
         events.some((event) => event.event === expectedEvent)
           ? null
@@ -98,21 +138,60 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
       token,
     );
 
+  const usdc = (amount: bigint) => `${Number(amount) / 1_000_000} USDC`;
+  const jevAnswered = (events: ContractEvent[]) => {
+    const failed = events.find((event) => event.event === 'resolution_failed');
+    return failed ? `JEV gave no answer that counts: ${String(failed.data.reason)}. You can ask again.` : null;
+  };
+  const ASK_JEV: ConfirmText = {
+    title: 'Ask JEV to decide',
+    body: 'JEV reads the post and the note, and its answer splits the pool. The fee is at most 0.01 NEAR; the unused part comes back.',
+  };
+
   return {
-    createMarket: ({ noteId, question, context, closesAtMs, seed }) =>
-      sendUsdc(seed, { action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs }, 'market_created'),
-    bet: ({ marketId, side, amount }) => sendUsdc(amount, { action: 'bet', market_id: marketId, outcome: side }, 'bet'),
-    closeMarket: (marketId) => send('close_market', { market_id: marketId }, 0n, CALL_GAS),
-    requestResolution: (marketId) =>
-      send('request_resolution', { market_id: marketId }, RESOLUTION_FEE_YOCTO, REQUEST_GAS, (events) => {
-        const failed = events.find((event) => event.event === 'resolution_failed');
-        return failed ? `JEV gave no answer that counts: ${String(failed.data.reason)}. You can ask again.` : null;
-      }),
-    claim: (marketId) =>
-      send('claim', { market_id: marketId }, 0n, CLAIM_GAS, (events) =>
-        events.some((event) => event.event === 'claim_failed')
-          ? 'The USDC could not arrive: your account is not registered with USDC. Register it, then claim again.'
-          : null,
+    createMarket: ({ noteId, question, context, closesAtMs, seed }, progress) =>
+      sendUsdc(
+        seed,
+        { action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs },
+        'market_created',
+        { title: `Open a market with ${usdc(seed)}`, body: 'Half of your seed goes on yes and half on no. It pays like any other bet.' },
+        progress,
+      ),
+    bet: ({ marketId, side, amount }, progress) =>
+      sendUsdc(
+        amount,
+        { action: 'bet', market_id: marketId, outcome: side },
+        'bet',
+        { title: `Bet ${usdc(amount)} on ${side}`, body: 'JEV decides at the close. Its answer splits the pool.' },
+        progress,
+      ),
+    closeMarket: (marketId, progress) =>
+      send(
+        [{ method: 'close_market', args: { market_id: marketId }, deposit: 0n, gas: CALL_GAS }],
+        { title: 'Close the betting', body: 'Nobody can bet after this.' },
+        progress,
+      ),
+    requestResolution: (marketId, progress) =>
+      send([{ method: 'request_resolution', args: { market_id: marketId }, deposit: RESOLUTION_FEE_YOCTO, gas: REQUEST_GAS }], ASK_JEV, progress, jevAnswered),
+    closeAndRequestResolution: (marketId, progress) =>
+      send(
+        [
+          { method: 'close_market', args: { market_id: marketId }, deposit: 0n, gas: CLOSE_IN_BATCH_GAS },
+          { method: 'request_resolution', args: { market_id: marketId }, deposit: RESOLUTION_FEE_YOCTO, gas: REQUEST_IN_BATCH_GAS },
+        ],
+        { title: 'Close the betting and ask JEV', body: ASK_JEV.body },
+        progress,
+        jevAnswered,
+      ),
+    claim: (marketId, progress) =>
+      send(
+        [{ method: 'claim', args: { market_id: marketId }, deposit: 0n, gas: CLAIM_GAS }],
+        { title: 'Claim your payout', body: 'The market sends your USDC to this account.' },
+        progress,
+        (events) =>
+          events.some((event) => event.event === 'claim_failed')
+            ? 'The USDC could not arrive: your account is not registered with USDC. Register it, then claim again.'
+            : null,
       ),
   };
 }

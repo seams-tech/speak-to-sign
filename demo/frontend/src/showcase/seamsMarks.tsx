@@ -24,3 +24,13 @@ export function SeamsMark({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** The logo of the nav's Seams pill: the wordmark, or the mark alone on a phone (showcase.css). */
+export function SeamsPillLogo() {
+  return (
+    <>
+      <SeamsWordmark className="ss-seams-wordmark" />
+      <SeamsMark className="ss-seams-mark" />
+    </>
+  );
+}

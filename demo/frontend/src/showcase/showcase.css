@@ -1867,6 +1867,16 @@ h1.ss-display {
   transition: background-color 150ms ease;
 }
 
+/* The Seams pill is a button (it opens the Wallet's settings, SeamsSettingsPill.tsx): it keeps
+   the look of the link pills. */
+button.ss-seams {
+  margin: 0;
+  border: 0;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
 /* GitHub is the first of the three pills at the right: it has the push to the right
    (margin-left: auto, in its own rule). */
 .ss-spa .ss-near {

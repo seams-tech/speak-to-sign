@@ -21,7 +21,8 @@ import { SignInModal } from '../components/SignInModal';
 import { NearAiWordmark, NearMark, NearWordmark } from './nearMarks';
 // The arrows of OutLayer's logo from outlayer.ai, as a white shape (64 px high).
 import outlayerArrows from './outlayer-arrows-white.png';
-import { SeamsMark, SeamsWordmark } from './seamsMarks';
+import { SeamsPillLogo } from './seamsMarks';
+import { SeamsSettingsPill } from './SeamsSettingsPill';
 import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
 import { fieldScrim, THEMES, useTheme } from './theme';
@@ -169,10 +170,15 @@ export function NotesPage({ seams }: { seams: boolean }) {
                 </span>
               </span>
             </div>
-            <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
-              <SeamsWordmark className="ss-seams-wordmark" />
-              <SeamsMark className="ss-seams-mark" />
-            </a>
+            {/* Signed in, the Wallet's settings drawer; signed out, the sign-in. A build with no
+                Seams key has no Wallet, so the pill is a link to it. */}
+            {seams ? (
+              <SeamsSettingsPill onSignIn={() => setSignIn(true)} />
+            ) : (
+              <a className="ss-seams" href={SEAMS_URL} target="_blank" rel="noopener noreferrer" aria-label="Seams Wallet">
+                <SeamsPillLogo />
+              </a>
+            )}
           </div>
         </header>
 

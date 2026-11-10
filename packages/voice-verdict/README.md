@@ -114,7 +114,7 @@ SHA-256 of the payload. The owner says the summary.
 
 ```ts
 import { checkVerdict, confirmationRequest } from '@seams/voice-verdict';
-import { callVerifier } from '@seams/speak-to-sign/server';
+import { callVerifier } from '@seams/voice-sign/server';
 
 const login = await confirmationRequest({
   owner: 'app:user-42', // "app:" and your id of the user
@@ -195,7 +195,7 @@ check that one exact build of the verifier gave one exact verdict, with no
 trust in the verdict key.
 
 ```ts
-import { callVerifierWithAttestation } from '@seams/speak-to-sign/server';
+import { callVerifierWithAttestation } from '@seams/voice-sign/server';
 import {
   checkAttestationBinding,
   fetchAttestation,

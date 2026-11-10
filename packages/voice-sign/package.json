@@ -1,13 +1,13 @@
 {
-  "name": "@seams/speak-to-sign",
+  "name": "@seams/voice-sign",
   "version": "0.66.0",
   "type": "module",
-  "description": "Speak-to-Sign for an application with no wallet: record a sentence, enroll a voice, get a verdict and check it. Not released: it needs an npm name of its own (@seams/speak-to-sign is the Seams Wallet plugin).",
+  "description": "Speak-to-Sign for an application with no wallet: record a sentence, enroll a voice, get a verdict and check it",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seams-tech/speak-to-sign.git",
-    "directory": "packages/speak-to-sign"
+    "directory": "packages/voice-sign"
   },
   "exports": {
     "./server": {
@@ -26,6 +26,9 @@
     "LICENSE.md"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "type-check": "tsc --noEmit",
@@ -44,9 +47,5 @@
   "engines": {
     "node": ">=20"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
-  "private": true
+  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882"
 }

@@ -484,7 +484,7 @@ Each top-level folder says what its contents are for.
 | `crates/voice-verifier/` | The OutLayer worker: `enroll` and `verify`. `scripts/fastfs_chunks.py` splits its WASM for the FastFS upload. See its README. |
 | `crates/speaker-service/` | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
 | `packages/speak-to-sign-wallet/` | `@seams/speak-to-sign`, the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
-| `packages/speak-to-sign/` | `@seams/speak-to-sign`, the library for an application with no wallet: record a sentence, call the verifier, check the verdict. It joins `voice-capture` and `voice-verdict`. |
+| `packages/voice-sign/` | `@seams/voice-sign`, the library for an application with no wallet: record a sentence, call the verifier, check the verdict. It joins `voice-capture` and `voice-verdict`. |
 | `packages/voice-capture/` | `@seams/voice-capture`: records one spoken sentence in the browser. |
 | `packages/voice-verdict/` | `@seams/voice-verdict`: checks a signed verdict, a signed transcript and the TDX quote of a call. No dependency. |
 | `crates/voice-verdict/` | The verdict check in Rust, for a server or a contract. |
@@ -502,7 +502,7 @@ The code is under the Apache License 2.0 (`LICENSE`).
 
 `docs/release-0.66.0.md` is the state of the release of the three libraries
 for an application with no wallet (`@seams/voice-verdict`,
-`@seams/voice-capture`, `@seams/speak-to-sign`), and the steps that it needs.
+`@seams/voice-capture`, `@seams/voice-sign`), and the steps that it needs.
 
 ## Testnet facts
 

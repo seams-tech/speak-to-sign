@@ -1,7 +1,7 @@
 // Voice confirmation for a Web2 application, with no wallet and no chain.
 //
-// The page records the voice with `@seams/speak-to-sign/browser`. This server holds the OutLayer
-// payment key and uses `@seams/speak-to-sign/server`: each result is a checked verdict. Run it
+// The page records the voice with `@seams/voice-sign/browser`. This server holds the OutLayer
+// payment key and uses `@seams/voice-sign/server`: each result is a checked verdict. Run it
 // with `node server.mjs` (Node.js 20 or later). The settings are in README.md.
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createSpeakToSign, VerifierCallError } from '../../packages/speak-to-sign/dist/server.js';
+import { createSpeakToSign, VerifierCallError } from '../../packages/voice-sign/dist/server.js';
 import { audioDigest, confirmationRequest, VERDICT_DOMAIN } from '../../packages/voice-verdict/dist/index.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -147,7 +147,7 @@ async function readJson(request) {
 /** The files of the page, and the two packages that the page loads with no bundler. */
 const packages = fileURLToPath(new URL('../../packages/', import.meta.url));
 const FOLDERS = {
-  '/speak-to-sign/': path.join(packages, 'speak-to-sign/dist/'),
+  '/voice-sign/': path.join(packages, 'voice-sign/dist/'),
   '/voice-capture/': path.join(packages, 'voice-capture/dist/'),
 };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.wasm': 'application/wasm' };

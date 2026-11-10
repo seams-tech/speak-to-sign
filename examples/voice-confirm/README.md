@@ -4,16 +4,16 @@ A small web page and a small server. A user enrolls a voice, then confirms
 one of three actions of an order by voice. No wallet, no chain, no account
 of the user on NEAR.
 
-- `index.html` records the voice with `@seams/speak-to-sign/browser`
+- `index.html` records the voice with `@seams/voice-sign/browser`
   (`recordSentence`, which uses `@seams/voice-capture`). It has no bundler:
   an import map names the capture library.
 - `server.mjs` holds the OutLayer payment key and uses
-  `@seams/speak-to-sign/server`. It has no dependency of its own.
+  `@seams/voice-sign/server`. It has no dependency of its own.
 
 The user is the application owner `app:<user id>`. The server sends the
 three possible actions to the operation `select`. The verifier signs a
 verdict for the one sentence that the user said. The server accepts the
-action only if `select` of `@seams/speak-to-sign/server` returns `ok`. That
+action only if `select` of `@seams/voice-sign/server` returns `ok`. That
 means these checks passed:
 
 1. The pinned verifier key signed it.
@@ -36,7 +36,7 @@ Build the three packages one time:
 ```
 
 ```sh
-(cd ../../packages/speak-to-sign && pnpm install && pnpm build)
+(cd ../../packages/voice-sign && pnpm install && pnpm build)
 ```
 
 ```sh

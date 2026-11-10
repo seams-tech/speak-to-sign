@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react';
 import { accountUrl, config, shortAccount, transactionUrl } from '../config';
 import { useDemo } from '../demoContext';
@@ -107,13 +106,13 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
     setOutcome(null);
     const result = await setUpVoice(signer, account, setBusy);
     setBusy(null);
-    setOutcome(result);
+    // A closed Wallet window needs no note: the step shows "Set up" again.
+    setOutcome(result.kind === 'cancelled' ? null : result);
     onChanged();
   };
 
   return (
     <>
-      {busy && <WalletWait step={busy} />}
       <ol className="steps">
         <Step index={1} done={signedIn} label="Create a wallet">
           {signedIn && account ? (
@@ -281,27 +280,5 @@ function Step({
       </span>
       {children}
     </li>
-  );
-}
-
-/**
- * A page-level card while the voice setup runs. It sits under the Wallet's own windows, so it
- * shows only in the gaps between them: the Wallet closes the VoiceID card for a few seconds
- * before the signed-message confirm of an enrollment opens (fixed in the next plugin release).
- */
-export function WalletWait({ step }: { step: VoicePhase }) {
-  return createPortal(
-    <div className="wallet-wait" role="status" aria-live="polite">
-      <div className="wallet-wait-card">
-        <span className="spinner spinner-lg" aria-hidden="true" />
-        <b>Setting up your voice</b>
-        <span className="muted small">
-          {step === 'enroll'
-            ? 'Read the three phrases in the Seams Wallet window, then confirm one signed message. You do this once.'
-            : 'Checking VoiceID. Follow the Seams Wallet window.'}
-        </span>
-      </div>
-    </div>,
-    document.body,
   );
 }

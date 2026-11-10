@@ -37,7 +37,7 @@
    applies to the notes app, its dialogs on document.body and the page's sheet, but not to the
    hero and the nav: those keep the light colours on the hero's field, also where they use the
    app's classes (the setup steps). */
-:root[data-theme='dark'] :is(.notes-app, .overlay, .wallet-wait, .ss-sheet) {
+:root[data-theme='dark'] :is(.notes-app, .overlay, .ss-sheet) {
   --bg: #000;
   --ink: #e7e9ea;
   --on-ink: #0f1419;
@@ -72,8 +72,7 @@ body {
 
 /* The notes app and its dialogs, which open on document.body */
 .notes-app,
-.overlay,
-.wallet-wait {
+.overlay {
   color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
@@ -1799,7 +1798,8 @@ fieldset:disabled .choice {
   opacity: 0.4;
 }
 /* In a dialog's foot, the whole foot is the voice button: the button reaches the foot's edges,
-   and a pointer over any part of it turns the whole foot --ink, with an --on-ink microphone. */
+   and a pointer over any part of it turns the whole foot X's blue, as the primary action
+   (.btn-blue), with white text and a white microphone. The colours are the same on both themes. */
 .dialog-foot {
   --foot-x: 20px;
   --foot-top: 12px;
@@ -1820,28 +1820,28 @@ fieldset:disabled .choice {
 }
 /* Keyboard focus lights the foot as a pointer does. */
 .dialog-foot .speak-btn:not(:disabled):focus-visible {
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--accent);
+  color: #fff;
   outline: none;
 }
 .dialog-foot .speak-btn:not(:disabled):focus-visible .mic {
-  background: var(--on-ink);
-  color: var(--ink);
+  background: #fff;
+  color: var(--accent);
 }
 .dialog-foot .speak-btn:not(:disabled):focus-visible .muted {
-  color: color-mix(in srgb, var(--on-ink) 72%, transparent);
+  color: rgba(255, 255, 255, 0.85);
 }
 @media (hover: hover) and (pointer: fine) {
   .dialog-foot .speak-btn:not(:disabled):hover {
-    background: var(--ink);
-    color: var(--on-ink);
+    background: var(--accent);
+    color: #fff;
   }
   .dialog-foot .speak-btn:not(:disabled):hover .mic {
-    background: var(--on-ink);
-    color: var(--ink);
+    background: #fff;
+    color: var(--accent);
   }
   .dialog-foot .speak-btn:not(:disabled):hover .muted {
-    color: color-mix(in srgb, var(--on-ink) 72%, transparent);
+    color: rgba(255, 255, 255, 0.85);
   }
   /* Outside a dialog's foot, only the microphone answers the pointer. */
   .speak-btn:not(:disabled):hover .mic {
@@ -1849,7 +1849,7 @@ fieldset:disabled .choice {
   }
 }
 .dialog-foot .speak-btn:not(:disabled):active {
-  background: var(--ink-hover);
+  background: var(--accent-ink);
 }
 /* A press shrinks the microphone: the foot itself keeps the dialog's edges. */
 @media (prefers-reduced-motion: no-preference) {
@@ -2173,33 +2173,4 @@ fieldset:disabled .choice {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* The card behind the Wallet's windows during a setup step (z-index under our modals and the Wallet). */
-.wallet-wait {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: var(--overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-.wallet-wait-card {
-  background: var(--bg);
-  border-radius: 16px;
-  padding: 24px 28px;
-  max-width: 340px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-  box-shadow: rgba(101, 119, 134, 0.2) 0 0 15px, rgba(101, 119, 134, 0.15) 0 0 3px 1px;
-}
-.spinner-lg {
-  width: 28px;
-  height: 28px;
-  border-width: 3px;
 }

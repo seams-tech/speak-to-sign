@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
-import { SetupPanel, WalletWait } from './components/SetupPanel';
+import { SetupPanel } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
 import { WriteNoteModal } from './components/WriteNoteModal';
 import { config } from './config';
@@ -14,7 +14,7 @@ import { Timeline } from './x/Timeline';
 import { VoiceFeed } from './x/VoiceFeed';
 import { loadXPosts, X_PAGE_SIZE } from './x/xPosts';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
-import { SETUP_CHANGED, setUpVoice, voiceIsSetUp, type VoicePhase } from './signer/voiceSetup';
+import { SETUP_CHANGED, setUpVoice, voiceIsSetUp } from './signer/voiceSetup';
 
 const POLL_MS = 1500;
 /** After the Wallet says "signed in", the page waits this long for the account to show. */
@@ -49,7 +49,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   const [signingIn, setSigningIn] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [preparing, setPreparing] = useState<PrepareStep | null>(null);
-  const [voicePhase, setVoicePhase] = useState<VoicePhase | null>(null);
   const [freshNoteId, setFreshNoteId] = useState<number | null>(null);
 
   const account = status?.signedIn ? status.accountId : undefined;
@@ -287,8 +286,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         const funded = need && !covers(peekFunds(who).balance, need) ? ensureFunds(who, need) : null;
         if (needs.voice && !voiceIsSetUp(statusRef.current, who)) {
           step('voice');
-          const outcome = await setUpVoice(signerRef.current, who, setVoicePhase);
-          setVoicePhase(null);
+          const outcome = await setUpVoice(signerRef.current, who);
           if (outcome.kind !== 'done') {
             return { ok: false, step: 'voice', reason: outcome.kind === 'cancelled' ? undefined : outcome.message };
           }
@@ -299,7 +297,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         }
         return { ok: true, account: who, signer: signerRef.current };
       } finally {
-        setVoicePhase(null);
         setPreparing(null);
       }
     },
@@ -430,8 +427,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         {signingIn && walletConfigured && signInHosts === 0 && (
           <SignInModal onClose={() => endSignIn(false)} onSignedIn={() => endSignIn(true)} />
         )}
-        {/* A dialog shows the voice setup as its own step; the page card is for the gaps. */}
-        {voicePhase && signInHosts === 0 && <WalletWait step={voicePhase} />}
         <BottomBar />
         <div className="toast-region" role="status" aria-live="polite">
           {toast && (

@@ -54,7 +54,7 @@ const REASONS: { icon: ReactNode; kicker: string; title: string; text: string }[
     icon: <IconHandOff size={20} stroke={1.8} />,
     kicker: 'One breath',
     title: 'Your voice is the approval',
-    text: 'Speech biometrics, cryptographically bound to the signature. One breath proves who you are and what you meant.',
+    text: 'Speech biometrics are cryptographically bound to signatures. It proves who you are and what you meant in one breath.',
   },
 ];
 

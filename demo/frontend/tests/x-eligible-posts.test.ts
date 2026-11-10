@@ -31,7 +31,7 @@ const X_BODY = {
       attachments: { media_keys: ['3_1', '7_2', '3_bad'] },
       public_metrics: { like_count: 5, retweet_count: 2, reply_count: 1, impression_count: 900 },
     },
-    { id: '1930672414444372186', text: 'A post without an author.', author_id: '77' },
+    { id: '1930672414444372186', text: 'Pipes &amp; pumps &lt;b&gt; &amp;lt;', author_id: '77' },
     { id: '1930672414444372187', text: 'A sensitive post.', possibly_sensitive: true },
     { id: 'not-a-number', text: 'A bad id.' },
     { id: '1930672414444372188', text: '   ' },
@@ -156,6 +156,8 @@ test('parseEligiblePosts keeps the good posts and checks every field', () => {
     metrics: { likes: 5, reposts: 2, replies: 1, views: 900 },
   });
   // An author with a bad username is dropped, and the link then needs no username.
+  // X escapes &, < and > once. The route turns them back once.
+  assert.equal(posts[1]?.text, 'Pipes & pumps <b> &lt;');
   assert.equal(posts[1]?.author, null);
   assert.equal(posts[1]?.url, 'https://x.com/i/status/1930672414444372186');
   for (const body of [null, 'text', [], {}, { data: 'x' }, { data: [null, 5, { id: 7 }] }]) {

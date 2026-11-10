@@ -239,7 +239,7 @@ export function parseEligiblePosts(body: unknown): XPost[] {
     if (item.possibly_sensitive === true) continue;
     // A long post has its whole text in note_tweet (note_post in the newer field names).
     const long = [item.note_tweet, item.note_post].find((value) => isRecord(value) && typeof value.text === 'string');
-    const text = (isRecord(long) && typeof long.text === 'string' ? long.text : typeof item.text === 'string' ? item.text : '').trim();
+    const text = unescapeText(isRecord(long) && typeof long.text === 'string' ? long.text : typeof item.text === 'string' ? item.text : '').trim();
     if (text === '') continue;
     const author = typeof item.author_id === 'string' ? (authors.get(item.author_id) ?? null) : null;
     const keys = isRecord(item.attachments) ? arrayOf(item.attachments.media_keys) : [];
@@ -256,6 +256,11 @@ export function parseEligiblePosts(body: unknown): XPost[] {
     });
   }
   return posts;
+}
+
+/** X escapes "&", "<" and ">" in a post's text. The page shows the text as text, so they go back. */
+function unescapeText(text: string): string {
+  return text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
 }
 
 function parseAuthor(user: unknown): XAuthor | null {

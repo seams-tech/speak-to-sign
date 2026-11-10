@@ -437,8 +437,9 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
   black button. A done step is a green check, and a later step is glass.
   A screen narrower than 1121 pixels shows only the next step.
 - **The hero**, about voice signatures, on a moving grain field of the Seams
-  site: the title, one sentence, the signature card (`SignatureCard.tsx`: a
-  spoken sentence, the two checks and "Signed", as a loop) and the setup
+  site: the title, one sentence, the signature card (`SignatureCard.tsx`: the
+  Seams Wallet voice card as it records a sentence, passes the two checks and
+  signs, as a loop) and the setup
   steps as one strip (`#setup`). The field is the `GrainField` of
   seams-monorepo (`packages/grain-field-ts`, copied into
   `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour

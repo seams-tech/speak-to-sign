@@ -143,7 +143,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
         <section className="ss-hero" ref={heroRef} aria-labelledby="hero-title">
           <div className="ss-hero-inner">
             <div className="ss-hero-text">
-              <p className="ss-hero-kicker">Seams voice signatures</p>
               <h1 id="hero-title" className="ss-hero-title">
                 Sign with your voice.
               </h1>

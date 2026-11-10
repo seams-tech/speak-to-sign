@@ -1,12 +1,16 @@
 // The page side of the approve route (functions/api/multisig/approve.ts). The page sends the
-// opening of a proposal. The two admin signers approve it, and admin B executes it.
+// opening of a proposal: a transfer or a note to hide. The two admin signers approve it, and
+// admin B executes it.
 
 import { isObject } from '../guards.ts';
 import { readProposal, type Proposal } from './contractViews.ts';
-import type { Opening } from './openings';
+import { isHide, type Opening } from './openings.ts';
 
 export type ApproveAnswer =
-  /** `executed`: the transfer arrived. False: the NEAR came back, and the proposal is open again. */
+  /**
+   * `executed`: the transfer arrived or the note is hidden. False: the NEAR came back, or the note
+   * was not hidden, and the proposal is open again.
+   */
   | { kind: 'done'; proposal: Proposal | null; transactionHash: string; executed: boolean }
   /** HTTP 409: the proposal is executed already, for example by an earlier call. */
   | { kind: 'executed_before'; message: string }
@@ -18,12 +22,11 @@ export async function requestApproval(proposalId: number, opening: Opening): Pro
     response = await fetch('/api/multisig/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        proposal_id: proposalId,
-        receiver: opening.receiver,
-        amount_yocto: opening.amount_yocto,
-        salt_hex: opening.salt_hex,
-      }),
+      body: JSON.stringify(
+        isHide(opening)
+          ? { proposal_id: proposalId, note_id: opening.note_id, salt_hex: opening.salt_hex }
+          : { proposal_id: proposalId, receiver: opening.receiver, amount_yocto: opening.amount_yocto, salt_hex: opening.salt_hex },
+      ),
     });
   } catch {
     return { kind: 'failed', message: 'The page could not reach /api/multisig/approve.' };

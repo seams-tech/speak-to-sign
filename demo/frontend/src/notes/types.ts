@@ -21,6 +21,8 @@ export interface Note {
   somewhat_helpful: number;
   not_helpful: number;
   status: NoteStatus;
+  /** The moderator hid the note: its text and summary are empty. Absent on an older contract. */
+  hidden?: boolean;
 }
 
 export interface NotesStore {

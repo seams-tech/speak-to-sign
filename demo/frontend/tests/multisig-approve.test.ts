@@ -24,12 +24,14 @@ const GRAMMAR_MAX = '1000000000000000000000000000000';
 
 const SETTINGS: Settings = {
   contract: 'multisig.seams-v1.testnet',
+  notesContract: 'notes.seams-v1.testnet',
   rpcUrl: 'https://rpc.invalid',
   adminA: { account: ADMIN_A, key: 'ed25519:a' },
   adminB: { account: ADMIN_B, key: 'ed25519:b' },
 };
 
 const INPUT = { proposal_id: 7, receiver: 'seams-grants.testnet', amount_yocto: CENT, salt_hex: SALT };
+const HIDE = { proposal_id: 7, note_id: 42, salt_hex: SALT };
 
 function proposal(approvals: string[], status: Proposal['status'] = 'open'): Proposal {
   return { id: 7, commitment_hex: 'cd'.repeat(32), proposer: 'visitor.testnet', approvals, status, created_at_ms: 1 };
@@ -42,6 +44,10 @@ interface FakeOptions {
   config?: unknown;
   /** The outcome of a call, by "signer:method". */
   outcomes?: Record<string, Partial<CallOutcome> | Error>;
+  /** The answer of `get_note` on the notes contract. Default: practice note 42, not hidden. */
+  note?: unknown;
+  /** The answer of `get_notes_contract`. Default: the notes contract of SETTINGS. */
+  notesContract?: unknown;
 }
 
 /** A fake chain: it keeps the approvals and records each call as "signer:method". */
@@ -56,7 +62,13 @@ function fakeChain(options: FakeOptions = {}) {
       if (method === 'get_config') {
         return options.config ?? { admins: options.admins ?? [ADMIN_A, ADMIN_B], verifier_public_key: 'ed25519:x' };
       }
+      if (method === 'get_notes_contract') return options.notesContract === undefined ? SETTINGS.notesContract : options.notesContract;
       throw new Error(`no view ${method}`);
+    },
+    async viewNotes(method, viewArgs) {
+      if (method !== 'get_note') throw new Error(`no notes view ${method}`);
+      if (options.note !== undefined) return options.note;
+      return { id: viewArgs.note_id, post_id: 900, author: 'spam.testnet', text: 'Call now', summary: 'Call now', hidden: false };
     },
     async call(signer: Signer, method, callArgs, callGas) {
       const name = `${signer.account}:${method}`;
@@ -110,6 +122,7 @@ test('the settings need both admin keys, and have the defaults of the doc', () =
   assert.match(String(readApproveSettings({ MULTISIG_ADMIN_A_KEY: 'ed25519:a' })), /needs MULTISIG_ADMIN_B_KEY\./);
   assert.deepEqual(readApproveSettings({ MULTISIG_ADMIN_A_KEY: 'ed25519:a', MULTISIG_ADMIN_B_KEY: 'ed25519:b' }), {
     contract: 'multisig.seams-v1.testnet',
+    notesContract: 'notes.seams-v1.testnet',
     rpcUrl: 'https://test.rpc.fastnear.com',
     adminA: { account: ADMIN_A, key: 'ed25519:a' },
     adminB: { account: ADMIN_B, key: 'ed25519:b' },
@@ -117,6 +130,7 @@ test('the settings need both admin keys, and have the defaults of the doc', () =
   const keys = { MULTISIG_ADMIN_A_KEY: 'ed25519:a', MULTISIG_ADMIN_B_KEY: 'ed25519:b' };
   assert.equal(typeof readApproveSettings({ ...keys, MULTISIG_ADMIN_B: ADMIN_A }), 'string');
   assert.equal(typeof readApproveSettings({ ...keys, MULTISIG_CONTRACT: 'Not An Account' }), 'string');
+  assert.equal(typeof readApproveSettings({ ...keys, NOTES_CONTRACT: 'Not An Account' }), 'string');
 });
 
 test('a new proposal: admin A approves, admin B approves, admin B executes', async () => {
@@ -241,4 +255,53 @@ test('the route takes same-origin JSON and answers with the step results', async
   );
   assert.equal(failed.status, 502);
   assert.deepEqual(await failed.json(), { error: 'Admin A could not approve: stop', step: 'admin_a', transactionHash: 'tx-1' });
+});
+
+test('a hide opening is an id, a note id and a salt', () => {
+  assert.deepEqual(parseApproveInput(JSON.stringify(HIDE)), HIDE);
+  const bad: unknown[] = [
+    { ...HIDE, note_id: 0 },
+    { ...HIDE, note_id: '42' },
+    { ...HIDE, note_id: 4.2 },
+    { ...HIDE, receiver: 'seams-grants.testnet' },
+    { ...HIDE, salt_hex: 'xy' },
+    { proposal_id: 7, note_id: 42 },
+  ];
+  for (const value of bad) {
+    const text = JSON.stringify(value);
+    assert.equal(typeof parseApproveInput(text), 'string', text);
+  }
+});
+
+test('a hide of a practice note: the admins check it, approve, and execute with the note id', async () => {
+  const fake = fakeChain();
+  const result = await runApproval(fake.chain, SETTINGS, HIDE);
+  assert.deepEqual(fake.calls, [`${ADMIN_A}:approve`, `${ADMIN_B}:approve`, `${ADMIN_B}:execute`]);
+  assert.deepEqual(fake.args[2], HIDE);
+  assert.equal(result.kind, 'done');
+});
+
+test('the admins refuse a real note, a hidden note, a missing note and another notes contract, and nothing signs', async () => {
+  const note = { id: 42, post_id: 900, author: 'spam.testnet', text: 'x', summary: 'x', hidden: false };
+  const cases: [FakeOptions, number][] = [
+    [{ note: { ...note, post_id: 1 } }, 403],
+    [{ note: { ...note, hidden: true } }, 409],
+    [{ note: null }, 404],
+    [{ notesContract: 'other-notes.testnet' }, 503],
+    [{ notesContract: null }, 503],
+  ];
+  for (const [options, status] of cases) {
+    const fake = fakeChain(options);
+    const result = await runApproval(fake.chain, SETTINGS, HIDE);
+    assert.equal(result.kind === 'refused' && result.status, status, JSON.stringify(options));
+    assert.deepEqual(fake.calls, []);
+  }
+  const odd = fakeChain({ note: 'not a note' });
+  assert.equal((await runApproval(odd.chain, SETTINGS, HIDE)).kind, 'failed');
+  assert.deepEqual(odd.calls, []);
+});
+
+test('a transfer reads no note', async () => {
+  const fake = fakeChain({ note: { post_id: 1 } });
+  assert.equal((await runApproval(fake.chain, SETTINGS, INPUT)).kind, 'done');
 });

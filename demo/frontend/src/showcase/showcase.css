@@ -1978,6 +1978,13 @@ h1.ss-display {
   animation: ss-step-ring 2.4s ease-out infinite;
 }
 
+/* In the dark theme the next step is X's dark surface, not a white pill. :where() keeps this
+   rule as specific as the one above, so the later and done steps keep their own looks. */
+:where(:root[data-theme='dark']) .ss-nav-setup .step {
+  background: #16181c;
+  color: #e7e9ea;
+}
+
 @keyframes ss-step-ring {
   0% {
     box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.55);
@@ -2229,6 +2236,12 @@ h1.ss-display {
   white-space: nowrap;
   box-shadow: 0 10px 24px -14px rgba(6, 24, 38, 0.55);
   animation: ss-step-ring 2.4s ease-out infinite;
+}
+
+/* In the dark theme the next step is X's dark surface, as in the nav. */
+:where(:root[data-theme='dark']) .ss-setup-strip .step {
+  background: #16181c;
+  color: #e7e9ea;
 }
 
 .ss-setup-strip .step-text {

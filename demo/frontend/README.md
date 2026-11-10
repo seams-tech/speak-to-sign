@@ -393,11 +393,13 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 `src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
 
-- **The nav**, the one bar of the page, narrow, with the name and GitHub. It
-  stays at the top. The notes app's own top line is hidden on this page. When
+- **The nav**, the one bar of the page, 44 pixels high, with the name and
+  GitHub. It stays at the top and has no ground of its own: it lies over the
+  top of the hero. When the sheet covers the hero, that strip of the hero
+  stays in sight, so the nav keeps the hero's gradient. The notes app's own top line is hidden on this page. When
   the sheet covers the hero, the setup steps show in the nav, until every
-  step is done. The next step is the primary action: a black pill with a
-  white button. A done step is a green check, and a later step is an outline.
+  step is done. The next step is the primary action: a white pill with a
+  black button. A done step is a green check, and a later step is glass.
   A phone shows only the next step.
 - **The hero**, about voice signatures, on the grainy blue and rose field of
   the Seams Wallet site (wallet.seams.sh; CSS gradients and SVG noise): the title, one sentence, the

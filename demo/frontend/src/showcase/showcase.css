@@ -1474,20 +1474,32 @@ h1.ss-display {
 }
 
 /* ---------- Community Notes as a single-page app (NotesPage.tsx) ----------
-   The page has the height of the screen: the nav, the banner about voice signatures, and the
-   notes app, which scrolls itself. The banner folds to one line when the app scrolls. */
+   The page scrolls by the height of the hero. The nav stays at the top. The dark hero stays
+   under it, and the white sheet with the notes app moves up over the hero, like paper. While
+   the sheet covers it, the hero goes back, blurs and dims (--cover: 0 open, 1 covered). */
 
 .ss-spa {
+  --nav-h: 57px;
   height: 100dvh;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  background: #0b0b0c;
 }
 
 .ss-spa .ss-nav {
-  position: static;
-  flex: none;
+  height: var(--nav-h);
+  /* Over the sheet (2) and the hero (1). */
+  z-index: 20;
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+.ss-spa .ss-nav-inner {
+  height: 100%;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .ss-spa .ss-nav-pay {
@@ -1498,145 +1510,104 @@ h1.ss-display {
   margin-left: 0;
 }
 
-.ss-banner {
-  flex: none;
-  position: relative;
-  background: var(--taupe);
-  border-bottom: 1px solid var(--stone);
-}
-
-/* The fold: a grid row that goes from its content's height to zero. */
-.ss-banner-fold {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.ss-banner[data-folded] .ss-banner-fold {
-  grid-template-rows: 0fr;
-}
-
-.ss-banner-body {
-  min-height: 0;
+.ss-hero {
+  --cover: 0;
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 1;
   overflow: hidden;
-  transition: opacity 0.2s;
+  color: #ffffff;
+  background:
+    radial-gradient(60% 90% at 78% 40%, rgba(61, 122, 99, 0.3), transparent 70%),
+    radial-gradient(50% 80% at 10% 0%, rgba(96, 84, 150, 0.22), transparent 70%),
+    #0b0b0c;
 }
 
-.ss-banner[data-folded] .ss-banner-body {
-  opacity: 0;
-}
-
-.ss-banner-main {
+.ss-hero-inner {
   max-width: var(--col);
   margin: 0 auto;
-  padding: 30px 24px 18px;
+  padding: 56px 24px 84px;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 48px;
+  gap: 56px;
   align-items: center;
+  transform-origin: 50% 20%;
+  transform: translateY(calc(var(--cover) * -14px)) scale(calc(1 - var(--cover) * 0.07));
+  filter: blur(calc(var(--cover) * 7px));
+  opacity: calc(1 - var(--cover) * 0.6);
+  will-change: transform, filter, opacity;
 }
 
-.ss-banner-text {
+.ss-hero-text {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
-.ss-banner-title {
-  font-size: clamp(30px, 4.2vw, 46px);
+.ss-hero-kicker {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8fd3b6;
+}
+
+.ss-hero-title {
+  font-size: clamp(34px, 5vw, 60px);
   font-weight: 300;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
 }
 
-.ss-banner-sub {
-  max-width: 52ch;
-  font-size: 16px;
+.ss-hero-sub {
+  max-width: 50ch;
+  font-size: 17px;
   line-height: 1.5;
-  color: var(--graphite);
+  color: #b9b4ad;
 }
 
-/* The folded banner: one line that opens the banner again. */
-.ss-banner-mini {
-  display: none;
-  width: 100%;
-  max-width: var(--col);
-  margin: 0 auto;
-  padding: 9px 24px;
-  align-items: center;
-  gap: 12px;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 13.5px;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-
-.ss-banner[data-folded] .ss-banner-mini {
-  display: flex;
-}
-
-.ss-banner-mini-sub {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--smoke);
-}
-
-.ss-banner-mini-open {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--graphite);
-}
-
-/* The signature card: one voice signature as it happens. */
+/* The signature card on the dark hero: one voice signature as it happens. */
 .ss-sig {
   display: grid;
-  gap: 12px;
-  padding: 18px 20px 16px;
-  border: 1px solid var(--stone);
+  gap: 14px;
+  padding: 20px 22px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-card);
-  background: #ffffff;
-  box-shadow: 0 24px 48px -32px rgba(15, 23, 42, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
 }
 
 .ss-sig-say {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  min-height: 46px;
+  gap: 12px;
+  min-height: 50px;
 }
 
 .ss-sig-mic {
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: var(--taupe);
-  color: var(--smoke);
+  background: rgba(255, 255, 255, 0.1);
+  color: #9d978f;
   transition:
     background-color 0.25s,
     color 0.25s;
 }
 
 .ss-sig-mic-on {
-  background: var(--ink);
-  color: #ffffff;
+  background: #ffffff;
+  color: #0b0b0c;
 }
 
 .ss-sig-words {
   padding-top: 4px;
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.3;
   letter-spacing: -0.01em;
+  color: #ffffff;
   animation: ss-sig-in 0.4s ease-out;
 }
 
@@ -1658,13 +1629,13 @@ h1.ss-display {
 .ss-sig-wave span {
   width: 4px;
   border-radius: 2px;
-  background: var(--stone);
+  background: rgba(255, 255, 255, 0.18);
   transform-origin: center;
   transition: background-color 0.25s;
 }
 
 .ss-sig-wave-on span {
-  background: var(--ink);
+  background: #8fd3b6;
   animation: ss-sig-wave 0.7s ease-in-out infinite alternate;
 }
 
@@ -1687,10 +1658,10 @@ h1.ss-display {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 9999px;
-  background: var(--taupe);
-  color: var(--ash);
+  background: rgba(255, 255, 255, 0.07);
+  color: #7d7870;
   font-size: 12.5px;
   white-space: nowrap;
   transition:
@@ -1699,13 +1670,13 @@ h1.ss-display {
 }
 
 .ss-sig-chip-ok {
-  background: var(--green-soft);
-  color: var(--green);
+  background: rgba(88, 190, 152, 0.2);
+  color: #8fd3b6;
 }
 
 .ss-sig-chip-signed {
-  background: var(--ink);
-  color: #ffffff;
+  background: #ffffff;
+  color: #0b0b0c;
 }
 
 .ss-sig-call {
@@ -1715,7 +1686,7 @@ h1.ss-display {
   white-space: nowrap;
   font-family: var(--mono);
   font-size: 12px;
-  color: var(--smoke);
+  color: #9d978f;
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -1724,16 +1695,45 @@ h1.ss-display {
   opacity: 1;
 }
 
-/* The setup steps of the notes app (.steps) as one strip. */
+/* The sheet: the notes app. It has the height of the screen under the nav,
+   so that it fills the screen when it is at the nav. Its top overlaps the hero by its round
+   corners. */
+.ss-sheet {
+  position: relative;
+  z-index: 2;
+  height: calc(100dvh - var(--nav-h));
+  margin-top: -28px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px 28px 0 0;
+  background: #ffffff;
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, 0.5),
+    0 -24px 60px -12px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  transition: border-radius 0.25s;
+}
+
+.ss-sheet[data-docked] {
+  border-radius: 0;
+}
+
+/* The setup steps of the notes app (.steps) as one strip at the foot of the hero: white pills
+   on the dark ground. The strip moves back and blurs with the rest of the hero. */
 .ss-setup-strip {
   max-width: var(--col);
-  margin: 0 auto;
-  padding: 0 24px 16px;
+  margin: -52px auto 0;
+  padding: 0 24px 50px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 18px;
+  gap: 8px 12px;
   font-size: 13.5px;
+  color: #ffffff;
+  transform-origin: 50% 0;
+  transform: translateY(calc(var(--cover) * -14px)) scale(calc(1 - var(--cover) * 0.07));
+  filter: blur(calc(var(--cover) * 7px));
+  opacity: calc(1 - var(--cover) * 0.6);
 }
 
 .ss-setup-strip-label {
@@ -1743,7 +1743,7 @@ h1.ss-display {
 .ss-setup-strip-sub {
   margin-left: 4px;
   font-weight: 400;
-  color: var(--smoke);
+  color: #9d978f;
 }
 
 .ss-setup-strip > div,
@@ -1754,20 +1754,41 @@ h1.ss-display {
 .ss-setup-strip .step {
   width: auto;
   gap: 8px;
-  padding: 5px 6px 5px 10px;
-  border: 1px solid var(--stone);
+  padding: 4px 6px 4px 10px;
   border-radius: 9999px;
   background: #ffffff;
+  color: var(--ink);
   font-size: 13.5px;
 }
 
 .ss-setup-strip .side-note {
   flex-basis: 100%;
   margin: 0;
+  color: #d6d0c8;
 }
 
-/* The notes app, in the page. */
-.ss-spa-app {
+.ss-setup-strip .side-note code {
+  color: inherit;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* One bar on this page: the nav. The notes app's own top line ("Speak-to-Sign · not signed
+   in · Testnet") would be a second one. Its sign-in is in the app's navigation, and "Testnet" is
+   a chip in the nav. */
+.ss-sheet .setup-line {
+  display: none;
+}
+
+.ss-nav-chip {
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ss-sheet-app {
   position: relative;
   flex: 1;
   min-height: 0;
@@ -1776,45 +1797,52 @@ h1.ss-display {
   margin: 0 auto;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
-  background: #ffffff;
+}
+
+/* Until the sheet is at the nav, a scroll over the app moves the page, not the app. At the top
+   of the app, a scroll up goes on to the page and brings the hero back. */
+.ss-sheet .notes-app {
+  overscroll-behavior: auto;
+}
+
+.ss-sheet:not([data-docked]) .notes-app {
+  overflow-y: hidden;
 }
 
 @media (max-width: 860px) {
-  .ss-banner-main {
+  .ss-hero-inner {
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-    padding: 18px 16px 12px;
+    gap: 20px;
+    padding: 28px 16px 56px;
   }
-  .ss-banner-sub {
-    font-size: 14.5px;
+  .ss-hero-sub {
+    font-size: 15px;
   }
   .ss-sig {
-    padding: 12px 14px;
-    gap: 8px;
+    padding: 14px 16px;
+    gap: 10px;
   }
   .ss-sig-say {
     min-height: 0;
   }
   .ss-sig-words {
-    font-size: 15px;
+    font-size: 16px;
   }
-  .ss-sig-call,
-  .ss-sig-wave {
+  .ss-sig-call {
     display: none;
   }
-  .ss-banner-title {
-    font-size: 28px;
+  .ss-sheet {
+    border-radius: 22px 22px 0 0;
   }
   .ss-setup-strip {
-    padding: 0 16px 12px;
+    margin-top: -36px;
+    padding: 0 16px 44px;
   }
-  .ss-setup-strip-sub,
-  .ss-banner-mini-sub {
+  .ss-nav-chip {
     display: none;
   }
-  .ss-banner-mini {
-    padding: 8px 16px;
-    justify-content: space-between;
+  .ss-setup-strip-sub {
+    display: none;
   }
   .ss-spa .ss-nav-pay {
     display: none;
@@ -1822,14 +1850,18 @@ h1.ss-display {
   .ss-spa .ss-nav-source {
     margin-left: auto;
   }
-  .ss-spa-app {
+  .ss-sheet-app {
     border: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ss-banner-fold,
-  .ss-banner-body {
+  .ss-hero-inner,
+  .ss-setup-strip {
+    transform: none;
+    filter: none;
+  }
+  .ss-sheet {
     transition: none;
   }
   .ss-sig-words,

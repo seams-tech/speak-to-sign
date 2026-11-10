@@ -391,16 +391,23 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 
 ## The Community Notes page as one app
 
-`src/showcase/NotesPage.tsx` is the page at `/`. It has the height of the
-screen, with three parts:
+`src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
 
-- **The nav**, with both examples, Speak to pay and GitHub.
-- **The banner** about voice signatures: the title, one sentence, the
+- **The nav**, the one bar of the page. It stays at the top. It has both
+  examples, a "Testnet" chip, Speak to pay and GitHub. The notes app's own top
+  line is hidden on this page.
+- **The hero**, dark, about voice signatures: the title, one sentence, the
   signature card (`SignatureCard.tsx`: a spoken sentence, the two checks and
   "Signed", as a loop) and the setup steps as one strip (`#setup`).
-- **The notes app**, in the page itself, not in a window. It scrolls inside
-  the page. When it scrolls, the banner folds to one line; a click on that
-  line, or a scroll back to the top, opens the banner again.
+- **The sheet**, white, with the notes app in the page itself, not in a
+  window.
+
+The page scrolls by the height of the hero. The hero stays in place, and the
+sheet moves up over it like paper. While the sheet covers it, the hero goes
+back a little, blurs and dims (`--cover`, set from the scroll position).
+When the sheet is at the nav, the notes app scrolls inside the sheet. At the
+top of the app, a scroll up brings the hero back. A post that opens moves the
+sheet up.
 
 The app opens on the timeline. Its right column, "Signed by voice"
 (`src/x/VoiceFeed.tsx`), lists the newest notes with the sentence that each

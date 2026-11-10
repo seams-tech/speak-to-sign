@@ -2,18 +2,24 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { PostDetail } from './components/PostDetail';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
-import { SETUP_CHANGED, SetupPanel } from './components/SetupPanel';
+import { SetupPanel, WalletWait } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
 import { WriteNoteModal } from './components/WriteNoteModal';
 import { config } from './config';
 import { findPost, POSTS } from './data/posts';
-import { DemoContext, type DemoState } from './demoContext';
+import { DemoContext, type DemoState, type PrepareNeeds, type Prepared, type PrepareStep } from './demoContext';
+import { covers, ensureFunds, fundsProblem, peekFunds, readFunds } from './faucet/funds';
 import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { routeKey, START_POST_ID, useRoute } from './router';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
+import { SETUP_CHANGED, setUpVoice, voiceIsSetUp, type VoicePhase } from './signer/voiceSetup';
 
 const POLL_MS = 1500;
+/** After the Wallet says "signed in", the page waits this long for the account to show. */
+const SIGN_IN_SETTLE_MS = 10_000;
+/** How long a new note keeps its highlight. */
+const FRESH_NOTE_MS = 6000;
 
 export function App({ signer, walletConfigured }: { signer: NotesSigner & SignerSetup; walletConfigured: boolean }) {
   const store = useMemo(() => new RpcNotesStore(config.rpcUrl, config.contract), []);
@@ -37,8 +43,40 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   const [rateFor, setRateFor] = useState<number | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
+  const [preparing, setPreparing] = useState<PrepareStep | null>(null);
+  const [voicePhase, setVoicePhase] = useState<VoicePhase | null>(null);
+  const [freshNoteId, setFreshNoteId] = useState<number | null>(null);
 
   const account = status?.signedIn ? status.accountId : undefined;
+
+  // The newest values, for the steps of `prepare`: they run across a sign-in, which gives the
+  // app a new signer and a new account.
+  const signerRef = useRef(signer);
+  const accountRef = useRef(account);
+  const statusRef = useRef(status);
+  useLayoutEffect(() => {
+    signerRef.current = signer;
+    accountRef.current = account;
+    statusRef.current = status;
+  });
+
+  // Dialogs that show the sign-in as their own step. With none open, the sign-in is a dialog.
+  const [signInHosts, setSignInHosts] = useState(0);
+  const signingInRef = useRef(signingIn);
+  useLayoutEffect(() => {
+    signingInRef.current = signingIn;
+  });
+
+  // Callers of `openSignIn` that wait for the sign-in to end.
+  const signInWaiters = useRef<((account: string | null) => void)[]>([]);
+  const settleSignIn = useCallback((value: string | null) => {
+    const waiters = signInWaiters.current;
+    signInWaiters.current = [];
+    for (const resolve of waiters) resolve(value);
+  }, []);
+  useEffect(() => {
+    if (account) settleSignIn(account);
+  }, [account, settleSignIn]);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -80,7 +118,10 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   useEffect(() => {
     void loadAll();
-    const onFocus = () => void refreshStatus();
+    const onFocus = () => {
+      void refreshStatus();
+      if (accountRef.current) void readFunds(accountRef.current);
+    };
     window.addEventListener('focus', onFocus);
     window.addEventListener(SETUP_CHANGED, onFocus);
     return () => {
@@ -120,14 +161,102 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   const showToast = (text: string) => setToast({ id: Date.now(), text });
 
+  useEffect(() => {
+    if (freshNoteId === null) return;
+    const timer = window.setTimeout(() => setFreshNoteId(null), FRESH_NOTE_MS);
+    return () => window.clearTimeout(timer);
+  }, [freshNoteId]);
+
+  const endSignIn = useCallback(
+    (signedIn: boolean) => {
+      setSigningIn(false);
+      if (!signedIn) {
+        settleSignIn(null);
+        return;
+      }
+      reload();
+      setToast({ id: Date.now(), text: 'You are signed in to Seams Wallet' });
+      // The account shows when the app has the new signer; the effect on `account` answers the
+      // waiters. If it does not show, they stop waiting.
+      window.setTimeout(() => settleSignIn(accountRef.current ?? null), SIGN_IN_SETTLE_MS);
+    },
+    [reload, settleSignIn],
+  );
+
+  // Stable, so a host dialog registers once: a sign-in gives the app a new signer, and with it
+  // a new `endSignIn`, while the host is still open.
+  const endSignInRef = useRef(endSignIn);
+  useLayoutEffect(() => {
+    endSignInRef.current = endSignIn;
+  });
+  const hostSignIn = useCallback(() => {
+    setSignInHosts((count) => count + 1);
+    return () => {
+      setSignInHosts((count) => count - 1);
+      // The dialog closed during its sign-in step: the sign-in ends with it.
+      if (signingInRef.current) endSignInRef.current(false);
+    };
+  }, []);
+
+  const openSignIn = useCallback((): Promise<string | null> => {
+    if (!walletConfigured) {
+      setToast({ id: Date.now(), text: 'This build has no Seams publishable key, so it cannot sign in' });
+      return Promise.resolve(null);
+    }
+    if (accountRef.current) return Promise.resolve(accountRef.current);
+    setSigningIn(true);
+    return new Promise((resolve) => signInWaiters.current.push(resolve));
+  }, [walletConfigured]);
+
+  const prepare = useCallback(
+    async (needs: PrepareNeeds, onStep?: (step: PrepareStep) => void): Promise<Prepared> => {
+      const step = (next: PrepareStep) => {
+        setPreparing(next);
+        onStep?.(next);
+      };
+      try {
+        let who = accountRef.current;
+        if (!who) {
+          step('signin');
+          const signedIn = await openSignIn();
+          if (!signedIn) return { ok: false };
+          who = signedIn;
+        }
+        // Funds as last read are enough: no faucet, no wait. Otherwise the faucet runs while
+        // the visitor sets up the voice.
+        const need = needs.funds;
+        const funded = need && !covers(peekFunds(who).balance, need) ? ensureFunds(who, need) : null;
+        if (needs.voice && !voiceIsSetUp(statusRef.current, who)) {
+          step('voice');
+          const outcome = await setUpVoice(signerRef.current, who, setVoicePhase);
+          setVoicePhase(null);
+          if (outcome.kind !== 'done') {
+            return { ok: false, step: 'voice', reason: outcome.kind === 'cancelled' ? undefined : outcome.message };
+          }
+        }
+        if (need && funded) {
+          step('funds');
+          if (!(await funded)) return { ok: false, step: 'funds', reason: fundsProblem(who, need) };
+        }
+        return { ok: true, account: who, signer: signerRef.current };
+      } finally {
+        setVoicePhase(null);
+        setPreparing(null);
+      }
+    },
+    [openSignIn],
+  );
+
   // After `add_note`, read the post until the new note shows, and keep its transaction.
   const onNoteSent = async (postId: number, summary: string, hash: string) => {
+    if (accountRef.current) void readFunds(accountRef.current);
     for (let attempt = 0; attempt < 10; attempt += 1) {
       try {
         const notes = await loadPost(postId);
-        const mine = notes.find((note) => note.author === account && note.summary === summary);
+        const mine = notes.find((note) => note.author === accountRef.current && note.summary === summary);
         if (mine) {
           setNoteTx((current) => (current[mine.id] ? current : { ...current, [mine.id]: hash }));
+          setFreshNoteId(mine.id);
           return;
         }
       } catch {
@@ -139,9 +268,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   // After `rate_note`, read the post until the counts change.
   const onRatingSent = async (note: Note, rating: Rating, hash: string) => {
-    if (account) {
+    const rater = accountRef.current;
+    if (rater) {
+      void readFunds(rater);
       setMyRatings((current) => ({ ...current, [note.id]: rating }));
-      setRatingTxByKey((current) => ({ ...current, [`${account}:${note.id}`]: hash }));
+      setRatingTxByKey((current) => ({ ...current, [`${rater}:${note.id}`]: hash }));
     }
     for (let attempt = 0; attempt < 8; attempt += 1) {
       try {
@@ -181,10 +312,15 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     myRatings,
     noteTx,
     ratingTx,
+    freshNoteId,
+    preparing,
     openWrite: setWriteFor,
     openRate: setRateFor,
-    openSignIn: () =>
-      walletConfigured ? setSigningIn(true) : showToast('This build has no Seams publishable key, so it cannot sign in'),
+    openSignIn,
+    signingIn,
+    hostSignIn,
+    endSignIn,
+    prepare,
     reload,
   };
 
@@ -197,7 +333,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         <div className="layout">
           <Rail />
           <main className="column">
-            <SetupPanel compact />
+            <SetupPanel />
             <PostDetail postId={route.name === 'post' ? route.postId : START_POST_ID} />
           </main>
         </div>
@@ -226,16 +362,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             }}
           />
         )}
-        {signingIn && walletConfigured && (
-          <SignInModal
-            onClose={() => setSigningIn(false)}
-            onSignedIn={() => {
-              setSigningIn(false);
-              reload();
-              showToast('You are signed in to Seams Wallet');
-            }}
-          />
+        {signingIn && walletConfigured && signInHosts === 0 && (
+          <SignInModal onClose={() => endSignIn(false)} onSignedIn={() => endSignIn(true)} />
         )}
+        {/* A dialog shows the voice setup as its own step; the page card is for the gaps. */}
+        {voicePhase && signInHosts === 0 && <WalletWait step={voicePhase} />}
         <BottomBar route={route} />
         <div className="toast-region" role="status" aria-live="polite">
           {toast && (

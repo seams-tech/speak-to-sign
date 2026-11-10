@@ -3,10 +3,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSeams } from '@seams/wallet/react';
-import { SETUP_CHANGED, SetupSteps } from '../components/SetupPanel';
+import { SetupSteps } from '../components/SetupPanel';
 import { config } from '../config';
 import { createMissingKeySigner, createSeamsSigner } from '../signer/seamsSigner';
 import type { NotesSigner, SignerSetup, SignerStatus } from '../signer/notesSigner';
+import { SETUP_CHANGED } from '../signer/voiceSetup';
 
 /** The steps with the signed-in wallet. It needs SeamsWebProvider above it. */
 export function SeamsOnboarding({ onSignIn }: { onSignIn: () => void }) {
@@ -57,7 +58,6 @@ function Steps({ signer, walletConfigured, onSignIn }: { signer: NotesSigner & S
       walletConfigured={walletConfigured}
       onSignIn={onSignIn}
       onChanged={() => void refresh()}
-      variant="page"
     />
   );
 }

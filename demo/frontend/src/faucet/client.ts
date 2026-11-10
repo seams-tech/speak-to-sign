@@ -3,7 +3,8 @@
 
 export type FaucetResult =
   | { ok: true; transactionHash: string; near: bigint; usdc: bigint }
-  | { ok: false; error: string; transactionHash?: string };
+  /** `claimed`: the account got the faucet before (HTTP 409). */
+  | { ok: false; error: string; transactionHash?: string; claimed?: boolean };
 
 export async function requestFaucet(accountId: string): Promise<FaucetResult> {
   let response: Response;
@@ -25,5 +26,10 @@ export async function requestFaucet(accountId: string): Promise<FaucetResult> {
   if (response.ok && body?.transactionHash && body.near && body.usdc) {
     return { ok: true, transactionHash: body.transactionHash, near: BigInt(body.near), usdc: BigInt(body.usdc) };
   }
-  return { ok: false, error: body?.error ?? `The faucet answered ${response.status}.`, transactionHash: body?.transactionHash };
+  return {
+    ok: false,
+    error: body?.error ?? `The faucet answered ${response.status}.`,
+    transactionHash: body?.transactionHash,
+    claimed: response.status === 409,
+  };
 }

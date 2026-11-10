@@ -796,6 +796,24 @@ a.lk:hover {
   overflow: hidden;
   cursor: auto;
 }
+/* The note that the visitor just posted: it moves in, then its blue glow fades. */
+.note-card.note-fresh {
+  animation:
+    note-fresh-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    note-fresh-glow 3200ms ease-out 480ms;
+}
+@keyframes note-fresh-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes note-fresh-glow {
+  from {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-bg);
+  }
+}
 .tl-post .note-card {
   cursor: pointer;
 }
@@ -1045,6 +1063,9 @@ a.lk:hover {
   font-size: 12px;
   color: var(--muted);
 }
+.pc-busy {
+  color: var(--ink);
+}
 .pc-foot {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--line);
@@ -1239,6 +1260,18 @@ a.lk:hover {
   border-color: var(--green);
   color: #fff;
 }
+/* A step that becomes done while the visitor looks: its mark pops once. */
+.step-just-done .step-mark {
+  animation: step-pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes step-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+}
 .step-text {
   flex: 1;
   min-width: 0;
@@ -1308,35 +1341,146 @@ a.lk:hover {
   font-size: 14px;
 }
 
-/* Compact setup bar (narrow screens) */
-.setup-compact {
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-}
-.setup-compact summary {
+/* The status line at the top of the notes app: account, testnet funds, voice */
+.setup-line {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  cursor: pointer;
-  list-style: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
   font-size: 14px;
 }
-.setup-compact summary::-webkit-details-marker {
-  display: none;
-}
-.setup-compact-text {
+.setup-line-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.setup-compact-body {
-  padding: 0 16px 14px;
+.setup-line-error {
+  color: var(--red);
+}
+/* A spinner inside a line of text */
+.setup-line .spinner,
+.step-detail .spinner,
+.pc-busy .spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: -2px;
 }
 
-/* Dialogs */
+/* Dialogs. They fade and grow in; Modal adds overlay-leaving to fade them out. */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+.overlay,
+.overlay-backdrop {
+  animation: overlay-in 180ms ease-out;
+}
+.overlay.overlay-bare {
+  animation: none;
+}
+.dialog:not(.dialog-bare) {
+  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.overlay-leaving {
+  animation: overlay-out 140ms ease-in forwards;
+  pointer-events: none;
+}
+.overlay-leaving .dialog:not(.dialog-bare) {
+  animation: dialog-out 140ms ease-in forwards;
+}
+
+/* Steps of one dialog (Morph): the old step fades out, then the parts of the new one fade in
+   one after another, while the dialog animates to its new size (Modal). */
+.morph-view[hidden] {
+  display: none;
+}
+.morph-flex {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.morph-out {
+  opacity: 0;
+  transition: opacity 120ms ease-in;
+}
+@keyframes morph-part-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.morph-in > *,
+.morph-in > .dialog-body > * {
+  animation: morph-part-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.morph-in > :nth-child(2) {
+  animation-delay: 50ms;
+}
+.morph-in > :nth-child(3) {
+  animation-delay: 100ms;
+}
+.morph-in > :nth-child(n + 4) {
+  animation-delay: 150ms;
+}
+/* The parts of a step's body follow its head. */
+.morph-in > .dialog-body > :nth-child(1) {
+  animation-delay: 60ms;
+}
+.morph-in > .dialog-body > :nth-child(2) {
+  animation-delay: 110ms;
+}
+.morph-in > .dialog-body > :nth-child(3) {
+  animation-delay: 160ms;
+}
+.morph-in > .dialog-body > :nth-child(n + 4) {
+  animation-delay: 210ms;
+}
+/* The sign-in step: the dialog shrinks to the Wallet's card, and its own white goes once the
+   card is painted (the SDK marks the anchor ready), so the card is the dialog. */
+.dialog {
+  transition: background-color 180ms ease;
+}
+.dialog:has(.morph-view:not([hidden]) > .signin-step) {
+  max-width: 420px;
+}
+.dialog:has(.morph-view:not([hidden]) > .signin-step [data-seams-auth-menu-ready]) {
+  background-color: transparent;
+}
+.signin-step .field-error {
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 12px;
+}
+/* Close on the card's corner: above the Wallet's iframe (z-index 60). */
+.card-corner {
+  position: fixed;
+  z-index: 61;
+  animation: overlay-in 200ms ease-out 200ms backwards;
+}
 .overlay {
   position: fixed;
   inset: 0;
@@ -1812,7 +1956,14 @@ fieldset:disabled .choice {
 @media (prefers-reduced-motion: reduce) {
   .mic-live,
   .spinner,
-  .toast {
+  .toast,
+  .overlay,
+  .overlay-backdrop,
+  .dialog:not(.dialog-bare),
+  .step-just-done .step-mark,
+  .note-card.note-fresh,
+  .morph-in > *,
+  .morph-in > .dialog-body > * {
     animation: none;
   }
 }

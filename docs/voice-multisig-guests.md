@@ -129,7 +129,7 @@ Created on 2026-11-10. `seams-v1.testnet` paid for them from the NEAR of four fa
 | Cap | None. The first contract had 0.05 NEAR for each proposal. |
 | Default receiver | `seams-grants.testnet`, a Seams account made with the testnet faucet (tx `9BsVsGvPeyhVzrKPVCQ6CGrx4pZk8H3EyAekBfuP71Ue`). We move its NEAR back from time to time. |
 | Pages secrets | `MULTISIG_ADMIN_A_KEY`, `MULTISIG_ADMIN_B_KEY` and the 6 `VOICE_OUTLAYER_*` secrets, all set in production |
-| Pages deploy | Production deployment `4be7b413` of commit `ec78f11` (2026-11-10), built from a clean `git archive` of the commit. The approve route reads `multisig.seams-v1.testnet` with the new admin keys, and `/api/voice-verify` uses verifier 0.6.1. The first deploy was `8cae765b` of `5fd7cc7`, for `team.seams-v1.testnet`. |
+| Pages deploy | Production deployment `4f5b46ff` of commit `30279d3` (2026-11-10), built from a clean `git archive` of the commit. The approve route reads `multisig.seams-v1.testnet` with the new admin keys, and `/api/voice-verify` uses verifier 0.6.1. The deploy before it was `4be7b413` of `ec78f11`, with the old card text. The first deploy was `8cae765b` of `5fd7cc7`, for `team.seams-v1.testnet`. |
 
 ## Limits
 

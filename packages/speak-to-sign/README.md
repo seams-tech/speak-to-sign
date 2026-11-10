@@ -231,6 +231,33 @@ const sent = await seams.speakToSign.requestTransaction({
   `transaction_failed`.
 - It needs verifier 0.8.0 or later, and Wallet host API 10.
 
+## Any NEP-413 message
+
+`requestMessage` signs a NEP-413 message by voice, as `near.signMessage` does
+with a confirm.
+
+```ts
+const signed = await seams.speakToSign.requestMessage({
+  walletId,
+  message: 'Log in to example.app',
+  recipient: 'example.app',
+  summary: 'Log in to the example app',
+});
+if (signed.kind === 'signed') {
+  // signed.accountId, signed.publicKey, signed.signature, signed.nonce
+}
+```
+
+- The Wallet draws the 32-byte nonce before the owner speaks. The verdict binds
+  the SHA-256 of the NEP-413 bytes (message, nonce, recipient, callback URL),
+  which are the 32 bytes that the key signs.
+- The Seams co-signer signs only bytes that start with the NEP-413 tag, so a
+  message verdict never signs a transaction.
+- `callbackUrl` and `state` are optional, as for `near.signMessage`. `state` is
+  not signed.
+- The refusals are the verifier's, `summary_not_speakable`,
+  `message_not_valid` (an empty message or recipient) and `verdict_mismatch`.
+
 ## Wallet host setup
 
 The operator of `walletOrigin` installs the same three packages. Then the

@@ -4,7 +4,12 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import type { SpeakToSignPayment, SpokenNoteAction } from '@seams/wallet/speak-to-sign-host';
-import { runSpokenNote, runSpokenTransfer, type HostTransfer } from '../src/host/flow';
+import {
+  runSpokenMessage,
+  runSpokenNote,
+  runSpokenTransfer,
+  type HostTransfer,
+} from '../src/host/flow';
 import { heardCaption } from '../src/host/heardWords';
 import { clip, fakeHost, routeFailure, type FakeHost, type FakeHostOptions } from './fakeHost';
 
@@ -316,4 +321,53 @@ test('a note with an unspeakable summary is refused before a prompt opens', asyn
     { kind: 'refused', reason: 'summary_not_speakable' },
   );
   expect(host.sentences).toEqual([]);
+});
+
+test('a spoken message verifies the summary and lets core sign the message', async () => {
+  const host = fakeHost();
+  const action = {
+    message: 'Log in to example.app',
+    recipient: 'example.app',
+    nonce: 'BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU=',
+    callbackUrl: null,
+    state: null,
+    payloadSha256: new Uint8Array(32).fill(0x41),
+    summary: 'Log in to the example app',
+  };
+  const result = await runSpokenMessage({
+    network: 'testnet',
+    signal: new AbortController().signal,
+    message: {
+      ownerAccountId: 'owner.testnet',
+      action,
+      surfaceMeasurementBinding: { kind: 'disabled' },
+      operations: host.operations,
+    },
+  });
+  expect(result).toMatchObject({
+    kind: 'signed',
+    signature: 'c2lnbmF0dXJl',
+    nonce: action.nonce,
+    approval: 'voice',
+  });
+  expect(host.sentences).toEqual(['Log in to the example app']);
+  expect(host.verifyInputs[0]?.request).toEqual({
+    kind: 'signed_message',
+    payload_sha256_hex: '41'.repeat(32),
+    summary: 'Log in to the example app',
+  });
+  expect(host.messages).toEqual([{ action, output: { verdict: 'opaque' } }]);
+  expect(host.views.at(-1)).toBe('result::Message signed:Done');
+  expect(
+    await runSpokenMessage({
+      network: 'testnet',
+      signal: new AbortController().signal,
+      message: {
+        ownerAccountId: 'owner.testnet',
+        action: { ...action, summary: 'Log in at 9' },
+        surfaceMeasurementBinding: { kind: 'disabled' },
+        operations: host.operations,
+      },
+    }),
+  ).toEqual({ kind: 'refused', reason: 'summary_not_speakable' });
 });

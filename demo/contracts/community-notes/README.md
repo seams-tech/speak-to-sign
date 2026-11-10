@@ -5,6 +5,10 @@ a post. Other accounts rate the note. The Seams Wallet signs both calls from
 the user's own account with 0 deposit and 30 Tgas, so the contract pays for
 its storage from its own balance. Testnet only.
 
+One moderator account, the voice multisig (`../voice-multisig/`), can hide a
+harmful note. The contract then removes the note's text and summary, and the
+note takes no more ratings.
+
 The method names and JSON shapes are fixed. Seams Wallet core and the demo
 page in `demo/frontend/` use them.
 
@@ -35,6 +39,9 @@ The change methods do not accept a deposit: a call with a deposit fails.
 | `get_notes`  | view   | `{"post_id": u64}`                                           | `NoteView[]`, newest first, at most 50 |
 | `get_note`   | view   | `{"note_id": u64}`                                           | `NoteView` or `null` |
 | `get_rating` | view   | `{"note_id": u64, "account_id": AccountId}`                  | a rating or `null` |
+| `hide_note`  | change | `{"note_id": u64, "proposal_id"?: u64}`                      | nothing |
+| `set_moderator` | change, private | `{"account_id": AccountId}`                       | nothing |
+| `get_moderator` | view | `{}`                                                        | `AccountId` or `null` |
 
 Rules:
 
@@ -44,6 +51,15 @@ Rules:
 - `rate_note`: each account has one rating for each note. A later call replaces the earlier rating.
 - The author cannot rate their own note. An unknown note id fails.
 - The views do not fail for an unknown id. They return `[]` or `null`.
+- `set_moderator`: only the contract account can call it. A later call
+  replaces the moderator. Until the first call, no account can hide a note.
+- `hide_note`: only the moderator can call it. It empties `text` and
+  `summary`, and `hidden` becomes `true`. The id, post, author, time and
+  counts stay. A hidden note cannot be hidden again or rated. The original
+  text stays in the `add_note` transaction on chain. `proposal_id` is the
+  multisig proposal that decided it; it goes only into the event.
+- The moderator is kept outside the contract state (its own storage key), so
+  an upgrade of a deployed contract needs no state migration.
 
 `NoteView`:
 
@@ -58,7 +74,8 @@ Rules:
   "helpful": 2,
   "somewhat_helpful": 1,
   "not_helpful": 0,
-  "status": "helpful"
+  "status": "helpful",
+  "hidden": false
 }
 ```
 
@@ -75,9 +92,14 @@ Rules:
 Each change call logs one NEP-297 event. `data` is an array with one object.
 
 ```text
-EVENT_JSON:{"standard":"community_notes","version":"1.0.0","event":"note_added","data":[{"note_id":1,"post_id":42,"author":"alice.testnet"}]}
-EVENT_JSON:{"standard":"community_notes","version":"1.0.0","event":"note_rated","data":[{"note_id":1,"account_id":"bob.testnet","rating":"helpful","previous_rating":null,"status":"needs_more_ratings"}]}
+EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_added","data":[{"note_id":1,"post_id":42,"author":"alice.testnet"}]}
+EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_rated","data":[{"note_id":1,"account_id":"bob.testnet","rating":"helpful","previous_rating":null,"status":"needs_more_ratings"}]}
+EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_hidden","data":[{"note_id":7,"post_id":900,"moderator":"multisig.seams-v1.testnet","proposal_id":3}]}
 ```
+
+Version 1.1.0 adds `note_hidden`. Version 1.0.0 had the first two events
+with the same data. `note_hidden` has no `proposal_id` when the call gave
+none.
 
 `previous_rating` is the rating that the call replaced, or `null`. `status`
 is the status of the note after the call.
@@ -92,6 +114,10 @@ is the status of the note after the call.
 | `rate_note` | `the author cannot rate their own note`              |
 | `rate_note` | `note 99 does not exist`                             |
 | `rate_note` | an unknown rating fails in argument parsing (`unknown variant`) |
+| `rate_note` | `this note is hidden`                                |
+| `hide_note` | `only the moderator can hide a note`                 |
+| `hide_note` | `this note is already hidden`, `note 99 does not exist` |
+| `set_moderator` | `Method set_moderator is private`                |
 | both        | a deposit fails (`Method add_note doesn't accept deposit`, and the same for `rate_note`) |
 
 ## Gas and storage

@@ -1,12 +1,15 @@
 # Voice multisig contract
 
 A NEAR multisig for the voice multisig demo (`demo/frontend`, `/multisig/`).
-Any account that is not an admin proposes a transfer with its own spoken
-approval. It reads the transfer aloud, and the verifier checks the voice and
-the words and signs a verdict. This contract checks the verdict on chain.
-Then each admin approves the proposal with a plain signed call, and the
-proposer or an admin executes it. The chain holds only a salted hash of the
-transfer, the commitment, until `execute`. The contract has no cap: a
+Any account that is not an admin proposes a transfer, or "hide note N" for a
+harmful community note, with its own spoken approval. It reads the proposal
+aloud, and the verifier checks the voice and the words and signs a verdict.
+This contract checks the verdict on chain. Then each admin approves the
+proposal with a plain signed call, and the proposer or an admin executes it.
+The chain holds only a salted hash of the proposal, the commitment, until
+`execute`. For a hide, this contract is the moderator of the notes contract
+(`../community-notes/`) that `set_notes_contract` names, and `execute`
+calls its `hide_note`. The contract has no cap: a
 transfer is any amount that the grammar can speak (0.01 to 1,000,000 NEAR),
 and the balance of the multisig limits it. Testnet only.
 
@@ -33,8 +36,11 @@ to its account.
 | `new`              | init     | `{"admins": AccountId[], "verifier_public_key": "ed25519:<base58>"}` | — |
 | `propose`          | change   | `{"proposal_id": u64, "commitment_hex": String, "verdict_json": String, "signature_b64": String}` | `u64`, the proposal id |
 | `approve`          | change   | `{"proposal_id": u64}` | `u32`, the number of admin approvals |
-| `execute`          | change   | `{"proposal_id": u64, "receiver": AccountId, "amount_yocto": U128, "salt_hex": String}` | `bool`: `true` if the transfer arrived, `false` if it failed |
+| `execute`          | change   | `{"proposal_id": u64, "receiver": AccountId, "amount_yocto": U128, "salt_hex": String}` for a transfer, or `{"proposal_id": u64, "note_id": u64, "salt_hex": String}` for a hide | `bool`: `true` if the transfer arrived or the note is hidden, `false` if it failed |
 | `on_transfer`      | callback | private | `bool` |
+| `on_hide`          | callback | private | `bool` |
+| `set_notes_contract` | change, private | `{"account_id": AccountId}` | nothing |
+| `get_notes_contract` | view   | `{}` | `AccountId` or `null` |
 | `get_proposal`     | view     | `{"proposal_id": u64}` | `ProposalView` or `null` |
 | `get_proposals`    | view     | `{"from_index"?: u64, "limit"?: u32}` | `ProposalView[]`, newest first |
 | `get_config`       | view     | `{}` | `{"admins", "verifier_public_key"}` |
@@ -66,6 +72,21 @@ Rules:
   the transfer in the `execute` call itself ("Exceeded the account
   balance."). The call fails, no callback runs, and the proposal stays open
   with its approvals.
+- `execute` of a hide: the same caller and approval rules, with `note_id`
+  and `salt_hex` and no `receiver` or `amount_yocto`.
+  `multisig_commitment(current account, proposal_id, HideNote { note_id },
+  salt)` equals the stored commitment, and `set_notes_contract` named a
+  notes contract. The contract marks the proposal `executed` and calls
+  `hide_note({"note_id", "proposal_id"})` on the notes contract with 10
+  Tgas. If that call fails (for example, the note is hidden already), the
+  callback sets the proposal to `open` again. Admin B's `execute` with 50
+  Tgas burns about 6.6 Tgas in all (sandbox).
+- `set_notes_contract`: only the contract account can call it. The notes
+  contract must name this contract as its moderator. The account is kept
+  outside the contract state, and so is the note id of each executed hide,
+  so an upgrade of the deployed contract (without hides) needs no state
+  migration. The sandbox test checks this upgrade from the code that is
+  deployed on testnet.
 
 A verdict is valid when all of these are true, in this order:
 
@@ -103,7 +124,9 @@ The example is proposal 12 of `multisig.seams-v1.testnet`: 0.01 NEAR to
 they approved. `created_at_ms` is the block time of `propose`. `receiver`
 and `amount_yocto` are absent until a transfer arrives. While a transfer is
 in flight (one or two blocks), the status is `executed` and the two fields
-are still absent.
+are still absent. `note_id` is absent until a hide succeeds, in the same
+way. A proposal has at most one of the two: `receiver` and `amount_yocto`,
+or `note_id`.
 
 `get_proposals`: `from_index` 0 (the default) is the newest proposal.
 `limit` is at most 50 (the default); a larger limit gives 50.
@@ -111,15 +134,16 @@ are still absent.
 ## Events
 
 Each change logs one NEP-297 event, standard `voice_multisig`, version
-`2.0.0`. `execute` itself logs nothing; its callback logs `executed` or
-`execute_failed`.
+`2.1.0`. `execute` itself logs nothing; its callback logs `executed` or
+`execute_failed`. Version 2.1.0 adds the `executed` event of a hide,
+`{"proposal_id", "note_id"}`; the other events are the same as in 2.0.0.
 
 ```text
-EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"proposed","data":[{"proposal_id":12,"commitment_hex":"fef5…d8ee","proposer":"visitor.testnet"}]}
-EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"approved","data":[{"proposal_id":12,"admin":"admin-a.seams-v1.testnet","approvals":1}]}
-EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"approved","data":[{"proposal_id":12,"admin":"admin-b.seams-v1.testnet","approvals":2}]}
-EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"executed","data":[{"proposal_id":12,"receiver":"seams-grants.testnet","amount_yocto":"10000000000000000000000"}]}
-EVENT_JSON:{"standard":"voice_multisig","version":"2.0.0","event":"execute_failed","data":[{"proposal_id":12}]}
+EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"proposed","data":[{"proposal_id":12,"commitment_hex":"fef5…d8ee","proposer":"visitor.testnet"}]}
+EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"approved","data":[{"proposal_id":12,"admin":"admin-a.seams-v1.testnet","approvals":1}]}
+EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"approved","data":[{"proposal_id":12,"admin":"admin-b.seams-v1.testnet","approvals":2}]}
+EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"executed","data":[{"proposal_id":12,"receiver":"seams-grants.testnet","amount_yocto":"10000000000000000000000"}]}
+EVENT_JSON:{"standard":"voice_multisig","version":"2.1.0","event":"execute_failed","data":[{"proposal_id":12}]}
 ```
 
 ## Failure messages

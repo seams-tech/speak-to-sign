@@ -33,7 +33,7 @@ Each developer has its own accounts. The verifier is an OutLayer worker.
    storage cell (your users) and your own verdict key.
 2. A NEAR AI Cloud API key, stored as the OutLayer secret `NEAR_AI_API_KEY`.
 3. The version key of a verifier build with application owners: verifier
-   0.10.0 or later (see `crates/voice-verifier/README.md`, "Versions").
+   0.10.0 or later, or 0.11.0 or later for `detect` (see `crates/voice-verifier/README.md`, "Versions").
 
 ## The browser
 
@@ -154,7 +154,8 @@ so set `verifier.timeoutMs` and `verifier.resourceLimits` for it.
   TDX quote covers the verifier, not that model.
 - English only.
 - `local-speaker` builds of the verifier need `verifier.computeLimit` and a
-  longer `verifier.timeoutMs`. They are about 8 times slower.
+  longer `verifier.timeoutMs`. They are at least 8 times slower, and their
+  time is not stable (12 s to more than 60 s for one call on testnet).
 
 ## Tests
 

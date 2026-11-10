@@ -33,7 +33,8 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.8.0 (standalone preview, `local-speaker`) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
 | 0.10.0  | `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb` | The source on this branch at commit `d3e02bc` (460,283 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `AVaXXBDYpERq5bNef7fAM7CF4HaZNeXuZpJiTr4jGEhw`, `add_version` tx `S4RvnDPMhkxkCoxHG8Rx9KtUyfSAstG4kmjj2BhaU4t`). **Not active.** It adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`. For every summary kind it reads "$40" as "forty dollars", and one changed word is never a number word. |
 | 0.10.0 `local-speaker` | `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | The same source with ReDimNet inside the worker (`build.sh --local-speaker --docker`). Added on 2026-11-11 (first FastFS chunk tx `GRbHuHVDmf6Ya9YH8CRiexxCLxU1hCovjqEaDsrg7hx3`, `add_version` tx `6hQKZyNrVTbCY5V5GKYuFCh4SfZKWfdL3nwVqa3vjscq`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
-| 0.11.0  | not built for OutLayer yet | The source on this branch. It adds the operation `detect`. |
+| 0.11.0  | `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` | The source on this branch at commit `be35842` (507,649 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `E5DDUHW7UL9rehTyFQ4TQzsVphMi5rdeqeGxgvBNMQAa`, `add_version` tx `CkUMmoDiE7QmXZDzkzQgi8xB83iczem4T9s11kd9d9wL`). **Not active.** It adds the operation `detect`. |
+| 0.11.0 `local-speaker` | `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | The same source with ReDimNet inside the worker. Added on 2026-11-11 (first FastFS chunk tx `3sNi1vRtfdESuxJNpVSodvgwUueM9hqKibWWidpFgL6x`, `add_version` tx `2gdj8j7xAizq8daGu1WfnwhA6o87UQV8wRuBAK8caLxn`). **Not active.** |
 
 Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
 `b0f53da4…bff3` and the two "standalone preview" builds. So that text does
@@ -214,6 +215,15 @@ more expensive for each call. Where its time goes:
 - 1.8 to 1.9 s is the read of the model from the storage with its SHA-256
   (`model_fetch`, with `model_cached` 1).
 - 0.3 to 0.7 s is the model run for one clip (`redimnet`).
+
+A later run (0.11.0, 2026-11-11) showed that the read of the model from
+the worker storage does not have a stable time. Four enrollments in a row
+had `model_fetch` of 1.8 s, 8.0 s, 69.6 s and 4.6 s, each with
+`model_cached` 1 and about 18.9 billion instructions. In the same hour,
+three of twelve `local-speaker` calls failed with the status `failed`; the
+probable cause is the time limit of the run (`max_execution_seconds`, 90 in
+that test), not the code. The default variant had no such failure. So do not
+plan on the 12 s of the table above for each call.
 
 Other facts of that run:
 
@@ -467,8 +477,9 @@ Stage times (`ms`, not signed), in ms:
     signs its part. The result is a proposal: show the action, then confirm
     it with `verify` or `select`.
   - The chat model took about 11 s for each of 5 calls from a desktop
-    computer (`tests/detect_live.rs`). So a `detect` call needs
-    `max_execution_seconds` of 40 or more.
+    computer (`tests/detect_live.rs`). On OutLayer testnet, a whole `detect`
+    call of the default variant took 6 to 10 s at the client. Give the call
+    a `max_execution_seconds` of 40 or more.
   - Shared vectors: `testdata/signed_intent_v1.json`
     (`tests/signed_intent_vector.rs`).
 - Unknown fields are refused at every level.

@@ -837,8 +837,18 @@ paths (`/sdk/speak-to-sign/host.js`) and the command
    `checkIntent` and the server function `detect`. A live call of the chat
    model with the worker's exact request gave the correct intent for five
    sentences, also for a sentence that tells the model to ignore the list
-   (`tests/detect_live.rs`). Verifier 0.11.0 is not on OutLayer, so `detect`
-   did not run in the worker there.
+   (`tests/detect_live.rs`). Verifier 0.11.0 is on OutLayer testnet in both
+   variants, not active (`d2f8b630…d9f8` and `febb4cb8…ad00`, commit
+   `be35842`). Through `@seams/speak-to-sign/server`, with a synthetic
+   voice, `detect` gave on the default build: "book a table for two at eight
+   tonight" as `book_table` with `people` 2 and `time` "8 tonight"; a
+   cancel sentence as `cancel_booking`; a sentence about the weather as no
+   intent; a sentence that tells the model to name another intent as a
+   refusal (`detector_unavailable`); another voice as a refusal (`speaker`).
+   One `detect` call took 6 to 10 s. The `local-speaker` build gave the same
+   intents, but its calls took 16 to 57 s and three of twelve calls of that
+   run failed: the read of the model from the worker storage took from 1.8 s
+   to 70 s.
 5. **The demo contracts keep their own `verdict.rs`.** A change of their
    dependencies changes their code hash, and the root README pins the hash
    of each deployed contract. So this needs a new deploy of each contract.

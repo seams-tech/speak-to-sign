@@ -1490,7 +1490,7 @@ a.lk:hover {
   width: 100%;
   max-width: 560px;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 2rem;
   display: flex;
   flex-direction: column;
   max-height: 90vh;

@@ -20,7 +20,7 @@ import { isObject } from '../../src/guards.ts';
 import { json, readBoundedText, refuseOtherOrigin } from '../lib/http.ts';
 
 interface Env {
-  /** For example https://api.outlayer.fastnear.com */
+  /** For example https://testnet-api.outlayer.ai (*.outlayer.fastnear.com is retired: 410). */
   VOICE_OUTLAYER_BASE_URL?: string;
   /** owner/project, for example seams-v1.testnet/voice-verifier */
   VOICE_OUTLAYER_PROJECT?: string;

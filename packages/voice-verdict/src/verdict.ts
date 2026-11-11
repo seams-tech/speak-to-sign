@@ -14,6 +14,15 @@ export const VERDICT_KIND = 'seams_voice_signed_verdict_v2';
 /** The prefix of the request digest preimage of `spoken-intent`. */
 export const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
 
+/** The renderer version of `spoken-intent`. A verdict of another renderer does not pass. */
+export const RENDERER_VERSION = 'spoken-intent/1';
+
+/** The verifier signs a verdict with `expires_at_ms` 120 s after its own clock. */
+export const VERDICT_LIFE_MS = 120_000;
+
+/** A later expiry than this, from the time of the check, means a verifier clock that runs ahead. */
+export const MAX_VERDICT_LIFE_MS = VERDICT_LIFE_MS + 30_000;
+
 export type VerdictOutcome = 'accept' | 'step_up' | 'refuse';
 
 /** The 13 signed fields. A digest is `null` only on a refusal that came before it was known. */
@@ -53,14 +62,20 @@ export type VerdictRefusal =
   | { code: 'malformed'; detail: string }
   /** The signed `kind` is not `seams_voice_signed_verdict_v2`. */
   | { code: 'wrong_kind'; kind: string }
+  /** The signed `renderer` is not `RENDERER_VERSION`. */
+  | { code: 'wrong_renderer'; renderer: string }
   /** The verifier refused. `reason` is the verifier's reason. */
   | { code: 'refused'; reason: string | null; verdict: VoiceVerdict }
   /** The voice and the words passed, and a policy rule asks for a second approval. */
   | { code: 'step_up'; policyRule: string | null; verdict: VoiceVerdict }
   /** `expires_at_ms` is before `nowMs`. */
   | { code: 'expired'; expiresAtMs: number; verdict: VoiceVerdict }
+  /** `expires_at_ms` is more than `MAX_VERDICT_LIFE_MS` after `nowMs`. */
+  | { code: 'not_yet_valid'; expiresAtMs: number; verdict: VoiceVerdict }
   /** The verdict is for another request. */
   | { code: 'request_mismatch'; verdict: VoiceVerdict }
+  /** The verdict is for another spoken sentence. */
+  | { code: 'spoken_text_mismatch'; verdict: VoiceVerdict }
   /** The verdict is for another recording. */
   | { code: 'audio_mismatch'; verdict: VoiceVerdict };
 
@@ -83,6 +98,11 @@ export interface CheckVerdictInput {
   publicKey: string | Uint8Array;
   /** The digest of the request that you built yourself. Without it, any request passes. */
   requestDigest?: Digest;
+  /**
+   * The spoken-text digest of the request that you built yourself:
+   * `SHA-256("seams:spoken-intent:spoken:v1" || spoken_text)`.
+   */
+  spokenTextDigest?: Digest;
   /** The digest of the recording that you sent. */
   audioDigest?: Digest;
   /** The time of the check, in ms since the UNIX epoch. Default: `Date.now()`. */
@@ -110,8 +130,9 @@ const VERDICT_FIELDS = [
 const utf8 = new TextEncoder();
 
 /**
- * Checks a signed verdict. The checks run in this order: key, signature, shape, kind, outcome,
- * expiry, request digest, audio digest. It does not throw for a bad verdict.
+ * Checks a signed verdict. The checks run in this order: key, signature, shape, kind, renderer,
+ * outcome, expiry, request digest, spoken-text digest, audio digest. It does not throw for a bad
+ * verdict.
  */
 export async function checkVerdict(input: CheckVerdictInput): Promise<VerdictCheck> {
   const key = parsePublicKey(input.publicKey);
@@ -129,11 +150,18 @@ export async function checkVerdict(input: CheckVerdictInput): Promise<VerdictChe
   if (verdict.outcome === 'step_up' && input.acceptStepUp !== true) {
     return refuse({ code: 'step_up', policyRule: verdict.policy_rule, verdict });
   }
-  if (verdict.expires_at_ms < (input.nowMs ?? Date.now())) {
+  const nowMs = input.nowMs ?? Date.now();
+  if (verdict.expires_at_ms < nowMs) {
     return refuse({ code: 'expired', expiresAtMs: verdict.expires_at_ms, verdict });
+  }
+  if (verdict.expires_at_ms > nowMs + MAX_VERDICT_LIFE_MS) {
+    return refuse({ code: 'not_yet_valid', expiresAtMs: verdict.expires_at_ms, verdict });
   }
   if (input.requestDigest !== undefined && !sameDigest(verdict.request_digest, input.requestDigest)) {
     return refuse({ code: 'request_mismatch', verdict });
+  }
+  if (input.spokenTextDigest !== undefined && !sameDigest(verdict.spoken_text_digest, input.spokenTextDigest)) {
+    return refuse({ code: 'spoken_text_mismatch', verdict });
   }
   if (input.audioDigest !== undefined && !sameDigest(verdict.audio_digest, input.audioDigest)) {
     return refuse({ code: 'audio_mismatch', verdict });
@@ -184,6 +212,7 @@ export function parseVerdict(verdictJson: string): { verdict: VoiceVerdict } | {
   for (const name of ['renderer', 'verifier'] as const) {
     if (typeof record[name] !== 'string') return malformed(name);
   }
+  if (record.renderer !== RENDERER_VERSION) return { refusal: { code: 'wrong_renderer', renderer: record.renderer as string } };
   for (const name of ['request_digest', 'spoken_text_digest', 'audio_digest'] as const) {
     const text = record[name];
     if (text !== null && (typeof text !== 'string' || fromBase64Url(text)?.length !== 32)) return malformed(name);
@@ -198,6 +227,18 @@ export function parseVerdict(verdictJson: string): { verdict: VoiceVerdict } | {
   if (typeof expires !== 'number' || !Number.isSafeInteger(expires) || expires < 0) return malformed('expires_at_ms');
   for (const name of ['speaker_score_milli', 'word_margin_milli'] as const) {
     if (record[name] !== null && !Number.isSafeInteger(record[name])) return malformed(name);
+  }
+  // An approval names its request, its sentence and its recording, and gives no refusal reason.
+  // Only a step-up names the rule that asked for the second approval.
+  if (record.outcome !== 'refuse') {
+    if (record.request_digest === null || record.spoken_text_digest === null || record.audio_digest === null) {
+      return malformed('an approval with no digest');
+    }
+    if (record.reason !== null) return malformed('an approval with a reason');
+    const rule = record.policy_rule;
+    if (record.outcome === 'accept' ? rule !== null : typeof rule !== 'string' || rule === '') {
+      return malformed('policy_rule');
+    }
   }
   return { verdict: record as unknown as VoiceVerdict };
 }

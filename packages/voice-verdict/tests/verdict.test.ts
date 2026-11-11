@@ -4,7 +4,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { checkVerdict, parsePublicKey, parseVerdict, requestDigest, verdictMessage } from '../src/index.ts';
+import {
+  MAX_VERDICT_LIFE_MS,
+  checkVerdict,
+  parsePublicKey,
+  parseVerdict,
+  requestDigest,
+  verdictMessage,
+} from '../src/index.ts';
 
 interface SignedCase {
   name: string;
@@ -25,7 +32,7 @@ const signed = JSON.parse(
 ) as { public_key: string; public_key_hex: string; test_seed_hex: string; verdicts: SignedCase[] };
 const requests = JSON.parse(
   readFileSync(new URL('spoken-intent/fixtures/spoken_intent_vectors_v1.json', crates), 'utf8'),
-) as { requests: { name: string; borsh_hex: string; request_digest_hex: string }[] };
+) as { requests: { name: string; borsh_hex: string; request_digest_hex: string; spoken_text_digest_hex: string }[] };
 
 const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('hex');
 const unhex = (text: string): Uint8Array => new Uint8Array(Buffer.from(text, 'hex'));
@@ -57,8 +64,8 @@ async function sign(verdictJson: string): Promise<string> {
   return Buffer.from(signature).toString('base64');
 }
 
-/** A check of a verdict text that the test key signs here. */
-async function checkSigned(verdictJson: string, nowMs = 0) {
+/** A check of a verdict text that the test key signs here, before the expiry of the vectors. */
+async function checkSigned(verdictJson: string, nowMs = vector('accept').expires_at_ms - 1) {
   return checkVerdict({ verdictJson, signatureB64: await sign(verdictJson), publicKey: signed.public_key, nowMs });
 }
 
@@ -202,14 +209,83 @@ test('a signed text of another kind or shape', async () => {
   // A refusal before the request was known has no digest. It reads, and no digest matches it.
   const early = { ...good, outcome: 'refuse', reason: 'unsupported', request_digest: null };
   assert.ok('verdict' in parseVerdict(JSON.stringify(early)));
-  const noDigest = await checkSigned(JSON.stringify({ ...good, request_digest: null }));
-  assert.ok(noDigest.ok);
-  const wanted = await checkVerdict({
-    verdictJson: JSON.stringify({ ...good, request_digest: null }),
-    signatureB64: await sign(JSON.stringify({ ...good, request_digest: null })),
+  const refused = await checkVerdict({
+    verdictJson: JSON.stringify(early),
+    signatureB64: await sign(JSON.stringify(early)),
     publicKey: signed.public_key,
     nowMs: 0,
     requestDigest: vector('accept').request_digest,
   });
-  assert.equal(!wanted.ok && wanted.refusal.code, 'request_mismatch');
+  assert.equal(!refused.ok && refused.refusal.code, 'refused');
+});
+
+test('an approval names its request, sentence and recording, and only a step-up names a rule', async () => {
+  const good = JSON.parse(vector('accept').verdict_json) as Record<string, unknown>;
+  const stepUp = JSON.parse(vector('step_up').verdict_json) as Record<string, unknown>;
+  const bad = [
+    { ...good, request_digest: null },
+    { ...good, spoken_text_digest: null },
+    { ...good, audio_digest: null },
+    { ...good, reason: 'words' },
+    { ...good, policy_rule: 'stub_voice_amount_above_10_near' },
+    { ...stepUp, policy_rule: null },
+    { ...stepUp, policy_rule: '' },
+    { ...stepUp, reason: 'words' },
+  ];
+  for (const verdict of bad) {
+    const result = await checkSigned(JSON.stringify(verdict));
+    assert.equal(!result.ok && result.refusal.code, 'malformed', JSON.stringify(verdict));
+  }
+});
+
+test('a verdict of another renderer', async () => {
+  const good = JSON.parse(vector('accept').verdict_json) as Record<string, unknown>;
+  const result = await checkSigned(JSON.stringify({ ...good, renderer: 'spoken-intent/2' }));
+  assert.ok(!result.ok);
+  assert.deepEqual(result.refusal, { code: 'wrong_renderer', renderer: 'spoken-intent/2' });
+});
+
+test('a verdict that expires further ahead than one life is not yet valid', async () => {
+  const item = vector('accept');
+  assert.ok((await checkVerdict({ ...input(item), nowMs: item.expires_at_ms - MAX_VERDICT_LIFE_MS })).ok);
+  const early = await checkVerdict({ ...input(item), nowMs: item.expires_at_ms - MAX_VERDICT_LIFE_MS - 1 });
+  assert.equal(!early.ok && early.refusal.code, 'not_yet_valid');
+});
+
+test('a verdict for another sentence', async () => {
+  const accept = vector('accept');
+  const good = JSON.parse(accept.verdict_json) as { spoken_text_digest: string };
+  const same = await checkVerdict({ ...input(accept), spokenTextDigest: good.spoken_text_digest });
+  assert.ok(same.ok);
+  const other = await checkVerdict({ ...input(accept), spokenTextDigest: new Uint8Array(32) });
+  assert.equal(!other.ok && other.refusal.code, 'spoken_text_mismatch');
+});
+
+test('a verdict for one community note does not pass for another note', async () => {
+  // The verifier signs the digests of the note that the owner said. The app checks them against
+  // the digests of the note that it is about to post, which it builds itself.
+  const said = requests.requests.find((item) => item.name === 'community_note')!;
+  const posted = requests.requests.find((item) => item.name === 'community_note_one_word')!;
+  const b64url = (digestHex: string) => Buffer.from(digestHex, 'hex').toString('base64url');
+  const verdict = {
+    ...(JSON.parse(vector('accept').verdict_json) as Record<string, unknown>),
+    request_digest: b64url(said.request_digest_hex),
+    spoken_text_digest: b64url(said.spoken_text_digest_hex),
+  };
+  const verdictJson = JSON.stringify(verdict);
+  const signatureB64 = await sign(verdictJson);
+  const base = { verdictJson, signatureB64, publicKey: signed.public_key, nowMs: vector('accept').expires_at_ms - 1 };
+
+  const same = await checkVerdict({
+    ...base,
+    requestDigest: await requestDigest(unhex(said.borsh_hex)),
+    spokenTextDigest: said.spoken_text_digest_hex,
+  });
+  assert.ok(same.ok);
+  const other = await checkVerdict({
+    ...base,
+    requestDigest: await requestDigest(unhex(posted.borsh_hex)),
+    spokenTextDigest: posted.spoken_text_digest_hex,
+  });
+  assert.equal(!other.ok && other.refusal.code, 'request_mismatch');
 });

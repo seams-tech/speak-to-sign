@@ -1,5 +1,6 @@
 import type { PhraseSegmentState, PhraseView } from './types';
 import type { VoicePrompt } from './prompt';
+import { ROW_EASE, ROW_IN_DELAY_MS, ROW_IN_MS, ROW_OUT_MS, ROW_STAGGER_MS } from './rowMotion';
 
 // The phrase card keeps one card for the prompt, the check and the result. The ribbon row stays;
 // the other rows fade out, the card takes its new size and the rows fade in again.
@@ -8,10 +9,6 @@ const WIDTH = 308;
 const MID = 32;
 const SEGMENTS = 6;
 const GAP = 8;
-const FADE_OUT_MS = 150;
-const FADE_IN_MS = 300;
-const FADE_IN_DELAY_MS = 60;
-const ROW_STAGGER_MS = 40;
 const RIBBON_MOVE_MS = 180;
 const FLATTEN_MS = 200;
 const OPEN_MS = 200;
@@ -259,7 +256,7 @@ export class PhraseCard {
       .map(([, element]) => element);
     prompt.phrase.classList.toggle('seams-voiceid-phrase-dim', next.dim);
     if (changed.length > 0 && !this.motion.matches) {
-      await Promise.all(changed.map((element) => fade(element, FADE_OUT_MS)));
+      await Promise.all(changed.map((element) => fade(element, ROW_OUT_MS)));
     }
     if (this.stale(version)) return;
     const ribbonTop = prompt.ribbon.getBoundingClientRect().top;
@@ -281,7 +278,7 @@ export class PhraseCard {
       }
     }
     for (const [index, element] of changed.entries()) {
-      fadeIn(element, this.motion.matches, FADE_IN_DELAY_MS + index * ROW_STAGGER_MS);
+      fadeIn(element, this.motion.matches, ROW_IN_DELAY_MS + index * ROW_STAGGER_MS);
     }
   }
 
@@ -530,8 +527,8 @@ function fadeIn(element: Element, reduced: boolean, delay: number): void {
     ],
     {
       delay: reduced ? 0 : delay,
-      duration: reduced ? 150 : FADE_IN_MS,
-      easing: EASE_IN_OUT,
+      duration: reduced ? 150 : ROW_IN_MS,
+      easing: ROW_EASE,
       fill: 'both',
     },
   );

@@ -4,6 +4,10 @@
 name = "seams-voice-intents-x-refresh"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
+# Only the schedule runs it. It has no fetch handler, so a public workers.dev URL would only
+# answer 500.
+workers_dev = false
+preview_urls = false
 
 [triggers]
 # 00:00, 08:00 and 16:00 UTC. The route calls X when its snapshot is about 8 hours old.

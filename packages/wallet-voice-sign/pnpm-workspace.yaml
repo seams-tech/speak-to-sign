@@ -1,9 +1,0 @@
-# The plugin needs no dependency build script. @seams/wallet brings protobufjs, whose
-# postinstall is not needed here; seams-wallet declines it the same way.
-allowBuilds:
-  protobufjs: false
-minimumReleaseAgeExclude:
-  - '@seams/voiceid@0.67.0'
-  - '@seams/wallet@0.67.0'
-  - '@seams/voice-capture@0.67.1'
-  - '@seams/voice-verdict@0.67.1'

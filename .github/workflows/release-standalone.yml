@@ -6,10 +6,9 @@ name: Release the standalone libraries
 #   2. @seams/voice-capture   records one sentence in the browser
 #   3. @seams/voice-sign      joins both; it depends on the exact versions of 1 and 2
 #
-# They need no Seams Wallet package. This workflow never publishes the Seams Wallet plugin
-# (@seams/wallet-voice-sign, until 0.66.0 @seams/speak-to-sign), which
-# release-wallet-voice-sign.yml releases with the Wallet. The validation step checks the three
-# names.
+# They need no Seams Wallet package. The Seams Wallet plugin (@seams/wallet-voice-sign, until
+# 0.66.0 @seams/speak-to-sign) is not in this repository any more: its flow is a part of
+# @seams/wallet (seams-wallet, refactor 232). The validation step checks the three names.
 #
 # A package whose version is on npm already is not published again, so a failed run can be run
 # again. npm trusted publishing must be set up for each package name on npmjs.com (repository

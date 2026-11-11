@@ -13,7 +13,7 @@ and calls two services. The Wallet signs only with a valid verdict.
 flowchart LR
   subgraph Device["Owner's device"]
     App["App page<br/>demo/frontend, examples/speak-to-pay"]
-    Plugin["Speak-to-Sign plugin<br/>packages/wallet-voice-sign"]
+    Plugin["Speak-to-Sign flow<br/>a part of @seams/wallet"]
     Core["Seams Wallet core<br/>pins the verdict key"]
     Mic["VoiceID prompt<br/>records 16 kHz WAV"]
   end
@@ -67,7 +67,7 @@ flowchart TB
   MS["demo/contracts/voice-multisig<br/>checks the verdict on chain"]
   CN["demo/contracts/community-notes"]
   WT["seams-wallet<br/>TypeScript port and verdict check"]
-  PL["packages/wallet-voice-sign<br/>host plugin"]
+  PL["Speak-to-Sign flow<br/>in @seams/wallet (seams-wallet)"]
   FE["demo/frontend and examples/speak-to-pay"]
 
   SI --> Vec
@@ -76,7 +76,7 @@ flowchart TB
   Vec -->|tests read| WT
   VV -->|signed verdict vectors| WT
   VV -->|HTTPS| SS
-  PL -->|host API| WT
+  PL -->|bound operations| WT
   FE --> PL
   MS -->|hide_note| CN
 ```

@@ -190,26 +190,3 @@ jobs:
       - name: '@seams/voice-sign in Chromium'
         working-directory: packages/voice-sign
         run: pnpm test:browser
-
-  # The Seams Wallet plugin. It installs @seams/wallet and @seams/voiceid from npm, and its tests
-  # use a fake host.
-  wallet-voice-sign:
-    name: ts (wallet-voice-sign)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: packages/wallet-voice-sign
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: pnpm
-          cache-dependency-path: packages/wallet-voice-sign/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm type-check
-      - run: pnpm test

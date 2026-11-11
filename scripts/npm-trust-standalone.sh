@@ -1,9 +1,7 @@
 #!/bin/sh
 # Sets the GitHub workflow release-standalone.yml of seams-tech/speak-to-sign as the trusted
 # publisher of @seams/voice-verdict, @seams/voice-capture and @seams/voice-sign on npm, so that the workflow can
-# publish them with no npm token. It never touches the Seams Wallet plugin
-# (@seams/wallet-voice-sign, until 0.66.0 @seams/speak-to-sign) and its own workflow
-# (release-wallet-voice-sign.yml).
+# publish them with no npm token.
 #
 # Run it in an interactive terminal, logged in to npm with an account that can write the
 # packages. The first command asks for two-factor authentication in the browser. On that page,

@@ -612,7 +612,10 @@ built before decision 3. The plan:
 | `src/capture.ts` and the export `./capture` | **Removed** (done). It was a second capture module. `voice-capture` replaces it |
 
 `voice-verdict` then has no network call except the two optional fetches of
-the attestation, and no browser API. It keeps zero dependencies.
+the attestation, and no browser API. It kept zero dependencies until it got
+`sealAudio` (sealed audio, verifier 0.12.0): the seal needs ChaCha20-Poly1305,
+which WebCrypto does not have, so the package has one dependency,
+`@noble/ciphers`.
 
 ### 5.3 The standalone flow, end to end
 

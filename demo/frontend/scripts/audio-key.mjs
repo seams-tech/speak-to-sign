@@ -10,7 +10,7 @@
 //
 // The payment key goes only into the X-Payment-Key header. It is never printed.
 
-import { readAudioKeyOutput } from '../../../packages/wallet-voice-sign/src/audioEnvelope.ts';
+import { readAudioKeyOutput } from '../../../packages/voice-verdict/src/audioEnvelope.ts';
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 

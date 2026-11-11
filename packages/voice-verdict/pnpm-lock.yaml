@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@noble/ciphers':
+        specifier: 1.3.0
+        version: 1.3.0
     devDependencies:
       '@types/node':
         specifier: 24.2.0
@@ -16,6 +20,10 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@noble/ciphers@1.3.0':
+    resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@types/node@24.2.0':
     resolution: {integrity: sha512-3xyG3pMCq3oYCNg7/ZP+E1ooTaGB4cG8JWRsqqOYQdbWNY4zbaV0Ennrd7stjiJEFZCaybcIgpTjJWHRfBSIDw==}
@@ -29,6 +37,8 @@ packages:
     resolution: {integrity: sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag==}
 
 snapshots:
+
+  '@noble/ciphers@1.3.0': {}
 
   '@types/node@24.2.0':
     dependencies:

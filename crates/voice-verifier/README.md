@@ -496,7 +496,8 @@ Stage times (`ms`, not signed), in ms:
 Verifier 0.12.0 and later. A Wallet seals each WAV to the audio key, so the
 Seams server and OutLayer's coordinator carry only ciphertext
 (`src/envelope.rs`; the Wallet side is
-`packages/wallet-voice-sign/src/audioEnvelope.ts`).
+`packages/voice-verdict/src/audioEnvelope.ts`, `sealAudio` of
+`@seams/voice-verdict`).
 
 - The envelope is HPKE base mode (RFC 9180): DHKEM(X25519, HKDF-SHA256),
   HKDF-SHA256, ChaCha20-Poly1305. `info` is `seams:voice-audio:v1`
@@ -653,7 +654,7 @@ only.
 - `testdata/sealed_audio_v1.json` (`tests/ops/sealed.rs`): one clip sealed
   with a fixed ephemeral key: `audio_key_secret_hex`, `audio_public_key_hex`,
   `ephemeral_ikm_hex`, `op`, `owner`, `plaintext_hex`, `sealed_hex` and
-  `audio_key_message_hex`. `packages/wallet-voice-sign/tests/audioEnvelope.test.ts`
+  `audio_key_message_hex`. `packages/voice-verdict/tests/audioEnvelope.test.ts`
   seals the same clip in TypeScript and gets the same bytes.
 - `testdata/enrollment_digest_v2.json` (`tests/enrollment_vectors.rs`):
   `domain`, `owner`, `audio_digests` (base64url), `enrollment_digest`.

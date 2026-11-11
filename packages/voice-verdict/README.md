@@ -1,7 +1,8 @@
 # @seams/voice-verdict
 
-The checks of Speak-to-Sign, with no Seams Wallet and no chain. The package
-has no dependency. `@seams/voice-sign` uses it and adds the verifier call
+The checks of Speak-to-Sign, with no Seams Wallet and no chain, and the seal
+of a recording. The package has one dependency: the cipher `@noble/ciphers`,
+which only `sealAudio` uses. `@seams/voice-sign` uses it and adds the verifier call
 and the recording; most applications use that package. It runs in a browser, in Node.js 20 or later, in Deno, in Bun and
 in a Cloudflare Worker.
 
@@ -11,6 +12,7 @@ in a Cloudflare Worker.
 | Request | `confirmationRequest` | Builds a request for any payload, and its digest |
 | TDX quote | `checkAttestationBinding` | Checks that a TDX quote of OutLayer binds the verifier output to a WASM hash |
 | Intel signature | `checkQuoteSignature`, `checkQuoteCollateral` | Checks that an Intel TDX platform signed the quote, with a chain to Intel's root, and its TCB status |
+| Sealed audio | `sealAudio`, `readAudioKeyOutput` | Seals a recording to the verifier's audio key before it leaves the device, and checks the verifier's `audio_key` answer against the verdict key that you pin |
 
 A complete application is in
 [`examples/voice-confirm`](../../examples/voice-confirm).

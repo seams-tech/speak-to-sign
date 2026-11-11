@@ -1,14 +1,16 @@
 // Sealed audio for a confidential spoken request. A recording is sealed to the verifier's audio
-// key before it leaves the device, so the Seams server and OutLayer's coordinator carry only
+// key before it leaves the device, so the server between them and OutLayer's coordinator carry only
 // ciphertext. The verifier opens it inside its TEE (crates/voice-verifier/src/envelope.rs).
 //
 // The envelope is HPKE base mode (RFC 9180) with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and
 // ChaCha20-Poly1305. The key agreement and the key derivation are WebCrypto. WebCrypto has no
-// ChaCha20-Poly1305, so the cipher is `@noble/ciphers`, which the Wallet already ships. A sealed
-// clip is `enc || ciphertext || tag`. The `aad` is
+// ChaCha20-Poly1305, so the cipher is `@noble/ciphers`, the one dependency of this package. A
+// sealed clip is `enc || ciphertext || tag`. The `aad` is
 // `op || 0x00 || owner`, so a sealed clip opens only for that owner and that operation.
 //
-// This file imports only the cipher, so that an app can use it without the rest of the package.
+// This is the one implementation for every client: Seams Wallet, an application without a wallet
+// and the demo all seal with it. `tests/audioEnvelope.test.ts` seals the verifier's shared vector
+// to the same bytes.
 
 import { chacha20poly1305 } from '@noble/ciphers/chacha';
 
@@ -44,38 +46,34 @@ const X25519_BASE_POINT = (() => {
 export type SealedAudioOp = 'verify' | 'enroll' | 'select' | 'transcribe' | 'detect';
 
 /**
- * Seals one WAV to the verifier's audio key, for one operation of one owner. Each call uses a new
- * ephemeral key. The result is the verifier's `audio_sealed_b64` before base64.
+ * Seals one WAV to the verifier's audio key, for one operation of one owner. The result is the
+ * verifier's `audio_sealed_b64` before base64. Each call uses a new ephemeral key.
+ *
+ * `ephemeralIkm` is only for the shared vector `crates/voice-verifier/testdata/sealed_audio_v1.json`:
+ * it gives the ephemeral key (RFC 9180 DeriveKeyPair), so a fixed value gives fixed bytes.
  */
 export async function sealAudio(
   audioKey: Uint8Array,
   op: SealedAudioOp,
   owner: string,
   wav: Uint8Array,
+  ephemeralIkm?: Uint8Array,
 ): Promise<Bytes> {
-  const pair = (await crypto.subtle.generateKey({ name: 'X25519' }, false, ['deriveBits'])) as CryptoKeyPair;
-  const publicKey = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey));
-  return sealWith({ privateKey: pair.privateKey, publicKey }, audioKey, op, owner, wav);
+  return sealWith(ephemeralIkm ? await derivedKey(ephemeralIkm) : await newKey(), audioKey, op, owner, wav);
 }
 
-/**
- * Seals with the ephemeral key that `ikm` gives (RFC 9180 DeriveKeyPair). Only for the shared
- * vector `crates/voice-verifier/testdata/sealed_audio_v1.json`: a fixed `ikm` gives fixed bytes.
- */
-export async function sealAudioFromIkm(
-  ikm: Uint8Array,
-  audioKey: Uint8Array,
-  op: SealedAudioOp,
-  owner: string,
-  wav: Uint8Array,
-): Promise<Bytes> {
+async function newKey(): Promise<EphemeralKey> {
+  const pair = (await crypto.subtle.generateKey({ name: 'X25519' }, false, ['deriveBits'])) as CryptoKeyPair;
+  return { privateKey: pair.privateKey, publicKey: new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey)) };
+}
+
+async function derivedKey(ikm: Uint8Array): Promise<EphemeralKey> {
   const prk = await labeledExtract(KEM_SUITE, EMPTY, 'dkp_prk', ikm);
   const secret = await labeledExpand(KEM_SUITE, prk, 'sk', EMPTY, AUDIO_KEY_BYTES);
   const privateKey = await crypto.subtle.importKey('pkcs8', concat(X25519_PKCS8_PREFIX, secret), { name: 'X25519' }, false, [
     'deriveBits',
   ]);
-  const publicKey = await x25519(privateKey, X25519_BASE_POINT);
-  return sealWith({ privateKey, publicKey }, audioKey, op, owner, wav);
+  return { privateKey, publicKey: await x25519(privateKey, X25519_BASE_POINT) };
 }
 
 /**
@@ -97,16 +95,6 @@ export async function readAudioKeyOutput(output: unknown, verdictKey: Uint8Array
   } catch {
     return null;
   }
-}
-
-/** Standard base64 of a sealed clip (the verifier's `audio_sealed_b64`). */
-export function sealedBase64(sealed: Uint8Array): string {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let offset = 0; offset < sealed.length; offset += chunk) {
-    binary += String.fromCharCode(...sealed.subarray(offset, offset + chunk));
-  }
-  return btoa(binary);
 }
 
 type EphemeralKey = Readonly<{ privateKey: CryptoKey; publicKey: Bytes }>;

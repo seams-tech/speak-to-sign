@@ -466,7 +466,7 @@ Each top-level folder says what its contents are for.
 | `packages/wallet-voice-sign/` | `@seams/wallet-voice-sign` (until 0.66.0: `@seams/speak-to-sign`), the optional Speak-to-Sign plugin for a Seams Wallet host. It moved here from `seams-wallet` with its history. |
 | `packages/voice-sign/` | `@seams/voice-sign`, the library for an application with no wallet: record a sentence, call the verifier, check the verdict. It joins `voice-capture` and `voice-verdict`. |
 | `packages/voice-capture/` | `@seams/voice-capture`: records one spoken sentence in the browser. |
-| `packages/voice-verdict/` | `@seams/voice-verdict`: checks a signed verdict, a signed transcript and the TDX quote of a call. No dependency. |
+| `packages/voice-verdict/` | `@seams/voice-verdict`: checks a signed verdict, a signed transcript and the TDX quote of a call, and seals a recording to the verifier (`sealAudio`). One dependency, the cipher `@noble/ciphers`. |
 | `crates/voice-verdict/` | The verdict check in Rust, for a server or a contract. |
 | `examples/voice-confirm/` | A Web2 page and server with no wallet: enroll a voice and confirm an action. |
 | `demo/frontend/` | The Spoken Notes demo page: post and rate community notes by voice. See its README. |

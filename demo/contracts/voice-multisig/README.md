@@ -251,7 +251,11 @@ execute by a stranger, a wrong salt, deposits and the private methods.
 ## Deploy to testnet
 
 `multisig.seams-v1.testnet` is deployed since 2026-11-10 (deploy and `new`
-tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`, code `c3f420b8…e037`), with about 10.5 NEAR. The steps below are
+tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`, code `c3f420b8…e037`), with about 10.5 NEAR.
+On 2026-11-11 it got the code of `dev` 01dde86, with the hide of a note and the shared
+verdict check (255,550 bytes, SHA-256 `dc86875e…1531` in that build folder), with no init call:
+tx `DfXs4nJpJTMgiK5RnvfwAWdzEwiF6BnkokXGkY7J4rSk`. `set_notes_contract` to `notes.seams-v1.testnet`:
+tx `A3zL4SZ4iDXXLAzpYZNzZf8n3VqsFbEBTzR9Qk2mfDMu`. The config and the admins stayed. The steps below are
 the record and the way to deploy again. Each step waits for the owner's
 go-ahead. The first deploy, `team.seams-v1.testnet` (2026-11-10,
 code `d82479ab…e327`), had a cap of 0.05 NEAR. It stays on chain, and

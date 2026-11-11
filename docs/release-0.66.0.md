@@ -46,10 +46,16 @@ active version since 2026-11-11 (`set_active_version` tx
 `69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`), so a call with no `version_key` runs it.
 Before, 0.5.2 was active. Every known caller (the Wallet server, the demo
 routes) sends its own `version_key`, so none of them changed. The staging
-Wallet server runs 0.11.0 (before: 0.9.0) since 2026-11-11:
+Wallet server ran 0.11.0 (before: 0.9.0) from 2026-11-11:
 [seams-monorepo#72](https://github.com/seams-tech/seams-monorepo/pull/72)
 and the staging deploy run 42877155349. Its route
 `POST /speak-to-sign/v1/verify` is on (401 with no session).
+
+Later on 2026-11-11, verifier 0.12.0 (`bfe81633…`, sealed audio; plain audio
+works as before) became the active version (tx
+`HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`), and the staging Wallet server
+pins it ([seams-monorepo#73](https://github.com/seams-tech/seams-monorepo/pull/73)).
+The demo route `/api/voice-verify` runs 0.12.0 too.
 
 | Build | Version key | Has |
 | --- | --- | --- |

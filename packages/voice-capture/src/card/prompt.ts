@@ -257,6 +257,17 @@ const CSS = `
   overflow: visible;
 }
 .seams-voiceid-ribbon .seams-voiceid-ribbon-check { stroke: var(--seams-colors-colorBackground, #192024); }
+/* The theme can colour the voice line (with its ring and its seal) and its three echo lines,
+   and set their widths. With none of these values, the line has the card's text colour. */
+.seams-voiceid-ribbon { color: var(--seams-colors-voiceLine, currentColor); }
+.seams-voiceid-ribbon .seams-voiceid-ribbon-line { stroke-width: var(--seams-shape-voiceLineWidth, 1px); }
+.seams-voiceid-ribbon .seams-voiceid-ribbon-echo {
+  stroke-width: var(--seams-shape-voiceEchoWidth, 0.65px);
+  color: var(--seams-colors-voiceEcho, var(--seams-colors-voiceLine, currentColor));
+}
+.seams-voiceid-ribbon .seams-voiceid-ribbon-echo[data-layer="2"] {
+  color: var(--seams-colors-voiceEchoDeep, var(--seams-colors-voiceEcho, var(--seams-colors-voiceLine, currentColor)));
+}
 .seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-success-headline {
   display: grid;
   align-content: end;
@@ -468,6 +479,11 @@ const CSS = `
   grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 0;
 }
 .seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-record-slot { display: none; }
+/* A card that records by itself (autoStart) has no Record row: its rows sit in the middle. */
+.seams-voiceid-prompt[data-auto-start] {
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 0;
+}
+.seams-voiceid-prompt[data-auto-start] > .seams-voiceid-record-slot { display: none; }
 .seams-voiceid-prompt[data-phrase-view] .seams-voiceid-microphone { display: none; }
 .seams-voiceid-prompt .seams-voiceid-close { transition: opacity 150ms ease, visibility 0s linear 0s; }
 .seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-close {

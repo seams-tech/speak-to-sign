@@ -238,3 +238,62 @@ test('Record has the theme button colours, and the ink colours without them', as
     await recordColours({ ...ink, '--seams-colors-buttonBackground': 'rgb(29, 155, 240)', '--seams-colors-textButton': 'rgb(255, 255, 255)' }),
   ).toEqual({ background: 'rgb(29, 155, 240)', color: 'rgb(255, 255, 255)' });
 });
+
+test('the theme sets the voice line, its echoes and their widths, and today\'s look stays without it', async ({ page }) => {
+  // Opens a card on a page with these CSS variables, and reads the main line and an echo line.
+  const lineStyles = async (variables: Record<string, string>) => {
+    await page.goto(`${origin}/example/`);
+    return page.evaluate(async (variables) => {
+      for (const [name, value] of Object.entries(variables)) document.documentElement.style.setProperty(name, value);
+      document.documentElement.style.setProperty('--seams-colors-textPrimary', 'rgb(15, 20, 25)');
+      const module = '/browser/card.js';
+      const { openPhraseCard } = await import(module);
+      void openPhraseCard({ sentence: 'Send two NEAR to alice.testnet', signal: new AbortController().signal, detector: 'level' }).record();
+      const style = (selector: string) => {
+        const element = document.querySelector(`.seams-voiceid-ribbon ${selector}`)!;
+        return { color: getComputedStyle(element).color, width: getComputedStyle(element).strokeWidth };
+      };
+      return { line: style('.seams-voiceid-ribbon-line'), echo: style('.seams-voiceid-ribbon-echo[data-layer="1"]'), deep: style('.seams-voiceid-ribbon-echo[data-layer="2"]') };
+    }, variables);
+  };
+  const ink = { color: 'rgb(15, 20, 25)' };
+  expect(await lineStyles({})).toEqual({ line: { ...ink, width: '1px' }, echo: { ...ink, width: '0.65px' }, deep: { ...ink, width: '0.65px' } });
+  expect(
+    await lineStyles({
+      '--seams-colors-voiceLine': 'rgb(29, 155, 240)',
+      '--seams-colors-voiceEcho': 'rgb(131, 200, 247)',
+      '--seams-colors-voiceEchoDeep': 'rgb(22, 116, 180)',
+      '--seams-shape-voiceLineWidth': '2px',
+      '--seams-shape-voiceEchoWidth': '1.25px',
+    }),
+  ).toEqual({
+    line: { color: 'rgb(29, 155, 240)', width: '2px' },
+    echo: { color: 'rgb(131, 200, 247)', width: '1.25px' },
+    deep: { color: 'rgb(22, 116, 180)', width: '1.25px' },
+  });
+});
+
+test('a card with autoStart has no Record row, so it is shorter than a card that waits for a press', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  const result = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    // The newest card: a closed card stays in the page while it fades out.
+    const card = () => [...document.querySelectorAll<HTMLElement>('.seams-voiceid-prompt')].at(-1)!;
+    const sentence = 'Send two NEAR to alice.testnet';
+    const pressed = openPhraseCard({ sentence, signal: new AbortController().signal, detector: 'level' });
+    const withRecord = card().getBoundingClientRect().height;
+    pressed.close();
+    openPhraseCard({ sentence, signal: new AbortController().signal, detector: 'level', autoStart: true });
+    const auto = card();
+    return {
+      withRecord,
+      auto: auto.getBoundingClientRect().height,
+      marked: auto.hasAttribute('data-auto-start'),
+      slot: getComputedStyle(auto.querySelector('.seams-voiceid-record-slot')!).display,
+    };
+  });
+  expect(result.marked).toBe(true);
+  expect(result.slot).toBe('none');
+  expect(result.withRecord - result.auto).toBeGreaterThan(60);
+});

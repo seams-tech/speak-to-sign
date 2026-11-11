@@ -109,8 +109,10 @@ try {
 - `record()` resolves with `recorded` (the samples) or `cancelled`. A too quiet recording
   stays on the card with "Try again".
 - `autoStart: true` starts the first recording with no press on Record. Use it when the person
-  just asked for the card with a click or a key. If the browser starts audio only after a
-  press, the card keeps its Record button.
+  just asked for the card with a click or a key. The card then shows no Record button and has
+  no row for it, so it is shorter and its rows sit in the middle. If the browser starts audio
+  only after a press, the card shows its Record button; "Try again" and a result's button
+  bring the row back too.
 - `show()` resolves with `action` when the person selects the button of a result, `closed`
   when the person closes the card, or `replaced` when a new view or recording takes its place.
 - The card uses the CSS variables `--seams-colors-*`, `--seams-shape-*` and
@@ -118,6 +120,17 @@ try {
   Record and the other main buttons use `--seams-colors-buttonBackground` and
   `--seams-colors-textButton`. Without them, the main button has the text colour
   (`textPrimary`) with the card's background colour as its text.
+  The voice line and the Beam glow under it take these values, and keep today's look
+  without them:
+
+  | CSS variable | Theme key (Seams Wallet) | What it sets | Default |
+  | --- | --- | --- | --- |
+  | `--seams-colors-voiceLine` | `colors.voiceLine` | The voice line, its ring and its seal | The text colour |
+  | `--seams-colors-voiceEcho` | `colors.voiceEcho` | Echo lines 1 and 3 behind the line | `voiceLine` |
+  | `--seams-colors-voiceEchoDeep` | `colors.voiceEchoDeep` | Echo line 2 | `voiceEcho` |
+  | `--seams-colors-voiceBeam` | `colors.voiceBeam` | The Beam palette: `colorful`, `mono`, `ocean`, `sunset`, `forest`, `candy`, `ice` or `gold`. `mono` is grey, band included | `ocean` |
+  | `--seams-shape-voiceLineWidth` | `shape.voiceLineWidth` | The width of the voice line | `1px` |
+  | `--seams-shape-voiceEchoWidth` | `shape.voiceEchoWidth` | The width of the echo lines | `0.65px` |
   `data-theme="light"` or `"dark"` on the page selects the glow colours.
 - `frame` adds what a host needs: the parent element, more class names, the corner controls,
   and a callback when the card is in the document.

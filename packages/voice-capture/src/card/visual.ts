@@ -1,5 +1,5 @@
 import { createElement, render, type ComponentType } from 'preact';
-import { VoiceBeam, type VoiceBeamProps } from 'voice-glow';
+import { VoiceBeam, voicePalettes, type VoiceBeamColorVariant, type VoiceBeamProps } from 'voice-glow';
 import { styleNonce } from '../config';
 import type { VoiceActivityEvent } from '../microphone';
 import { VoiceRibbon, type VoiceCheckingStyle } from './ribbon';
@@ -8,6 +8,24 @@ import { VoiceRibbon, type VoiceCheckingStyle } from './ribbon';
 const VoiceBeamView = VoiceBeam as unknown as ComponentType<VoiceBeamProps>;
 
 type VisualPhase = 'idle' | 'listening' | 'processing';
+
+/** The Beam's palette without a theme value. */
+const DEFAULT_BEAM: VoiceBeamColorVariant = 'ocean';
+
+/**
+ * The band of the Beam in greys, for the `mono` palette: its own band has colour fringes in
+ * every palette, pink on light and red and blue on dark.
+ */
+const GREY_BAND: Record<'light' | 'dark', NonNullable<VoiceBeamProps['bandColors']>> = {
+  light: { core: '#8b98a5', above: '#cfd9de', mid: '#aab8c2', below: '#657786' },
+  dark: { core: '#ffffff', above: '#8b98a5', mid: '#cfd9de', below: '#536471' },
+};
+
+/** The theme's `voiceBeam`, the name of a Beam palette, or the default one. */
+export function beamPalette(value: string): VoiceBeamColorVariant {
+  const name = value.trim();
+  return Object.hasOwn(voicePalettes, name) ? (name as VoiceBeamColorVariant) : DEFAULT_BEAM;
+}
 
 /** Shared by enrollment, unlock and signing. The recorder remains the only audio owner. */
 export class VoiceVisual {
@@ -75,14 +93,17 @@ export class VoiceVisual {
     if (this.disposed) return;
     const theme = this.prompt.closest('[data-theme]')?.getAttribute('data-theme')
       ?? this.prompt.ownerDocument.documentElement.getAttribute('data-theme');
+    const mode = theme === 'light' ? 'light' : 'dark';
+    const palette = beamPalette(getComputedStyle(this.prompt).getPropertyValue('--seams-colors-voiceBeam'));
     render(createElement(VoiceBeamView, {
       className: 'seams-voiceid-beam',
-      theme: theme === 'light' ? 'light' : 'dark',
+      theme: mode,
+      ...(palette === 'mono' ? { bandColors: GREY_BAND[mode] } : {}),
       level: this.ribbon.readLevel,
       processing: this.phase === 'processing',
       active: this.phase !== 'idle',
       staticColors: true,
-      colorVariant: 'ocean',
+      colorVariant: palette,
       borderRadius: Number.parseFloat(getComputedStyle(this.prompt).borderRadius) || 16,
       children: null,
     }), this.glow);

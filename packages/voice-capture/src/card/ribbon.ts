@@ -122,12 +122,25 @@ export class VoiceRibbon {
         segment.dataset.seamsProgressSegment = String(index);
     }
     // The listening line stays the last path, above the ring parts it replaces.
-    for (let layer = 3; layer >= 0; layer -= 1)
-      this.lines.push(this.append(document, 'path', layer === 0 ? '1' : '0.65'));
+    // The theme can set the colours and the widths of these lines (prompt.ts: voiceLine,
+    // voiceEcho, voiceEchoDeep, voiceLineWidth, voiceEchoWidth).
+    for (let layer = 3; layer >= 0; layer -= 1) {
+      const line = this.append(document, 'path', layer === 0 ? '1' : '0.65');
+      line.classList.add(layer === 0 ? 'seams-voiceid-ribbon-line' : 'seams-voiceid-ribbon-echo');
+      if (layer > 0) line.dataset.layer = String(layer);
+      this.lines.push(line);
+    }
     this.paint(performance.now());
   }
 
   readonly readLevel = (): number => this.level;
+
+  /** The voice line's width now: 1, or the theme's `voiceLineWidth`. */
+  private lineWidth(): number {
+    const line = this.lines[this.lines.length - 1];
+    const width = line ? Number.parseFloat(getComputedStyle(line).strokeWidth) : Number.NaN;
+    return Number.isFinite(width) && width > 0 ? width : 1;
+  }
 
   setPhase(phase: RibbonPhase): void {
     if (phase === 'processing' && this.stage.kind === 'line') {
@@ -278,7 +291,7 @@ export class VoiceRibbon {
     for (const [index, segment] of [this.top, this.middle, this.bottom].entries()) {
       const start = index * (width + gap);
       segment.setAttribute('d', `M${start.toFixed(2)} ${MID}H${(start + width).toFixed(2)}`);
-      segment.setAttribute('stroke-width', '1');
+      segment.setAttribute('stroke-width', String(this.lineWidth()));
       segment.setAttribute('opacity', this.segmentOpacity(split, index));
     }
   }
@@ -308,7 +321,7 @@ export class VoiceRibbon {
     const lineOpacity = LINE_REST_OPACITY + amplitude * 0.4;
     for (const [half, turned] of [[this.top, false], [this.bottom, true]] as const) {
       half.setAttribute('d', this.halfPath(tail, head, turned, amplitude, waveScale));
-      half.setAttribute('stroke-width', lerp(1, 2, settled).toFixed(2));
+      half.setAttribute('stroke-width', lerp(this.lineWidth(), Math.max(2, this.lineWidth()), settled).toFixed(2));
       half.setAttribute('opacity', lerp(lineOpacity, 1, settled).toFixed(3));
     }
     this.middle.setAttribute('d', this.linePath(0, amplitude, BEND_START, WIDTH - BEND_START, waveScale));

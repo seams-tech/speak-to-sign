@@ -139,6 +139,13 @@ class CardSurface implements PhraseSurface {
       { label: PROMPT_LABEL, sentence: shown, message: PROMPT_MESSAGE, action: 'Record' },
       rows,
     );
+    // A card that records by itself shows no Record button and has no row for it, so its rows
+    // sit in the middle of the card. The row comes back when the card needs the button.
+    if (this.autoStart) {
+      this.prompt.record.hidden = true;
+      this.prompt.element.dataset.autoStart = '';
+      this.prompt.element.tabIndex = -1;
+    }
     this.element.append(this.prompt.element);
     this.prompt.record.addEventListener('click', this.press);
     const corner = controls === 'back' ? this.pressBack : this.pressClose;
@@ -151,7 +158,7 @@ class CardSurface implements PhraseSurface {
     // The host sizes its frame to this surface, so the card can follow the frame (fillFrame).
     if (frame.hugged) this.element.classList.add('seams-voiceid-hugged');
     this.unmounted = frame.mounted?.(this.element);
-    if (rows) this.prompt.element.focus({ preventScroll: true });
+    if (rows || this.autoStart) this.prompt.element.focus({ preventScroll: true });
     else this.prompt.record.focus();
     if (outer.aborted) this.cancel();
   }
@@ -173,6 +180,8 @@ class CardSurface implements PhraseSurface {
   }
 
   show(view: PhraseView): Promise<PhraseChoice> {
+    // A view has its own button row (a result's action), or none (a check).
+    delete this.prompt.element.dataset.autoStart;
     if (this.closed) return Promise.resolve('closed');
     this.settleChoice('replaced');
     this.view = view;
@@ -269,6 +278,7 @@ class CardSurface implements PhraseSurface {
 
   private retry(message: string, action = 'Try again'): void {
     this.started = false;
+    delete this.prompt.element.dataset.autoStart;
     this.prompt.record.textContent = action;
     this.prompt.ready(message);
     this.prompt.record.focus();

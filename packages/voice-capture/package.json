@@ -1,6 +1,6 @@
 {
   "name": "@seams/voice-capture",
-  "version": "0.68.0",
+  "version": "0.68.1",
   "type": "module",
   "description": "Records one spoken sentence in the browser, with speech detection, a quality check and a phrase card",
   "license": "Apache-2.0",

@@ -6,7 +6,7 @@
 export default {
   /** @param {unknown} _event @param {{ SITE_URL?: string }} env */
   async scheduled(_event, env) {
-    const site = (env.SITE_URL || 'https://seams-voice-intents.pages.dev').replace(/\/+$/, '');
+    const site = (env.SITE_URL || 'https://speak-to-sign.pages.dev').replace(/\/+$/, '');
     // A new query each time, so that no cache answers in place of the route.
     const url = `${site}/api/x/eligible-posts?limit=1&at=${Date.now()}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });

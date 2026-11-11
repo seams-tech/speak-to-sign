@@ -22,7 +22,7 @@ The Seams Wallet accepts sign-in only from the origins of your project.
    NEAR testnet environment.
 2. Add the origins of this page to the environment:
    - `http://localhost:5280` for `pnpm dev`.
-   - Your Cloudflare Pages origin, for example `https://seams-voice-intents.pages.dev`,
+   - Your Cloudflare Pages origin, for example `https://speak-to-sign.pages.dev`,
      and your custom domain if you add one.
 3. Copy the publishable key of the environment. A publishable key is public,
    but it works only from the origins of step 2.
@@ -51,7 +51,7 @@ The `VITE_*` settings are read at build time.
    of the project that allows your Pages origin.
 2. Log in once with `pnpm exec wrangler login`.
 3. Run `pnpm run deploy`. It builds `dist/` and uploads it to the Pages project
-   `seams-voice-intents` (`wrangler.toml`). Wrangler asks to create the project if it
+   `speak-to-sign` (`wrangler.toml`). Wrangler asks to create the project if it
    does not exist.
 
 If you use another project name, change `name` in `wrangler.toml`, and add the

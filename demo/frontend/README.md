@@ -177,7 +177,7 @@ signed output: one call, for a short time.
 There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
-The site has three pages on one origin, `https://seams-voice-intents.pages.dev`:
+The site has three pages on one origin, `https://speak-to-sign.pages.dev`:
 Community Notes at `/` (`index.html`), the voice multisig at `/multisig/`
 (`multisig/index.html`), and the Speak to pay example
 (`../../examples/speak-to-pay`) at `/pay/`. All use the same Seams project, so
@@ -561,15 +561,15 @@ Ask the project owner before you deploy or add a domain.
 With wrangler (direct upload), from `demo/frontend/`:
 
 ```bash
-pnpm exec wrangler pages project create seams-voice-intents --production-branch main
+pnpm exec wrangler pages project create speak-to-sign --production-branch main
 ```
 
 ```bash
-pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name seams-voice-intents
+pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name speak-to-sign
 ```
 
 ```bash
-pnpm exec wrangler pages secret put FAUCET_PRIVATE_KEY --project-name seams-voice-intents
+pnpm exec wrangler pages secret put FAUCET_PRIVATE_KEY --project-name speak-to-sign
 ```
 
 For the voice multisig, set the six `VOICE_OUTLAYER_*` variables the same way
@@ -578,14 +578,14 @@ the Seams staging verify route, and the two admin keys
 (`wrangler pages secret put MULTISIG_ADMIN_A_KEY …`, then `MULTISIG_ADMIN_B_KEY`).
 
 ```bash
-pnpm build:site && pnpm exec wrangler pages deploy dist --project-name seams-voice-intents --branch main
+pnpm build:site && pnpm exec wrangler pages deploy dist --project-name speak-to-sign --branch main
 ```
 
 Run `wrangler pages deploy` from `demo/frontend/`, so that it finds `functions/`.
 `--branch main` makes it the production deployment. Without it, wrangler uses
 the git branch, and the page gets a preview origin that staging does not allow.
 
-The live origin is `https://seams-voice-intents.pages.dev`. Seams staging must
+The live origin is `https://speak-to-sign.pages.dev`. Seams staging must
 allow it (CORS and the project's allowed origins), and also
 `http://localhost:5173` for local runs. If Cloudflare gives the project another
 `pages.dev` name, staging must allow that name instead.

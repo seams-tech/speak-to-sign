@@ -13,7 +13,7 @@
 # Its subject filter needs NEAR_AI_API_KEY, unless X_ELIGIBLE_TOPICS is "all".
 # Optional: X_ELIGIBLE_MAX, X_ELIGIBLE_TTL_SECONDS, X_ELIGIBLE_LANG, X_ELIGIBLE_TOPICS and a KV
 # binding X_CACHE.
-name = "seams-voice-intents"
+name = "speak-to-sign"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-11-01"
 

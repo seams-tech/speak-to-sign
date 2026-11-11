@@ -21,7 +21,7 @@ Every command below needs only this repo.
 
 You need a browser with passkeys and a microphone.
 
-1. Open <https://seams-voice-intents.pages.dev/>.
+1. Open <https://speak-to-sign.pages.dev/>.
 2. Do the three setup steps: **Create a wallet** (a passkey), **Set up your
    voice** (three short clips) and **Testnet NEAR and USDC** (the faucet).
 3. On a post, press **Write a note**, type a note and read its summary aloud.

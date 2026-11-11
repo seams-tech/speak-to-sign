@@ -14,4 +14,4 @@ preview_urls = false
 crons = ["0 */8 * * *"]
 
 [vars]
-SITE_URL = "https://seams-voice-intents.pages.dev"
+SITE_URL = "https://speak-to-sign.pages.dev"

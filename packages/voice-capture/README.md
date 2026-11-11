@@ -115,6 +115,9 @@ try {
   when the person closes the card, or `replaced` when a new view or recording takes its place.
 - The card uses the CSS variables `--seams-colors-*`, `--seams-shape-*` and
   `--seams-font-family` when the page sets them, and has its own values when it does not.
+  Record and the other main buttons use `--seams-colors-buttonBackground` and
+  `--seams-colors-textButton`. Without them, the main button has the text colour
+  (`textPrimary`) with the card's background colour as its text.
   `data-theme="light"` or `"dark"` on the page selects the glow colours.
 - `frame` adds what a host needs: the parent element, more class names, the corner controls,
   and a callback when the card is in the document.

@@ -24,9 +24,20 @@ import {
 
 import { callVerifierWithAttestation, type VerifierConfig, type VerifyOutput } from './client.ts';
 
-export { callVerifier, callVerifierWithAttestation, VerifierCallError } from './client.ts';
+export { callVerifier, callVerifierWithAttestation, relayToVerifier, VerifierCallError } from './client.ts';
 export type { IntentSpec } from '@seams/voice-verdict';
-export type { DetectOutput, EnrollOutput, TranscribeOutput, VerifierCall, VerifierConfig, VerifierInput, VerifyOutput } from './client.ts';
+export type {
+  DetectOutput,
+  EnrollOutput,
+  TranscribeOutput,
+  VerifierCall,
+  VerifierConfig,
+  VerifierInput,
+  VerifierOutput,
+  VerifierRecording,
+  VerifierRecordings,
+  VerifyOutput,
+} from './client.ts';
 
 /** A recording: a 16 kHz mono PCM16 WAV, as bytes or as standard base64. */
 export type Recording = Uint8Array | string;

@@ -129,18 +129,23 @@
   scroll-margin-top: 64px;
 }
 /* The post that "this one" means, and the numbers that the visitor can say. */
+/* "This one": a faint blue tint, on both page themes. */
 .tl-post.voice-focus {
-  box-shadow: inset 3px 0 0 var(--accent);
-  background: var(--accent-bg);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
+/* The number that a visitor can say ("the second post", "note 2"). It looks like the subject
+   chip of a post, so it stays quiet: the post's number sits at the right, after that chip. */
 .voice-number {
   flex: none;
-  padding: 1px 7px;
+  min-width: 1.5em;
+  padding: 2px 8px;
   border-radius: 9999px;
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 /* The bar covers the foot of the timeline, so the timeline ends higher. */

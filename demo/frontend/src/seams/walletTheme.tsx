@@ -22,8 +22,6 @@ interface PagePalette {
   raised: string;
   raised2: string;
   ink: string;
-  onInk: string;
-  inkHover: string;
   muted: string;
   line: string;
   lineStrong: string;
@@ -40,8 +38,6 @@ const X_LIGHT: PagePalette = {
   raised: '#f7f9f9', // --panel
   raised2: '#e8edf0', // --media
   ink: '#0f1419',
-  onInk: '#fff',
-  inkHover: '#272c30',
   muted: '#536471',
   line: '#eff3f4',
   lineStrong: '#cfd9de',
@@ -62,8 +58,6 @@ const LIGHTS_OUT: PagePalette = {
   raised: '#202327', // --media
   raised2: '#2a2d32',
   ink: '#e7e9ea',
-  onInk: '#0f1419',
-  inkHover: '#d7dbdc',
   muted: '#71767b',
   line: '#2f3336',
   lineStrong: '#3e4246',
@@ -87,13 +81,13 @@ function walletColors(base: Record<string, string>, p: PagePalette): Record<stri
     textPrimary: p.ink,
     textSecondary: p.muted,
     textMuted: p.muted,
-    textButton: p.onInk,
+    textButton: '#fff',
 
-    // The main button is the page's ink button: dark with white text on the light theme, light
-    // with dark text on Lights out. The other buttons have the card's background and a line, as
-    // X's second buttons do.
-    buttonBackground: p.ink,
-    buttonHoverBackground: p.inkHover,
+    // The main button is X's blue button with white text, on both themes, as the page's own main
+    // buttons are. The other buttons have the card's background and a line, as X's second
+    // buttons do.
+    buttonBackground: p.accent,
+    buttonHoverBackground: p.accentInk,
     secondaryButtonBackground: p.card,
     secondaryButtonHoverBackground: p.raised,
     secondaryButtonBorder: p.lineStrong,

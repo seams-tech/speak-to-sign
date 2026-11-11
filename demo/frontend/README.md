@@ -160,8 +160,8 @@ call spends admin gas, so add Cloudflare rate-limiting rules on
 A Community Notes page in the light style of X. You post a note and rate a
 note with your voice, through Seams Speak-to-Sign. Testnet only. The post is
 a real case that got a Community Note on X: the viral claim of 24 Oct 2026 that
-Claude Code found 145,763 deleted iPhone photos. The page stays away from
-political posts.
+Claude Code found 145,763 deleted iPhone photos. The posts from X can be about
+politics or health, but not about war, crime or adult content.
 
 - **Post a note.** You type the note. NEAR AI suggests a summary of 12 words
   or fewer. You read the summary aloud in the Seams Wallet card. The attested
@@ -503,8 +503,7 @@ the scroll area's round top corners are the sheet's corners at the nav. A post
 that opens starts at the top of the sheet.
 
 The app opens on the timeline. Its right column (`src/x/VoiceFeed.tsx`) has a
-search box for the look only, the box "Why sign by voice?" with three short
-reasons, and "Signed by voice": the newest notes with the sentence that each
+search box for the look only, and "Signed by voice": the newest notes with the sentence that each
 author said, shown only when there is a note. "Home" in the app's navigation opens the timeline. The voice
 multisig page (`/multisig/`) keeps the page with a small screen and a window
 (`Showcase.tsx`).

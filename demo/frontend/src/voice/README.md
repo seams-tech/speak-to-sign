@@ -34,13 +34,13 @@ that opens a signing step waits for the end of the sentence.
 
 ## What the visitor can point at
 
-- "This one" is the post at the centre of the view. It has a blue edge. If
+- "This one" is the post at the centre of the view. It has a faint blue tint. If
   the centre is between two posts, "this one" is the next post (the lower
   one). "Next post" and "scroll to the third post" bring a post to the centre.
-- 8 posts have a number: the post above "this one", "this one" and the posts
-  below it. Their notes have their own numbers ("Note 2"), so "the second
-  note" is the second note on the screen. The numbers move when the visitor
-  scrolls.
+- 8 posts have a number, in a grey chip at the right of the post's head. Their
+  notes have their own numbers ("Note 2"), so "the second note" is the second
+  note on the screen. The numbers stay while "this one" is among the 8 posts.
+  When it leaves them, the numbers start again one post above it.
 - A bet needs a note with an open market. "Open a market on this note" starts one. A bet on a
   note with no market opens the market first, and the bet comes next. The owner says "Open a
   prediction market on this note" in the Wallet: the open is a spoken transaction too.

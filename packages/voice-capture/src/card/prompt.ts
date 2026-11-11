@@ -319,8 +319,9 @@ const CSS = `
   font-weight: 500;
   border: 0;
   border-radius: var(--seams-shape-control, 10px);
-  background: var(--seams-colors-textPrimary, #eff2f3);
-  color: var(--seams-colors-colorBackground, #192024);
+  /* The theme's main button. A page that sets no button colours keeps the ink button. */
+  background: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3));
+  color: var(--seams-colors-textButton, var(--seams-colors-colorBackground, #192024));
 }
 .seams-voiceid-prompt .seams-voiceid-primary {
   transition: opacity 180ms ease, visibility 0s linear 0s;

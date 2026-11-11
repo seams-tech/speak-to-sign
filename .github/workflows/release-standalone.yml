@@ -4,7 +4,8 @@ name: Release the standalone libraries
 # this order:
 #   1. @seams/voice-verdict   checks what the verifier signed
 #   2. @seams/voice-capture   records one sentence in the browser
-#   3. @seams/voice-sign      joins both; it depends on the exact versions of 1 and 2
+#   3. @seams/voice-sign      joins both; it depends on the exact version of 1, and 2 is an
+#                             optional peer of the same version (only its ./browser needs 2)
 #
 # They need no Seams Wallet package. The Seams Wallet plugin (@seams/wallet-voice-sign, until
 # 0.66.0 @seams/speak-to-sign) is not in this repository any more: its flow is a part of
@@ -50,9 +51,13 @@ jobs:
             test "$(node -p "require('./packages/$package/package.json').version")" = "$RELEASE_VERSION"
             test "$(node -p "require('./packages/$package/package.json').private === true")" = "false"
           done
-          for name in @seams/voice-verdict @seams/voice-capture; do
-            test "$(node -p "require('./packages/voice-sign/package.json').dependencies['$name']")" = "$RELEASE_VERSION"
-          done
+          # voice-sign depends on voice-verdict. voice-capture is an optional peer: only ./browser
+          # imports it, so a server install has no ONNX runtime.
+          sign=./packages/voice-sign/package.json
+          test "$(node -p "require('$sign').dependencies['@seams/voice-verdict']")" = "$RELEASE_VERSION"
+          test "$(node -p "require('$sign').peerDependencies['@seams/voice-capture']")" = "$RELEASE_VERSION"
+          test "$(node -p "require('$sign').devDependencies['@seams/voice-capture']")" = "$RELEASE_VERSION"
+          test "$(node -p "require('$sign').peerDependenciesMeta['@seams/voice-capture'].optional")" = "true"
 
       - name: Build and test @seams/voice-verdict
         working-directory: packages/voice-verdict

@@ -339,7 +339,7 @@ test('classifyPosts sends the posts as numbered data and gives "other" for a mis
 
 test('the filter is on by default and needs the NEAR AI key', async () => {
   const settings = settingsOf(FILTER_ENV);
-  assert.deepEqual([...settings.filter!.allowed], ['sport', 'science', 'technology', 'business', 'entertainment']);
+  assert.deepEqual([...settings.filter!.allowed], ['sport', 'science', 'technology', 'business', 'entertainment', 'politics', 'health']);
   assert.deepEqual([...settingsOf({ ...FILTER_ENV, X_ELIGIBLE_TOPICS: ' Sport, politics ,nonsense' }).filter!.allowed], ['sport', 'politics']);
   assert.equal(settingsOf({ ...FILTER_ENV, X_ELIGIBLE_TOPICS: 'sport,all' }).filter, null);
   assert.equal(readSettings({ ...FILTER_ENV, NEAR_AI_API_KEY: '' }), 'no-filter-key');
@@ -350,13 +350,13 @@ test('the filter is on by default and needs the NEAR AI key', async () => {
 });
 
 test('the route shows only allowed subjects, sorts each post once and collects posts over time', async () => {
-  const services = fakeServices([xPosts('1', '2', '3'), xPosts('3', '4')], [aiSays('1: sport\n2: politics\n3: science'), aiSays('1: business')]);
+  const services = fakeServices([xPosts('1', '2', '3'), xPosts('3', '4')], [aiSays('1: sport\n2: war\n3: science'), aiSays('1: business')]);
   const store = fakeStore();
   const at = (now: number): Deps => ({ fetch: services.fetch, store: store.store, now: () => now, nonce: () => 'n' });
 
   const first = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0))).json()) as { posts: { id: string; topic: string }[] };
   assert.deepEqual(first.posts.map((post) => [post.id, post.topic]), [['3', 'science'], ['1', 'sport']]);
-  assert.deepEqual(store.current()?.topics, { '1': 'sport', '2': 'politics', '3': 'science' });
+  assert.deepEqual(store.current()?.topics, { '1': 'sport', '2': 'war', '3': 'science' });
 
   // One hour later X gives post 3 again and the new post 4. Only post 4 goes to the model.
   const second = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0 + 3_600_000))).json()) as { posts: { id: string }[] };
@@ -437,7 +437,7 @@ test('draftNotes never fails: a post without a valid answer gets the draft of it
 
 test('the route gives each shown post a draft once, and keeps it', async () => {
   const drafted = aiSays('NOTE 1: The post gives a score and no source.\nSAY 1: this score has no source');
-  const services = fakeServices([xPosts('1', '2'), xPosts('1')], [aiSays('1: sport\n2: politics')], [drafted]);
+  const services = fakeServices([xPosts('1', '2'), xPosts('1')], [aiSays('1: sport\n2: war')], [drafted]);
   const store = fakeStore();
   const at = (now: number): Deps => ({ fetch: services.fetch, store: store.store, now: () => now, nonce: () => 'n' });
   const first = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0))).json()) as { posts: { id: string; draft: unknown }[] };

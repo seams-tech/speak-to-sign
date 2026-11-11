@@ -20,6 +20,7 @@ import type { Note } from '../notes/types';
 import { MAX_SCREEN_POSTS, type Screen, type TimelineTab, type VoiceCommand } from '../voice/command';
 import { VoiceBar } from '../voice/VoiceBar';
 import { controversy } from './controversy';
+import { X_POSTS_LINE } from './xPosts';
 import './timeline.css';
 
 type Tab = TimelineTab;
@@ -353,7 +354,7 @@ export function Timeline() {
         <p className="xt-foot muted">
           {xPostsState === 'loading' && 'Loading the posts from X…'}
           {xPostsState === 'error' && 'The posts from X are not available now.'}
-          {xPostsState === 'ready' && 'New posts from X 3 times a day. Sport, science, technology, business and entertainment only.'}
+          {xPostsState === 'ready' && X_POSTS_LINE}
         </p>
       )}
     </>
@@ -453,16 +454,16 @@ function PostCard({
       <Avatar author={post.author} />
       <div className="tl-main">
         <div className="tl-head">
-          {voice && (
-            <span className="voice-number" aria-label={`Post ${voice.number}`}>
-              {voice.number}
-            </span>
-          )}
           <b className="name">{post.author.name}</b>
           <AuthorBadge author={post.author} />
           <span className="handle muted">@{post.author.handle}</span>
           <span className="muted xt-age">· {post.age}</span>
           <span className="xt-topic">{post.topic ?? 'Demo'}</span>
+          {voice && (
+            <span className="voice-number" aria-label={`Post ${voice.number}`}>
+              {voice.number}
+            </span>
+          )}
         </div>
         <div className={post.linkify ? 'tl-text xt-text' : 'tl-text'}>
           <PostText post={post} />

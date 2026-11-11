@@ -2240,6 +2240,31 @@ button.ss-seams {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.92);
 }
+/* Three short reasons in one row under the text, each after a dot. They wrap on a phone. */
+.ss-hero-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.8);
+}
+.ss-hero-points li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ss-hero-points li::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
 
 /* The sheet: the notes app, as a part of the page. The page is the one scroll area: one
    gesture moves the sheet up over the hero and then goes on down the feed. The sheet is at

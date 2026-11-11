@@ -13,9 +13,20 @@ check each claim.
 4. Seams Wallet core checks the verdict against a pinned key. Then it signs `add_note` (or `rate_note`) on `notes.seams-v1.testnet` from the owner's own account.
 5. Wallet core refuses a verdict for another note or another summary. The verifier refuses spoken words that add or drop a "not".
 
-**Why voice and not a passkey click?** A passkey click shows that a device
-approved something, not what the person agreed to. Here the owner must say
-the words, and the verdict binds that voice and those words to one note.
+**Why sign by voice?**
+
+- **Each note needs the owner's voice.** You read the summary of each note
+  aloud, and the verifier compares the voice with the voice that the owner
+  enrolled. A bot cannot post a note without that voice. A good clone can
+  still pass: this build has no liveness check (see [Trust limits](#trust-limits)).
+- **No blind signing.** A passkey click shows that a device approved
+  something, not what the person agreed to. Here the Wallet signs only when
+  the spoken words match the request, so the words of a phishing request do
+  not match.
+- **One sentence is the approval.** The verifier signs a verdict that binds
+  the voice, the heard words and the request. Wallet core signs only with
+  that verdict, so one spoken sentence is both the check of the person and
+  the approval of the call.
 
 | Item        | Link                                                    |
 | ----------- | ------------------------------------------------------- |

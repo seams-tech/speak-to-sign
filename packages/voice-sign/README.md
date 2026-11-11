@@ -18,6 +18,16 @@ It has two entry points:
 | `@seams/voice-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
 | `@seams/voice-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
 
+Install it with the libraries that your code imports:
+
+```bash
+pnpm add @seams/voice-sign                        # a server: ./server only
+pnpm add @seams/voice-sign @seams/voice-capture   # a page: ./browser needs voice-capture too
+```
+
+`@seams/voice-capture` is an optional peer dependency of the same version.
+Only `./browser` imports it, so a server install has no ONNX runtime.
+
 Seams Wallet has its own Speak-to-Sign flow, inside `@seams/wallet`. Its plugin package
 `@seams/wallet-voice-sign` (up to 0.66.0 `@seams/speak-to-sign`) is no longer developed. This library needs no wallet.
 
@@ -144,6 +154,28 @@ and it can be wrong. Do not let it approve an action with value: show the
 proposed action, then use `confirm` or `select`. `intent: null` means that
 the model named no intent of the list. The chat model is slow (about 11 s),
 so set `verifier.timeoutMs` and `verifier.resourceLimits` for it.
+
+### A server between the page and the verifier
+
+`relayToVerifier` sends an input that your server does not read. Use it
+when the page builds the input itself, for example with a recording that
+the page sealed to the verifier's audio key (`sealAudio` of
+`@seams/voice-verdict`, field `audio_sealed_b64`, verifier 0.12.0 and
+later). Your server then carries only ciphertext. The Seams Wallet server
+relays the Wallet's calls this way.
+
+```ts
+import { relayToVerifier, VerifierCallError } from '@seams/voice-sign/server';
+
+if (input.owner !== ownerOfThisSession) throw new Error('not your voice');
+const { output } = await relayToVerifier(verifier, input);
+```
+
+It gives the output unchanged, but only an output of a known kind. Other
+answers throw `VerifierCallError` (`timeout`, `network`, `http` or
+`output`). The output is not proof: the page or your server checks it with
+`checkVerdict`. Check `owner` first. Your payment key pays for each run and
+is the authority for the enrollment of each owner.
 
 ## Limits
 

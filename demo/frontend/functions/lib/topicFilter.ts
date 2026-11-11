@@ -21,8 +21,8 @@ export const TOPICS = [
 ] as const;
 export type Topic = (typeof TOPICS)[number];
 
-/** The subjects that the demo shows when X_ELIGIBLE_TOPICS is not set. */
-export const DEFAULT_ALLOWED_TOPICS: readonly Topic[] = ['sport', 'science', 'technology', 'business', 'entertainment'];
+/** The subjects that the demo shows when X_ELIGIBLE_TOPICS is not set: all but war, crime, adult and other. */
+export const DEFAULT_ALLOWED_TOPICS: readonly Topic[] = ['sport', 'science', 'technology', 'business', 'entertainment', 'politics', 'health'];
 
 export function isTopic(value: unknown): value is Topic {
   return typeof value === 'string' && (TOPICS as readonly string[]).includes(value);

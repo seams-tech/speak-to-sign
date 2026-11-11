@@ -47,7 +47,8 @@ export interface Env {
   X_ELIGIBLE_LANG?: string;
   /**
    * Optional. The subjects to show, as a comma list (see TOPICS in functions/lib/topicFilter.ts).
-   * Default: sport, science, technology, business, entertainment. "all" turns the filter off.
+   * Default: sport, science, technology, business, entertainment, politics, health. "all" turns
+   * the filter off.
    */
   X_ELIGIBLE_TOPICS?: string;
   /** The key of the subject filter. Required unless X_ELIGIBLE_TOPICS is "all". */

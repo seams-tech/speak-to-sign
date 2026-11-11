@@ -278,9 +278,9 @@ Expected:
 ```
 
 The active version, which a caller gets when it sets no `version_key`, is
-`96b79b51…`. It is verifier 0.5.2, the source on this branch, added on
-2026-11-09 at 17:04 UTC. It is 0.5.1 with the code reorganised: the signed
-output is the same, except the version.
+`bfe81633…`, verifier 0.12.0, since 2026-11-11 (`set_active_version` tx
+`HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`). Before, 0.11.0 and, until
+2026-11-11, 0.5.2 (`96b79b51…`) were active.
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -c '{owner, active_version}'
@@ -289,17 +289,17 @@ view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifie
 Expected:
 
 ```text
-{"owner":"seams-v1.testnet","active_version":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5"}
+{"owner":"seams-v1.testnet","active_version":"bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946"}
 ```
 
 ```bash
-view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5"}' | jq -c '{wasm_hash, is_active, added_at}'
+view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946"}' | jq -c '{wasm_hash, is_active, added_at}'
 ```
 
 Expected:
 
 ```text
-{"wasm_hash":"96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5","is_active":true,"added_at":1794243895396184670}
+{"wasm_hash":"bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946","is_active":true,"added_at":1794361644287580200}
 ```
 
 The notes contract `notes.seams-v1.testnet` answers `get_notes`. Note 1 is

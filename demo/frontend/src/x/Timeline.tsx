@@ -128,23 +128,34 @@ function scrollParent(element: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** Brings a post's card to the top of the view, where it is "this one" for a voice command. */
+/** Brings a post's card to the centre of the view, where it is "this one" for a voice command. */
 function focusCard(postId: number) {
-  document.getElementById(postCardId(postId))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById(postCardId(postId))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/** The height of the line across the middle of the part of the view where `element` scrolls. */
+function viewCentre(element: HTMLElement): number {
+  const scroller = scrollParent(element)?.getBoundingClientRect();
+  const top = Math.max(0, scroller?.top ?? 0);
+  const bottom = Math.min(window.innerHeight, scroller?.bottom ?? window.innerHeight);
+  return (top + bottom) / 2;
 }
 
 /**
  * The post that "this one" means while the voice bar is on: the first of `ids` (post ids with
- * commas) whose card crosses the line at a third of the view's height, or the first one below it.
+ * commas, in timeline order) whose card is on the line across the middle of the view. If the
+ * line is between two cards, or on the edge between them, it is the next card: the one below.
  */
 function useFocusedPost(ids: string, active: boolean): number | null {
   const [focused, setFocused] = useState<number | null>(null);
   const read = useCallback(() => {
-    const line = window.innerHeight / 3;
+    let line: number | null = null;
     let found: number | null = null;
     for (const id of ids === '' ? [] : ids.split(',').map(Number)) {
-      const box = document.getElementById(postCardId(id))?.getBoundingClientRect();
-      if (box && box.bottom > line) {
+      const card = document.getElementById(postCardId(id));
+      if (!card) continue;
+      line ??= viewCentre(card);
+      if (card.getBoundingClientRect().bottom > line) {
         found = id;
         break;
       }
@@ -215,8 +226,8 @@ export function Timeline() {
           .map(({ card }) => card)
       : cards.filter((card) => tab === 'fresh' || marketTab(marketOf(card), now) === tab);
 
-  // Voice commands (src/voice). With the bar on, the first posts and their notes show the
-  // numbers that the visitor can say, and the post at the top of the view is "this one".
+  // Voice commands (src/voice). With the bar on, the post at the centre of the view is "this
+  // one". It and the posts near it show the numbers that the visitor can say, with their notes.
   // The bar stays on across a reload. The browser's storage can be off: the bar then starts off.
   const [voiceOn, setVoiceOnState] = useState(() => {
     try {
@@ -236,8 +247,18 @@ export function Timeline() {
   const [voiceBet, setVoiceBet] = useState<VoiceBet | null>(null);
   /** The start of the timeline: a new tab shows its posts from here. */
   const timelineTop = useRef<HTMLDivElement>(null);
-  const spoken = visible.slice(0, MAX_SCREEN_POSTS);
-  const focusedPostId = useFocusedPost(spoken.map((card) => card.post.id).join(','), voiceOn);
+  const focusedPostId = useFocusedPost(visible.map((card) => card.post.id).join(','), voiceOn);
+  // The posts that the classifier sees and that have numbers: 8 posts from `first`. The numbers
+  // stay while "this one" is among them. When it leaves them, they start again one post above
+  // it. So "this one" always has a number, and a number does not change under the visitor.
+  const focusIndex = visible.findIndex((card) => card.post.id === focusedPostId);
+  const [first, setFirst] = useState(0);
+  const lastFirst = Math.max(0, visible.length - MAX_SCREEN_POSTS);
+  const outside = focusIndex >= 0 && (focusIndex < first || focusIndex >= first + MAX_SCREEN_POSTS);
+  const nextFirst = Math.min(outside ? Math.max(0, focusIndex - 1) : first, lastFirst);
+  if (nextFirst !== first) setFirst(nextFirst);
+  const spoken = visible.slice(nextFirst, nextFirst + MAX_SCREEN_POSTS);
+  const postNumbers = new Map(spoken.map((card, index) => [card.post.id, index + 1]));
   const noteNumbers = new Map(spoken.filter((card) => card.note).map((card, index) => [card.post.id, index + 1]));
   const screen = (): Screen => ({
     posts: spoken.map(({ post, note }) => ({ postId: post.id, author: post.author.name, text: post.text, note: note?.text })),
@@ -251,12 +272,12 @@ export function Timeline() {
     }
     if (command.kind === 'none') return { ok: true, text: 'No command in that sentence.' };
     if (command.kind === 'move') {
-      // From the focused post. With no post in view, "next" is the first post.
-      const from = spoken.findIndex((candidate) => candidate.post.id === focusedPostId);
-      const target = spoken[command.to === 'next' ? from + 1 : from - 1];
-      if (!target) return { ok: false, text: command.to === 'next' ? 'This is the last post with a number.' : 'This is the first post.' };
+      // From the focused post, to any post of the tab. With no post in view, "next" is the first post.
+      const target = visible[command.to === 'next' ? focusIndex + 1 : focusIndex - 1];
+      if (!target) return { ok: false, text: command.to === 'next' ? 'This is the last post.' : 'This is the first post.' };
       focusCard(target.post.id);
-      return { ok: true, text: `Post ${spoken.indexOf(target) + 1}, by ${target.post.author.name}.` };
+      // No number: the numbers can start again when the post comes to the centre.
+      return { ok: true, text: `The post by ${target.post.author.name}.` };
     }
     if (command.kind === 'go') {
       const target = spoken.find((candidate) => candidate.post.id === command.postId);
@@ -311,13 +332,17 @@ export function Timeline() {
       <div ref={timelineTop} aria-hidden="true" />
       <h1 className="sr-only">Posts that need context</h1>
       <TabBar tab={tab} onTab={setTab} />
-      {visible.map(({ post, note }, index) => (
+      {visible.map(({ post, note }) => (
         <PostCard
           key={post.id}
           post={post}
           note={note}
           market={note ? markets[note.marketNoteId] : null}
-          voice={voiceOn && index < MAX_SCREEN_POSTS ? { number: index + 1, noteNumber: noteNumbers.get(post.id), focused: post.id === focusedPostId } : undefined}
+          voice={
+            voiceOn && postNumbers.has(post.id)
+              ? { number: postNumbers.get(post.id) ?? 0, noteNumber: noteNumbers.get(post.id), focused: post.id === focusedPostId }
+              : undefined
+          }
           voiceBet={voiceBet?.postId === post.id ? voiceBet : undefined}
         />
       ))}

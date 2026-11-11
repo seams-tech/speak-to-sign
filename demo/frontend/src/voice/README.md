@@ -33,9 +33,13 @@ that opens a signing step waits for the end of the sentence.
 
 ## What the visitor can point at
 
-- The first 8 posts of the tab have a number. Their notes have their own
-  numbers ("Note 2"), so "the second note" is the second note on the screen.
-- "This one" is the post at the top of the view. It has a blue edge.
+- "This one" is the post at the centre of the view. It has a blue edge. If
+  the centre is between two posts, "this one" is the next post (the lower
+  one). "Next post" and "scroll to the third post" bring a post to the centre.
+- 8 posts have a number: the post above "this one", "this one" and the posts
+  below it. Their notes have their own numbers ("Note 2"), so "the second
+  note" is the second note on the screen. The numbers move when the visitor
+  scrolls.
 - A bet needs a note with an open market. "Open a market on this note" starts one. A bet on a
   note with no market opens the market first, and the bet comes next. The owner says "Open a
   prediction market on this note" in the Wallet: the open is a spoken transaction too.

@@ -51,7 +51,7 @@ export interface ScreenPost {
  */
 export interface Screen {
   posts: ScreenPost[];
-  /** The post that "this one" means: the card at the top of the view. */
+  /** The post that "this one" means: the card at the centre of the view (the next one on a tie). */
   focusedPostId: number | null;
 }
 

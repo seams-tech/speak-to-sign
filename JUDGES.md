@@ -11,10 +11,10 @@ words, and signs a verdict that binds both to the digest of the request.
 Seams Wallet core signs the call only with a verdict for that request.
 Testnet only.
 
-Wallet core is the npm dependency `@seams/wallet` 0.63.0, which the demo pins
+Wallet core is the npm dependency `@seams/wallet` 0.67.0, which the demo pins
 in `demo/frontend/package.json`. It checks the verdict against a pinned key
 and signs only a matching request. Its source is
-[`seams-wallet` at 0.63.0](https://github.com/seams-tech/seams-wallet/tree/6373a68a726c28c8d835a9e91359955353dc811b).
+[`seams-wallet` at 0.67.0](https://github.com/seams-tech/seams-wallet/tree/6ae9e42a93ec1df5f958256b0427bb8e403137ed).
 Every command below needs only this repo.
 
 ## See it in 2 minutes

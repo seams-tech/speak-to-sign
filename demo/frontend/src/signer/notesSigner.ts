@@ -1,7 +1,7 @@
 // The seam between this page and the wallet that signs.
 //
 // The UI codes only against the types in this file. src/signer/seamsSigner.ts fills it with
-// the Seams Wallet: `seams.speakToSign.requestNote`, `requestRating` and `enroll`.
+// the Seams Wallet: `seams.near.speakToSign.typed.note`, `typed.rating` and `enroll`.
 
 export type Rating = 'helpful' | 'somewhat_helpful' | 'not_helpful';
 

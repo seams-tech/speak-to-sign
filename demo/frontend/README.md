@@ -355,14 +355,14 @@ screen shows **Finish the proposal**.
 
 - `src/showcase/main.tsx` wraps the page in one `SeamsWebProvider` with the configuration
   from `src/seams/seamsConfig.ts`: `seamsTestnetConfig` with the publishable
-  key, VoiceID, and Speak-to-Sign on testnet. SDK 0.60.0 derives the passkey
+  key, VoiceID, and Speak-to-Sign on testnet. The SDK derives the passkey
   RP ID (the Wallet host) and the Router A/B signing worker from the Wallet origin.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
-- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.60.0):
-  - `requestNote` → `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`
-  - `requestRating` → `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`
+- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.67.0, `seams.near.speakToSign`):
+  - `requestNote` → `seams.near.speakToSign.typed.note({ walletId, contract, postId, text, summary })`
+  - `requestRating` → `seams.near.speakToSign.typed.rating({ walletId, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.setAuthMethodEnabled` when the owner turned VoiceID off
-  - `enroll` → `seams.speakToSign.enroll({ walletId })`, which also turns on VoiceID for a new wallet
+  - `enroll` → `seams.near.speakToSign.enroll({ walletId })`, which also turns on VoiceID for a new wallet
   - Each SDK refusal (`speaker`, `words`, `summary_not_speakable`, …) becomes a
     reason in plain words.
 - `src/components/SignInModal.tsx` shows the SDK's `HostedSeamsAuthMenu`. The

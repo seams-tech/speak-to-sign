@@ -1,4 +1,4 @@
-// The real signer: Seams Wallet Speak-to-Sign (SDK 0.66.0, `seams.near.speakToSign`).
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.67.0, `seams.near.speakToSign`).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe (its card shows in the
 // page's open dialog, src/signer/voiceCard.ts): the owner says the

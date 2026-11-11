@@ -2,6 +2,9 @@
 # Builds the release WASM of the voice-multisig contract and prints its size
 # and SHA-256. The toolchain comes from rust-toolchain.toml (Rust 1.97.0).
 # Output: res/voice_multisig.wasm
+# This fast local build is for the sandbox tests. Its bytes depend on the
+# computer. For a deploy, use ../reproducible.sh build voice-multisig: it gives the
+# same bytes on any computer.
 set -euo pipefail
 cd "$(dirname "$0")"
 

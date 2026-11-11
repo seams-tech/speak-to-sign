@@ -54,8 +54,8 @@ The build of 11 Nov 2026 gave:
 
 The deployed code is this build, since the redeploy of 2026-11-11 (see
 "Testnet"). SourceScan built the commit again and got the same code hash, so
-NearBlocks shows the code as verified: the "Contract" tab of
-<https://testnet.nearblocks.io/address/seams-faucet.testnet>.
+NearBlocks shows the code as verified at
+<https://testnet.nearblocks.io/address/seams-faucet.testnet/contract>.
 
 ### Local build
 

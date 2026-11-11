@@ -1,11 +1,11 @@
 # Demo contracts
 
-| Folder                                             | Contract                                            | Testnet account               |
-| -------------------------------------------------- | --------------------------------------------------- | ----------------------------- |
-| [`community-notes/`](community-notes/)             | community notes and ratings, with 0 deposit         | `notes.seams-v1.testnet`      |
-| [`voice-multisig/`](voice-multisig/)               | a NEAR transfer that a voice verdict proposes      | `multisig.seams-v1.testnet`   |
-| [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | `pm-notes.seams-v1.testnet`   |
-| [`faucet/`](faucet/)                               | testnet USDC and NEAR for a new account, once       | `seams-faucet.testnet`        |
+| Folder | Contract | Testnet account |
+| ------ | -------- | --------------- |
+| [`community-notes/`](community-notes/) | community notes and ratings, with 0 deposit | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) |
+| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed by voice | [`multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract) |
+| [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
+| [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 
 ## Reproducible build
 
@@ -60,7 +60,7 @@ rebase.
 Since 2026-11-11, the four testnet contracts run the builds of commit
 `777b844`, with no init call (the state stayed). SourceScan built each one
 again and got the same code hash, so NearBlocks shows each one as verified on
-its "Contract" tab.
+its contract page.
 
 | Contract                    | Code hash (base58)                             | Redeploy transaction                           |
 | --------------------------- | ---------------------------------------------- | ---------------------------------------------- |

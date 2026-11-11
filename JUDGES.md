@@ -96,8 +96,8 @@ git clone https://github.com/seams-tech/speak-to-sign
    The code hash is the base58 form of `0b821a5c…7f80`, the SHA-256 in
    `demo/contracts/community-notes/reproducible.sha256`. SourceScan built
    that commit again and got the same code hash, so NearBlocks shows the code
-   as verified (the "Contract" tab of
-   <https://testnet.nearblocks.io/address/notes.seams-v1.testnet>). To build
+   as verified
+   (<https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract>). To build
    it yourself, see README step 4 (Docker and cargo-near 0.22.0). The other
    three demo contracts are reproducible builds of the same commit, and
    SourceScan verified them too (`demo/contracts/README.md`).

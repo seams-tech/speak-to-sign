@@ -169,9 +169,10 @@ The build of 11 Nov 2026 gave:
 
 `reproducible.sha256` holds the same commit and SHA-256.
 
-The deployed code (code hash `GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP`,
-the upgrade of 2026-11-11 in "Testnet deployment") is not this build. It came
-from the local build below, of `dev` 01dde86.
+The deployed code is this build, since the redeploy of 2026-11-11 (see
+"Testnet deployment"). SourceScan built the commit again and got the same
+code hash, so NearBlocks shows the code as verified: the "Contract" tab of
+<https://testnet.nearblocks.io/address/notes.seams-v1.testnet>.
 
 ### Local build
 
@@ -212,11 +213,12 @@ Deployed on 9 Nov 2026 from commit `7f0e014`.
 | Item                | Value                                                                  |
 | ------------------- | ---------------------------------------------------------------------- |
 | Contract account    | `notes.seams-v1.testnet` (created by `seams-v1.testnet` with 5 NEAR)   |
-| Code hash (base58)  | `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY`, the SHA-256 of the local build of 9 Nov 2026 (see "Local build") |
+| Code hash (base58)  | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` since the redeploy of 2026-11-11, the reproducible build of commit `777b844` (see "Reproducible build"). Earlier code: `GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP` (the upgrade of 2026-11-11), and first `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY`, the local build of 9 Nov 2026 (see "Local build") |
 | Create account      | transaction `GxZNoaKqZnoR9kmoFK2PVJqYqDaPUDBrScd1Eks7h9fa`             |
 | Deploy              | transaction `7eVv1CLTX5MTaanpJvJVHj2PXNv23aztqQHqmJyCc5a4`             |
 | Smoke test          | `add_note` from `seams-v1.testnet`, transaction `4QQh3AXaz64BhGqhCjd72qGYt2iFuNB8LGfn4HtdQowM`, 2.2 Tgas |
 | Upgrade (2026-11-11) | Code of `dev` 01dde86 with the moderator and `hide_note` (177,329 bytes, SHA-256 `e6093bb1…26be` in this build folder), no init call, the notes stay: transaction `EbvY3JzUmc4S6cDCfVr1bgbF55CLTexKGwAVqh2H9spr`. `set_moderator` to `multisig.seams-v1.testnet`: transaction `BKXvKf4YrNwhDA1uQZF6ez7p3H3fzw57ivQuH1Mxh3mr` |
+| Redeploy (2026-11-11) | The reproducible build of commit `777b844` (146,408 bytes, SHA-256 `0b821a5c…7f80`). Its contract source is the same as in `dev` 01dde86. No init call; note 1 and the moderator stay: transaction `9d5SW81rQ2BQXrvqA5z78gYYxdEhP8JVVj4pu3tFFAEW` |
 
 The smoke test added note 1 on post 9999, which is not a demo post. The
 first demo note gets id 2. `get_notes({"post_id":9999})` returns note 1 with

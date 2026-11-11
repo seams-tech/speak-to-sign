@@ -351,11 +351,10 @@ Expected on 2026-11-09 (a spoken note from the demo appears here later):
 []
 ```
 
-The deployed code is the upgrade of 2026-11-11: a `build.sh` WASM of `dev`
-01dde86, built on the computer that deployed it (see "Testnet deployment" in
+The deployed code is the reproducible build of step 4, since the redeploy of
+2026-11-11 (see "Testnet deployment" in
 `demo/contracts/community-notes/README.md`). The code hash is the base58 form
-of its SHA-256 `e6093bb1…26be`. It is not the reproducible build of step 4, so
-it can be checked only against that record:
+of the SHA-256 `0b821a5c…7f80` that step 4 builds again:
 
 ```bash
 curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"notes.seams-v1.testnet"}}' | jq -r .result.code_hash
@@ -364,8 +363,23 @@ curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"j
 Expected:
 
 ```text
-GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP
+mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko
 ```
+
+The deployed code names its commit (NEP-330):
+
+```bash
+view notes.seams-v1.testnet contract_source_metadata '{}' | jq -r .build_info.source_code_snapshot
+```
+
+Expected:
+
+```text
+git+https://github.com/seams-tech/speak-to-sign?rev=777b84429096604e77e217480e9f89a398f5da13
+```
+
+The other three demo contracts also run the reproducible builds of commit
+`777b844` (see `demo/contracts/README.md`).
 
 ### What needs a microphone
 
@@ -495,8 +509,8 @@ for an application with no wallet (`@seams/voice-verdict`,
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |
-| Note market         | `pm-notes.seams-v1.testnet`, code `c75495af180ef0cfaea4084640db101a235e4bf59401b552f8f05ddd3a21b271`. Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 9 is the demo post's context box (note 0), open until 18 Nov 2026 23:59 UTC. |
-| Voice multisig      | `multisig.seams-v1.testnet`, code `c3f420b83a4bdffc56ba1cb0a059414192480158040d30315f8ec6594210e037`, deployed 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). A visitor proposes by voice (verifier 0.6.1); `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` approve by key. No cap. It replaces `team.seams-v1.testnet`, which had a cap of 0.05 NEAR. |
+| Note market         | `pm-notes.seams-v1.testnet`, code `657c3b07d01218beef70aa23c2b558cd31eac7308dd65db6ee0dfe19d9fbdb44` since 2026-11-11, the reproducible build of commit `777b844`, verified by SourceScan (see `demo/contracts/README.md`). Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 9 is the demo post's context box (note 0), open until 18 Nov 2026 23:59 UTC. |
+| Voice multisig      | `multisig.seams-v1.testnet`, deployed 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). Code `95208e2a2b5091c677ad0e521fea43f7bc74d5a661981553b8ed5d835110e644` since 2026-11-11, the reproducible build of commit `777b844`, verified by SourceScan. A visitor proposes by voice (verifier 0.6.1); `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` approve by key. No cap. It replaces `team.seams-v1.testnet`, which had a cap of 0.05 NEAR. |
 | Market resolver     | OutLayer project `seams-v1.testnet/pm-notes-resolver`, version `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`: JEV (`typesafe/jev-1.13`) on NEAR AI, then a NEAR AI chat model. |
 
 ## Trust limits

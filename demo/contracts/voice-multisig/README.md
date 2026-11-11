@@ -236,9 +236,10 @@ The build of 11 Nov 2026 gave:
 
 `reproducible.sha256` holds the same commit and SHA-256.
 
-The deployed code (code hash `FqqfwkqeYU6itKskpCEEJBWdeYYVAF1SpjCeftfnc5pt`,
-the upgrade of 2026-11-11 in "Testnet deployment") is not this build. It came
-from the local build below, of `dev` 01dde86.
+The deployed code is this build, since the redeploy of 2026-11-11 (see
+"Deploy to testnet"). SourceScan built the commit again and got the same code
+hash, so NearBlocks shows the code as verified: the "Contract" tab of
+<https://testnet.nearblocks.io/address/multisig.seams-v1.testnet>.
 
 ### Local build
 
@@ -285,7 +286,11 @@ tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`, code `c3f420b8…e037`), with
 On 2026-11-11 it got the code of `dev` 01dde86, with the hide of a note and the shared
 verdict check (255,550 bytes, SHA-256 `dc86875e…1531` in that build folder), with no init call:
 tx `DfXs4nJpJTMgiK5RnvfwAWdzEwiF6BnkokXGkY7J4rSk`. `set_notes_contract` to `notes.seams-v1.testnet`:
-tx `A3zL4SZ4iDXXLAzpYZNzZf8n3VqsFbEBTzR9Qk2mfDMu`. The config and the admins stayed. The steps below are
+tx `A3zL4SZ4iDXXLAzpYZNzZf8n3VqsFbEBTzR9Qk2mfDMu`. The config and the admins stayed.
+Later on 2026-11-11 it got the reproducible build of commit `777b844` (210,878 bytes, SHA-256
+`95208e2a…e644`, code hash `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh`), with the same contract
+source as 01dde86 and no init call: tx `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t`. The config,
+the admins and the notes contract stayed. The steps below are
 the record and the way to deploy again. Each step waits for the owner's
 go-ahead. The first deploy, `team.seams-v1.testnet` (2026-11-10,
 code `d82479ab…e327`), had a cap of 0.05 NEAR. It stays on chain, and

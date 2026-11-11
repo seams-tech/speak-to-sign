@@ -55,6 +55,31 @@ use the WASM of a recorded commit, and that commit must stay in the history
 of the repository: merge a branch with a merge commit, not with a squash or a
 rebase.
 
+### The deployed code
+
+Since 2026-11-11, the four testnet contracts run the builds of commit
+`777b844`, with no init call (the state stayed). SourceScan built each one
+again and got the same code hash, so NearBlocks shows each one as verified on
+its "Contract" tab.
+
+| Contract                    | Code hash (base58)                             | Redeploy transaction                           |
+| --------------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| `notes.seams-v1.testnet`    | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` | `9d5SW81rQ2BQXrvqA5z78gYYxdEhP8JVVj4pu3tFFAEW` |
+| `multisig.seams-v1.testnet` | `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh` | `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t` |
+| `pm-notes.seams-v1.testnet` | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` | `88qJEJPcSpay99MSV4ZVecp88XasDfD3zSv27Cgk6Zx6` |
+| `seams-faucet.testnet`      | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` | `7uczvTN3tAhD4sw3G7VwFWL1xJXH1gkaLMjXjyrwVq4k` |
+
+After a new deploy, ask SourceScan to verify the contract. The "Verify" page
+of NearBlocks sends the same request. It takes 1 to 2 minutes:
+
+```bash
+curl -s -X POST https://api-v2.sourcescan.dev/api/verify/rust -H 'Content-Type: application/json' -d '{"accountId":"notes.seams-v1.testnet","networkId":"testnet"}'
+```
+
+It answers `{"message":"Contract verified successfully","checksum":"<code hash>"}`.
+Send one request at a time. Two requests at the same time can fail with a
+nonce error of the SourceScan signer.
+
 `./build.sh` in each contract folder is a fast local build for the sandbox
 tests. It does not use Docker, and its bytes depend on the computer. Do not
 deploy its WASM.

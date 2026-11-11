@@ -84,16 +84,23 @@ git clone https://github.com/seams-tech/speak-to-sign
    curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"outlayer.testnet\",\"method_name\":\"get_project\",\"args_base64\":\"$(printf '%s' '{"project_id":"seams-v1.testnet/voice-verifier"}' | base64 | tr -d '\n')\"}}" | jq -r '.result.result | implode | fromjson | .active_version'
    ```
 
-4. The deployed notes contract.
+4. The deployed notes contract is the reproducible build of commit `777b844`.
 
    ```bash
-   # See: GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP
+   # See: mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko
    curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"notes.seams-v1.testnet"}}' | jq -r .result.code_hash
+   # See: git+https://github.com/seams-tech/speak-to-sign?rev=777b84429096604e77e217480e9f89a398f5da13
+   curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"notes.seams-v1.testnet","method_name":"contract_source_metadata","args_base64":"e30="}}' | jq -r '.result.result | implode | fromjson | .build_info.source_code_snapshot'
    ```
 
-   It is the base58 form of `e6093bb1…26be`, the `build.sh` WASM of `dev`
-   01dde86 on the computer that deployed it, from the upgrade of 2026-11-11
-   (see "Not covered").
+   The code hash is the base58 form of `0b821a5c…7f80`, the SHA-256 in
+   `demo/contracts/community-notes/reproducible.sha256`. SourceScan built
+   that commit again and got the same code hash, so NearBlocks shows the code
+   as verified (the "Contract" tab of
+   <https://testnet.nearblocks.io/address/notes.seams-v1.testnet>). To build
+   it yourself, see README step 4 (Docker and cargo-near 0.22.0). The other
+   three demo contracts are reproducible builds of the same commit, and
+   SourceScan verified them too (`demo/contracts/README.md`).
 
 ## Claim -> where to check it
 
@@ -128,10 +135,9 @@ boundaries", and spec section 11:
 - The Phala app owner can change the speaker service and keep its key.
 - The verifier does not check a proof of the NEAR RPC access-key view at
   enrollment.
-- The deployed contracts came from local `build.sh` builds, so their code is
-  not the reproducible build of `demo/contracts/reproducible.sh`. A redeploy
-  of the reproducible WASM would make it checkable. The verifier build is
-  reproducible.
+- The OutLayer worker of the note market (`demo/contracts/jev-prediction-market/resolver`)
+  has no reproducible build. The four demo contracts and the verifier have
+  one.
 - Testnet only.
 
 ## Baseline and hackathon work

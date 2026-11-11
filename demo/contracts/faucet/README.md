@@ -52,8 +52,10 @@ The build of 11 Nov 2026 gave:
 
 `reproducible.sha256` holds the same commit and SHA-256.
 
-The deployed code (`c963c346…c619`) is not this build. It came from the local
-build below.
+The deployed code is this build, since the redeploy of 2026-11-11 (see
+"Testnet"). SourceScan built the commit again and got the same code hash, so
+NearBlocks shows the code as verified: the "Contract" tab of
+<https://testnet.nearblocks.io/address/seams-faucet.testnet>.
 
 ### Local build
 
@@ -61,11 +63,10 @@ build below.
 ./build.sh
 ```
 
-`./build.sh` writes `res/speak_to_sign_faucet.wasm` with the local toolchain
-(156,586 bytes, SHA-256
-`c963c346736b5c67fa0f611c5042170d82f7779faabdfecedba3b79dda1bc619`). Its
-bytes depend on the computer, because the WASM holds the local source paths
-of panic locations.
+`./build.sh` writes `res/speak_to_sign_faucet.wasm` with the local toolchain.
+Its bytes depend on the computer, because the WASM holds the local source
+paths of panic locations. The first deploy used this build (156,586 bytes,
+SHA-256 `c963c346736b5c67fa0f611c5042170d82f7779faabdfecedba3b79dda1bc619`).
 
 ## Testnet
 
@@ -73,6 +74,7 @@ of panic locations.
 | ---- | ----- |
 | Account | `seams-faucet.testnet`, made by the NEAR testnet faucet service with 10 NEAR, transaction `ETpvp7TtdGZ8MzTZ1V4Wp3GgUc8gYNbvvhjyY4i4FwgU`. Its full-access key is in the local legacy keychain (`~/.near-credentials/testnet/`). |
 | Deploy and `new` | transaction `3WSFKnoEs8YtKr9bbjqBwSbd6zLx7im3cnkwFAyzg72A`: owner `seams-faucet.testnet`, token testnet USDC `3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af`, 0.2 NEAR and 2 USDC for each account |
+| Redeploy (2026-11-11) | The reproducible build of commit `777b844` (130,317 bytes, code hash `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z`), with the same contract source as the first deploy (code hash `EZ9BKhBqfokfz19doXjMAjsDcFn1dXaX2GbEjzw2UbTe`, see "Local build"). No init call; the config, the claims and the `drip` key stay: transaction `7uczvTN3tAhD4sw3G7VwFWL1xJXH1gkaLMjXjyrwVq4k`. Check: a drip through the page's `/api/faucet` to `admin-b.seams-v1.testnet` returned `true` (2 USDC and 0.2 NEAR, `drips` 2 → 3): transaction `5QymRwQT9YKTQXptAsgowrJjNPdpKhp1tm14L4iqD1fF` |
 | USDC registration of the faucet | transaction `3ZrCs6REMC9RhzAGig1doCoyhtoEZBXqKjkadXTgAvk7` |
 | `drip` key | `ed25519:2WVRyde9Adz9f28ZjA4KzfdSk166Hz4e4r3oAii7GHqM`, function-call access to `drip` on `seams-faucet.testnet`, allowance 1 NEAR, transaction `Bx4eZEE9EcsreukRcz1GP2nqchMFVW9s11jp8w8HZ9Bp`. The secret is in `demo/frontend/.dev.vars` (not in git). |
 | Empty-faucet test | transaction `FdrcGFHZv9zV24AiwgHV69ZV38hTZDop4ECHtos5X6ms`: the USDC receipt failed as one unit ("not enough balance"), `on_drip` returned `false`, no NEAR left the faucet, and the account could try again. |

@@ -399,9 +399,11 @@ The build of 11 Nov 2026 gave:
 
 `reproducible.sha256` holds the same commit and SHA-256.
 
-The deployed code (code hash `5bx6ZFT6huHhW8mv5xuEKVGZvcCddxC6xSyrRY7vbSjc`,
-the upgrade of 2026-11-11 in "Testnet deployment") is not this build. It came
-from the local build below, of `dev` 01dde86.
+The deployed code is this build, since the redeploy of 2026-11-11 (see
+"Testnet deployment"). SourceScan built the commit again and got the same
+code hash, so NearBlocks shows the code as verified: the "Contract" tab of
+<https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet>. The
+OutLayer worker in `resolver/` has no reproducible build.
 
 ### Local build
 
@@ -449,7 +451,7 @@ Deployed on 10 Nov 2026 from this branch (commit `33a2dfa` and its parents).
 | ---- | ----- |
 | Contract account | `pm-notes.seams-v1.testnet`, created by `seams-v1.testnet` with 3 NEAR, transaction `9DSNvSAoJtgZ7iFxwg6kYtJkQvgYfZrcceznF2FWDoX8` |
 | Deploy and `new` | transaction `BsCqyBD52fZykqEU622qmqrh9aaQ5g2AmrmGQouP7WFU`; admin `seams-v1.testnet`; token: testnet USDC; resolver `outlayer.testnet`, project `seams-v1.testnet/pm-notes-resolver`, no `secrets_ref` yet |
-| Code hash (base58) | `ER6wTn7WY55YLy2y77JzZS6TDX66kaqZ5E7j2G2poy7v`, the SHA-256 `c75495af…b271` of the release WASM above. Upgrade to the 0.01 NEAR fee with the refund to the asker: transaction `8ikBKMa7JtzoY64vSeHkSSVLQMh9MGPgVeWXkx4yg5ji` (no init call; the state stays). Upgrade to the spoken-bet voice rule and the shared verdict check, code of `dev` 01dde86 (333,946 bytes, SHA-256 `4462cacf…4c4b` in that build folder), on 2026-11-11: transaction `AoeTcD7JEe8vqcsnkhLZ7aREuUwfNGo9aGbV3GSpD2sv` (no init call; market 9 and the other markets stayed). `get_voice_config` gives `required: true` and the default key. Earlier code: `077f554e…55be` (0.1 USDC smallest bet, upgrade `Bz551nVETJEVgp2LDu9YyNiREEa3KrGv51WHYHWJTkN7`), and first `a1f89e15…544621`. |
+| Code hash (base58) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` since the redeploy of 2026-11-11: the reproducible build of commit `777b844` (274,962 bytes, SHA-256 `657c3b07…db44`, see "Reproducible build"), with the same contract source as `dev` 01dde86, no init call, market 9 and the other markets stayed: transaction `88qJEJPcSpay99MSV4ZVecp88XasDfD3zSv27Cgk6Zx6`. First code: `ER6wTn7WY55YLy2y77JzZS6TDX66kaqZ5E7j2G2poy7v`, the SHA-256 `c75495af…b271` of the release WASM above. Upgrade to the 0.01 NEAR fee with the refund to the asker: transaction `8ikBKMa7JtzoY64vSeHkSSVLQMh9MGPgVeWXkx4yg5ji` (no init call; the state stays). Upgrade to the spoken-bet voice rule and the shared verdict check, code of `dev` 01dde86 (333,946 bytes, SHA-256 `4462cacf…4c4b` in that build folder), on 2026-11-11: transaction `AoeTcD7JEe8vqcsnkhLZ7aREuUwfNGo9aGbV3GSpD2sv` (no init call; market 9 and the other markets stayed). `get_voice_config` gives `required: true` and the default key. Earlier code: `077f554e…55be` (0.1 USDC smallest bet, upgrade `Bz551nVETJEVgp2LDu9YyNiREEa3KrGv51WHYHWJTkN7`), and first `a1f89e15…544621`. |
 | USDC registration | `pm-notes.seams-v1.testnet`: transaction `B5EAbZHXDb2qXmCBnXFcxCeCQxWdTaF6tKPGSmPMEjpj`; `seams-v1.testnet`: transaction `6vdntmaFRLHc1h61gPAF2a133dswbAUxcWHtif3Ks1p` |
 | Worker upload | FastFS transaction `BHYUcVBUby77RkacXUkGzCEwjFmaxcd1MN6bV8m4aCPY` (it fails with `MethodNotFound` by design: FastFS reads the arguments), URL `https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/74dfc1f972c31dc0c8efa5505e8df2db7424a40f77a41d96dc4f67865d3d37b2.wasm` |
 | OutLayer project | `seams-v1.testnet/pm-notes-resolver`, `create_project` transaction `DZM1ogMNDQ5ErcjmC1shRaYHFRyL4jpRFbxqHfgqkHZy` (0.03 NEAR) with version `74dfc1f9…37b2`. Active version `360beda4…223a` (JEV on NEAR AI first): FastFS transaction `DQm7sdhvKZtaHXkJKtxj86huoz7k7GBkPSgQtkFTAS2p`, `add_version` transaction `B7aiWF1QvReAssRgAmepDxrWmuBPufcvsT1FiqfwTCzU` |

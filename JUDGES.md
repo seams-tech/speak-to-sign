@@ -38,7 +38,8 @@ You need a browser with passkeys and a microphone.
 ## Check it without a microphone
 
 You need `git`, `curl`, `jq`, Rust from rustup (it installs the pinned
-toolchains) and Docker (for the verifier build only). Run each command from
+toolchains), Node 24 with pnpm (`corepack enable`) for check 2, and Docker for
+check 3. Run each command from
 the folder that holds the clone. The `# See:` line above each command is the
 result of a run on 2026-11-11 (macOS, arm64).
 
@@ -63,7 +64,17 @@ git clone https://github.com/seams-tech/speak-to-sign
    (cd speak-to-sign/demo/contracts/voice-multisig && cargo test verdict 2>&1 | grep 'test result')
    ```
 
-2. The active verifier comes from this source. Build commit `be35842` in
+2. The verdict check. `@seams/voice-verdict` (`packages/voice-verdict/`)
+   checks a signed verdict before anything is signed: the pinned key, the
+   signature, the fields, the expiry, and the request and sentence digests.
+
+   ```bash
+   # See: 6 lines that start with "✔ a", then "ℹ pass 51" and "ℹ fail 0".
+   # One line: "a verdict for one community note does not pass for another note".
+   (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')
+   ```
+
+3. The active verifier comes from this source. Build commit `be35842` in
    Docker, then read the active version on OutLayer.
 
    ```bash
@@ -73,7 +84,7 @@ git clone https://github.com/seams-tech/speak-to-sign
    curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"outlayer.testnet\",\"method_name\":\"get_project\",\"args_base64\":\"$(printf '%s' '{"project_id":"seams-v1.testnet/voice-verifier"}' | base64 | tr -d '\n')\"}}" | jq -r '.result.result | implode | fromjson | .active_version'
    ```
 
-3. The deployed notes contract.
+4. The deployed notes contract.
 
    ```bash
    # See: 5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY
@@ -96,10 +107,11 @@ git clone https://github.com/seams-tech/speak-to-sign
 | Each recording passes one time, also after a refusal. | `verify_refuses_other_words_and_uses_the_audio`; spec section 5 |
 | A voice payment above 10 NEAR needs a passkey too (`step_up`). | `verify_steps_up_above_ten_near`; spec 7.3 |
 | The verifier signs fixed verdict vectors that the Wallet tests also read. A verdict expires after 120 s. | `tests/signed_vector.rs` of the verifier (`testdata/signed_verdict_v2.json`); `VERDICT_TTL_MS` in `src/config.rs`; spec section 8 |
-| Wallet core refuses a verdict for another note and signs nothing. | In the dependency: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/6373a68a726c28c8d835a9e91359955353dc811b/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L273) and its [test](https://github.com/seams-tech/seams-wallet/blob/6373a68a726c28c8d835a9e91359955353dc811b/tests/unit/speakToSignHost.unit.test.ts#L978) (`request_digest differs`); spec section 9 |
+| A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
+| With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/6373a68a726c28c8d835a9e91359955353dc811b/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L273) and its [test](https://github.com/seams-tech/seams-wallet/blob/6373a68a726c28c8d835a9e91359955353dc811b/tests/unit/speakToSignHost.unit.test.ts#L978) |
 | The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | A sealed recording opens only for its owner and operation. | `sealed_audio_opens_only_for_its_owner_and_operation` in `crates/voice-verifier/tests/ops/sealed.rs`; spec 5.1 |
-| The active verifier comes from this source. | Check 2 above; `crates/voice-verifier/README.md`, "Reproducible build" |
+| The active verifier comes from this source. | Check 3 above; `crates/voice-verifier/README.md`, "Reproducible build" |
 
 ## Not covered
 

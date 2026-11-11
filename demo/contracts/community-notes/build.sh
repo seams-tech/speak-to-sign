@@ -2,6 +2,9 @@
 # Builds the release WASM of the community-notes contract and prints its size
 # and SHA-256. The toolchain comes from rust-toolchain.toml (Rust 1.97.0).
 # Output: res/community_notes.wasm
+# This fast local build is for the sandbox tests. Its bytes depend on the
+# computer. For a deploy, use ../reproducible.sh build community-notes: it gives the
+# same bytes on any computer.
 set -euo pipefail
 cd "$(dirname "$0")"
 

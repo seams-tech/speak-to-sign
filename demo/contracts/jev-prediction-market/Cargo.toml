@@ -7,6 +7,16 @@ publish = false
 description = "A mini prediction market on community notes for the Speak-to-Sign demo, resolved by an OutLayer AI call to JEV with a weighted payout"
 repository = "https://github.com/seams-tech/speak-to-sign"
 
+# The reproducible build (NEP-330): `cargo near build reproducible-wasm` builds
+# the WASM of the committed source in this pinned image, and writes the image,
+# the command and the commit into the contract metadata. So NearBlocks can
+# build it again and compare. See ../reproducible.sh.
+[package.metadata.near.reproducible_build]
+image = "sourcescan/cargo-near:0.22.0-rust-1.97.0"
+image_digest = "sha256:b193c8640a27172f83136a0f0aab2a9bf9d09f6ba0e6afd187addfaa9b92bae0"
+passed_env = []
+container_build_command = ["cargo", "near", "build", "non-reproducible-wasm", "--locked"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

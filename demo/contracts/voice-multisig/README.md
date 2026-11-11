@@ -214,15 +214,44 @@ all storage and for the transfers.
 
 ## Build and test
 
+### Reproducible build
+
+This build gives the WASM to deploy. It gives the same bytes on any computer
+(see [`../README.md`](../README.md#reproducible-build)). It needs Docker,
+git and cargo-near 0.22.0.
+
+```bash
+../reproducible.sh build voice-multisig   # writes res/voice_multisig.wasm and reproducible.sha256
+../reproducible.sh check voice-multisig   # builds the recorded commit again and compares
+```
+
+The build of 11 Nov 2026 gave:
+
+| Item               | Value |
+| ------------------ | ----- |
+| Commit             | `777b84429096604e77e217480e9f89a398f5da13` |
+| Size               | 210,878 bytes |
+| SHA-256            | `95208e2a2b5091c677ad0e521fea43f7bc74d5a661981553b8ed5d835110e644` |
+| Code hash (base58) | `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh` |
+
+`reproducible.sha256` holds the same commit and SHA-256.
+
+The deployed code (`c3f420b8…e037`) is not this build. It came from the local
+build below.
+
+### Local build
+
 ```bash
 ./build.sh
 ```
 
-The build of 10 Nov 2026 without the cap gave `res/voice_multisig.wasm`,
-230,376 bytes, SHA-256
+The script builds `res/voice_multisig.wasm` with the local toolchain. It is
+fast, and the sandbox test uses it. Its bytes depend on the computer, because
+the WASM holds the local source paths of panic locations. The build of 10 Nov
+2026 without the cap gave 230,376 bytes, SHA-256
 `c3f420b83a4bdffc56ba1cb0a059414192480158040d30315f8ec6594210e037`.
-The WASM holds the source paths of panic locations, so a build in another
-home folder gives another hash.
+
+### Tests
 
 ```bash
 cargo test -p voice-multisig
@@ -286,7 +315,8 @@ and put that key in `new`.
    near account create-account fund-myself multisig.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. Deploy the contract with the two admins and the verifier key:
+3. Deploy the WASM of the reproducible build (`../reproducible.sh build
+   voice-multisig`) with the two admins and the verifier key:
 
    ```bash
    near contract deploy multisig.seams-v1.testnet use-file res/voice_multisig.wasm with-init-call new json-args '{"admins":["admin-a.seams-v1.testnet","admin-b.seams-v1.testnet"],"verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send

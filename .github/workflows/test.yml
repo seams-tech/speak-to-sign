@@ -1,0 +1,215 @@
+name: Test
+
+# Runs the tests of the Rust crates, the contracts and the TypeScript packages on each push and
+# pull request, and checks the reproducible build of each contract. All jobs run in parallel.
+#
+# No job uses a secret. No job calls testnet, OutLayer, NEAR AI or Phala: the tests use test keys,
+# stored fixtures, a fake verifier and a local nearcore sandbox.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a branch stops the run of the push before it.
+concurrency:
+  group: test-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  PNPM_VERSION: 11.11.0
+
+jobs:
+  rust:
+    name: rust (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: spoken-intent
+            dir: crates/spoken-intent
+            test: cargo test --locked
+          - name: voice-verdict
+            dir: crates/voice-verdict
+            test: cargo test --locked
+          - name: voice-verifier
+            dir: crates
+            test: cargo test --locked -p seams-voice-verifier
+          - name: speaker-service
+            dir: crates/speaker-service
+            test: cargo test --locked
+          - name: community-notes
+            dir: demo/contracts/community-notes
+            test: cargo test --locked -p community-notes
+          - name: faucet
+            dir: demo/contracts/faucet
+            test: cargo test --locked
+          - name: voice-multisig
+            dir: demo/contracts/voice-multisig
+            test: cargo test --locked -p voice-multisig
+          - name: jev-prediction-market
+            dir: demo/contracts/jev-prediction-market
+            test: cargo test --locked -p jev-prediction-market
+          - name: pm-notes-resolver
+            dir: demo/contracts/jev-prediction-market/resolver
+            test: cargo test --locked
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v6
+      # The first cargo call installs the toolchain of rust-toolchain.toml, before the cache key
+      # reads the compiler version.
+      - name: Toolchain
+        run: cargo --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ matrix.dir }}
+          key: ${{ matrix.name }}
+      - name: Test
+        run: ${{ matrix.test }}
+
+  # Each sandbox test deploys the release WASM of ./build.sh to a local nearcore sandbox and calls
+  # it as the Wallet does. near-workspaces downloads the sandbox binary in its build script, so the
+  # Rust cache keeps it after the first run.
+  sandbox:
+    name: sandbox (${{ matrix.contract }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - contract: community-notes
+            build: ./build.sh
+          # One test checks the multisig next to the community-notes contract.
+          - contract: voice-multisig
+            build: ./build.sh && ../community-notes/build.sh
+          # ui_demo is not a test: it is ignored, and it keeps a sandbox running.
+          - contract: jev-prediction-market
+            build: ./build.sh
+    defaults:
+      run:
+        working-directory: demo/contracts/${{ matrix.contract }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Toolchain
+        run: cargo --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            demo/contracts/${{ matrix.contract }}
+            demo/contracts/community-notes
+          key: sandbox-${{ matrix.contract }}
+      - name: Build the WASM
+        run: ${{ matrix.build }}
+      - name: Sandbox test
+        run: cargo test --locked -p ${{ matrix.contract }}-sandbox -- --nocapture
+
+  # Each contract WASM must build byte for byte as its reproducible.sha256 records
+  # (demo/contracts/reproducible.sh, NEP-330, the pinned sourcescan/cargo-near image).
+  reproducible:
+    name: reproducible build (${{ matrix.contract }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        contract: [community-notes, faucet, jev-prediction-market, voice-multisig]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The check builds the commit that the record names, so it needs the history.
+          fetch-depth: 0
+      - name: Install cargo-near 0.22.0
+        env:
+          URL: https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-x86_64-unknown-linux-gnu.tar.gz
+          SHA256: 9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSfL -o "$RUNNER_TEMP/cargo-near.tar.gz" "$URL"
+          echo "$SHA256  $RUNNER_TEMP/cargo-near.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/cargo-near.tar.gz" -C "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/cargo-near-x86_64-unknown-linux-gnu/cargo-near" "$HOME/.cargo/bin/cargo-near"
+          cargo near --version
+      - name: Check
+        run: demo/contracts/reproducible.sh check ${{ matrix.contract }}
+
+  # The three libraries for an application with no Seams Wallet. voice-sign links the other two
+  # from their folders, so they are built first, as in release-standalone.yml.
+  standalone:
+    name: ts (voice-verdict, voice-capture, voice-sign)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: packages/*/pnpm-lock.yaml
+      - name: '@seams/voice-verdict'
+        working-directory: packages/voice-verdict
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm type-check
+          pnpm test
+          pnpm build
+      - name: '@seams/voice-capture'
+        working-directory: packages/voice-capture
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm type-check
+          pnpm build
+          pnpm exec playwright test --project node
+      - name: '@seams/voice-sign'
+        working-directory: packages/voice-sign
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm type-check
+          pnpm test
+          pnpm build
+      # The browser tests record the WAV fixture through Chromium's fake microphone. The
+      # voice-sign test runs examples/voice-confirm with FAKE_VERIFIER=1.
+      - name: Install Chromium
+        working-directory: packages/voice-capture
+        run: pnpm exec playwright install --with-deps chromium
+      - name: '@seams/voice-capture in Chromium'
+        working-directory: packages/voice-capture
+        run: pnpm exec playwright test --project chromium
+      - name: '@seams/voice-sign in Chromium'
+        working-directory: packages/voice-sign
+        run: pnpm test:browser
+
+  # The Seams Wallet plugin. It installs @seams/wallet and @seams/voiceid from npm, and its tests
+  # use a fake host.
+  wallet-voice-sign:
+    name: ts (wallet-voice-sign)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/wallet-voice-sign
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: packages/wallet-voice-sign/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm type-check
+      - run: pnpm test

@@ -3,6 +3,9 @@
 # fake USDC contracts for the sandbox test) and prints the contract's size and SHA-256.
 # The toolchain comes from rust-toolchain.toml (Rust 1.97.0).
 # Output: res/jev_prediction_market.wasm, res/fake_outlayer.wasm, res/fake_usdc.wasm
+# This fast local build is for the sandbox tests. Its bytes depend on the
+# computer. For a deploy, use ../reproducible.sh build jev-prediction-market: it gives the
+# same bytes on any computer.
 set -euo pipefail
 cd "$(dirname "$0")"
 

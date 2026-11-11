@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Builds the release WASM of the faucet contract and prints its size and SHA-256.
 # The toolchain comes from rust-toolchain.toml. Output: res/speak_to_sign_faucet.wasm
+# This is a fast local build. Its bytes depend on the computer. For a deploy, use ../reproducible.sh build faucet: it gives the
+# same bytes on any computer.
 set -euo pipefail
 cd "$(dirname "$0")"
 

@@ -377,15 +377,46 @@ code.
 
 ## Build and test
 
+### Reproducible build
+
+This build gives the WASM to deploy. It gives the same bytes on any computer
+(see [`../README.md`](../README.md#reproducible-build)). It needs Docker,
+git and cargo-near 0.22.0.
+
+```bash
+../reproducible.sh build jev-prediction-market   # writes res/jev_prediction_market.wasm and reproducible.sha256
+../reproducible.sh check jev-prediction-market   # builds the recorded commit again and compares
+```
+
+The build of 11 Nov 2026 gave:
+
+| Item               | Value |
+| ------------------ | ----- |
+| Commit             | `777b84429096604e77e217480e9f89a398f5da13` |
+| Size               | 274,962 bytes |
+| SHA-256            | `657c3b07d01218beef70aa23c2b558cd31eac7308dd65db6ee0dfe19d9fbdb44` |
+| Code hash (base58) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` |
+
+`reproducible.sha256` holds the same commit and SHA-256.
+
+The deployed code (`c75495af…b271`) is not this build. It came from the local
+build below.
+
+### Local build
+
 ```bash
 ./build.sh
 ```
 
-The build of 10 Nov 2026 with the 0.01 NEAR fee and the refund to the asker
-gave `res/jev_prediction_market.wasm`, 274,336 bytes, SHA-256
-`c75495af180ef0cfaea4084640db101a235e4bf59401b552f8f05ddd3a21b271`. It also
-builds `res/fake_usdc.wasm` and `res/fake_outlayer.wasm` for the sandbox
-test.
+The script builds `res/jev_prediction_market.wasm` with the local toolchain.
+It also builds `res/fake_usdc.wasm` and `res/fake_outlayer.wasm` for the
+sandbox test. It is fast, and the sandbox test uses it. Its bytes depend on
+the computer, because the WASM holds the local source paths of panic
+locations. The build of 10 Nov 2026 with the 0.01 NEAR fee and the refund to
+the asker gave 274,336 bytes, SHA-256
+`c75495af180ef0cfaea4084640db101a235e4bf59401b552f8f05ddd3a21b271`.
+
+### Tests
 
 ```bash
 cargo test -p jev-prediction-market

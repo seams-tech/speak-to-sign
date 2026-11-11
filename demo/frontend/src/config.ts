@@ -22,6 +22,8 @@ export const config = {
   /** The RPC for the market views. A local sandbox can stand in for testnet in a test. */
   marketRpcUrl: env(e.VITE_MARKET_RPC_URL, env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com')),
   explorerUrl: env(e.VITE_NEAR_EXPLORER_URL, 'https://testnet.nearblocks.io'),
+  /** FastNEAR's transactions API: the page finds the transaction of each note with it. */
+  txApiUrl: env(e.VITE_NEAR_TX_API_URL, 'https://tx.test.fastnear.com'),
   faucetUrl: 'https://docs.near.org/getting-started/faucet',
   usdcFaucetUrl: 'https://faucet.circle.com',
   /** The Speak to pay page on the same site. */

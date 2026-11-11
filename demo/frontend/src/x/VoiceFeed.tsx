@@ -1,12 +1,15 @@
 // The right column of the notes app, in the order of X's own right column:
 // - a search box, for the look only: it takes no click and no key;
-// - "Signed by voice": the newest notes, each with the sentence that its author said to post it.
-//   It shows only when there is a note.
+// - "Signed by voice": the newest notes, each with the sentence that its author said to post it,
+//   and a link to the transaction that added it. It shows only when there is a note.
 
+import { useEffect, useState } from 'react';
 import { IconMicrophone, IconSearch } from '@tabler/icons-react';
-import { shortAccount } from '../config';
+import { TxLink } from '../components/bits';
+import { config, shortAccount } from '../config';
 import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
+import { findNoteTransactions } from '../notes/noteTransactions';
 import type { Note } from '../notes/types';
 import { postCardId, showCard } from './Timeline';
 
@@ -20,9 +23,33 @@ export function newestNotes(notesByPost: Record<number, Note[]>, limit = MAX_ROW
     .slice(0, limit);
 }
 
+/**
+ * The transaction of each note in `notes`: the ones that this page sent, and the others from the
+ * transactions API. It asks again when a note with no known transaction comes.
+ */
+function useNoteTransactions(notes: Note[]): Record<number, string> {
+  const { noteTx } = useDemo();
+  const [found, setFound] = useState<Record<number, string>>({});
+  const missing = notes
+    .filter((note) => !noteTx[note.id] && !found[note.id])
+    .map((note) => note.id)
+    .join(',');
+  useEffect(() => {
+    if (missing === '') return;
+    const controller = new AbortController();
+    findNoteTransactions(config.txApiUrl, config.contract, controller.signal)
+      .then((more) => setFound((current) => ({ ...more, ...current })))
+      // No link is a fine result: the card stays as it is.
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [missing]);
+  return { ...found, ...noteTx };
+}
+
 export function VoiceFeed() {
   const { notesByPost } = useDemo();
   const notes = newestNotes(notesByPost);
+  const transactions = useNoteTransactions(notes);
   return (
     <aside className="side xt-side" aria-label="About voice signatures">
       {/* For the look only, as on X. Screen readers and the keyboard pass over it. */}
@@ -37,7 +64,7 @@ export function VoiceFeed() {
           </h2>
           <ul className="trend-list">
             {notes.map((note) => (
-              <li key={note.id}>
+              <li key={note.id} className="trend-item">
                 {/* The post has no page: its card in the timeline comes into view and flashes. */}
                 <a
                   className="trend"
@@ -53,6 +80,12 @@ export function VoiceFeed() {
                   <span className="trend-title">“{note.summary}”</span>
                   <span className="trend-meta muted">A note on the post of {findPost(note.post_id)?.author.name ?? 'an X user'}</span>
                 </a>
+                {/* Outside the row's link: a link cannot hold another link. */}
+                {transactions[note.id] && (
+                  <span className="trend-tx">
+                    <TxLink hash={transactions[note.id]!} />
+                  </span>
+                )}
               </li>
             ))}
           </ul>

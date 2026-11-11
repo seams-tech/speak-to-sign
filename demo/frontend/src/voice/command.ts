@@ -146,7 +146,8 @@ export function decideCommand(scores: CommandScores, screen: Screen, transcript:
       command: () => {
         const post = notedPost();
         if (!post) return { kind: 'no_target', action: 'bet' };
-        return { kind: 'bet', postId: post.postId, side: scores.betNo >= 0.5 ? 'no' : 'yes', amount: spokenUsdc(transcript) };
+        const side = spokenSide(transcript) ?? (scores.betNo >= 0.5 ? 'no' : 'yes');
+        return { kind: 'bet', postId: post.postId, side, amount: spokenUsdc(transcript) };
       },
     },
     {
@@ -214,6 +215,19 @@ function numberOf(word: string): number | null {
 function units(usdc: number): bigint | null {
   const cents = Math.round(usdc * 100);
   return cents > 0 && cents <= 100_000_000 ? BigInt(cents) * BigInt(USDC_UNITS / 100) : null;
+}
+
+const YES_WORDS = /\b(yes|yeah|yep)\b/i;
+// A speech-to-text model can write "bet no on this post" as "but knowing this post".
+const NO_WORDS = /\b(no|nope|knowing)\b/i;
+
+/**
+ * The side of a bet from its words, as the amount comes from its words. Null when the sentence
+ * has words of both sides or of neither: the classifier's score then decides.
+ */
+export function spokenSide(text: string): BetSide | null {
+  const yes = YES_WORDS.test(text);
+  return yes === NO_WORDS.test(text) ? null : yes ? 'yes' : 'no';
 }
 
 /** Reads the answer of POST /api/voice-command. Null when it is not a set of scores. */

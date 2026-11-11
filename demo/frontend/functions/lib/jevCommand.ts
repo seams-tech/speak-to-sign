@@ -91,7 +91,7 @@ export function jevCommandRequest(request: CommandRequest, model: string): unkno
     'The person asks for something else, or for nothing.',
   );
   questions.bet = noul(
-    'Does the person tell the website to bet money? Sentences such as "bet ten cents on yes", "put one dollar on no", "fifty cents on no", "bet one dollar on the first post" and "bet on the second note" are bets: they name an amount of money, an outcome (yes or no), a post or a note. A person who only gives an opinion ("I bet this is fake") places no bet. A speech-to-text model wrote the transcript, and it can write the word "bet" wrongly, for example as "that", "but" or "bed".',
+    'Does the person tell the website to bet money? A bet can name an outcome (yes or no), an amount of money, a post or a note, and it can leave out the amount. Sentences such as "bet no on this post", "bet yes", "bet no", "bet ten cents on yes", "put one dollar on no", "fifty cents on no", "bet one dollar on the first post" and "bet on the second note" are bets. A person who only gives an opinion ("I bet this is fake") places no bet. The speech-to-text model often writes "bet" as "but", "bed", "bat" or "that", and "no on" as "knowing": "but knowing this post" means "bet no on this post", and "but yes on this one" means "bet yes on this one".',
     'The person tells the website to place a bet.',
     'The person does not tell the website to place a bet.',
   );
@@ -101,7 +101,7 @@ export function jevCommandRequest(request: CommandRequest, model: string): unkno
     'The person asks for something else, or for nothing.',
   );
   questions.bet_no = noul(
-    'If the person places a bet, is the bet on "no"?',
+    'If the person places a bet, is the bet on "no"? The speech-to-text model can write "no on" as "knowing": "but knowing this post" is a bet on no.',
     'The bet is on no.',
     'The bet is on yes, or the person places no bet.',
   );

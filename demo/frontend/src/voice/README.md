@@ -25,7 +25,8 @@ words. So a wrong command cannot sign.
    note on the screen (`functions/lib/jevCommand.ts`). JEV answers all of them
    in one call.
 4. `decideCommand` in `command.ts` makes one command from the probabilities.
-   The amount of a bet comes from the words (`spokenUsdc`).
+   The amount of a bet comes from the words (`spokenUsdc`). So does its side
+   (`spokenSide`), when the words name only one side.
 5. The timeline runs the command (`runCommand` in `src/x/Timeline.tsx`).
 
 A command that only shows posts runs on an unfinished sentence. A command

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
-import { commandRequest, decideCommand, readScores, ruleScores, spokenUsdc, type CommandScores, type Screen } from '../src/voice/command.ts';
+import { commandRequest, decideCommand, readScores, ruleScores, spokenSide, spokenUsdc, type CommandScores, type Screen } from '../src/voice/command.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
 const USDC = 1_000_000n;
@@ -61,6 +61,22 @@ test('a bet goes to the named note, with the side and the spoken amount', () => 
     side: 'yes',
     amount: null,
   });
+});
+
+test('the words of a bet choose its side, and the score decides when they do not', () => {
+  assert.equal(spokenSide('bet no on this post'), 'no');
+  assert.equal(spokenSide('but knowing this post'), 'no');
+  assert.equal(spokenSide('bet one dollar on yes'), 'yes');
+  assert.equal(spokenSide('yeah bet fifty cents'), 'yes');
+  assert.equal(spokenSide('bet on the second note'), null);
+  assert.equal(spokenSide('no way this is true, bet yes'), null);
+  // "Note" and "know" are not "no".
+  assert.equal(spokenSide('I know, bet on the note'), null);
+  const focused = { ...SCREEN, focusedPostId: 10 };
+  // A weak score for "no" and clear words: the words win.
+  assert.equal((decideCommand({ ...NONE, bet: 0.86, betNo: 0.45 }, focused, 'but knowing this post') as { side: string }).side, 'no');
+  assert.equal((decideCommand({ ...NONE, bet: 0.9, betNo: 0.7 }, focused, 'bet yes on this one') as { side: string }).side, 'yes');
+  assert.equal((decideCommand({ ...NONE, bet: 0.9, betNo: 0.8 }, focused, 'bet on the first note') as { side: string }).side, 'no');
 });
 
 test('a new market goes to the named note, or to the note of the focused post', () => {

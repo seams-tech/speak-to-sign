@@ -8,6 +8,7 @@ import { IconBookmark, IconChartBar, IconHeart, IconMessageCircle, IconRepeat, I
 import type { XPost } from './types';
 import { Linkified } from '../components/bits';
 import { FIXTURE_FETCHED_AT_MS, FIXTURE_POSTS } from './fixture';
+import { X_POSTS_LINE } from './xPosts';
 import '../styles.css';
 import '../market/market.css';
 import './timeline.css';
@@ -77,7 +78,7 @@ function Preview() {
             <PostCard key={post.id} post={post} state={stateOf(post)} />
           ))}
           {posts.length === 0 && <p className="xt-foot muted">No posts here yet.</p>}
-          <p className="xt-foot muted">New posts from X 3 times a day. Sport, science, technology, business and entertainment only.</p>
+          <p className="xt-foot muted">{X_POSTS_LINE}</p>
         </main>
       </div>
     </div>

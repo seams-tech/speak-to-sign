@@ -49,6 +49,14 @@ const BY_TOPIC: Record<string, NoteDraftText> = {
     text: 'The post reports news about a person or a studio and links no statement from them. It can be a rumour.',
     summary: 'this post can be a rumour with no statement',
   },
+  politics: {
+    text: 'The post makes a claim about a government, a law or a politician and links no official record or statement for it.',
+    summary: 'this political claim has no official source',
+  },
+  health: {
+    text: 'The post makes a medical claim and names no study or health authority. Ask a doctor or check an official source.',
+    summary: 'this medical claim names no study',
+  },
 };
 
 const GENERAL: NoteDraftText = {

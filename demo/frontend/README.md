@@ -160,8 +160,8 @@ call spends admin gas, so add Cloudflare rate-limiting rules on
 A Community Notes page in the light style of X. You post a note and rate a
 note with your voice, through Seams Speak-to-Sign. Testnet only. The post is
 a real case that got a Community Note on X: the viral claim of 24 Oct 2026 that
-Claude Code found 145,763 deleted iPhone photos. The page stays away from
-political posts.
+Claude Code found 145,763 deleted iPhone photos. The posts from X can be about
+politics or health, but not about war, crime or adult content.
 
 - **Post a note.** You type the note. NEAR AI suggests a summary of 12 words
   or fewer. You read the summary aloud in the Seams Wallet card. The attested

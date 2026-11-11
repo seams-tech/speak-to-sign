@@ -218,3 +218,23 @@ test('Back and Close each end the card and report which one the person pressed',
   });
   expect(escaped).toEqual({ pressed: [], result: { kind: 'cancelled' } });
 });
+
+test('Record has the theme button colours, and the ink colours without them', async ({ page }) => {
+  // Opens a card on a page with these CSS variables, and reads the colours of Record.
+  const recordColours = async (variables: Record<string, string>) => {
+    await page.goto(`${origin}/example/`);
+    return page.evaluate(async (variables) => {
+      for (const [name, value] of Object.entries(variables)) document.documentElement.style.setProperty(name, value);
+      const module = '/browser/card.js';
+      const { openPhraseCard } = await import(module);
+      void openPhraseCard({ sentence: 'Send two NEAR to alice.testnet', signal: new AbortController().signal, detector: 'level' }).record();
+      const style = getComputedStyle(document.querySelector('.seams-voiceid-prompt .seams-voiceid-primary')!);
+      return { background: style.backgroundColor, color: style.color };
+    }, variables);
+  };
+  const ink = { '--seams-colors-textPrimary': 'rgb(15, 20, 25)', '--seams-colors-colorBackground': 'rgb(255, 255, 255)' };
+  expect(await recordColours(ink)).toEqual({ background: 'rgb(15, 20, 25)', color: 'rgb(255, 255, 255)' });
+  expect(
+    await recordColours({ ...ink, '--seams-colors-buttonBackground': 'rgb(29, 155, 240)', '--seams-colors-textButton': 'rgb(255, 255, 255)' }),
+  ).toEqual({ background: 'rgb(29, 155, 240)', color: 'rgb(255, 255, 255)' });
+});

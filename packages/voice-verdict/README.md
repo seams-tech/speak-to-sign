@@ -88,7 +88,7 @@ The checks run in this order. The first check that fails gives the refusal.
 | 6 | `renderer` is `spoken-intent/1` (`RENDERER_VERSION`). | `wrong_renderer` |
 | 7 | `outcome` is not `refuse`. The refusal has the verifier's `reason`. | `refused` |
 | 8 | `outcome` is not `step_up`, or `acceptStepUp` is `true`. | `step_up` |
-| 9 | `expires_at_ms` is not before `nowMs`. | `expired` |
+| 9 | `expires_at_ms` is after `nowMs`. | `expired` |
 | 10 | `expires_at_ms` is not more than 150 s (`MAX_VERDICT_LIFE_MS`) after `nowMs`. A later expiry means a verifier clock that runs ahead. | `not_yet_valid` |
 | 11 | `request_digest` is `requestDigest`, if you give one. | `request_mismatch` |
 | 12 | `spoken_text_digest` is `spokenTextDigest`, if you give one. | `spoken_text_mismatch` |

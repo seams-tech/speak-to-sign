@@ -68,7 +68,7 @@ export type VerdictRefusal =
   | { code: 'refused'; reason: string | null; verdict: VoiceVerdict }
   /** The voice and the words passed, and a policy rule asks for a second approval. */
   | { code: 'step_up'; policyRule: string | null; verdict: VoiceVerdict }
-  /** `expires_at_ms` is before `nowMs`. */
+  /** `expires_at_ms` is not after `nowMs`. */
   | { code: 'expired'; expiresAtMs: number; verdict: VoiceVerdict }
   /** `expires_at_ms` is more than `MAX_VERDICT_LIFE_MS` after `nowMs`. */
   | { code: 'not_yet_valid'; expiresAtMs: number; verdict: VoiceVerdict }
@@ -151,7 +151,7 @@ export async function checkVerdict(input: CheckVerdictInput): Promise<VerdictChe
     return refuse({ code: 'step_up', policyRule: verdict.policy_rule, verdict });
   }
   const nowMs = input.nowMs ?? Date.now();
-  if (verdict.expires_at_ms < nowMs) {
+  if (verdict.expires_at_ms <= nowMs) {
     return refuse({ code: 'expired', expiresAtMs: verdict.expires_at_ms, verdict });
   }
   if (verdict.expires_at_ms > nowMs + MAX_VERDICT_LIFE_MS) {

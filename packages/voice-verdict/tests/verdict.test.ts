@@ -122,8 +122,9 @@ test('a step-up verdict passes only on request', async () => {
 
 test('an expired verdict', async () => {
   const item = vector('accept');
-  assert.ok((await checkVerdict({ ...input(item), nowMs: item.expires_at_ms })).ok);
-  const late = await checkVerdict({ ...input(item), nowMs: item.expires_at_ms + 1 });
+  assert.ok((await checkVerdict({ ...input(item), nowMs: item.expires_at_ms - 1 })).ok);
+  // At the expiry time, the verdict has expired.
+  const late = await checkVerdict({ ...input(item), nowMs: item.expires_at_ms });
   assert.ok(!late.ok);
   assert.deepEqual({ ...late.refusal, verdict: undefined }, {
     code: 'expired',

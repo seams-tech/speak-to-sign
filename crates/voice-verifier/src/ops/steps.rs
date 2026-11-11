@@ -1,13 +1,15 @@
-//! The steps that `enroll` and `verify` both use: the clip decode, the
+//! The steps that `enroll` and `verify` both use: the clip decode (plain or
+//! sealed), the
 //! request batch around the storage calls, the checked service replies and
 //! the used-audio mark.
 use std::time::Instant;
 
 use super::{Pins, Refusal};
 use crate::audio::{decode_wav, wav_bytes};
-use crate::config::audio_used_key;
+use crate::config::{audio_used_key, AUDIO_KEY_ENV};
 use crate::digest::{from_b64, sha256};
 use crate::embedding::Embedding;
+use crate::envelope::{audio_aad, AudioKey};
 use crate::host::{Host, LocalEmbeddings, PostRequest, Timed};
 use crate::output::{short, Reason, Stages};
 use crate::speaker_client::{check_service_reply, ServiceReply};
@@ -19,9 +21,60 @@ pub(super) struct Clip {
     pub(super) digest: [u8; 32],
 }
 
-pub(super) fn decode_clip(b64_text: &str) -> Result<Clip, Refusal> {
-    let bytes = from_b64(b64_text).ok_or_else(|| Refusal::new(Reason::AudioInvalid, "bad_base64"))?;
-    let pcm = decode_wav(&bytes).map_err(|error| Refusal::new(Reason::AudioInvalid, error))?;
+/// The clips of one input, in input order: `plain` WAVs, or `sealed` WAVs
+/// that the audio key opens for this `op` and `owner`. An input with both
+/// fields, or with neither, is `unsupported`. So is sealed audio on a
+/// project without the audio key. A clip that does not open is
+/// `audio_invalid`: it was sealed to another key, for another owner or
+/// operation, or it was changed.
+pub(super) fn decode_clips(
+    host: &dyn Host,
+    op: &str,
+    owner: &str,
+    plain: Option<&[String]>,
+    sealed: Option<&[String]>,
+) -> Result<Vec<Clip>, Refusal> {
+    match (plain, sealed) {
+        (Some(plain), None) => plain.iter().map(|text| decode_wav_clip(&base64_bytes(text)?)).collect(),
+        (None, Some(sealed)) => {
+            let key = host
+                .secret(AUDIO_KEY_ENV)
+                .and_then(|text| AudioKey::from_secret(&text))
+                .ok_or_else(|| Refusal::new(Reason::Unsupported, "audio_key: missing"))?;
+            let aad = audio_aad(op, owner);
+            sealed
+                .iter()
+                .map(|text| {
+                    let wav = key
+                        .open(&base64_bytes(text)?, &aad)
+                        .ok_or_else(|| Refusal::new(Reason::AudioInvalid, "not_sealed_to_this_request"))?;
+                    decode_wav_clip(&wav)
+                })
+                .collect()
+        }
+        _ => Err(Refusal::new(Reason::Unsupported, "audio: one of plain or sealed")),
+    }
+}
+
+/// The one clip of an input, as [`decode_clips`] reads it.
+pub(super) fn decode_clip(
+    host: &dyn Host,
+    op: &str,
+    owner: &str,
+    plain: &Option<String>,
+    sealed: &Option<String>,
+) -> Result<Clip, Refusal> {
+    let (plain, sealed) = (plain.as_ref().map(std::slice::from_ref), sealed.as_ref().map(std::slice::from_ref));
+    let clips = decode_clips(host, op, owner, plain, sealed)?;
+    <[Clip; 1]>::try_from(clips).map(|[clip]| clip).map_err(|_| Reason::Unsupported.into())
+}
+
+fn base64_bytes(text: &str) -> Result<Vec<u8>, Refusal> {
+    from_b64(text).ok_or_else(|| Refusal::new(Reason::AudioInvalid, "bad_base64"))
+}
+
+fn decode_wav_clip(bytes: &[u8]) -> Result<Clip, Refusal> {
+    let pcm = decode_wav(bytes).map_err(|error| Refusal::new(Reason::AudioInvalid, error))?;
     let wav = wav_bytes(&pcm);
     let digest = sha256(&wav);
     Ok(Clip { pcm, wav, digest })

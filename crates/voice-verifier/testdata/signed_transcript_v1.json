@@ -7,30 +7,30 @@
   "transcripts": [
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
-      "message_sha256_hex": "1d9124ecb6b430fee69d50d578db4ac4f503bfa2fa672f1062e2a9c93eaee79b",
+      "message_sha256_hex": "2e5e51f4c72e81fd0558a1b5d50ac69316340f36c7d6838f49512826638533f2",
       "name": "accept",
       "owner": "app:user-42",
-      "signature_b64": "uo1HPeU7LCYoqGFWBD1LIVLqPQoigpXbsDvGYVfu9zdD1gK/dIWYodbadjJDQjO+YtpbTENoaif5NMLZ7lKyCg==",
+      "signature_b64": "GOKkjQTIDgOLzr6bpW7sFHPThCa4rCGYCSF6g4N8C9rXYHD6W4yi1RGlpMiC7J54HIOFMa72DYXo/QpYLInuDg==",
       "text": "book a table for two at 8 o'clock please",
-      "transcript_json": "{\"kind\":\"seams_voice_signed_transcript_v1\",\"verifier\":\"0.11.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"book a table for two at 8 o'clock please\"}"
+      "transcript_json": "{\"kind\":\"seams_voice_signed_transcript_v1\",\"verifier\":\"0.12.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"book a table for two at 8 o'clock please\"}"
     },
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
-      "message_sha256_hex": "079fe5951df606fa6f1d0caff282f095e31606fbbcbd84c719519ad445317831",
+      "message_sha256_hex": "b5bd14331feabff7ba594eb3cf141f439c910cdbd96658f8082406c4d22ea3cc",
       "name": "accept_near_owner",
       "owner": "owner.testnet",
-      "signature_b64": "asBZaA5PJOLTePtKtzv40ZGA8Ft3x0asTd7MOoKh7Yr84s7PDVZ6pzKO/bnAGtQHPHBWnII6P931VbvYFZShDw==",
+      "signature_b64": "yzpIERQ1cwu+Zq57DAbHVW9iAEAquNAiTiXe/KGopeqn2Ip9j4P/qHUygoNaY9GlEo6vdAg/qYzjqE4GBvbiDQ==",
       "text": "what is my balance",
-      "transcript_json": "{\"kind\":\"seams_voice_signed_transcript_v1\",\"verifier\":\"0.11.0\",\"owner\":\"owner.testnet\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"what is my balance\"}"
+      "transcript_json": "{\"kind\":\"seams_voice_signed_transcript_v1\",\"verifier\":\"0.12.0\",\"owner\":\"owner.testnet\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"what is my balance\"}"
     },
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
-      "message_sha256_hex": "5be88a537894d6afaefe99fa8dcc990158404d1da466f172778bd0bf03367669",
+      "message_sha256_hex": "c55032f1513dbdecd459e24a27fa3a1faecf16f6a3706e8f3566f8543e7a3d26",
       "name": "refuse_speaker",
       "owner": "app:user-42",
-      "signature_b64": "1iPFWVG3Ce0D6Z1vtMPo68KTZYk5dT5FmNhUJyn3n4ivhLMyYoWeSONvuBPRx7IVLDEsStjk7GTZuVPUpmw0Aw==",
+      "signature_b64": "hHYkXhxmNb9nzFtCTUR9FB+ASrVjEwoODfXWeKPdaRaU58K5dHSRNHVrVBXxJw3bNAvkX2c+ckLh9D8xUPpmBA==",
       "text": null,
-      "transcript_json": "{\"kind\":\"seams_voice_signed_transcript_v1\",\"verifier\":\"0.11.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"refuse\",\"reason\":\"speaker\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":120,\"text\":null}"
+      "transcript_json": "{\"kind\":\"seams_voice_signed_transcript_v1\",\"verifier\":\"0.12.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"refuse\",\"reason\":\"speaker\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":120,\"text\":null}"
     }
   ]
 }

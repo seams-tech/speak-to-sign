@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_SEAMS_PROJECT_ENVIRONMENT_ID?: string;
   readonly VITE_SEAMS_WALLET_ORIGIN?: string;
   readonly VITE_SEAMS_RELAYER_URL?: string;
+  readonly VITE_VOICE_AUDIO_KEY?: string;
 }
 
 interface ImportMeta {

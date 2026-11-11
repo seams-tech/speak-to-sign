@@ -1,10 +1,10 @@
-// The page's call to the voice verifier: POST /api/voice-verify (functions/api/voice-verify.ts)
-// with a `verify` input of the kind `multisig_propose` (a transfer) or `multisig_hide_note`. The answer is the verifier output
+// The multisig page's call to the voice verifier (../voiceRoute.ts): a `verify` input of the kind
+// `multisig_propose` (a transfer) or `multisig_hide_note`. The answer is the verifier output
 // unchanged: `verdict_json` (the signed bytes, a string), `signature_b64`, and on an accept the
 // `multisig` opening (base64url commitment and salt).
 
 import { hexOfBase64Url } from './intent';
-import { base64 } from './wav';
+import { callVerifier } from '../voiceRoute';
 
 export type MultisigVoiceRequest =
   | { kind: 'multisig_propose'; multisig: string; proposal_id: number; receiver: string; amount_yocto: string }
@@ -32,23 +32,8 @@ interface Verdict {
 }
 
 export async function checkVoice(owner: string, request: MultisigVoiceRequest, wav: Uint8Array): Promise<VoiceCheck> {
-  const input = { op: 'verify', owner, request, contacts: [], audio_wav_b64: base64(wav) };
-  let response: Response;
-  try {
-    response = await fetch('/api/voice-verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input }),
-    });
-  } catch {
-    return { kind: 'unavailable', reason: 'The page could not reach /api/voice-verify.' };
-  }
-  const body = (await response.json().catch(() => null)) as (VerifyOutput & { error?: string }) | null;
-  if (!response.ok || body === null) {
-    const text = typeof body?.error === 'string' ? body.error : `The verify route answered ${response.status}.`;
-    return { kind: 'unavailable', reason: text };
-  }
-  return readOutput(body);
+  const answer = await callVerifier<VerifyOutput>(owner, request, wav);
+  return answer.kind === 'output' ? readOutput(answer.output) : answer;
 }
 
 function readOutput(output: VerifyOutput): VoiceCheck {

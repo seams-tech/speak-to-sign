@@ -10,9 +10,10 @@ use sha2::{Digest, Sha256};
 use seams_voice_verifier::audio::wav_bytes;
 use seams_voice_verifier::authorization::{authorization_message, enrollment_digest, nep413_hash};
 use seams_voice_verifier::config::{
-    EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV, NEAR_AI_TRANSCRIPTIONS_URL,
-    NEAR_AI_CHAT_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
+    AUDIO_INFO, AUDIO_KEY_ENV, EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV,
+    NEAR_AI_CHAT_URL, NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
 };
+use seams_voice_verifier::envelope::{audio_aad, AudioKey};
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
 use seams_voice_verifier::host::{Host, LocalEmbeddings, PostRequest, Timed};
 use seams_voice_verifier::output::{verdict_message, Verdict};
@@ -24,6 +25,8 @@ pub(crate) const VERDICT_SEED: [u8; 32] = [0x22; 32];
 /// The owner's full-access key.
 pub(crate) const OWNER_SEED: [u8; 32] = [0x33; 32];
 pub(crate) const OWNER: &str = "owner.testnet";
+/// The audio key secret, as the keystore gives a `hex32` value.
+pub(crate) const AUDIO_KEY_HEX: &str = "5555555555555555555555555555555555555555555555555555555555555555";
 /// The fake wall clock, in ms since the UNIX epoch.
 pub(crate) const NOW_MS: u64 = 1_762_700_000_000;
 pub(crate) const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -83,6 +86,7 @@ impl Fake {
     pub(crate) fn new() -> Self {
         let mut fake = Fake::default();
         fake.secrets.insert(NEAR_AI_API_KEY_ENV.into(), "sk-test".into());
+        fake.secrets.insert(AUDIO_KEY_ENV.into(), AUDIO_KEY_HEX.into());
         fake.accounts.push(OWNER.into());
         fake
     }
@@ -269,6 +273,69 @@ fn call_with(fake: &mut Fake, input: Value, pins: &Pins) -> Value {
     let bytes = run_with(input.to_string().as_bytes(), fake, pins);
     assert!(bytes.len() < MAX_OUTPUT_BYTES, "{} bytes", bytes.len());
     serde_json::from_slice(&bytes).unwrap()
+}
+
+/// A generator that gives one byte value. It makes a fixed ephemeral key,
+/// so a test seals to the same bytes on every run.
+pub(crate) struct FixedRng(pub(crate) u8);
+
+impl hpke::rand_core::TryRng for FixedRng {
+    type Error = std::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(u32::from_le_bytes([self.0; 4]))
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(u64::from_le_bytes([self.0; 8]))
+    }
+
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+        dst.fill(self.0);
+        Ok(())
+    }
+}
+
+impl hpke::rand_core::TryCryptoRng for FixedRng {}
+
+/// The public key of `AUDIO_KEY_HEX`.
+pub(crate) fn audio_public_key() -> [u8; 32] {
+    AudioKey::from_secret(AUDIO_KEY_HEX).unwrap().public_key()
+}
+
+/// Seals as a Wallet does: `enc || ciphertext || tag`, to `public_key`,
+/// with the ephemeral key that `ikm` gives.
+pub(crate) fn seal_to(public_key: &[u8; 32], plaintext: &[u8], op: &str, owner: &str, ikm: u8) -> Vec<u8> {
+    use hpke::{aead::AesGcm256, kdf::HkdfSha256, kem::X25519HkdfSha256, Deserializable, OpModeS, Serializable};
+    let public_key = <X25519HkdfSha256 as hpke::Kem>::PublicKey::from_bytes(public_key).unwrap();
+    let (encapped, ciphertext) = hpke::single_shot_seal_with_rng::<AesGcm256, HkdfSha256, X25519HkdfSha256>(
+        &OpModeS::Base,
+        &public_key,
+        AUDIO_INFO,
+        plaintext,
+        &audio_aad(op, owner),
+        &mut FixedRng(ikm),
+    )
+    .unwrap();
+    [encapped.to_bytes().as_slice(), &ciphertext].concat()
+}
+
+/// A WAV sealed to the verifier's audio key, standard base64.
+pub(crate) fn sealed(wav: &[u8], op: &str, owner: &str) -> String {
+    STANDARD.encode(seal_to(&audio_public_key(), wav, op, owner, 0x66))
+}
+
+/// `input` with its plain audio replaced by the same audio, sealed for the
+/// input's own `op` and `owner`.
+pub(crate) fn with_sealed_audio(mut input: Value) -> Value {
+    let (op, owner) = (input["op"].as_str().unwrap().to_string(), input["owner"].as_str().unwrap().to_string());
+    let seal = |text: &Value| Value::from(sealed(&STANDARD.decode(text.as_str().unwrap()).unwrap(), &op, &owner));
+    let plain = input.as_object_mut().unwrap().remove("audio_wav_b64").unwrap();
+    input["audio_sealed_b64"] = match &plain {
+        Value::Array(clips) => clips.iter().map(seal).collect(),
+        one => seal(one),
+    };
+    input
 }
 
 /// The enrollment digest text of these clips for `OWNER`.

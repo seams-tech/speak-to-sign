@@ -24,6 +24,7 @@ pub mod authorization;
 pub mod config;
 pub mod digest;
 mod embedding;
+pub mod envelope;
 pub mod host;
 pub mod input;
 pub mod intent;

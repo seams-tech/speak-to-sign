@@ -66,7 +66,7 @@ fn transcribe_steps(
     transcript.owner = Some(owner.as_str().to_string());
 
     // The audio.
-    let clip = decode_clip(&input.audio_wav_b64)?;
+    let clip = decode_clip(host, "transcribe", &input.owner, &input.audio_wav_b64, &input.audio_sealed_b64)?;
     let digest_b64u = b64u(&clip.digest);
     transcript.audio_digest = Some(digest_b64u.clone());
     if !energy_gate(&clip.pcm).passes() {

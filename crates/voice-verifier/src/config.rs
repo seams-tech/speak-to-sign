@@ -2,7 +2,7 @@
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.11.0";
+pub const VERIFIER_VERSION: &str = "0.12.0";
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.
@@ -28,6 +28,19 @@ pub const TRANSCRIPT_DOMAIN: &[u8] = b"seams:outlayer:voice-transcript:v1";
 /// are about 20 words), so that the output stays below [`MAX_OUTPUT_BYTES`]
 /// with the longest owner and stage times.
 pub const MAX_TRANSCRIPT_BYTES: usize = 200;
+
+/// The OutLayer secret (an environment variable) with the audio key: the
+/// X25519 private key that opens sealed audio, as 64 hex characters. The
+/// keystore generates it inside its TEE (type `hex32`) and refuses a manual
+/// value under the `PROTECTED_` prefix.
+pub const AUDIO_KEY_ENV: &str = "PROTECTED_AUDIO_KEY";
+
+/// The HPKE `info` of a sealed clip.
+pub const AUDIO_INFO: &[u8] = b"seams:voice-audio:v1";
+
+/// The prefix of the preimage that names the audio key:
+/// `signed message = SHA-256(AUDIO_KEY_DOMAIN || X25519 public key)`.
+pub const AUDIO_KEY_DOMAIN: &[u8] = b"seams:outlayer:voice-audio-key:v1";
 
 /// A verdict expires this long after the worker clock read before signing.
 pub const VERDICT_TTL_MS: u64 = 120_000;
@@ -259,7 +272,7 @@ mod tests {
     #[test]
     fn manifest_matches_the_constants() {
         let manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
-        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select", "transcribe", "detect"]));
+        assert_eq!(manifest["operations"], json!(["enroll", "verify", "select", "transcribe", "detect", "audio_key"]));
         // HTTPS calls: no callers block, and the default storage cell (the
         // payment-key owner).
         assert!(manifest.get("callers").is_none());

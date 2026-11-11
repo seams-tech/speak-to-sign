@@ -202,6 +202,7 @@ impl Stages {
 // The `kind` of each output.
 const VERIFY_OUTPUT_KIND: &str = "seams_voice_verify_output_v2";
 const ENROLL_OUTPUT_KIND: &str = "seams_voice_enrollment_v3";
+const AUDIO_KEY_OUTPUT_KIND: &str = "seams_voice_audio_key_v1";
 pub const ERROR_OUTPUT_KIND: &str = "seams_voice_error_v1";
 
 /// The `verify` output. `verdict_json` is a string, so its bytes reach the
@@ -300,8 +301,13 @@ pub fn fit_heard(
 /// Signs the verdict JSON with the manifest signing key. Returns the
 /// signature (standard base64) and the key (`ed25519:<base58>`).
 pub fn sign_verdict(host: &mut dyn Host, verdict_json: &str) -> Result<(String, String), String> {
-    let message = verdict_message(verdict_json.as_bytes());
-    let signature = host.sign(&message)?;
+    sign_message(host, &verdict_message(verdict_json.as_bytes()))
+}
+
+/// Signs a 32-byte message with the manifest signing key. Returns the
+/// signature (standard base64) and the key (`ed25519:<base58>`).
+pub fn sign_message(host: &mut dyn Host, message: &[u8; 32]) -> Result<(String, String), String> {
+    let signature = host.sign(message)?;
     let public_key = host.public_key()?;
     if signature.len() != 64 || public_key.len() != 32 {
         return Err("length".to_string());
@@ -557,6 +563,54 @@ impl Default for EnrollOutput {
     }
 }
 
+/// The `audio_key` output: the key that a Wallet seals audio to, named by
+/// the verdict key. A Wallet checks the signature against the verdict key
+/// that it pins, then keeps the audio key.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct AudioKeyOutput {
+    pub kind: &'static str,
+    pub verifier: &'static str,
+    pub outcome: Outcome,
+    pub reason: Option<Reason>,
+    /// Standard base64 of the 32-byte X25519 public key.
+    pub audio_public_key_b64: Option<String>,
+    /// Standard base64 of the ed25519 signature over
+    /// [`audio_key_message`](crate::envelope::audio_key_message).
+    pub signature_b64: Option<String>,
+    /// The verdict key, `ed25519:<base58>`.
+    pub public_key: Option<String>,
+    /// Not signed: a short diagnostic for a refusal.
+    pub detail: Option<String>,
+}
+
+impl AudioKeyOutput {
+    pub fn refused(reason: Reason, detail: String) -> Self {
+        Self {
+            kind: AUDIO_KEY_OUTPUT_KIND,
+            verifier: VERIFIER_VERSION,
+            outcome: Outcome::Refuse,
+            reason: Some(reason),
+            audio_public_key_b64: None,
+            signature_b64: None,
+            public_key: None,
+            detail: Some(detail),
+        }
+    }
+
+    pub fn accepted(audio_public_key: &[u8], signature_b64: String, public_key: String) -> Self {
+        Self {
+            kind: AUDIO_KEY_OUTPUT_KIND,
+            verifier: VERIFIER_VERSION,
+            outcome: Outcome::Accept,
+            reason: None,
+            audio_public_key_b64: Some(b64(audio_public_key)),
+            signature_b64: Some(signature_b64),
+            public_key: Some(public_key),
+            detail: None,
+        }
+    }
+}
+
 /// The output for an input without a known `op`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct UnknownOp {
@@ -592,7 +646,7 @@ mod tests {
         let text = verdict_json(&Verdict::new());
         assert_eq!(
             text,
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.11.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.12.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);

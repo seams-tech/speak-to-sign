@@ -1,9 +1,9 @@
 // The spoken bet of the pm-notes contract: the sentence that a bettor says, and the call to the
-// voice verifier (POST /api/voice-verify, request kind `market_bet`). The verifier checks that
+// voice verifier (../voiceRoute.ts, request kind `market_bet`). The verifier checks that
 // the voice is the account owner's and that the words are this bet, and signs a verdict. The
 // contract takes the bet only with that verdict (`check_spoken_bet` in the contract).
 
-import { base64 } from '../multisig/wav.ts';
+import { callVerifier } from '../voiceRoute.ts';
 import type { BetVoiceCheck, Side } from './types';
 
 /** 0.01 USDC in base units. A spoken amount is a whole number of these. */
@@ -33,7 +33,6 @@ interface VerifyOutput {
   signature_b64?: string | null;
   detail?: string | null;
   reason?: string;
-  error?: string;
 }
 
 /** The verifier's refusal reasons, in plain words. */
@@ -58,24 +57,9 @@ export async function checkSpokenBet(
   bet: { market: string; token: string; marketId: number; side: Side; amount: bigint },
   wav: Uint8Array,
 ): Promise<BetVoiceCheck> {
-  const input = {
-    op: 'verify',
-    owner: accountId,
-    request: { kind: 'market_bet', market: bet.market, token: bet.token, market_id: bet.marketId, outcome: bet.side, amount_units: bet.amount.toString() },
-    contacts: [],
-    audio_wav_b64: base64(wav),
-  };
-  let response: Response;
-  try {
-    response = await fetch('/api/voice-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input }) });
-  } catch {
-    return { kind: 'unavailable', reason: 'The page could not reach the voice verifier.' };
-  }
-  const body = (await response.json().catch(() => null)) as VerifyOutput | null;
-  if (!response.ok || body === null) {
-    return { kind: 'unavailable', reason: typeof body?.error === 'string' ? body.error : `The verify route answered ${response.status}.` };
-  }
-  return readVerifyOutput(body);
+  const request = { kind: 'market_bet', market: bet.market, token: bet.token, market_id: bet.marketId, outcome: bet.side, amount_units: bet.amount.toString() };
+  const answer = await callVerifier<VerifyOutput>(accountId, request, wav);
+  return answer.kind === 'output' ? readVerifyOutput(answer.output) : answer;
 }
 
 /** The verifier output as the result of a check. */

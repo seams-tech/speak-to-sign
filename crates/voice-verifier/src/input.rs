@@ -8,8 +8,14 @@ pub struct EnrollInput {
     pub op: String,
     /// The account whose voice this is.
     pub owner: String,
-    /// Exactly three 16 kHz mono PCM16 WAVs, standard base64.
-    pub audio_wav_b64: Vec<String>,
+    /// Exactly three 16 kHz mono PCM16 WAVs, standard base64. Either this
+    /// field or `audio_sealed_b64`, not both.
+    #[serde(default)]
+    pub audio_wav_b64: Option<Vec<String>>,
+    /// The same three WAVs, each sealed to the audio key with the `aad` of
+    /// `enroll` and the owner (see [`crate::envelope`]), standard base64.
+    #[serde(default)]
+    pub audio_sealed_b64: Option<Vec<String>>,
     /// Required for a NEAR owner. An application owner (`app:<id>`) must
     /// not have one: the caller of the worker is the authority for it.
     #[serde(default)]
@@ -39,8 +45,14 @@ pub struct VerifyInput {
     /// Accounts that the owner knows, for the account names and the
     /// confusion set. At most 32. The receiver is added if it is missing.
     pub contacts: Vec<String>,
-    /// One 16 kHz mono PCM16 WAV, standard base64.
-    pub audio_wav_b64: String,
+    /// One 16 kHz mono PCM16 WAV, standard base64. Either this field or
+    /// `audio_sealed_b64`, not both.
+    #[serde(default)]
+    pub audio_wav_b64: Option<String>,
+    /// The same WAV, sealed to the audio key with the `aad` of `verify` and
+    /// the owner (see [`crate::envelope`]), standard base64.
+    #[serde(default)]
+    pub audio_sealed_b64: Option<String>,
 }
 
 /// `select`: the owner, 2 to 16 candidate requests, the known accounts and
@@ -56,8 +68,14 @@ pub struct SelectInput {
     pub requests: Vec<RequestInput>,
     /// As in [`VerifyInput`].
     pub contacts: Vec<String>,
-    /// One 16 kHz mono PCM16 WAV, standard base64.
-    pub audio_wav_b64: String,
+    /// One 16 kHz mono PCM16 WAV, standard base64. Either this field or
+    /// `audio_sealed_b64`, not both.
+    #[serde(default)]
+    pub audio_wav_b64: Option<String>,
+    /// The same WAV, sealed as in [`VerifyInput`], with this operation in
+    /// the `aad`.
+    #[serde(default)]
+    pub audio_sealed_b64: Option<String>,
 }
 
 /// `transcribe`: the owner and one WAV. No request: the output is a signed
@@ -67,8 +85,14 @@ pub struct SelectInput {
 pub struct TranscribeInput {
     pub op: String,
     pub owner: String,
-    /// One 16 kHz mono PCM16 WAV, standard base64.
-    pub audio_wav_b64: String,
+    /// One 16 kHz mono PCM16 WAV, standard base64. Either this field or
+    /// `audio_sealed_b64`, not both.
+    #[serde(default)]
+    pub audio_wav_b64: Option<String>,
+    /// The same WAV, sealed as in [`VerifyInput`], with this operation in
+    /// the `aad`.
+    #[serde(default)]
+    pub audio_sealed_b64: Option<String>,
 }
 
 /// `detect`: the owner, the intents that the application offers, and one
@@ -80,8 +104,14 @@ pub struct DetectInput {
     pub owner: String,
     /// 1 to 16 intents.
     pub intents: Vec<crate::intent::IntentSpec>,
-    /// One 16 kHz mono PCM16 WAV, standard base64.
-    pub audio_wav_b64: String,
+    /// One 16 kHz mono PCM16 WAV, standard base64. Either this field or
+    /// `audio_sealed_b64`, not both.
+    #[serde(default)]
+    pub audio_wav_b64: Option<String>,
+    /// The same WAV, sealed as in [`VerifyInput`], with this operation in
+    /// the `aad`.
+    #[serde(default)]
+    pub audio_sealed_b64: Option<String>,
 }
 
 /// The typed request, by `kind`.

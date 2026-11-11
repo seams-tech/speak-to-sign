@@ -10,6 +10,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { IconChartBar, IconChevronDown, IconScale, IconX } from '@tabler/icons-react';
 import type { ModalHandle } from '../components/Modal';
 import { Morph } from '../components/Morph';
+import { useAutoStart } from '../components/SpeakStep';
 import { WalletDialog } from '../components/WalletDialog';
 import type { SignResult } from '../signer/notesSigner';
 import {
@@ -911,13 +912,8 @@ function BetSheet({
   const closeRef = useRef<() => void>(() => undefined);
   // With a spoken bet, the sign-in ends at the "say it" step: nothing is placed without a voice.
   const signIn = useSignInThen(account, onSignIn, () => (voice ? Promise.resolve() : place(closeRef.current)));
-  const autoPlaced = useRef(false);
-  useEffect(() => {
-    if (!autoPlace || autoPlaced.current) return;
-    autoPlaced.current = true;
-    void (account ? place(closeRef.current) : signIn.start());
-    // Once, when the sheet opens.
-  }, []);
+  // A voice command placed the bet: the sheet shows it a moment, then the Wallet card comes.
+  useAutoStart(autoPlace, stage === null, () => void (account ? place(closeRef.current) : signIn.start()));
 
   return (
     <SheetDialog titleId={titleId} locked={stage !== null} onClose={onClose}>

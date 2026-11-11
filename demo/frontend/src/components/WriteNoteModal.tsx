@@ -7,7 +7,7 @@ import { useEnrolled } from '../signer/voiceSetup';
 import { checkSummary, SUMMARY_MAX_WORDS } from '../summaryRules';
 import type { ModalHandle } from './Modal';
 import { WalletDialog } from './WalletDialog';
-import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
+import { runVoiceAction, SpeakStep, speakHint, useAutoClose, useAutoStart, type SignPhase } from './SpeakStep';
 
 const MAX_NOTE_CHARS = 280;
 const MAX_SUMMARY_CHARS = 120;
@@ -104,14 +104,10 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
     if (result?.kind === 'sent') onSent(note.summary, result.transactionHash);
   };
 
-  const autoSigned = useRef(false);
+  // A voice command asked for the note: once the prefilled draft is in, the button waits a
+  // moment, then the Wallet card comes.
   const draftReady = !typingNote && !typing && speakable && noteOk;
-  useEffect(() => {
-    if (!autoSign || autoSigned.current || !draftReady) return;
-    autoSigned.current = true;
-    void startSigning();
-    // Once, when the prefilled draft is in.
-  }, [autoSign, draftReady]);
+  useAutoStart(autoSign, draftReady && phase.state === 'idle', () => void startSigning());
 
   const sent = phase.state === 'done' && phase.result.kind === 'sent';
   const finish = () => modal.current?.close(onDone);

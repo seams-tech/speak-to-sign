@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import type { Note } from '../notes/types';
 import { RATING_LABELS, useDemo } from '../demoContext';
@@ -8,7 +8,7 @@ import { shortAccount } from '../config';
 import { Linkified } from './bits';
 import type { ModalHandle } from './Modal';
 import { WalletDialog } from './WalletDialog';
-import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
+import { runVoiceAction, SpeakStep, speakHint, useAutoClose, useAutoStart, type SignPhase } from './SpeakStep';
 
 const OPTIONS: { rating: Rating; answer: string }[] = [
   { rating: 'helpful', answer: 'Yes' },
@@ -49,13 +49,8 @@ export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, au
     if (result?.kind === 'sent') onSent(rating, result.transactionHash);
   };
 
-  const autoSigned = useRef(false);
-  useEffect(() => {
-    if (!autoSign || autoSigned.current || !choice) return;
-    autoSigned.current = true;
-    void startSigning();
-    // Once, when the dialog opens.
-  }, []);
+  // A voice command asked for the rating: the button waits a moment, then the Wallet card comes.
+  useAutoStart(autoSign, choice !== null && phase.state === 'idle', () => void startSigning());
 
   const sent = phase.state === 'done' && phase.result.kind === 'sent';
   const finish = () => modal.current?.close(onDone);

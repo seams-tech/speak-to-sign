@@ -16,6 +16,11 @@ export type SignPhase =
 
 /** After a voice action worked, its dialog shows the result this long, then closes by itself. */
 const AUTO_CLOSE_MS = 2400;
+/**
+ * A dialog that a voice command opened shows its ready button this long before the Wallet card
+ * takes its place, so the visitor sees what the command will sign.
+ */
+const AUTO_START_PAUSE_MS = 1000;
 
 /** The title of the result card when a step before the voice failed. */
 const FAILED_STEP_TITLE: Record<PrepareStep, string> = {
@@ -74,6 +79,27 @@ export function useAutoClose(active: boolean, close: () => void) {
     const timer = window.setTimeout(() => closeRef.current(), AUTO_CLOSE_MS);
     return () => window.clearTimeout(timer);
   }, [active]);
+}
+
+/**
+ * Calls `start` once, a moment after `ready` turns on, when a voice command opened the dialog
+ * (`enabled`). Make `ready` false when the visitor starts by hand: the pause then ends with no
+ * second start. A dialog that closes during the pause starts nothing.
+ */
+export function useAutoStart(enabled: boolean, ready: boolean, start: () => void) {
+  const startRef = useRef(start);
+  useLayoutEffect(() => {
+    startRef.current = start;
+  });
+  const started = useRef(false);
+  useEffect(() => {
+    if (!enabled || !ready || started.current) return;
+    const timer = window.setTimeout(() => {
+      started.current = true;
+      startRef.current();
+    }, AUTO_START_PAUSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [enabled, ready]);
 }
 
 /** What the visitor does in each step before the voice. */

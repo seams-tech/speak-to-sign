@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SpeakToSignEnrollmentResult, SpeakToSignTransferResult } from '@seams/wallet';
+import type { SpeakToSignEnrollmentResult } from '@seams/wallet';
 import { HostedSeamsAuthMenu, useSeams, type HostedAuthMenuOutcome } from '@seams/wallet/react';
 import {
   DEFAULT_RECEIVER,
@@ -11,7 +11,7 @@ import {
 } from './chain';
 import { CopyButton, Fact, LoadingButton, Notice, StepCard, type StepStatus } from './components';
 import { useLoaded, useOutcome, useWalletConnection, type Loaded, type Outcome } from './hooks';
-import { EnrollmentResult, TransferResult } from './results';
+import { EnrollmentResult, TransferResult, type SpokenTransferResult } from './results';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type Availability = Awaited<ReturnType<Seams['registration']['getAuthMethodAvailability']>>;
@@ -52,8 +52,8 @@ function VoiceStep(props: {
   const turnedOff = availability.kind === 'ready' && availability.value.kind === 'disabled';
   const setUp = React.useCallback(async () => {
     await start(async () => {
-      const speakToSign = owner.seams.speakToSign;
-      if (!speakToSign) throw new Error('Speak-to-Sign is not configured.');
+      const spoken = owner.seams.near.spoken;
+      if (!spoken) throw new Error('Speak-to-Sign is not configured.');
       if (turnedOff) {
         await owner.seams.registration.setAuthMethodEnabled({
           walletId: owner.walletId,
@@ -61,7 +61,7 @@ function VoiceStep(props: {
           enabled: true,
         });
       }
-      return await speakToSign.enroll({ walletId: owner.walletId });
+      return await spoken.enroll({ walletSession: owner.walletId });
     });
     onChanged();
   }, [onChanged, owner, start, turnedOff]);
@@ -154,22 +154,22 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
   const [receiver, setReceiver] = React.useState(DEFAULT_RECEIVER);
   const chosen = receiver.trim();
   const amount = parseSpokenAmount(amountText);
-  const [outcome, start] = useOutcome<SpeakToSignTransferResult>();
+  const [outcome, start] = useOutcome<SpokenTransferResult>();
   const pay = React.useCallback(async () => {
     if (!amount.ok || !chosen) return;
     const result = await start(async () => {
-      const speakToSign = owner.seams.speakToSign;
-      if (!speakToSign) throw new Error('Speak-to-Sign is not configured.');
-      return await speakToSign.requestTransfer({
-        walletId: owner.walletId,
+      const spoken = owner.seams.near.spoken;
+      if (!spoken) throw new Error('Speak-to-Sign is not configured.');
+      return await spoken.transfer({
+        walletSession: owner.walletId,
         receiver: chosen,
         amount: amount.amount,
       });
     });
-    if (result?.kind === 'sent') onPaid();
+    if (result?.kind === 'approved') onPaid();
   }, [amount, chosen, onPaid, owner, start]);
   const canPay = ready && amount.ok && Boolean(chosen) && outcome.kind !== 'working';
-  const status = stepStatus(outcome, ready, (result) => result.kind === 'sent');
+  const status = stepStatus(outcome, ready, (result) => result.kind === 'approved');
 
   return (
     <StepCard index={3} title="Pay by voice" status={status}>

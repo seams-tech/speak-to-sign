@@ -1,7 +1,7 @@
 // The changes of the pm-notes contract, signed by the Seams Wallet. The money is USDC: a bet or
 // a seed is the token's `ft_transfer_call` to the market, and a claim makes the market call the
-// token's `ft_transfer`. A bet and a new market are spoken requests (`seams.near.speakToSign`,
-// Wallet 0.66.0): the owner says the sentence, and the Wallet sends the transaction with no
+// token's `ft_transfer`. A bet and a new market are spoken requests (`seams.near.spoken` and
+// `approval` on `seams.near.signAndSendTransaction`, Wallet 0.68.0): the owner says the sentence, and the Wallet sends the transaction with no
 // confirm. A bet is the typed request `bet`, whose verdict goes with the bet. A new market is a
 // spoken transaction with a summary. The other changes use the Wallet's normal confirm step
 // (passkey).
@@ -16,7 +16,7 @@ import { spokenAmount } from './spokenBet';
 import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-type SpeakToSign = NonNullable<Seams['near']['speakToSign']>;
+type Spoken = NonNullable<Seams['near']['spoken']>;
 
 /** What the owner says to open a market. Plain words only: the Wallet's rule for a summary. */
 export const OPEN_MARKET_SENTENCE = 'Open a prediction market on this note';
@@ -161,10 +161,10 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
   const spokenUsdc = async (
     expectedEvent: string,
     progress: SignProgress | undefined,
-    call: (voice: SpeakToSign, walletId: string, onProgress: (event: { stage: string }) => void, place: VoiceCardPlace) => Promise<SpokenSent>,
+    call: (voice: Spoken, walletId: string, onProgress: (event: { stage: string }) => void, place: VoiceCardPlace) => Promise<SpokenSent>,
   ): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
-    const voice = seams.near.speakToSign;
+    const voice = seams.near.spoken;
     if (!voice) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     try {
       const result = toSignResult(
@@ -193,7 +193,7 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
     const decimal = spokenAmount(amount)?.replaceAll(',', '');
     if (!decimal) return { kind: 'refused', reason: 'A spoken bet is a whole number of cents.' };
     return spokenUsdc('bet', progress, (voice, id, onProgress, place) =>
-      voice.typed.bet({ walletId: id, contract, token, marketId, outcome: side, amount: decimal, onProgress, ...place }),
+      voice.bet({ walletSession: id, contract, token, marketId, outcome: side, amount: decimal, onProgress, ...place }),
     );
   };
 
@@ -210,26 +210,23 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
     // The seed goes to the market with the token's `ft_transfer_call`. The verdict binds the
     // receiver and the actions, so the sentence names no amount.
     createMarket: ({ noteId, question, context, closesAtMs, seed }, progress) =>
-      spokenUsdc('market_created', progress, (voice, id, onProgress, place) =>
-        voice.signAndSendTransaction({
-          walletId: id,
-          transaction: {
-            receiverId: token,
-            actions: [
-              functionCall({
-                method: 'ft_transfer_call',
-                args: {
-                  receiver_id: contract,
-                  amount: seed.toString(),
-                  msg: JSON.stringify({ action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs }),
-                },
-                gas: FT_CALL_GAS,
-                deposit: '1',
-              }),
-            ],
-          },
-          summary: OPEN_MARKET_SENTENCE,
-          onProgress,
+      spokenUsdc('market_created', progress, (_voice, id, onProgress, place) =>
+        seams.near.signAndSendTransaction({
+          walletSession: id,
+          receiverId: token,
+          actions: [
+            functionCall({
+              method: 'ft_transfer_call',
+              args: {
+                receiver_id: contract,
+                amount: seed.toString(),
+                msg: JSON.stringify({ action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs }),
+              },
+              gas: FT_CALL_GAS,
+              deposit: '1',
+            }),
+          ],
+          approval: { kind: 'spoken', summary: OPEN_MARKET_SENTENCE, onProgress },
           ...place,
         }),
       ),

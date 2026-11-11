@@ -1,12 +1,12 @@
 import type {
   SpeakToSignEnrollmentResult,
-  SpeakToSignTransferResult,
+  SpeakToSignRefusalReason,
+  SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@seams/wallet';
 
-type TransferRefusal = Extract<SpeakToSignTransferResult, { kind: 'refused' }>['reason'];
+type TransferRefusal = SpeakToSignRefusalReason;
 type EnrollmentRefusal = Extract<SpeakToSignEnrollmentResult, { kind: 'refused' }>['reason'];
-type Sent = Extract<SpeakToSignTransferResult, { kind: 'sent' }>;
 
 const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   quality: 'The recording was too quiet, too short or too noisy.',
@@ -25,8 +25,7 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   receiver_missing: 'The receiver account does not exist on NEAR testnet.',
   verdict_mismatch: 'The signed verdict did not match this payment, or it expired.',
   transaction_failed: 'NEAR ran the transfer, and it failed.',
-  // The Seams co-signer checks the verdict again before it signs. These two are its refusals.
-  voice_limit: 'This payment is over the voice limit: 10 NEAR per payment, 20 NEAR in 24 hours.',
+  // The Seams co-signer checks the verdict again before it signs. This is its refusal.
   cosigner_refused: 'Seams did not accept the verdict, so nothing was signed.',
 };
 
@@ -63,7 +62,7 @@ export function unavailableText(reason: SpeakToSignUnavailableReason): string {
   return UNAVAILABLE[reason];
 }
 
-export const STAGE_LABELS: ReadonlyArray<readonly [keyof Sent['times'], string]> = [
+export const STAGE_LABELS: ReadonlyArray<readonly [keyof SpeakToSignTransferTimes, string]> = [
   ['speechMs', 'Speech'],
   ['verifyMs', 'Verify'],
   ['transactionMs', 'Check, sign and send'],

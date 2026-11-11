@@ -1,7 +1,6 @@
-import type { SeamsConfigsInput } from '@seams/wallet';
+import { spoken, type SeamsConfigsInput } from '@seams/wallet';
 import { seamsTestnetConfig } from '@seams/wallet/react';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/wallet-voice-sign';
 import { config } from '../config';
 
 /**
@@ -25,6 +24,6 @@ export function buildSeamsConfig(): SeamsConfigsInput | null {
     signingSessionPersistenceMode: 'sealed_refresh_v1',
     appearance: { locale: 'en' },
     authMethods: [voiceIdAuthMethod()],
-    transactionFeatures: [speakToSign({ network: 'testnet' })],
+    approvals: [spoken({ network: 'testnet' })],
   };
 }

@@ -168,8 +168,8 @@ local sandbox with seeded markets for a check before the deploy.
 
 ### Spoken bets
 
-A bet is a spoken request of the Seams Wallet (0.66.0 and later):
-`seams.near.speakToSign.typed.bet` in `marketSigner.ts`. The Wallet card shows
+A bet is a spoken request of the Seams Wallet (0.68.0):
+`seams.near.spoken.bet` in `marketSigner.ts`. The Wallet card shows
 the sentence ("bet zero point five usdc yes on market nine") and records it.
 The verifier checks the voice and the words. The Wallet then sends the token's
 `ft_transfer_call` with the signed verdict in the `msg`, with no confirm step.
@@ -179,7 +179,7 @@ market refused has no `bet` event, and its USDC came back. Before the bet, the
 page asks for the sign-in, the voice setup and the test USDC
 (`source.signsByVoice`).
 
-A new market is a spoken request too: `seams.near.speakToSign.signAndSendTransaction`
+A new market is a spoken request too: `seams.near.signAndSendTransaction` with `approval`
 with the summary "Open a prediction market on this note" (`OPEN_MARKET_SENTENCE`).
 The verdict binds the receiver and the actions, so the sentence names no amount.
 

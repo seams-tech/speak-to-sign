@@ -1,7 +1,6 @@
-import type { SeamsConfigsInput } from '@seams/wallet';
+import { spoken, type SeamsConfigsInput } from '@seams/wallet';
 import { seamsTestnetConfig } from '@seams/wallet/react';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/speak-to-sign';
 
 /* Settings come from Vite env variables at build time (see .env.example).
    Speak-to-Sign runs only on NEAR testnet, against a Seams deployment that
@@ -37,7 +36,7 @@ export function readSettings(): Settings {
     appearance: { locale: 'en' },
     // VoiceID records the spoken sentence; Speak-to-Sign verifies it and pays.
     authMethods: [voiceIdAuthMethod()],
-    transactionFeatures: [speakToSign({ network: 'testnet' })],
+    approvals: [spoken({ network: 'testnet' })],
   };
   return {
     kind: 'ready',

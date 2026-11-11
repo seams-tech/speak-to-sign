@@ -1,5 +1,10 @@
 import React from 'react';
-import type { SpeakToSignEnrollmentResult, SpeakToSignTransferResult } from '@seams/wallet';
+import type {
+  SpeakToSignEnrollmentResult,
+  SpeakToSignRefusalReason,
+  SpeakToSignResult,
+  SpeakToSignSentTransaction,
+} from '@seams/wallet';
 import { RECEIPT_BASE_URL } from './chain';
 import { Fact, Notice, ReasonNotice } from './components';
 import {
@@ -9,6 +14,12 @@ import {
   transferRefusalText,
   unavailableText,
 } from './text';
+
+/** The result of `seams.near.spoken.transfer`. */
+export type SpokenTransferResult = SpeakToSignResult<
+  SpeakToSignSentTransaction,
+  SpeakToSignRefusalReason
+>;
 
 export function EnrollmentResult({
   result,
@@ -35,17 +46,17 @@ export function EnrollmentResult({
 export function TransferResult({
   result,
 }: {
-  result: SpeakToSignTransferResult;
+  result: SpokenTransferResult;
 }): React.JSX.Element {
   switch (result.kind) {
-    case 'sent':
+    case 'approved':
       return (
         <Notice tone="success">
           <p>
             {result.approval === 'voice'
               ? 'Paid from your account by voice, with no confirm.'
               : 'Paid from your account after your voice and your confirm.'}{' '}
-            <ReceiptLink hash={result.transactionHash} />
+            <ReceiptLink hash={result.result.transactionHash} />
           </p>
           <dl className="svi-facts svi-facts--times">
             {STAGE_LABELS.map(([key, label]) => (

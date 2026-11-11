@@ -76,7 +76,7 @@ Wallet origin, so `src/config.ts` sets neither.
 
 | File                     | What it does                                                                        |
 | ------------------------ | ----------------------------------------------------------------------------------- |
-| `src/config.ts`          | `seamsTestnetConfig` with the VoiceID auth method and the `speakToSign` feature.    |
+| `src/config.ts`          | `seamsTestnetConfig` with the VoiceID auth method and `spoken` in `approvals`.      |
 | `src/main.tsx`           | The page and `SeamsWebProvider`.                                                    |
 | `src/PaymentFlow.tsx`    | Sign-in (`HostedSeamsAuthMenu`), VoiceID, enrollment, balance and the spoken payment. |
 | `src/results.tsx`        | The result of an enrollment and of a spoken payment.                                |
@@ -88,18 +88,21 @@ Wallet origin, so `src/config.ts` sets neither.
 The two calls that matter:
 
 ```ts
-await seams.speakToSign.enroll({ walletId });
-await seams.speakToSign.requestTransfer({ walletId, receiver: 'seams-v1.testnet', amount: '1' });
+await seams.near.spoken.enroll();
+await seams.near.spoken.transfer({ receiver: 'seams-v1.testnet', amount: '1' });
 ```
 
-`requestTransfer` returns `sent`, `refused`, `cancelled` or `unavailable`.
-A `sent` result has the transaction hash and the times of each stage.
+`transfer` returns `approved`, `refused`, `cancelled` or `unavailable`.
+An `approved` result has the transaction hash and the times of each stage.
+`seams.near.spoken` exists when the configuration has
+`approvals: [spoken({ network: 'testnet' })]`.
 
 ## Versions
 
-Keep `@seams/wallet`, `@seams/voiceid` and `@seams/speak-to-sign` at one
-version, and at the version that the Wallet origin runs. The Wallet refuses an
-app whose Wallet protocol is too old, and the page then asks you to upgrade.
+Keep `@seams/wallet` and `@seams/voiceid` at one version, and at the version
+that the Wallet origin runs (0.68.0 here). Speak-to-Sign is a part of
+`@seams/wallet`: it has no package of its own. The Wallet refuses an app whose
+Wallet protocol is another one, and the page then asks you to upgrade.
 
 ## What to know
 

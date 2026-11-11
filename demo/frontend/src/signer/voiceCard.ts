@@ -28,7 +28,7 @@ export function hostVoiceCard(host: VoiceCardHost): () => void {
 
 /**
  * Runs one Speak-to-Sign request with its card in the newest host's dialog:
- * `inVoiceCard((place) => speakToSign.typed.note({ ...note, ...place }))`.
+ * `inVoiceCard((place) => seams.near.spoken.note({ ...note, ...place }))`.
  */
 export function inVoiceCard<T>(send: (place: VoiceCardPlace) => Promise<T>): Promise<T> {
   const host = hosts[hosts.length - 1];

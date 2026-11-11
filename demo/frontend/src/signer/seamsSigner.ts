@@ -1,4 +1,4 @@
-// The real signer: Seams Wallet Speak-to-Sign (SDK 0.67.0, `seams.near.speakToSign`).
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.68.0, `seams.near.spoken`).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe (its card shows in the
 // page's open dialog, src/signer/voiceCard.ts): the owner says the
@@ -12,7 +12,8 @@ import { isCancelError, isUserRejection } from './rejection';
 import { inVoiceCard } from './voiceCard';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-type SpeakToSign = NonNullable<Seams['near']['speakToSign']>;
+/** The typed spoken requests and the enrollment: `seams.near.spoken` (Wallet 0.68.0). */
+type Spoken = NonNullable<Seams['near']['spoken']>;
 /** The result of a spoken call that sends a transaction. */
 export type SpokenSent = SpeakToSignResult<SpeakToSignSentTransaction, string>;
 
@@ -39,12 +40,12 @@ export function createMissingKeySigner(): NotesSigner & SignerSetup {
 export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup {
   const { seams, walletId, nearAccountId, contract } = owner;
 
-  const run = async (call: (speakToSign: SpeakToSign, walletId: string) => Promise<SpokenSent>): Promise<SignResult> => {
+  const run = async (call: (spoken: Spoken, walletId: string) => Promise<SpokenSent>): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
-    const speakToSign = seams.near.speakToSign;
-    if (!speakToSign) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
+    const spoken = seams.near.spoken;
+    if (!spoken) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     try {
-      return toSignResult(await call(speakToSign, walletId));
+      return toSignResult(await call(spoken, walletId));
     } catch (cause) {
       return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
     }
@@ -60,11 +61,11 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     requestNote: async ({ postId, text, summary }) => {
       // The Wallet refuses a summary that breaks the SDK's rule, so check it first.
       if (summaryRefusal(summary) !== null) return { kind: 'refused', reason: REFUSALS.summary_not_speakable ?? 'The summary is not speakable.' };
-      return await run((speakToSign, id) => inVoiceCard((place) => speakToSign.typed.note({ walletId: id, contract, postId, text, summary, ...place })));
+      return await run((spoken, id) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, summary, ...place })));
     },
 
     requestRating: ({ noteId, rating }) =>
-      run((speakToSign, id) => inVoiceCard((place) => speakToSign.typed.rating({ walletId: id, contract, noteId, rating, ...place }))),
+      run((spoken, id) => inVoiceCard((place) => spoken.rating({ walletSession: id, contract, noteId, rating, ...place }))),
 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
@@ -84,9 +85,9 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     async enroll(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
       const id = walletId;
-      const speakToSign = seams.near.speakToSign;
-      if (!speakToSign) return { kind: 'failed', message: 'Speak-to-Sign is not in the Wallet configuration.' };
-      return await withFreshUnlock(seams, id, () => enrollOnce(speakToSign, id));
+      const spoken = seams.near.spoken;
+      if (!spoken) return { kind: 'failed', message: 'Speak-to-Sign is not in the Wallet configuration.' };
+      return await withFreshUnlock(seams, id, () => enrollOnce(spoken, id));
     },
   };
 }
@@ -125,8 +126,8 @@ const CLOSED: SetupOutcome = { kind: 'cancelled', message: 'You closed a Wallet 
 const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active owner wallet session/i;
 
 /** One verifier enrollment. A thrown error goes to withFreshUnlock. */
-async function enrollOnce(speakToSign: SpeakToSign, walletId: string): Promise<SetupOutcome> {
-  const result: SpeakToSignEnrollmentResult = await inVoiceCard((place) => speakToSign.enroll({ walletId, ...place }));
+async function enrollOnce(spoken: Spoken, walletId: string): Promise<SetupOutcome> {
+  const result: SpeakToSignEnrollmentResult = await inVoiceCard((place) => spoken.enroll({ walletSession: walletId, ...place }));
   switch (result.kind) {
     case 'enrolled':
       return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };
@@ -174,8 +175,7 @@ const REFUSALS: Record<string, string> = {
   bet_not_valid: 'The market, the outcome or the amount of the bet is not valid.',
   verdict_mismatch: 'The signed verdict did not match this request, so the Wallet signed nothing.',
   transaction_failed: 'The transaction failed on chain.',
-  // SDK 0.60.0: the Seams co-signer refused the verdict. `detail` holds its reason.
-  voice_limit: 'This payment is over the voice limit.',
+  // The Seams co-signer refused the verdict. `detail` holds its reason.
   cosigner_refused: 'Seams did not accept the verdict, so nothing was signed.',
 };
 

@@ -1407,8 +1407,7 @@ code {
 .dialog {
   transition:
     opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 180ms ease;
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @starting-style {
   .overlay:not(.overlay-bare),
@@ -1490,14 +1489,33 @@ code {
 .morph-in > .dialog-body > :nth-child(n + 4) {
   animation-delay: 210ms;
 }
-/* A Wallet card as a step (the sign-in, the voice card): the dialog shrinks to the card, and its
-   own white fades out once the card is painted (the SDK marks the anchor ready), so the card is
-   the dialog. */
-.dialog:has(.morph-view:not([hidden]) > .wallet-step) {
-  max-width: 420px;
+/* A Wallet card as a step (the sign-in, the voice card): the dialog shrinks to the card. The
+   card is an iframe above the page, which the SDK fades in and out over the step. The dialog's
+   own surface is under it, in the card's colour and size. It goes only while the card is fully
+   painted (the step says so, and the SDK marks the card's anchor), so a card that changes its
+   size shows no edge of the dialog. It does not fade: a fade lets the page show through the
+   dialog and the card at the same time. */
+.dialog {
+  --card-w: 420px;
 }
-.dialog:has(.morph-view:not([hidden]) > .wallet-step [data-seams-auth-menu-ready]) {
+.dialog:has(.morph-view:not([hidden]) > .wallet-step) {
+  max-width: var(--card-w);
+}
+.dialog:has(.morph-view:not([hidden]) > .wallet-step[data-card-shown]):has([data-seams-auth-menu-ready]) {
   background-color: transparent;
+}
+/* The anchor of the voice card: a layer at the top of the dialog, with the card's width. It is
+   there before the dialog changes to the card's step, so the Wallet makes the card meanwhile. */
+.dialog:has(> .card-layer) {
+  position: relative;
+}
+.card-layer {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  width: min(var(--card-w), 100%);
+  margin-inline: auto;
+  pointer-events: none;
 }
 .wallet-step .field-error {
   padding: 8px 12px;

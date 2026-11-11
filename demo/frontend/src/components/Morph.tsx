@@ -1,5 +1,6 @@
 // The steps of one dialog, in place of a dialog on top of a dialog. When `view` changes, the old
-// step fades out, then the parts of the new step fade in one after another. The dialog itself
+// step fades out (a bare step has nothing to fade), then the parts of the new step fade in one
+// after another. The dialog itself
 // (Modal) animates to the new size, so it reads as one window that changes. With reduced
 // motion the steps only fade.
 
@@ -15,6 +16,11 @@ interface ViewProps {
    * market strip that waits for the sign-in to place a bet.
    */
   keep?: boolean;
+  /**
+   * The step shows nothing of its own when it leaves (a Wallet card was over it), so it leaves
+   * with no fade: the next step starts at once.
+   */
+  bare?: boolean;
   children: ReactNode;
 }
 
@@ -56,6 +62,10 @@ export function Morph({ view, flex = false, children }: { view: string; flex?: b
       setEntered(view);
       setShown(view);
     };
+    if ((views.get(shown) ?? last.current.get(shown))?.bare) {
+      swap();
+      return;
+    }
     setLeaving(true);
     const timer = window.setTimeout(swap, OUT_MS);
     return () => window.clearTimeout(timer);

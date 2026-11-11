@@ -1,14 +1,24 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconX } from '@tabler/icons-react';
-import { HostedSeamsAuthMenu, type HostedAuthMenuOutcome } from '@seams/wallet/react';
+import { HostedSeamsAuthMenu, type HostedAuthMenuOutcome, type WalletStepEvents } from '@seams/wallet/react';
 import { Modal, type ModalHandle } from './Modal';
+import type { WalletCard } from './useWalletCard';
 
 /**
  * Seams Wallet sign-in and registration. The menu runs inside the Wallet's own iframe, which the
  * SDK places over this element and keeps there while the element moves.
  */
-function SignInMenu({ onSignedIn, onCancel }: { onSignedIn: () => void; onCancel: () => void }) {
+function SignInMenu({
+  onSignedIn,
+  onCancel,
+  events,
+}: {
+  onSignedIn: () => void;
+  onCancel: () => void;
+  /** For a menu that is a step of a dialog: what its card does. */
+  events?: WalletStepEvents;
+}) {
   const [error, setError] = useState<string | null>(null);
 
   const onOutcome = (outcome: HostedAuthMenuOutcome) => {
@@ -31,6 +41,7 @@ function SignInMenu({ onSignedIn, onCancel }: { onSignedIn: () => void; onCancel
   return (
     <>
       <HostedSeamsAuthMenu
+        {...events}
         onOutcome={onOutcome}
         placeholder={<div className="loading">Loading Seams Wallet</div>}
       />
@@ -70,22 +81,34 @@ export function SignInModal({ onClose, onSignedIn }: { onClose: () => void; onSi
  */
 export function SignInStep({
   titleId,
-  onSignedIn,
-  onBack,
+  card,
+  ended,
+  onLeave,
 }: {
   /** The id that labels the dialog. */
   titleId: string;
-  onSignedIn: () => void;
-  onBack: () => void;
+  /** The state of the menu's card, which the dialog keeps. */
+  card: WalletCard;
+  /**
+   * The sign-in ended. The menu is gone, and its card fades out: the step keeps the card's size
+   * until the dialog shows the step before.
+   */
+  ended: boolean;
+  /** The visitor signed in, or went back. */
+  onLeave: (signedIn: boolean) => void;
 }) {
   return (
     <>
       <h2 id={titleId} className="sr-only">
         Sign in to Seams Wallet
       </h2>
-      <div className="wallet-step">
-        <SignInMenu onSignedIn={onSignedIn} onCancel={onBack} />
-        <CardCorner onClick={onBack} />
+      <div className="wallet-step" data-card-shown={card.shown || undefined} style={ended ? { minHeight: card.size?.height } : undefined}>
+        {!ended && (
+          <>
+            <SignInMenu events={card.events} onSignedIn={() => onLeave(true)} onCancel={() => onLeave(false)} />
+            <CardCorner onClick={() => onLeave(false)} />
+          </>
+        )}
       </div>
     </>
   );

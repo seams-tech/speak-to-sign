@@ -193,6 +193,12 @@ export function NotesPage({ seams }: { seams: boolean }) {
                 Say the request. Your Seams Wallet signs only when the voice is yours and the words match. No confirm tap, and you cannot sign
                 what you did not say.
               </p>
+              {/* The short form of "Why sign by voice?" in the root README. */}
+              <ul className="ss-hero-points" aria-label="Why sign by voice">
+                <li>Each note needs your voice</li>
+                <li>No blind signing</li>
+                <li>One sentence is the approval</li>
+              </ul>
             </div>
           </div>
           {/* The multisig page sends a visitor here (#setup) to set up the voice and get testnet NEAR. */}

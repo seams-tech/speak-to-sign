@@ -94,8 +94,8 @@ export function readXPosts(body: unknown, nowMs: number): Post[] | null {
   });
 }
 
-/** The line at the end of the timeline: how often the posts come, and which subjects stay out. */
-export const X_POSTS_LINE = 'New posts from X 3 times a day. No posts about war, crime or adult content.';
+/** The line at the end of the timeline: how often the posts come. */
+export const X_POSTS_LINE = 'Loads posts from X 3 times a day';
 
 /** The posts of one page of the timeline. The next page loads when the visitor scrolls down. */
 export const X_PAGE_SIZE = 5;

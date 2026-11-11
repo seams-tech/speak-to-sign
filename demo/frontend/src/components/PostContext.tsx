@@ -71,7 +71,7 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
   const readyToBet = async () => {
     setProblem(null);
     // A spoken bet also needs the bettor's voice set up.
-    const ready = await prepare({ funds: 'bet', voice: betVoice !== null });
+    const ready = await prepare({ funds: 'bet', voice: source.signsByVoice || betVoice !== null });
     if (!ready.ok && ready.reason) setProblem(ready.reason);
     return ready.ok;
   };

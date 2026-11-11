@@ -1,16 +1,18 @@
-// The real signer: Seams Wallet Speak-to-Sign (SDK 0.60.0).
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.66.0, `seams.near.speakToSign`).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe: the owner says the
 // summary or the rating sentence, the verifier checks the voice and the words, and the Wallet
 // signs `add_note` or `rate_note` on the notes contract from the owner's own account.
 
-import { summaryRefusal, type SpeakToSignEnrollmentResult, type SpeakToSignNoteResult } from '@seams/wallet';
+import { summaryRefusal, type SpeakToSignEnrollmentResult, type SpeakToSignResult, type SpeakToSignSentTransaction } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 import { isCancelError, isUserRejection } from './rejection';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-type SpeakToSign = NonNullable<Seams['speakToSign']>;
+type SpeakToSign = NonNullable<Seams['near']['speakToSign']>;
+/** The result of a spoken call that sends a transaction. */
+export type SpokenSent = SpeakToSignResult<SpeakToSignSentTransaction, string>;
 
 export interface SeamsOwner {
   seams: Seams;
@@ -35,9 +37,9 @@ export function createMissingKeySigner(): NotesSigner & SignerSetup {
 export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup {
   const { seams, walletId, nearAccountId, contract } = owner;
 
-  const run = async (call: (speakToSign: SpeakToSign, walletId: string) => Promise<SpeakToSignNoteResult>): Promise<SignResult> => {
+  const run = async (call: (speakToSign: SpeakToSign, walletId: string) => Promise<SpokenSent>): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
-    const speakToSign = seams.speakToSign;
+    const speakToSign = seams.near.speakToSign;
     if (!speakToSign) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     try {
       return toSignResult(await call(speakToSign, walletId));
@@ -56,11 +58,11 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     requestNote: async ({ postId, text, summary }) => {
       // The Wallet refuses a summary that breaks the SDK's rule, so check it first.
       if (summaryRefusal(summary) !== null) return { kind: 'refused', reason: REFUSALS.summary_not_speakable ?? 'The summary is not speakable.' };
-      return await run((speakToSign, id) => speakToSign.requestNote({ walletId: id, contract, postId, text, summary }));
+      return await run((speakToSign, id) => speakToSign.typed.note({ walletId: id, contract, postId, text, summary }));
     },
 
     requestRating: ({ noteId, rating }) =>
-      run((speakToSign, id) => speakToSign.requestRating({ walletId: id, contract, noteId, rating })),
+      run((speakToSign, id) => speakToSign.typed.rating({ walletId: id, contract, noteId, rating })),
 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
@@ -80,7 +82,7 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     async enroll(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
       const id = walletId;
-      const speakToSign = seams.speakToSign;
+      const speakToSign = seams.near.speakToSign;
       if (!speakToSign) return { kind: 'failed', message: 'Speak-to-Sign is not in the Wallet configuration.' };
       return await withFreshUnlock(seams, id, () => enrollOnce(speakToSign, id));
     },
@@ -135,14 +137,14 @@ async function enrollOnce(speakToSign: SpeakToSign, walletId: string): Promise<S
   }
 }
 
-export function toSignResult(result: SpeakToSignNoteResult): SignResult {
+export function toSignResult(result: SpokenSent): SignResult {
   switch (result.kind) {
-    case 'sent':
+    case 'approved':
       return {
         kind: 'sent',
-        transactionHash: result.transactionHash,
+        transactionHash: result.result.transactionHash,
         approval: result.approval,
-        endOfSpeechToReceiptMs: result.times?.endOfSpeechToReceiptMs,
+        endOfSpeechToReceiptMs: result.times.endOfSpeechToReceiptMs,
       };
     case 'refused':
       return { kind: 'refused', reason: withDetail(REFUSALS[result.reason] ?? `The Wallet refused (${result.reason}).`, result.detail) };
@@ -167,6 +169,7 @@ const REFUSALS: Record<string, string> = {
   transcriber_unavailable: 'The speech-to-text service did not answer.',
   summary_not_speakable: 'The summary must be 1 to 12 words of letters A to Z.',
   note_not_valid: 'The note, the contract or the id is not valid.',
+  bet_not_valid: 'The market, the outcome or the amount of the bet is not valid.',
   verdict_mismatch: 'The signed verdict did not match this request, so the Wallet signed nothing.',
   transaction_failed: 'The transaction failed on chain.',
   // SDK 0.60.0: the Seams co-signer refused the verdict. `detail` holds its reason.

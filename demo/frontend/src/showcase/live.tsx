@@ -69,8 +69,8 @@ function SeamsNotes() {
     [seams, walletId, nearAccountId],
   );
   const market = useMemo(
-    () => createContractMarketSource(createSeamsMarketSigner({ seams, walletId, contract: config.marketContract, token: config.marketToken })),
-    [seams, walletId],
+    () => createContractMarketSource(createSeamsMarketSigner({ seams, walletId, nearAccountId, contract: config.marketContract, token: config.marketToken, rpcUrl: config.marketRpcUrl })),
+    [seams, walletId, nearAccountId],
   );
   return (
     <MarketSourceContext.Provider value={market}>

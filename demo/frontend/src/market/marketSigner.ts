@@ -1,13 +1,16 @@
-// The changes of the pm-notes contract, signed by the Seams Wallet with its normal confirm step
-// (passkey). The money is USDC: a bet or a seed is the token's `ft_transfer_call` to the market,
-// and a claim makes the market call the token's `ft_transfer`. A spoken bet needs a new spoken
-// request kind in the Wallet.
+// The changes of the pm-notes contract, signed by the Seams Wallet. The money is USDC: a bet or
+// a seed is the token's `ft_transfer_call` to the market, and a claim makes the market call the
+// token's `ft_transfer`. A bet is a spoken request (`seams.near.speakToSign.typed.bet`, Wallet
+// 0.66.0): the bettor says it, and the Wallet sends it with the signed verdict and no confirm.
+// The other changes use the Wallet's normal confirm step (passkey).
 
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
 import { isUserRejection } from '../signer/rejection';
-import { type BetVerdict, YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
+import { errorText, toSignResult } from '../signer/seamsSigner';
+import { spokenAmount } from './spokenBet';
+import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 
@@ -31,7 +34,8 @@ export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 100n;
 
 export interface MarketSigner {
   createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }, progress?: SignProgress): Promise<SignResult>;
-  bet(input: { marketId: number; side: Side; amount: bigint; verdict?: BetVerdict }, progress?: SignProgress): Promise<SignResult>;
+  /** The bettor says the bet in the Wallet card. `progress` hears `sent` only. */
+  bet(input: { marketId: number; side: Side; amount: bigint }, progress?: SignProgress): Promise<SignResult>;
   closeMarket(marketId: number, progress?: SignProgress): Promise<SignResult>;
   /** A sent request whose AI answer did not count is `refused`, with the contract's reason. */
   requestResolution(marketId: number, progress?: SignProgress): Promise<SignResult>;
@@ -70,8 +74,18 @@ interface ConfirmText {
 const CONFIRM_PHASES = new Set(['signing.confirmation.displayed']);
 const SENT_PHASES = new Set(['signing.confirmation.approved', 'signing.broadcast.started', 'signing.broadcast.accepted']);
 
-export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string | null; contract: string; token: string }): MarketSigner {
-  const { seams, walletId, contract, token } = owner;
+export interface MarketOwner {
+  seams: Seams;
+  walletId: string | null;
+  nearAccountId: string | null;
+  contract: string;
+  token: string;
+  /** NEAR JSON-RPC, for the final outcome of a spoken bet. */
+  rpcUrl: string;
+}
+
+export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
+  const { seams, walletId, nearAccountId, contract, token, rpcUrl } = owner;
 
   /**
    * Sends one transaction of `calls` to `receiverId`. `check` can turn a sent transaction into a
@@ -120,24 +134,56 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
           return { kind: 'unavailable', reason: `The transaction has no final result yet. ${result.error}` };
       }
     } catch (cause) {
-      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${cause instanceof Error ? cause.message : String(cause)}` };
+      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
     }
     return { kind: 'unavailable', reason: 'The Wallet gave no result.' };
   };
 
   /**
-   * Sends USDC to the market with `ft_transfer_call`. If the market refuses, the token gives the
-   * USDC back and the transaction still succeeds, so the market's event tells a refusal apart.
+   * If the market refuses a `ft_transfer_call`, the token gives the USDC back and the transaction
+   * still succeeds. So only the market's event tells that the market took the USDC.
    */
+  const marketRefusal = (expectedEvent: string, events: ContractEvent[], outcome: unknown): string | null =>
+    events.some((event) => event.event === expectedEvent) ? null : `The market refused it, and the USDC came back. ${panicOf(outcome) ?? ''}`.trim();
+
+  /** One spoken bet: the Wallet card records the sentence, checks the verdict and sends the bet. */
+  const spokenBet = async (marketId: number, side: Side, amount: bigint, progress?: SignProgress): Promise<SignResult> => {
+    if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
+    const voice = seams.near.speakToSign;
+    if (!voice) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
+    const decimal = spokenAmount(amount)?.replaceAll(',', '');
+    if (!decimal) return { kind: 'refused', reason: 'A spoken bet is a whole number of cents.' };
+    try {
+      const result = toSignResult(
+        await voice.typed.bet({
+          walletId,
+          contract,
+          token,
+          marketId,
+          outcome: side,
+          amount: decimal,
+          onProgress: (event) => {
+            if (event.stage === 'transaction_sent') progress?.('sent');
+          },
+        }),
+      );
+      if (result.kind !== 'sent' || !nearAccountId) return result;
+      // The Wallet reports a transaction that succeeded. The market can still have refused the bet.
+      const outcome = await finalOutcome(rpcUrl, result.transactionHash, nearAccountId).catch(() => null);
+      const refusal = outcome === null ? null : marketRefusal('bet', eventsOf(outcome), outcome);
+      return refusal ? { kind: 'refused', reason: refusal } : result;
+    } catch (cause) {
+      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
+    }
+  };
+
+  /** Sends USDC to the market with `ft_transfer_call`, with the Wallet's confirm step. */
   const sendUsdc = (amount: bigint, msg: Record<string, unknown>, expectedEvent: string, confirm: ConfirmText, progress?: SignProgress) =>
     send(
       [{ method: 'ft_transfer_call', args: { receiver_id: contract, amount: amount.toString(), msg: JSON.stringify(msg) }, deposit: 1n, gas: FT_CALL_GAS }],
       confirm,
       progress,
-      (events, outcome) =>
-        events.some((event) => event.event === expectedEvent)
-          ? null
-          : `The market refused it, and the USDC came back. ${panicOf(outcome) ?? ''}`.trim(),
+      (events, outcome) => marketRefusal(expectedEvent, events, outcome),
       token,
     );
 
@@ -160,17 +206,7 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
         { title: `Open a market with ${usdc(seed)}`, body: 'Half of your seed goes on yes and half on no. It pays like any other bet.' },
         progress,
       ),
-    bet: ({ marketId, side, amount, verdict }, progress) =>
-      sendUsdc(
-        amount,
-        // The verdict of the spoken bet goes with the bet, byte for byte: the contract checks it.
-        verdict
-          ? { action: 'bet', market_id: marketId, outcome: side, verdict_json: verdict.verdictJson, signature_b64: verdict.signatureB64 }
-          : { action: 'bet', market_id: marketId, outcome: side },
-        'bet',
-        { title: `Bet ${usdc(amount)} on ${side}`, body: 'JEV decides at the close. Its answer splits the pool.' },
-        progress,
-      ),
+    bet: ({ marketId, side, amount }, progress) => spokenBet(marketId, side, amount, progress),
     closeMarket: (marketId, progress) =>
       send(
         [{ method: 'close_market', args: { market_id: marketId }, deposit: 0n, gas: CALL_GAS }],
@@ -205,6 +241,19 @@ export function createSeamsMarketSigner(owner: { seams: Seams; walletId: string 
 interface ContractEvent {
   event: string;
   data: Record<string, unknown>;
+}
+
+/** The final execution outcome of a sent transaction, from NEAR JSON-RPC. */
+async function finalOutcome(rpcUrl: string, transactionHash: string, senderId: string): Promise<unknown> {
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 'notes-market', method: 'tx', params: { tx_hash: transactionHash, sender_account_id: senderId, wait_until: 'FINAL' } }),
+  });
+  if (!response.ok) throw new Error(`NEAR RPC answered ${response.status}.`);
+  const body = (await response.json()) as { result?: unknown; error?: unknown };
+  if (body.error || !body.result) throw new Error('NEAR RPC gave no outcome.');
+  return body.result;
 }
 
 /** The NEP-297 `pm_notes` events in the logs of a final execution outcome. */

@@ -513,7 +513,7 @@ export function NoteMarketStrip({
                     onClick={() => void run({ kind: 'bet', side })}
                   >
                     {busy?.kind === 'bet' && busy.side === side
-                      ? stageText(busy.stage, 'Placing your bet…')
+                      ? betStageText(busy.stage, source)
                       : waiting?.kind === 'bet' && waiting.side === side
                         ? SETTING_UP
                         : side === 'yes'
@@ -572,6 +572,11 @@ export function NoteMarketStrip({
 /** "Confirm in the Wallet…" before the approval, then `afterwards`. */
 function stageText(stage: SignStage, afterwards: string): string {
   return stage === 'confirm' ? 'Confirm in the Wallet…' : afterwards;
+}
+
+/** The stages of a bet. A source that signs by voice has no confirm: the bettor says the bet. */
+function betStageText(stage: SignStage, source: MarketSource): string {
+  return stage === 'confirm' && source.signsByVoice ? 'Say your bet in the Wallet…' : stageText(stage, 'Placing your bet…');
 }
 
 /** "3 minutes", "1 hour", "3 days". */
@@ -942,7 +947,7 @@ function BetSheet({
                 >
                   <Morph view={stage ?? (signIn.waiting ? 'signin' : 'idle')}>
                     {stage
-                      ? stageText(stage, 'Placing your bet…')
+                      ? betStageText(stage, source)
                       : signIn.waiting
                         ? SETTING_UP
                         : voice

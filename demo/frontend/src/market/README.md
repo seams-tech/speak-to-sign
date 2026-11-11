@@ -151,7 +151,7 @@ sign. The timeline's card mounts the strip with `useMarketSource()`.
 | `canOpenMarkets()` | view `get_config` | False before the deploy: "Open a market" stays hidden. |
 | `currency` | — | `USDC_CURRENCY`: 6 decimals, bet chips 0.1, 0.5 and 1 USDC, seed chips 1, 2 and 5 USDC. Without it, a source is in NEAR (the mock). |
 | `getBalance(accountId)` | USDC view `ft_balance_of` | The bet sheet shows it, and a hint to the faucet when it is too low. |
-| `signsByVoice` | — | `false`. See "Spoken bets". |
+| `signsByVoice` | — | `true`. See "Spoken bets". |
 
 `progress` hears `confirm` when the Wallet shows its confirm step, and `sent`
 when the transaction goes out (`SignProgress` in `types.ts`).
@@ -168,16 +168,17 @@ local sandbox with seeded markets for a check before the deploy.
 
 ### Spoken bets
 
-When the contract needs a voice for a bet (`get_voice_config().required`),
-`source.voice` is on (`useBetVoice` in `SayBet.tsx`). A bet then has a "say
-it" step (`<SayBet>`): the sentence ("Bet 0.5 USDC yes on market 9",
-`spokenBetSentence` in `spokenBet.ts`), a Record button, and the verifier's
-answer. The page sends the recording to `/api/voice-verify` (request kind
-`market_bet`). An accepted recording gives a verdict, and the bet carries it
-(`verdict_json`, `signature_b64` in the `msg`). The Seams Wallet then sends
-the transaction with its own confirm step, because it has no spoken request
-kind for a bet yet. A one-tap bet shows the step in the strip, and the bet
-sheet shows it in its foot. Before the step, the page asks for the sign-in,
-the voice setup and the test USDC. A contract from before the voice rule has
-no `get_voice_config`, and its bets stay plain. `/market-preview.html?voice`
-shows the step with a mock that accepts every recording.
+A bet is a spoken request of the Seams Wallet (0.66.0 and later):
+`seams.near.speakToSign.typed.bet` in `marketSigner.ts`. The Wallet card shows
+the sentence ("bet zero point five usdc yes on market nine") and records it.
+The verifier checks the voice and the words. The Wallet then sends the token's
+`ft_transfer_call` with the signed verdict in the `msg`, with no confirm step.
+The contract can check that verdict (`get_voice_config().required`). After the
+Wallet's answer, the page reads the final outcome from the RPC: a bet that the
+market refused has no `bet` event, and its USDC came back. Before the bet, the
+page asks for the sign-in, the voice setup and the test USDC
+(`source.signsByVoice`).
+
+`source.voice`, `<SayBet>` and the request kind `market_bet` of
+`/api/voice-verify` are the older page-side "say it" step. Only the mock
+source uses them now (`/market-preview.html?voice`).

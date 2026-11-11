@@ -310,7 +310,7 @@ function NoteBox({
           noteId={note.marketNoteId}
           source={source}
           account={account}
-          onSignIn={() => prepare({ funds: 'bet', voice: betVoice !== null }).then((ready) => ready.ok)}
+          onSignIn={() => prepare({ funds: 'bet', voice: source.signsByVoice || betVoice !== null }).then((ready) => ready.ok)}
           context={marketContext(note.note)}
           openBet={betRequest}
         />

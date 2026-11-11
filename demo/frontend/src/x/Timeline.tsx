@@ -454,16 +454,16 @@ function PostCard({
       <Avatar author={post.author} />
       <div className="tl-main">
         <div className="tl-head">
-          {voice && (
-            <span className="voice-number" aria-label={`Post ${voice.number}`}>
-              {voice.number}
-            </span>
-          )}
           <b className="name">{post.author.name}</b>
           <AuthorBadge author={post.author} />
           <span className="handle muted">@{post.author.handle}</span>
           <span className="muted xt-age">· {post.age}</span>
           <span className="xt-topic">{post.topic ?? 'Demo'}</span>
+          {voice && (
+            <span className="voice-number" aria-label={`Post ${voice.number}`}>
+              {voice.number}
+            </span>
+          )}
         </div>
         <div className={post.linkify ? 'tl-text xt-text' : 'tl-text'}>
           <PostText post={post} />

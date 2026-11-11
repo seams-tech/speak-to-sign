@@ -129,13 +129,13 @@ function walletColors(base: Record<string, string>, p: PagePalette): Record<stri
 
 /**
  * The page's X shapes, over the SDK's square preset (its bordered fields and heights): the card
- * as round as the page's dialogs and X's own (16 px), buttons as pills as on X, and fields,
- * boxes and rows at 12 px. Both themes send all of it.
+ * as round as the page's dialogs and X's own (16 px), and buttons, fields, boxes and rows at
+ * 12 px, so a button's corner agrees with the card's. Both themes send all of it.
  */
 const X_SHAPE: Record<string, string> = {
   ...SHAPE_PRESETS.square,
   card: '16px',
-  control: '9999px',
+  control: '12px',
   field: '12px',
   box: '12px',
   item: '12px',

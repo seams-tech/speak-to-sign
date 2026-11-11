@@ -239,7 +239,9 @@ pnpm preview      # http://localhost:8788
 ```
 
 `build:site` (`scripts/build-site.mjs`) needs `pnpm install` in
-`../../examples/speak-to-pay` too. It gives the Speak to pay build the same
+`../../examples/speak-to-pay` too. Each build of this app also needs
+`pnpm install` in `../../packages/wallet-voice-sign`: `src/voiceRoute.ts`
+imports the seal code from there, with its cipher `@noble/ciphers`. It gives the Speak to pay build the same
 `VITE_SEAMS_*` settings as `demo/frontend/`, so it writes nothing into `examples/`.
 
 To sign in on the built site, open it through Caddy at https://localhost:8443

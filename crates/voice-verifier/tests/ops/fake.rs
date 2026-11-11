@@ -306,9 +306,9 @@ pub(crate) fn audio_public_key() -> [u8; 32] {
 /// Seals as a Wallet does: `enc || ciphertext || tag`, to `public_key`,
 /// with the ephemeral key that `ikm` gives.
 pub(crate) fn seal_to(public_key: &[u8; 32], plaintext: &[u8], op: &str, owner: &str, ikm: u8) -> Vec<u8> {
-    use hpke::{aead::AesGcm256, kdf::HkdfSha256, kem::X25519HkdfSha256, Deserializable, OpModeS, Serializable};
+    use hpke::{aead::ChaCha20Poly1305, kdf::HkdfSha256, kem::X25519HkdfSha256, Deserializable, OpModeS, Serializable};
     let public_key = <X25519HkdfSha256 as hpke::Kem>::PublicKey::from_bytes(public_key).unwrap();
-    let (encapped, ciphertext) = hpke::single_shot_seal_with_rng::<AesGcm256, HkdfSha256, X25519HkdfSha256>(
+    let (encapped, ciphertext) = hpke::single_shot_seal_with_rng::<ChaCha20Poly1305, HkdfSha256, X25519HkdfSha256>(
         &OpModeS::Base,
         &public_key,
         AUDIO_INFO,

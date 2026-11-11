@@ -35,8 +35,8 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.10.0 `local-speaker` | `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | The same source with ReDimNet inside the worker (`build.sh --local-speaker --docker`). Added on 2026-11-11 (first FastFS chunk tx `GRbHuHVDmf6Ya9YH8CRiexxCLxU1hCovjqEaDsrg7hx3`, `add_version` tx `6hQKZyNrVTbCY5V5GKYuFCh4SfZKWfdL3nwVqa3vjscq`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
 | 0.11.0  | `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` | The source on this branch at commit `be35842` (507,649 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `E5DDUHW7UL9rehTyFQ4TQzsVphMi5rdeqeGxgvBNMQAa`, `add_version` tx `CkUMmoDiE7QmXZDzkzQgi8xB83iczem4T9s11kd9d9wL`). **Active** since 2026-11-11 (`set_active_version` tx `69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`): a call with no `version_key` runs it. Every known caller (the Wallet server, the demo routes) sends its own `version_key`. It adds the operation `detect`. |
 | 0.11.0 `local-speaker` | `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | The same source with ReDimNet inside the worker. Added on 2026-11-11 (first FastFS chunk tx `3sNi1vRtfdESuxJNpVSodvgwUueM9hqKibWWidpFgL6x`, `add_version` tx `2gdj8j7xAizq8daGu1WfnwhA6o87UQV8wRuBAK8caLxn`). **Not active.** |
-| 0.10.0 (sealed-audio preview) | `e322edae8c1497a4ecbc6f51ee67c9b25ef08cd48bcf2cd64fa7f5f6fba3af09` | A build of sealed audio on the older `dev` commit `1a8721b`, before the port to this branch (473,612 bytes, `build.sh --docker`, FastFS tx `9nYihYjxBS8F7i5qm1X1niTUvFu7bDQpc7WysaHxHWht`, `add_version` tx `2R6Y82H1dEmmFDiQqcYMntYQwnzbh8kn3sfLBxttJMom`). **Not active.** It writes `0.10.0` in a verdict and does not have `select`, `transcribe` or `detect`. It has `audio_key` and sealed audio for `verify` and `enroll`. Use it only to probe sealed audio. |
-| 0.12.0  | not built for OutLayer yet | The source on this branch. Adds sealed audio: `verify`, `enroll`, `select`, `transcribe` and `detect` take each recording in `audio_sealed_b64` (HPKE to the audio key, the OutLayer secret `PROTECTED_AUDIO_KEY`) in place of `audio_wav_b64`, and the new operation `audio_key` returns the audio public key with a signature of the verdict key. Plain audio works as before. See "Sealed audio" below. |
+| 0.10.0 (sealed-audio preview) | `e322edae8c1497a4ecbc6f51ee67c9b25ef08cd48bcf2cd64fa7f5f6fba3af09` | A build of sealed audio on the older `dev` commit `1a8721b`, before the port to this branch (473,612 bytes, `build.sh --docker`, FastFS tx `9nYihYjxBS8F7i5qm1X1niTUvFu7bDQpc7WysaHxHWht`, `add_version` tx `2R6Y82H1dEmmFDiQqcYMntYQwnzbh8kn3sfLBxttJMom`). **Not active.** It writes `0.10.0` in a verdict and does not have `select`, `transcribe` or `detect`. It has `audio_key` and sealed audio for `verify` and `enroll`, with AES-256-GCM in place of ChaCha20-Poly1305, so a clip sealed for this source does not open there. Do not use it. |
+| 0.12.0  | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` | The source on this branch at commit `a816798` (536,004 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `3ZTwf8cWSAo4m8wNuvabsNynVwW3bcUZ4gfGB4n2MiuZ`, `add_version` tx `ByxnDTxpbs7pyDa4j6WahS7dpJYwGM4sLYSvvUx1cbai`). **Not active**: a call reaches it only if the caller sets `version_key`. The `local-speaker` variant is not built. Adds sealed audio: `verify`, `enroll`, `select`, `transcribe` and `detect` take each recording in `audio_sealed_b64` (HPKE to the audio key, the OutLayer secret `PROTECTED_AUDIO_KEY`) in place of `audio_wav_b64`, and the new operation `audio_key` returns the audio public key with a signature of the verdict key. Plain audio works as before. See "Sealed audio" below. |
 
 Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
 `b0f53da4…bff3` and the two "standalone preview" builds. So that text does
@@ -499,7 +499,7 @@ Seams server and OutLayer's coordinator carry only ciphertext
 `packages/wallet-voice-sign/src/audioEnvelope.ts`).
 
 - The envelope is HPKE base mode (RFC 9180): DHKEM(X25519, HKDF-SHA256),
-  HKDF-SHA256, AES-256-GCM. `info` is `seams:voice-audio:v1`
+  HKDF-SHA256, ChaCha20-Poly1305. `info` is `seams:voice-audio:v1`
   (`config::AUDIO_INFO`). The `aad` is `op || 0x00 || owner`.
 - A sealed clip is `enc || ciphertext || tag` in standard base64. `verify`,
   `select`, `transcribe` and `detect` take one in `audio_sealed_b64`;
@@ -518,10 +518,14 @@ Seams server and OutLayer's coordinator carry only ciphertext
   a clip that does not open; `unsupported` with the detail
   `audio_key: missing` if the secret is absent or is not 64 hex characters.
 
-The WASM grew from about 397,000 to about 474,000 bytes (local macOS build)
-with the `hpke` crate.
+The reference build (`build.sh --docker`) of this source is 536,004 bytes.
+With AES-256-GCM in place of ChaCha20-Poly1305 it was 549,695 bytes.
 
-On testnet (2026-11-11, the sealed-audio preview build `e322edae…`, secrets profile
+The first build of sealed audio, the preview build `e322edae…`, used
+AES-256-GCM. A clip that this source or `audioEnvelope.ts` seals does not
+open there, and a clip sealed for that build does not open here.
+
+On testnet (2026-11-11, version `bfe81633…`, secrets profile
 `cyan-loong.testnet/main`):
 
 - The secret arrives as 64 hex characters.
@@ -529,9 +533,14 @@ On testnet (2026-11-11, the sealed-audio preview build `e322edae…`, secrets pr
   (standard base64). The verdict key
   `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` signed it.
 - A 3.5 s recording, sealed in Node with `audioEnvelope.ts`, opened in the
-  worker and gave the same audio digest as the plain WAV. The stage `decode`
-  took 27 ms sealed and 16 ms plain (three calls each).
-- A clip sealed for another owner refused with `audio_invalid`.
+  worker and gave the same audio digest as the plain WAV, for `verify` and
+  for `transcribe`. The stage `decode` took 22 to 23 ms sealed and 16 to
+  17 ms plain (four calls each), so the open step is about 6 ms. The preview
+  build with AES-256-GCM took 27 ms sealed.
+- A clip sealed for another owner, and a clip sealed for `transcribe` and
+  sent to `verify`, refused with `audio_invalid`.
+- The test owner has no template, so each call ended with
+  `template_missing`. No sealed call ran to an accept.
 
 Do not store a row of this profile again with "Create New Secrets" or
 "Replace": that replaces the row and its `NEAR_AI_API_KEY`. Use "Update" in

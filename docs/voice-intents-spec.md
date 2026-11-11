@@ -124,7 +124,7 @@ recording inside its TEE. Verifier 0.12.0 and later.
   inside its TEE (type `hex32`). The keystore refuses a manual value with the
   `PROTECTED_` prefix, so nobody saw the private key.
 - **Envelope.** HPKE base mode (RFC 9180) with DHKEM(X25519, HKDF-SHA256),
-  HKDF-SHA256 and AES-256-GCM. `info` is `seams:voice-audio:v1`. The `aad` is
+  HKDF-SHA256 and ChaCha20-Poly1305. `info` is `seams:voice-audio:v1`. The `aad` is
   `op || 0x00 || owner`, with `op` the name of the operation (`verify`,
   `enroll`, `select`, `transcribe` or `detect`).
 - **Wire.** A sealed clip is `enc || ciphertext || tag` (32 bytes, the WAV,

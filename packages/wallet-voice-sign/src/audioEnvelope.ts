@@ -3,10 +3,14 @@
 // ciphertext. The verifier opens it inside its TEE (crates/voice-verifier/src/envelope.rs).
 //
 // The envelope is HPKE base mode (RFC 9180) with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and
-// AES-256-GCM, on WebCrypto alone. A sealed clip is `enc || ciphertext || tag`. The `aad` is
+// ChaCha20-Poly1305. The key agreement and the key derivation are WebCrypto. WebCrypto has no
+// ChaCha20-Poly1305, so the cipher is `@noble/ciphers`, which the Wallet already ships. A sealed
+// clip is `enc || ciphertext || tag`. The `aad` is
 // `op || 0x00 || owner`, so a sealed clip opens only for that owner and that operation.
 //
-// This file imports nothing, so that an app can use it without the rest of the package.
+// This file imports only the cipher, so that an app can use it without the rest of the package.
+
+import { chacha20poly1305 } from '@noble/ciphers/chacha';
 
 type Bytes = Uint8Array<ArrayBuffer>;
 
@@ -17,9 +21,9 @@ const INFO = ascii('seams:voice-audio:v1');
 const AUDIO_KEY_DOMAIN = ascii('seams:outlayer:voice-audio-key:v1');
 const AUDIO_KEY_OUTPUT_KIND = 'seams_voice_audio_key_v1';
 
-// RFC 9180, section 7: DHKEM(X25519, HKDF-SHA256) 0x0020, HKDF-SHA256 0x0001, AES-256-GCM 0x0002.
+// RFC 9180, section 7: DHKEM(X25519, HKDF-SHA256) 0x0020, HKDF-SHA256 0x0001, ChaCha20-Poly1305 0x0003.
 const KEM_SUITE = concat(ascii('KEM'), bytes(0x00, 0x20));
-const HPKE_SUITE = concat(ascii('HPKE'), bytes(0x00, 0x20, 0x00, 0x01, 0x00, 0x02));
+const HPKE_SUITE = concat(ascii('HPKE'), bytes(0x00, 0x20, 0x00, 0x01, 0x00, 0x03));
 const VERSION = ascii('HPKE-v1');
 const EMPTY = bytes();
 const HASH_BYTES = 32;
@@ -131,10 +135,8 @@ async function sealWith(
   const key = await labeledExpand(HPKE_SUITE, secret, 'key', context, AEAD_KEY_BYTES);
   const nonce = await labeledExpand(HPKE_SUITE, secret, 'base_nonce', context, AEAD_NONCE_BYTES);
   // One message per context, so the nonce is the base nonce (sequence number 0).
-  const aesKey = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['encrypt']);
   const additionalData = concat(ascii(op), bytes(0x00), new TextEncoder().encode(owner));
-  const sealed = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, additionalData, tagLength: 128 }, aesKey, copy(wav));
-  return concat(enc, new Uint8Array(sealed));
+  return concat(enc, chacha20poly1305(key, nonce, additionalData).encrypt(wav));
 }
 
 async function x25519(privateKey: CryptoKey, publicKey: Uint8Array): Promise<Bytes> {

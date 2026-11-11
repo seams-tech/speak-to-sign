@@ -12,7 +12,7 @@ import { RpcNotesStore } from './notes/rpcStore';
 import type { Note } from './notes/types';
 import { Timeline } from './x/Timeline';
 import { VoiceFeed } from './x/VoiceFeed';
-import { loadXPosts, X_PAGE_SIZE } from './x/xPosts';
+import { loadXPosts } from './x/xPosts';
 import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/notesSigner';
 import { SETUP_CHANGED, setUpVoice, voiceIsSetUp } from './signer/voiceSetup';
 
@@ -125,7 +125,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   // them, and their notes load with the notes of the demo post.
   useEffect(() => {
     let cancelled = false;
-    void loadXPosts(0, X_PAGE_SIZE).then((page) => {
+    void loadXPosts(0).then((page) => {
       if (cancelled) return;
       if (!page) {
         setXPostsState('error');
@@ -151,7 +151,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     if (loadingMoreRef.current || offset === null) return;
     loadingMoreRef.current = true;
     setXPostsMoreState('loading');
-    const page = await loadXPosts(offset, X_PAGE_SIZE);
+    const page = await loadXPosts(offset);
     if (!page) {
       loadingMoreRef.current = false;
       setXPostsMoreState('error');

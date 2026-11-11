@@ -117,6 +117,17 @@ export function showCard(postId: number) {
   window.setTimeout(() => card.classList.remove('note-fresh'), 2400);
 }
 
+/**
+ * The element that scrolls the timeline, or null when the window scrolls it. On the Speak-to-Sign
+ * page the timeline scrolls inside a panel, so the window does not move.
+ */
+function scrollParent(element: HTMLElement): HTMLElement | null {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(node).overflowY)) return node;
+  }
+  return null;
+}
+
 /** Brings a post's card to the top of the view, where it is "this one" for a voice command. */
 function focusCard(postId: number) {
   document.getElementById(postCardId(postId))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -223,6 +234,8 @@ export function Timeline() {
     }
   };
   const [voiceBet, setVoiceBet] = useState<VoiceBet | null>(null);
+  /** The start of the timeline: a new tab shows its posts from here. */
+  const timelineTop = useRef<HTMLDivElement>(null);
   const spoken = visible.slice(0, MAX_SCREEN_POSTS);
   const focusedPostId = useFocusedPost(spoken.map((card) => card.post.id).join(','), voiceOn);
   const noteNumbers = new Map(spoken.filter((card) => card.note).map((card, index) => [card.post.id, index + 1]));
@@ -233,7 +246,7 @@ export function Timeline() {
   const runCommand = (command: VoiceCommand): { ok: boolean; text: string } => {
     if (command.kind === 'show') {
       setTab(command.tab);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      timelineTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return { ok: true, text: `Showing: ${TABS.find(({ id }) => id === command.tab)?.label ?? command.tab}.` };
     }
     if (command.kind === 'none') return { ok: true, text: 'No command in that sentence.' };
@@ -295,6 +308,7 @@ export function Timeline() {
 
   return (
     <>
+      <div ref={timelineTop} aria-hidden="true" />
       <h1 className="sr-only">Posts that need context</h1>
       <TabBar tab={tab} onTab={setTab} />
       {visible.map(({ post, note }, index) => (
@@ -322,7 +336,7 @@ export function Timeline() {
 }
 
 /**
- * The end of the loaded posts, while the route has more: the next page of 10 loads before the
+ * The end of the loaded posts, while the route has more: the next page (X_PAGE_SIZE) loads before the
  * visitor gets there (800 px ahead). After each page the line is watched again, so a short page
  * that leaves it in sight loads the next one too.
  */
@@ -340,7 +354,8 @@ function MorePosts() {
       ([entry]) => {
         if (entry?.isIntersecting) load.current();
       },
-      { rootMargin: '0px 0px 800px 0px' },
+      // The margin counts from the element that scrolls: the window's own edge is far below.
+      { root: scrollParent(element), rootMargin: '0px 0px 800px 0px' },
     );
     observer.observe(element);
     return () => observer.disconnect();

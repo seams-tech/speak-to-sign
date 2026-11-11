@@ -94,8 +94,8 @@ export function readXPosts(body: unknown, nowMs: number): Post[] | null {
   });
 }
 
-/** The posts of one page of the timeline. */
-export const X_PAGE_SIZE = 10;
+/** The posts of one page of the timeline. The next page loads when the visitor scrolls down. */
+export const X_PAGE_SIZE = 5;
 
 /** One page of posts, and the offset of the next page (null: no more). */
 export interface XPostsPage {

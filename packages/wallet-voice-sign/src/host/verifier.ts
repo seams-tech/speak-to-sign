@@ -1,16 +1,6 @@
-import {
-  base64Encode,
-  isPlainObject,
-  type SpeakToSignEnrollmentResult,
-  type SpeakToSignHostOperations,
-} from '@seams/wallet/speak-to-sign-host';
+import { isPlainObject, type SpeakToSignEnrollmentResult } from '@seams/wallet/speak-to-sign-host';
 import { shortDetail, verifierUnavailable } from './result';
 
-type VerifierInput = Parameters<SpeakToSignHostOperations['verify']>[0];
-type Authorization = Extract<
-  Awaited<ReturnType<SpeakToSignHostOperations['authorizeEnrollment']>>,
-  { kind: 'signed' }
->['authorization'];
 type EnrollmentRefusal = Extract<SpeakToSignEnrollmentResult, { kind: 'refused' }>['reason'];
 
 const ENROLLMENT_OUTPUT_KIND = 'seams_voice_enrollment_v3';
@@ -28,24 +18,6 @@ const ENROLLMENT_REFUSALS: Readonly<Record<EnrollmentRefusal, true>> = {
   not_authorized: true,
   authorization_unavailable: true,
 };
-
-/** The verifier's `verify` input for one recording of the request's sentence. */
-export function verifyInput(
-  owner: string,
-  request: Readonly<Record<string, unknown>>,
-  wav: Uint8Array<ArrayBuffer>,
-): VerifierInput {
-  return { op: 'verify', owner, request, contacts: [], audio_wav_b64: base64Encode(wav) };
-}
-
-/** The verifier's `enroll` input: the three recordings and the owner's signed authorization. */
-export function enrollInput(
-  owner: string,
-  clips: readonly Uint8Array<ArrayBuffer>[],
-  authorization: Authorization,
-): VerifierInput {
-  return { op: 'enroll', owner, audio_wav_b64: clips.map(base64Encode), authorization };
-}
 
 /** Reads the verifier's `enroll` output that the Seams route passes through unchanged. */
 export function readEnrollmentOutput(output: unknown): SpeakToSignEnrollmentResult {

@@ -1,5 +1,5 @@
 //! The sealed audio of a confidential request: HPKE base mode (RFC 9180)
-//! with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and AES-256-GCM. The Wallet
+//! with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and ChaCha20-Poly1305. The Wallet
 //! seals each WAV to the verifier's audio key, so the Seams server and
 //! OutLayer's coordinator carry only ciphertext.
 //!
@@ -8,11 +8,11 @@
 //! and the keystore refuses a manual secret with the `PROTECTED_` prefix.
 //!
 //! A sealed clip is `enc || ciphertext || tag`: the 32-byte encapsulated
-//! key, then the WAV under AES-256-GCM with its 16-byte tag. `info` is
+//! key, then the WAV under ChaCha20-Poly1305 with its 16-byte tag. `info` is
 //! [`AUDIO_INFO`]. The `aad` names the operation and the owner
 //! ([`audio_aad`]), so a sealed clip opens only for that owner and that
 //! operation.
-use hpke::aead::AesGcm256;
+use hpke::aead::ChaCha20Poly1305;
 use hpke::kdf::HkdfSha256;
 use hpke::kem::X25519HkdfSha256;
 use hpke::{Deserializable, Kem as KemTrait, OpModeR, Serializable};
@@ -24,7 +24,7 @@ type Kem = X25519HkdfSha256;
 
 /// The length of the encapsulated key, and of each X25519 key.
 pub const KEY_BYTES: usize = 32;
-/// The AES-GCM tag.
+/// The Poly1305 tag.
 const TAG_BYTES: usize = 16;
 
 /// The verifier's audio key.
@@ -51,7 +51,7 @@ impl AudioKey {
         }
         let (encapped, ciphertext) = sealed.split_at(KEY_BYTES);
         let encapped = <Kem as KemTrait>::EncappedKey::from_bytes(encapped).ok()?;
-        hpke::single_shot_open::<AesGcm256, HkdfSha256, Kem>(
+        hpke::single_shot_open::<ChaCha20Poly1305, HkdfSha256, Kem>(
             &OpModeR::Base,
             &self.0,
             &encapped,

@@ -183,7 +183,7 @@ fn sealed_audio_vector() {
     let plaintext: Vec<u8> = (0u8..=99).collect();
     let ikm = 0x66u8;
     let vector = json!({
-        "suite": "DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, base mode",
+        "suite": "DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305, base mode",
         "info": "seams:voice-audio:v1",
         "op": "verify",
         "owner": OWNER,

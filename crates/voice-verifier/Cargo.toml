@@ -24,7 +24,7 @@ serde_json = "1"
 ed25519-dalek = { version = "2", default-features = false }
 # Opens the sealed audio (see src/envelope.rs). No `getrandom`: the worker
 # only opens.
-hpke = { version = "=0.15.1", default-features = false, features = ["alloc", "x25519", "aes"] }
+hpke = { version = "=0.15.1", default-features = false, features = ["alloc", "x25519", "chacha"] }
 
 # ReDimNet B1 inside the worker (the feature `local-speaker`).
 tract-onnx = { version = "=0.23.10", optional = true }

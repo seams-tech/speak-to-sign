@@ -1,9 +1,7 @@
 import type {
   SpeakToSignMessageResult,
-  SpeakToSignMessageSigning,
   SpeakToSignNoteActionResult,
-  SpeakToSignNoteSigning,
-  SpeakToSignPayment,
+  SpeakToSignSigning,
   SpeakToSignTransferResult,
   VerifierRefusal,
 } from '@seams/wallet/speak-to-sign-host';
@@ -62,40 +60,42 @@ export function stageTimes(marks: StageMarks): SentResult['times'] {
   };
 }
 
+/** VoiceID could not load or record on this Wallet host. */
+export function voiceIdUnavailable(
+  detail: string,
+): Readonly<{ kind: 'unavailable'; reason: 'voiceid_unavailable'; detail: string }> {
+  return { kind: 'unavailable', reason: 'voiceid_unavailable', detail };
+}
+
 /** A transaction or a delegate action that core signed and did not send. */
-export type SignedNoteResult = Extract<
+type SignedNoteResult = Extract<
   SpeakToSignNoteActionResult,
   { kind: 'signed_transaction' | 'signed_delegate' }
 >;
+type SignedMessageResult = Extract<SpeakToSignMessageResult, { kind: 'signed' }>;
 
-/** The result of a note action: a payment result, or a signature with its times. */
-export function mapNoteSigning(
-  signing: SpeakToSignNoteSigning,
+/**
+ * The result of the request from what core did: a sent transaction, a signature that core did
+ * not send, a cancel or a failure. The times go on each success.
+ */
+export function mapSigning(
+  signing: SpeakToSignSigning,
   times: SentResult['times'],
-): SpokenResult | SignedNoteResult {
-  if (signing.kind === 'signed_transaction' || signing.kind === 'signed_delegate') {
-    return { ...signing, times };
-  }
-  return mapPayment(signing, times);
-}
-
-/** A failure of a spoken message after the card opened. Core signs a message or signs nothing. */
-export type MessageFailedResult =
-  | Extract<SpeakToSignMessageSigning, { kind: 'refused' }>
-  | Readonly<{
-      kind: 'unavailable';
-      reason: 'verifier_unavailable' | 'not_submitted';
-      detail?: string;
-    }>;
-type SignedResult = Extract<SpeakToSignMessageResult, { kind: 'signed' }>;
-
-export function mapMessage(
-  signing: SpeakToSignMessageSigning,
-  times: SentResult['times'],
-): SignedResult | Readonly<{ kind: 'cancelled' }> | MessageFailedResult {
+): SpokenResult | SignedNoteResult | SignedMessageResult {
   switch (signing.kind) {
+    case 'signed_transaction':
+    case 'signed_delegate':
     case 'signed':
       return { ...signing, times };
+    case 'executed':
+      return {
+        kind: 'sent',
+        transactionHash: signing.transactionHash,
+        approval: signing.approval,
+        times,
+      };
+    case 'reverted':
+      return { kind: 'refused', reason: 'transaction_failed', detail: signing.error };
     case 'refused':
       return signing.detail === undefined
         ? { kind: 'refused', reason: signing.reason }
@@ -106,34 +106,21 @@ export function mapMessage(
       return verifierUnavailable(signing.detail);
     case 'not_signed':
       return { kind: 'unavailable', reason: 'not_submitted', detail: signing.error };
+    case 'not_submitted':
+    case 'submission_unknown':
+      return { kind: 'unavailable', reason: signing.kind, detail: signing.error };
     default:
       return signing satisfies never;
   }
 }
 
-export function mapPayment(payment: SpeakToSignPayment, times: SentResult['times']): SpokenResult {
-  switch (payment.kind) {
-    case 'executed':
-      return {
-        kind: 'sent',
-        transactionHash: payment.transactionHash,
-        approval: payment.approval,
-        times,
-      };
-    case 'reverted':
-      return { kind: 'refused', reason: 'transaction_failed', detail: payment.error };
-    case 'refused':
-      return payment.detail === undefined
-        ? { kind: 'refused', reason: payment.reason }
-        : { kind: 'refused', reason: payment.reason, detail: payment.detail };
-    case 'cancelled':
-      return payment;
-    case 'unavailable':
-      return verifierUnavailable(payment.detail);
-    case 'not_submitted':
-    case 'submission_unknown':
-      return { kind: 'unavailable', reason: payment.kind, detail: payment.error };
-    default:
-      return payment satisfies never;
-  }
+/**
+ * Shows a view that the flow does not wait for, such as a check. The surface refuses a view
+ * once the flow ended; that refusal has no one to tell.
+ */
+export function showNow<View>(
+  surface: Readonly<{ show(view: View): Promise<unknown> }>,
+  view: View,
+): void {
+  void surface.show(view).catch(() => {});
 }

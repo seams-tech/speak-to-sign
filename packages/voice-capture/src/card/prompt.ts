@@ -606,23 +606,7 @@ export class VoicePrompt {
     this.record.type = 'button';
     this.record.className = 'seams-voiceid-primary';
     this.record.textContent = 'Record';
-    this.cancel = document.createElement('button');
-    this.cancel.type = 'button';
-    this.cancel.className = 'seams-voiceid-close';
-    const closeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    closeIcon.setAttribute('viewBox', '0 0 24 24');
-    closeIcon.setAttribute('width', '20');
-    closeIcon.setAttribute('height', '20');
-    closeIcon.setAttribute('aria-hidden', 'true');
-    const closePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    closePath.setAttribute('d', 'M6 6l12 12M18 6L6 18');
-    closePath.setAttribute('fill', 'none');
-    closePath.setAttribute('stroke', 'currentColor');
-    closePath.setAttribute('stroke-width', '1.75');
-    closePath.setAttribute('stroke-linecap', 'round');
-    closeIcon.append(closePath);
-    this.cancel.append(closeIcon);
-    this.cancel.setAttribute('aria-label', 'Cancel');
+    this.cancel = cornerButton(document, 'Cancel', CLOSE_PATH);
     this.progress = document.createElement('div');
     this.progress.className = 'seams-voiceid-progress-slot';
     const slot = document.createElement('div');
@@ -650,13 +634,22 @@ export class VoicePrompt {
   }
 
   /**
-   * In an app's dialog with a step before this card, the corner control returns to that step.
-   * It still ends the card as cancelled; the Wallet tells the app that the person went back.
+   * In an app's dialog with a step before this card, Back in the leading corner returns to that
+   * step. With `close`, Close stays in the trailing corner and ends the whole dialog; without it,
+   * Back takes Close's place. Each one ends the card as cancelled. The result is the Back control.
    */
-  showBack(): void {
+  showBack(close: boolean): HTMLButtonElement {
+    if (close) {
+      this.cancel.setAttribute('aria-label', 'Close');
+      const back = cornerButton(this.element.ownerDocument, 'Back', BACK_PATH);
+      back.classList.add('seams-voiceid-back');
+      this.cancel.before(back);
+      return back;
+    }
     this.cancel.classList.add('seams-voiceid-back');
     this.cancel.setAttribute('aria-label', 'Back');
-    this.cancel.querySelector('path')?.setAttribute('d', 'm15 18-6-6 6-6');
+    this.cancel.querySelector('path')?.setAttribute('d', BACK_PATH);
+    return this.cancel;
   }
 
   /**
@@ -1153,4 +1146,29 @@ export function leaveSurface(element: HTMLElement): void {
     })
     .finished.catch(ignoreCancel)
     .finally(() => element.remove());
+}
+
+const CLOSE_PATH = 'M6 6l12 12M18 6L6 18';
+const BACK_PATH = 'm15 18-6-6 6-6';
+
+/** A control in a corner of the card, with an icon and no text. */
+function cornerButton(document: Document, label: string, path: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'seams-voiceid-close';
+  button.setAttribute('aria-label', label);
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('width', '20');
+  icon.setAttribute('height', '20');
+  icon.setAttribute('aria-hidden', 'true');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  line.setAttribute('d', path);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', 'currentColor');
+  line.setAttribute('stroke-width', '1.75');
+  line.setAttribute('stroke-linecap', 'round');
+  icon.append(line);
+  button.append(icon);
+  return button;
 }

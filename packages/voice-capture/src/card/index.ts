@@ -1,7 +1,13 @@
 // The phrase card: one surface that shows a sentence, records it, and shows a check and a
 // result. The building blocks are exported for a host that makes its own surfaces.
 
-export { openPhraseCard, type PhraseCardFrame, type PhraseCardInput } from './surface';
+export {
+  openPhraseCard,
+  type PhraseCardControl,
+  type PhraseCardControls,
+  type PhraseCardFrame,
+  type PhraseCardInput,
+} from './surface';
 export type {
   PhraseCheckView,
   PhraseChoice,

@@ -116,8 +116,12 @@ try {
 - The card uses the CSS variables `--seams-colors-*`, `--seams-shape-*` and
   `--seams-font-family` when the page sets them, and has its own values when it does not.
   `data-theme="light"` or `"dark"` on the page selects the glow colours.
-- `frame` adds what a host needs: the parent element, more class names, a Back control, and a
-  callback when the card is in the document.
+- `frame` adds what a host needs: the parent element, more class names, the corner controls,
+  and a callback when the card is in the document.
+- `frame.controls` sets the corner controls: `'close'` (default), `'back'` (Back in place of
+  Close) or `'back_and_close'`. Back is in the leading corner, Close in the trailing corner.
+  Each one ends the card. `frame.pressed(control)` tells you which one the person
+  pressed, before the card ends. Escape also ends the card, with no `pressed` call.
 - `VoicePrompt`, `PhraseCard`, `VoiceRibbon` and `VoiceVisual` are exported for a host that
   makes its own surfaces.
 

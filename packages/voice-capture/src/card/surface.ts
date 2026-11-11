@@ -25,13 +25,25 @@ export type PhraseCardFrame = Readonly<{
   parent?: HTMLElement;
   /** More class names for the surface element, such as the host's theme class. */
   className?: string;
-  /** Shows the Back control of the prompt. */
-  back?: boolean;
+  /**
+   * The corner controls of the card. `close` (default): Close in the trailing corner. `back`: Back
+   * in the leading corner, in place of Close. `back_and_close`: both. Each one, and Escape, ends
+   * the card as cancelled.
+   */
+  controls?: PhraseCardControls;
+  /** Runs when the person presses Back or Close, before the card ends. Escape is not a press. */
+  pressed?(control: PhraseCardControl): void;
   /** The host sizes its frame to the surface, so the card follows the frame. */
   hugged?: boolean;
   /** Runs when the surface is in the document. Its return value runs when the surface closes. */
   mounted?(element: HTMLElement): (() => void) | void;
 }>;
+
+/** The corner controls of a phrase card. */
+export type PhraseCardControls = 'close' | 'back' | 'back_and_close';
+
+/** One corner control of a phrase card. */
+export type PhraseCardControl = 'back' | 'close';
 
 export type PhraseCardInput = Readonly<{
   sentence: string;
@@ -63,6 +75,9 @@ class CardSurface implements PhraseSurface {
   private readonly unmounted: (() => void) | void;
   private readonly outer: AbortSignal;
   private readonly detector: VoiceRecordingOptions['detector'];
+  private readonly pressed: PhraseCardFrame['pressed'];
+  /** Back, when the card shows it apart from Close. */
+  private readonly back: HTMLButtonElement | null;
   private recorder: AbortController | null = null;
   private recording: Deferred<PhraseRecording> | null = null;
   private choice: ((choice: PhraseChoice) => void) | null = null;
@@ -107,7 +122,10 @@ class CardSurface implements PhraseSurface {
     delete this.prompt.phrase.dataset.voiceidPhrase;
     this.prompt.status.textContent = PROMPT_MESSAGE;
     this.prompt.record.textContent = 'Record';
-    if (frame.back) this.prompt.showBack();
+    const controls = frame.controls ?? 'close';
+    this.pressed = frame.pressed;
+    const back = controls === 'close' ? null : this.prompt.showBack(controls === 'back_and_close');
+    this.back = back === this.prompt.cancel ? null : back;
     const handedOverPrompt = handedOver?.querySelector(':scope > .seams-voiceid-prompt') ?? null;
     const rows = handedOverPrompt ? handedOverRows(handedOverPrompt) : null;
     if (handedOverPrompt) {
@@ -123,7 +141,9 @@ class CardSurface implements PhraseSurface {
     );
     this.element.append(this.prompt.element);
     this.prompt.record.addEventListener('click', this.press);
-    this.prompt.cancel.addEventListener('click', this.cancel);
+    const corner = controls === 'back' ? this.pressBack : this.pressClose;
+    this.prompt.cancel.addEventListener('click', corner);
+    this.back?.addEventListener('click', this.pressBack);
     this.element.addEventListener('cancel', this.cancel);
     outer.addEventListener('abort', this.cancel);
     if (handedOver) handedOver.replaceWith(this.element);
@@ -172,7 +192,9 @@ class CardSurface implements PhraseSurface {
     this.outer.removeEventListener('abort', this.cancel);
     this.element.removeEventListener('cancel', this.cancel);
     this.prompt.record.removeEventListener('click', this.press);
-    this.prompt.cancel.removeEventListener('click', this.cancel);
+    this.prompt.cancel.removeEventListener('click', this.pressBack);
+    this.prompt.cancel.removeEventListener('click', this.pressClose);
+    this.back?.removeEventListener('click', this.pressBack);
     this.card.dispose();
     this.prompt.dispose();
     leaveSurface(this.element);
@@ -259,6 +281,16 @@ class CardSurface implements PhraseSurface {
   }
 
   /** A close during a check is not possible: the button is hidden while the caller works. */
+  private readonly pressBack = (): void => this.pressControl('back');
+  private readonly pressClose = (): void => this.pressControl('close');
+
+  private pressControl(control: PhraseCardControl): void {
+    // The check view hides the corner controls, and a press there does not end the card.
+    if (this.view?.kind === 'check') return;
+    this.pressed?.(control);
+    this.cancel();
+  }
+
   private readonly cancel = (): void => {
     if (this.view?.kind === 'check' && !this.outer.aborted) return;
     if (this.recording) {

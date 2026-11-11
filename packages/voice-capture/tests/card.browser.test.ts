@@ -139,3 +139,82 @@ test('a card with autoStart keeps its Record button when the browser waits for a
   await expect(card.getByRole('button', { name: 'Record' })).toBeEnabled({ timeout: 10_000 });
   await expect(card.getByText('Read it naturally, then pause.')).toBeVisible();
 });
+
+type Corner = { label: string | null; path: string | null; left: number; right: number };
+
+/** Opens a card with the given corner controls and returns them, in document order. */
+async function openWithControls(
+  page: import('@playwright/test').Page,
+  controls?: 'close' | 'back' | 'back_and_close',
+): Promise<Corner[]> {
+  await page.goto(`${origin}/example/`);
+  return page.evaluate(async (controls) => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const state = window as unknown as { pressed: string[]; result: Promise<unknown> };
+    state.pressed = [];
+    const surface = openPhraseCard({
+      sentence: 'Send two NEAR to alice.testnet',
+      signal: new AbortController().signal,
+      detector: 'level',
+      frame: { controls, pressed: (control: string) => state.pressed.push(control) },
+    });
+    state.result = surface.record();
+    const card = document.querySelector('.seams-voiceid-prompt')!.getBoundingClientRect();
+    return [...document.querySelectorAll('.seams-voiceid-prompt > .seams-voiceid-close')].map(
+      (control) => {
+        const box = control.getBoundingClientRect();
+        return {
+          label: control.getAttribute('aria-label'),
+          path: control.querySelector('path')?.getAttribute('d') ?? null,
+          left: box.left - card.left,
+          right: card.right - box.right,
+        };
+      },
+    );
+  }, controls);
+}
+
+test('the card shows Close, Back in its place, or Back and Close', async ({ page }) => {
+  const [cancel, ...noMore] = await openWithControls(page);
+  expect(noMore).toEqual([]);
+  expect(cancel).toMatchObject({ label: 'Cancel', path: 'M6 6l12 12M18 6L6 18' });
+  expect(cancel.right).toBeLessThan(cancel.left);
+
+  const [back, ...none] = await openWithControls(page, 'back');
+  expect(none).toEqual([]);
+  expect(back).toMatchObject({ label: 'Back', path: 'm15 18-6-6 6-6' });
+  // Back is in the leading corner, as far from the edge as Cancel is from its own.
+  expect(back.left).toBeCloseTo(cancel.right, 0);
+
+  const both = await openWithControls(page, 'back_and_close');
+  expect(both).toEqual([
+    { ...back, label: 'Back' },
+    { ...cancel, label: 'Close' },
+  ]);
+});
+
+test('Back and Close each end the card and report which one the person pressed', async ({
+  page,
+}) => {
+  for (const control of ['Back', 'Close'] as const) {
+    await openWithControls(page, 'back_and_close');
+    const card = page.getByRole('dialog', { name: 'Say this with your voice' });
+    await card.getByRole('button', { name: control, exact: true }).click();
+    const outcome = await page.evaluate(async () => {
+      const state = window as unknown as { pressed: string[]; result: Promise<unknown> };
+      return { pressed: state.pressed, result: await state.result };
+    });
+    expect(outcome).toEqual({ pressed: [control.toLowerCase()], result: { kind: 'cancelled' } });
+  }
+  // The host's cancel (Escape in its dialog) ends the card too, with no press.
+  await openWithControls(page, 'back_and_close');
+  await page.evaluate(() =>
+    document.querySelector('.seams-voiceid-activation-surface')!.dispatchEvent(new Event('cancel')),
+  );
+  const escaped = await page.evaluate(async () => {
+    const state = window as unknown as { pressed: string[]; result: Promise<unknown> };
+    return { pressed: state.pressed, result: await state.result };
+  });
+  expect(escaped).toEqual({ pressed: [], result: { kind: 'cancelled' } });
+});

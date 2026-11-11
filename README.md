@@ -167,11 +167,10 @@ before anything is signed. Any application can call its `checkVerdict`. It
 checks the pinned key, the signature, the fields, the expiry, and that the
 verdict binds the request and the sentence that the signer built itself.
 
-Seams Wallet core and the Seams co-signer call `checkVerdict` on the `dev`
-branch of `seams-wallet` (merge
-[`bb2014e1`](https://github.com/seams-tech/seams-wallet/commit/bb2014e1f)), and
-the next Wallet release ships it. Until then, a published Wallet, such as the
-0.63.0 that the demo pins, has its own earlier copy of the check.
+Seams Wallet core and the Seams co-signer call `checkVerdict` from Seams
+Wallet 0.67.0 (`@seams/wallet` and `@seams/wallet-server`, merge
+[`bb2014e1`](https://github.com/seams-tech/seams-wallet/commit/bb2014e1f)). An
+earlier Wallet has its own copy of the check.
 
 ```bash
 (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')

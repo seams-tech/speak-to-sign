@@ -2038,24 +2038,9 @@ button.ss-seams {
   }
 }
 
-/* From 861px to 1199px the three steps would run under the pills at the right (with all three
-   pills, NEAR's folded, they need about 1145px): the nav shows one step, the first that is not
-   done, as on a phone. The name stays. */
-@media (min-width: 861px) and (max-width: 1199px) {
-  .ss-nav-setup .step-done,
-  .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
-    display: none;
-  }
-  .ss-nav-setup .step + .step {
-    margin-left: 0;
-  }
-  .ss-nav-setup .step + .step::before {
-    display: none;
-  }
-}
-
-/* The setup steps in the nav. They come in when the sheet covers the hero, and they go when
-   every step is done. */
+/* The setup in the nav. It comes in when the sheet covers the hero, and it goes when every step
+   is done. The nav shows one step on all widths: the first that is not done. The hero's strip
+   has the full path. */
 .ss-nav-setup {
   flex: 1;
   min-width: 0;
@@ -2085,11 +2070,13 @@ button.ss-seams {
   display: contents;
 }
 
-/* The steps read as one path: done, the next one, the later ones. The next step is the
-   primary action of the nav: a white pill with an X-blue number and button, and a blue ring
-   that breathes.
-   A later step is glass until its turn. A done step is its blue check and its name; the done
-   funds step shows its two balances in place of its name. */
+.ss-nav-setup .step-done,
+.ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
+  display: none;
+}
+
+/* The step that shows is the primary action of the nav: a white pill with an X-blue number and
+   button, and a blue ring that breathes. */
 .ss-nav-setup .step {
   position: relative;
   flex: none;
@@ -2107,8 +2094,7 @@ button.ss-seams {
   animation: ss-step-ring 2.4s ease-out infinite;
 }
 
-/* In the dark theme the next step is X's dark surface, not a white pill. :where() keeps this
-   rule as specific as the one above, so the later and done steps keep their own looks. */
+/* In the dark theme the step is X's dark surface, not a white pill. */
 :where(:root[data-theme='dark']) .ss-nav-setup .step {
   background: #16181c;
   color: #e7e9ea;
@@ -2122,20 +2108,6 @@ button.ss-seams {
   100% {
     box-shadow: 0 0 0 7px rgba(29, 155, 240, 0);
   }
-}
-
-/* The short line between two steps. */
-.ss-nav-setup .step + .step {
-  margin-left: 12px;
-}
-
-.ss-nav-setup .step + .step::before {
-  content: '';
-  position: absolute;
-  left: -14px;
-  top: 50%;
-  width: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.55);
 }
 
 .ss-nav-setup .step-text {
@@ -2174,49 +2146,6 @@ button.ss-seams {
 .ss-nav-setup .step .step-detail {
   color: inherit;
   padding-right: 8px;
-}
-
-/* A later step: dark glass (readable on a light field too), no ring, a quiet button. */
-.ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
-  background: rgba(10, 16, 22, 0.42);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  color: #ffffff;
-  font-weight: 400;
-  animation: none;
-}
-
-.ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) .step-mark {
-  box-shadow: none;
-  background: rgba(0, 0, 0, 0.34);
-  color: #ffffff;
-}
-
-.ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) .btn {
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  font-weight: 500;
-}
-
-/* A done step: the check and the name, with no control. */
-.ss-nav-setup .step.step-done {
-  padding: 0 4px 0 0;
-  background: none;
-  box-shadow: none;
-  color: #ffffff;
-  font-weight: 400;
-  animation: none;
-}
-
-.ss-nav-setup .step.step-done .step-mark {
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.ss-nav-setup .step.step-done .btn,
-.ss-nav-setup .step.step-done .step-detail:not(.step-tokens) {
-  display: none;
 }
 
 /* The notes under the steps (an error, "sent") have no room in the nav. The hero's strip has them. */
@@ -2585,19 +2514,11 @@ button.ss-seams {
     margin-top: -39px;
     padding: 0 16px 47px;
   }
-  /* A phone has room for one step in the nav: the first that is not done. */
-  .ss-nav-setup .step-done,
-  .ss-nav-setup .step:not(.step-done) ~ .step:not(.step-done) {
-    display: none;
-  }
+  /* On a phone the step can shrink, and it has no space before it. */
   .ss-nav-setup .step {
     flex: 0 1 auto;
     min-width: 0;
   }
-  .ss-nav-setup .step + .step {
-    margin-left: 0;
-  }
-  .ss-nav-setup .step + .step::before,
   .ss-nav-setup::before {
     display: none;
   }
@@ -2606,7 +2527,6 @@ button.ss-seams {
     font-size: 0;
     gap: 0;
   }
-  /* The one step that shows is the next step, so it keeps the primary look. */
   .ss-spa .ss-nav-source span {
     display: none;
   }

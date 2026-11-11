@@ -138,8 +138,8 @@ export function NotesPage({ seams }: { seams: boolean }) {
               </a>
               <ThemePicker />
             </div>
-            {/* The setup steps again, for the time that the sheet covers the hero and its strip.
-                They show until every step is done, so the wallet setup is always in reach. */}
+            {/* The setup again, for the time that the sheet covers the hero and its strip. The nav
+                shows the next step only (showcase.css), until every step is done. */}
             <div className="ss-nav-setup" data-shown={covered || undefined} inert={!covered} aria-label="Set up">
               {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
             </div>

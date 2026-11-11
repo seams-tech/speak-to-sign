@@ -90,6 +90,25 @@ function isPromise<T>(value: unknown): value is Promise<T> {
   return typeof (value as { then?: unknown } | null | undefined)?.then === 'function';
 }
 
+/**
+ * A request to the strip to start a bet: a click on the post's card, or a voice command. Each
+ * new `seq` is one request.
+ */
+export interface BetRequest {
+  seq: number;
+  /** Default: yes. */
+  side?: Side;
+  /** The stake of the bet sheet. Default: the sheet's middle chip. */
+  amount?: bigint;
+  /** Place the bet at once: the bettor asked for exactly this bet (a voice command). */
+  place?: boolean;
+  /**
+   * Open a market first when the note has none. With `side`, the bet follows when the new
+   * market is there.
+   */
+  open?: boolean;
+}
+
 export function NoteMarketStrip({
   noteId,
   source,
@@ -99,7 +118,7 @@ export function NoteMarketStrip({
   directBet = false,
   stakeControl,
   placeholder = false,
-  openBet = 0,
+  openBet,
 }: {
   noteId: number;
   source: MarketSource;
@@ -135,16 +154,18 @@ export function NoteMarketStrip({
    */
   placeholder?: boolean;
   /**
-   * A count that opens the bet sheet on "yes" each time it goes up, while the market is open:
-   * for example, a click on the post's card in the timeline. The sheet has its own yes and no.
+   * Starts a bet while the market is open. It opens the bet sheet, or with `directBet` and
+   * `place` it places the one-tap bet.
    */
-  openBet?: number;
+  openBet?: BetRequest;
 }) {
   const currency = source.currency ?? NEAR_CURRENCY;
   const [market, setMarket] = useState<NoteMarket | null>(null);
   const [position, setPosition] = useState<MarketPosition>(EMPTY_POSITION);
   const [history, setHistory] = useState<OddsPoint[]>([]);
   const [betSide, setBetSide] = useState<Side | null>(null);
+  /** How the open bet sheet starts, when a request (`openBet`) opened it. */
+  const [sheetStart, setSheetStart] = useState<BetRequest | null>(null);
   // The spoken bet, when the contract needs it. A one-tap bet then shows its "say it" step in
   // the strip, in place of the two buttons.
   const voice = useBetVoice(source);
@@ -219,6 +240,7 @@ export function NoteMarketStrip({
     setNotice(null);
     // The sheets open at once, also signed out: each one shows the sign-in as its own step.
     if (action.kind === 'bet' && !directBet) {
+      setSheetStart(null);
       setBetSide(action.side);
       return null;
     }
@@ -331,12 +353,44 @@ export function NoteMarketStrip({
     if (Date.now() - intent.atMs <= INTENT_MS) void runRef.current(intent.action);
   }, [account, intent]);
 
-  // A click on the post's card opens the bet sheet (`openBet`), while the market takes bets.
+  // A request (`openBet`) starts a bet while the market takes bets. A request from before the
+  // first read of the market waits for it. Each request runs once.
+  const handledBet = useRef(0);
+  /** The bet that waits for the market that its request opens. */
+  const betAfterOpen = useRef<{ request: BetRequest; atMs: number } | null>(null);
   useEffect(() => {
-    if (openBet === 0 || directBet || !market) return;
-    if (market.status === 'open' && Date.now() < market.closesAtMs) setBetSide('yes');
-    // Only a new request opens the sheet, not a new read of the market.
-  }, [openBet]);
+    const waiting = betAfterOpen.current;
+    if (!waiting || !market) return;
+    betAfterOpen.current = null;
+    if (Date.now() - waiting.atMs > INTENT_MS || market.status !== 'open' || Date.now() >= market.closesAtMs) return;
+    setSheetStart(waiting.request);
+    setBetSide(waiting.request.side ?? 'yes');
+  }, [market]);
+  useEffect(() => {
+    if (!openBet || openBet.seq === handledBet.current || !loaded) return;
+    if (openBet.open) {
+      // "Open a market", with the first seed, as the button of the strip does.
+      const seed = (currency.seedChips ?? currency.chips)[0] ?? 0n;
+      if (!market && canOpen) {
+        handledBet.current = openBet.seq;
+        betAfterOpen.current = openBet.side ? { request: openBet, atMs: Date.now() } : null;
+        void runRef.current({ kind: 'open', seed, durationMs: DEFAULT_DURATION_MS });
+        return;
+      }
+      // The note has a market already: only a bet is left to do.
+      if (!market || !openBet.side) return;
+    }
+    if (!market) return;
+    handledBet.current = openBet.seq;
+    if (market.status !== 'open' || Date.now() >= market.closesAtMs) return;
+    const side = openBet.side ?? 'yes';
+    if (directBet) {
+      if (openBet.place) void runRef.current({ kind: 'bet', side });
+      return;
+    }
+    setSheetStart(openBet);
+    setBetSide(side);
+  }, [openBet, market, directBet, loaded, canOpen]);
 
   if (!market && !loaded && placeholder) {
     return (
@@ -393,7 +447,7 @@ export function NoteMarketStrip({
             disabled={openBusy || waiting !== null}
             onClick={() => void run({ kind: 'open', seed, durationMs: DEFAULT_DURATION_MS })}
           >
-            {openStage ? stageText(openStage, 'Opening…') : waiting?.kind === 'open' ? SETTING_UP : 'Open a market'}
+            {openStage ? openStageText(openStage, source.signsByVoice) : waiting?.kind === 'open' ? SETTING_UP : 'Open a market'}
           </button>
         </div>
         <p className="nm-muted nm-small">
@@ -414,6 +468,7 @@ export function NoteMarketStrip({
         {opening && (
           <OpenSheet
             currency={currency}
+            signsByVoice={source.signsByVoice}
             account={account}
             busyStage={openStage}
             signInFirst={openSignInFirst}
@@ -554,6 +609,8 @@ export function NoteMarketStrip({
         <BetSheet
           market={market}
           initialSide={betSide}
+          initialAmount={sheetStart?.amount}
+          autoPlace={sheetStart?.place}
           source={source}
           account={account}
           onSignIn={onSignIn}
@@ -577,6 +634,11 @@ function stageText(stage: SignStage, afterwards: string): string {
 /** The stages of a bet. A source that signs by voice has no confirm: the bettor says the bet. */
 function betStageText(stage: SignStage, source: MarketSource): string {
   return stage === 'confirm' && source.signsByVoice ? 'Say your bet in the Wallet…' : stageText(stage, 'Placing your bet…');
+}
+
+/** The stages of a new market. A source that signs by voice has no confirm here either. */
+function openStageText(stage: SignStage, signsByVoice: boolean): string {
+  return stage === 'confirm' && signsByVoice ? 'Say it in the Wallet…' : stageText(stage, 'Opening…');
 }
 
 /** "3 minutes", "1 hour", "3 days". */
@@ -824,6 +886,8 @@ function useSignInThen(account: string | undefined, onSignIn: () => void | Promi
 function BetSheet({
   market,
   initialSide,
+  initialAmount,
+  autoPlace = false,
   source,
   account,
   onSignIn,
@@ -832,6 +896,10 @@ function BetSheet({
 }: {
   market: NoteMarket;
   initialSide: Side;
+  /** Default: the middle chip. */
+  initialAmount?: bigint;
+  /** Place the bet as soon as the sheet opens: the bettor asked for exactly this bet. */
+  autoPlace?: boolean;
   source: MarketSource;
   account?: string;
   onSignIn: () => void | Promise<boolean>;
@@ -841,7 +909,7 @@ function BetSheet({
   const titleId = useId();
   const currency = source.currency ?? NEAR_CURRENCY;
   const [side, setSide] = useState<Side>(initialSide);
-  const [amount, setAmount] = useState<bigint>(currency.chips[1] ?? 0n);
+  const [amount, setAmount] = useState<bigint>(initialAmount ?? currency.chips[1] ?? 0n);
   const [balance, setBalance] = useState<bigint | null>(null);
   useEffect(() => {
     if (!account || !source.getBalance) {
@@ -870,6 +938,13 @@ function BetSheet({
   const closeRef = useRef<() => void>(() => undefined);
   // With a spoken bet, the sign-in ends at the "say it" step: nothing is placed without a voice.
   const signIn = useSignInThen(account, onSignIn, () => (voice ? Promise.resolve() : place(closeRef.current)));
+  const autoPlaced = useRef(false);
+  useEffect(() => {
+    if (!autoPlace || autoPlaced.current) return;
+    autoPlaced.current = true;
+    void (account ? place(closeRef.current) : signIn.start());
+    // Once, when the sheet opens.
+  }, []);
 
   return (
     <SheetDialog titleId={titleId} locked={stage !== null} onClose={onClose}>
@@ -971,6 +1046,7 @@ function BetSheet({
  */
 function OpenSheet({
   currency,
+  signsByVoice,
   account,
   busyStage,
   signInFirst,
@@ -979,6 +1055,8 @@ function OpenSheet({
   onOpen,
 }: {
   currency: Currency;
+  /** The owner says a sentence to open the market, in place of a confirm. */
+  signsByVoice: boolean;
   account?: string;
   busyStage: SignStage | null;
   signInFirst: boolean;
@@ -1075,7 +1153,7 @@ function OpenSheet({
             <div className="dialog-foot dialog-foot-end">
               <button type="button" className="btn btn-dark" onClick={() => void (account ? open() : signIn.start())} disabled={busy || signIn.waiting}>
                 <Morph view={busyStage ?? (signIn.waiting ? 'signin' : 'idle')}>
-                  {busyStage ? stageText(busyStage, 'Opening…') : signIn.waiting ? SETTING_UP : `Open market · ${amountText(seed, currency)}`}
+                  {busyStage ? openStageText(busyStage, signsByVoice) : signIn.waiting ? SETTING_UP : `Open market · ${amountText(seed, currency)}`}
                 </Morph>
               </button>
             </div>

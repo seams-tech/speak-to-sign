@@ -3,25 +3,29 @@
 // writes, rates and bets on the card itself, and the dialogs open over the timeline. A click on
 // a card opens its bet (when its market takes bets) or the write dialog.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { IconChevronDown, IconUsers } from '@tabler/icons-react';
 import { ActionRow, AuthorBadge, Avatar, Media, PostText } from '../components/bits';
 import { NoteRateLine, shownNote } from '../components/NotesBox';
 import { CONTEXT_MARKET_NOTE_ID, NoteDialog } from '../components/PostContext';
 import { POSTS, type Post } from '../data/posts';
-import { useDemo } from '../demoContext';
+import { RATING_LABELS, useDemo } from '../demoContext';
 import { useMarketSource } from '../market/contractSource';
 import { amountText, jevSentence, percentText, timeLeftText, yesShareBps } from '../market/math';
-import { NoteMarketStrip } from '../market/NoteMarket';
+import { NoteMarketStrip, type BetRequest } from '../market/NoteMarket';
 import { useBetVoice } from '../market/SayBet';
 import { marketContext } from '../market/noteContext';
-import type { NoteMarket } from '../market/types';
+import { NEAR_CURRENCY, type NoteMarket, type Side } from '../market/types';
 import type { Note } from '../notes/types';
+import { MAX_SCREEN_POSTS, type Screen, type TimelineTab, type VoiceCommand } from '../voice/command';
+import { VoiceBar } from '../voice/VoiceBar';
+import { controversy } from './controversy';
 import './timeline.css';
 
-type Tab = 'fresh' | 'open' | 'decided';
+type Tab = TimelineTab;
 const TABS: { id: Tab; label: string }[] = [
   { id: 'fresh', label: 'Fresh' },
+  { id: 'controversial', label: 'Controversial' },
   { id: 'open', label: 'Open markets' },
   { id: 'decided', label: 'Decided' },
 ];
@@ -82,8 +86,85 @@ export function marketTab(market: NoteMarket | null | undefined, nowMs: number):
   return market.status === 'open' && market.closesAtMs > nowMs ? 'open' : 'closed';
 }
 
+interface Card {
+  post: Post;
+  note: CardNote | null;
+}
+
+/** What a voice command asked of the market of one post's note: a bet, or a new market. */
+interface VoiceBet {
+  postId: number;
+  /** The bet, for the note dialog of the demo post. */
+  bet?: { side: Side; amount: bigint | null };
+  request: BetRequest;
+}
+
+/** Where the browser keeps the visitor's choice for the voice bar: on or off. */
+const VOICE_ON_KEY = 'notes.voice-commands';
+
+/** Each bet request of the page has its own number (see BetRequest). */
+let betSeq = 0;
+const nextBetSeq = () => (betSeq += 1);
+
+/** Brings a post's card into view in the timeline, and flashes it. */
+export function showCard(postId: number) {
+  const card = document.getElementById(postCardId(postId));
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.remove('note-fresh');
+  // A new frame restarts the flash when the same card is chosen twice.
+  requestAnimationFrame(() => card.classList.add('note-fresh'));
+  window.setTimeout(() => card.classList.remove('note-fresh'), 2400);
+}
+
+/** Brings a post's card to the top of the view, where it is "this one" for a voice command. */
+function focusCard(postId: number) {
+  document.getElementById(postCardId(postId))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * The post that "this one" means while the voice bar is on: the first of `ids` (post ids with
+ * commas) whose card crosses the line at a third of the view's height, or the first one below it.
+ */
+function useFocusedPost(ids: string, active: boolean): number | null {
+  const [focused, setFocused] = useState<number | null>(null);
+  const read = useCallback(() => {
+    const line = window.innerHeight / 3;
+    let found: number | null = null;
+    for (const id of ids === '' ? [] : ids.split(',').map(Number)) {
+      const box = document.getElementById(postCardId(id))?.getBoundingClientRect();
+      if (box && box.bottom > line) {
+        found = id;
+        break;
+      }
+    }
+    setFocused(found);
+  }, [ids]);
+  useEffect(() => {
+    if (!active) {
+      setFocused(null);
+      return;
+    }
+    read();
+    let frame = 0;
+    const onMove = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(read);
+    };
+    // The timeline can scroll inside the page's app window, so listen in the capture phase.
+    document.addEventListener('scroll', onMove, true);
+    window.addEventListener('resize', onMove);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('scroll', onMove, true);
+      window.removeEventListener('resize', onMove);
+    };
+  }, [active, read]);
+  return focused;
+}
+
 export function Timeline() {
-  const { notesByPost, xPosts, xPostsState, xPostsMore } = useDemo();
+  const { notesByPost, xPosts, xPostsState, xPostsMore, openWrite, openRate, account } = useDemo();
   const source = useMarketSource();
   const [tab, setTab] = useState<Tab>('fresh');
   const [markets, setMarkets] = useState<Record<number, NoteMarket | null>>({});
@@ -112,15 +193,121 @@ export function Timeline() {
     };
   }, [noteKey, source]);
 
-  const visible = cards.filter((card) => tab === 'fresh' || marketTab(card.note ? markets[card.note.marketNoteId] : null, now) === tab);
+  const marketOf = (card: Card) => (card.note ? markets[card.note.marketNoteId] : null);
+  const visible =
+    tab === 'controversial'
+      ? cards
+          .map((card) => ({ card, score: controversy(card.post, card.note?.note, marketOf(card)) }))
+          .filter(({ score }) => score > 0)
+          // The most disputed first. The sort is stable, so equal posts keep the timeline's order.
+          .sort((a, b) => b.score - a.score)
+          .map(({ card }) => card)
+      : cards.filter((card) => tab === 'fresh' || marketTab(marketOf(card), now) === tab);
+
+  // Voice commands (src/voice). With the bar on, the first posts and their notes show the
+  // numbers that the visitor can say, and the post at the top of the view is "this one".
+  // The bar stays on across a reload. The browser's storage can be off: the bar then starts off.
+  const [voiceOn, setVoiceOnState] = useState(() => {
+    try {
+      return localStorage.getItem(VOICE_ON_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setVoiceOn = (on: boolean) => {
+    setVoiceOnState(on);
+    try {
+      localStorage.setItem(VOICE_ON_KEY, on ? '1' : '0');
+    } catch {
+      // The choice then lasts until the reload.
+    }
+  };
+  const [voiceBet, setVoiceBet] = useState<VoiceBet | null>(null);
+  const spoken = visible.slice(0, MAX_SCREEN_POSTS);
+  const focusedPostId = useFocusedPost(spoken.map((card) => card.post.id).join(','), voiceOn);
+  const noteNumbers = new Map(spoken.filter((card) => card.note).map((card, index) => [card.post.id, index + 1]));
+  const screen = (): Screen => ({
+    posts: spoken.map(({ post, note }) => ({ postId: post.id, author: post.author.name, text: post.text, note: note?.text })),
+    focusedPostId,
+  });
+  const runCommand = (command: VoiceCommand): { ok: boolean; text: string } => {
+    if (command.kind === 'show') {
+      setTab(command.tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return { ok: true, text: `Showing: ${TABS.find(({ id }) => id === command.tab)?.label ?? command.tab}.` };
+    }
+    if (command.kind === 'none') return { ok: true, text: 'No command in that sentence.' };
+    if (command.kind === 'move') {
+      // From the focused post. With no post in view, "next" is the first post.
+      const from = spoken.findIndex((candidate) => candidate.post.id === focusedPostId);
+      const target = spoken[command.to === 'next' ? from + 1 : from - 1];
+      if (!target) return { ok: false, text: command.to === 'next' ? 'This is the last post with a number.' : 'This is the first post.' };
+      focusCard(target.post.id);
+      return { ok: true, text: `Post ${spoken.indexOf(target) + 1}, by ${target.post.author.name}.` };
+    }
+    if (command.kind === 'go') {
+      const target = spoken.find((candidate) => candidate.post.id === command.postId);
+      if (!target) return { ok: false, text: 'That post is not on the screen.' };
+      focusCard(target.post.id);
+      return { ok: true, text: `Post ${spoken.indexOf(target) + 1}, by ${target.post.author.name}.` };
+    }
+    if (command.kind === 'no_target') {
+      const needs = { rate: 'A rating', bet: 'A bet', open_market: 'A market' } as const;
+      if (command.action === 'go') return { ok: false, text: 'Say which post: "scroll to the second post".' };
+      return { ok: false, text: command.action === 'write_note' ? 'That post is not on the screen.' : `${needs[command.action]} needs a note. That note is not on the screen.` };
+    }
+    const card = spoken.find((candidate) => candidate.post.id === command.postId);
+    if (!card) return { ok: false, text: 'That post is not on the screen.' };
+    showCard(card.post.id);
+    if (command.kind === 'write_note') {
+      openWrite(card.post.id, { autoSign: true });
+      return { ok: true, text: `A note on the post of ${card.post.author.name}. Read the sentence aloud to sign it.` };
+    }
+    const noteName = `Note ${noteNumbers.get(card.post.id) ?? ''}`.trim();
+    if (command.kind === 'rate') {
+      // Only a note of this app takes a rating, and not from its own author.
+      const note = card.note?.note;
+      if (!note) return { ok: false, text: `${noteName} is from X. It takes no rating here.` };
+      if (note.author === account) return { ok: false, text: `You wrote ${noteName.toLowerCase()}. Other accounts rate it.` };
+      openRate(note.id, { rating: command.rating, autoSign: true });
+      return { ok: true, text: `${noteName}: ${RATING_LABELS[command.rating].toLowerCase()}. Say the sentence to sign the rating.` };
+    }
+    const market = marketOf(card);
+    // A note of this app with no market can get one: the strip's "Open a market".
+    const canOpenMarket = market === null && card.note?.note !== undefined && source.createMarket !== undefined;
+    if (command.kind === 'open_market' || (canOpenMarket && command.kind === 'bet')) {
+      if (market) return { ok: false, text: `${noteName} has a market already.` };
+      if (!canOpenMarket) return { ok: false, text: `${noteName} cannot get a market now.` };
+      const bet = command.kind === 'bet' ? { side: command.side, amount: command.amount ?? undefined, place: true } : {};
+      setVoiceBet({ postId: card.post.id, request: { seq: nextBetSeq(), open: true, ...bet } });
+      const opening = `A new market on ${noteName.toLowerCase()}. Say the sentence to open it.`;
+      return { ok: true, text: command.kind === 'bet' ? `${noteName} has no market yet. Say the sentence to open one. Your bet comes next.` : opening };
+    }
+    if (marketTab(market, Date.now()) !== 'open') return { ok: false, text: `${noteName} has no open market, so it takes no bet.` };
+    const currency = source.currency ?? NEAR_CURRENCY;
+    const amount = command.amount ?? undefined;
+    const number = noteNumbers.get(card.post.id);
+    setVoiceBet({ postId: card.post.id, bet: command, request: { seq: nextBetSeq(), side: command.side, amount, place: true } });
+    // With no amount in the sentence, the bet takes the amount that the sheet or the slider shows.
+    const stake = amount ? `${amountText(amount, currency)} ` : '';
+    return { ok: true, text: `Bet ${stake}on ${command.side}, note ${number ?? ''}.${amount ? '' : ' I heard no amount.'} Say the bet to sign it.` };
+  };
 
   return (
     <>
       <h1 className="sr-only">Posts that need context</h1>
       <TabBar tab={tab} onTab={setTab} />
-      {visible.map(({ post, note }) => (
-        <PostCard key={post.id} post={post} note={note} market={note ? markets[note.marketNoteId] : null} />
+      {visible.map(({ post, note }, index) => (
+        <PostCard
+          key={post.id}
+          post={post}
+          note={note}
+          market={note ? markets[note.marketNoteId] : null}
+          voice={voiceOn && index < MAX_SCREEN_POSTS ? { number: index + 1, noteNumber: noteNumbers.get(post.id), focused: post.id === focusedPostId } : undefined}
+          voiceBet={voiceBet?.postId === post.id ? voiceBet : undefined}
+        />
       ))}
+      <VoiceBar on={voiceOn} onToggle={setVoiceOn} screen={screen} onCommand={runCommand} onTarget={showCard} />
       {visible.length === 0 && <p className="xt-foot muted">No posts here yet.</p>}
       <MorePosts />
       {!xPostsMore && (
@@ -180,22 +367,42 @@ function MorePosts() {
 /** The id of a post's card, so that the voice feed can bring it into view. */
 export const postCardId = (postId: number) => `post-${postId}`;
 
-function PostCard({ post, note, market }: { post: Post; note: CardNote | null; market: NoteMarket | null | undefined }) {
+function PostCard({
+  post,
+  note,
+  market,
+  voice,
+  voiceBet,
+}: {
+  post: Post;
+  note: CardNote | null;
+  market: NoteMarket | null | undefined;
+  /** With the voice bar on: the numbers that the visitor can say, and "this one". */
+  voice?: { number: number; noteNumber?: number; focused: boolean };
+  /** A bet on this post's note that a voice command asked for. */
+  voiceBet?: VoiceBet;
+}) {
   const { openWrite } = useDemo();
-  // The bet dialog of the demo post's context, open in place.
-  const [betting, setBetting] = useState(false);
-  // Goes up to open the bet sheet of a note of this app (its market strip).
-  const [betRequest, setBetRequest] = useState(0);
+  // The bet dialog of the demo post's context, open in place. `bet`: a voice command's bet.
+  const [betting, setBetting] = useState<{ bet?: { side: Side; amount: bigint | null } } | null>(null);
+  // Starts a bet on a note of this app (its market strip): a click on the card, or a voice command.
+  const [betRequest, setBetRequest] = useState<BetRequest>();
+  useEffect(() => {
+    if (!voiceBet) return;
+    if (post.context) setBetting({ bet: voiceBet.bet });
+    else setBetRequest(voiceBet.request);
+    // Each voice bet is a new object, and it runs once.
+  }, [voiceBet]);
   // A post has no page: a click opens the bet when its market takes bets, else the write dialog.
   const open = () => {
-    if (post.context) setBetting(true);
-    else if (note?.note && marketTab(market, Date.now()) === 'open') setBetRequest((count) => count + 1);
+    if (post.context) setBetting({});
+    else if (note?.note && marketTab(market, Date.now()) === 'open') setBetRequest({ seq: nextBetSeq() });
     else openWrite(post.id);
   };
   return (
     <article
       id={postCardId(post.id)}
-      className="tl-post"
+      className={voice?.focused ? 'tl-post voice-focus' : 'tl-post'}
       onClick={open}
       onKeyDown={(event) => {
         if (event.key === 'Enter' && event.target === event.currentTarget) open();
@@ -206,6 +413,11 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
       <Avatar author={post.author} />
       <div className="tl-main">
         <div className="tl-head">
+          {voice && (
+            <span className="voice-number" aria-label={`Post ${voice.number}`}>
+              {voice.number}
+            </span>
+          )}
           <b className="name">{post.author.name}</b>
           <AuthorBadge author={post.author} />
           <span className="handle muted">@{post.author.handle}</span>
@@ -218,7 +430,7 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         {post.media && <Media kind={post.media} caption={post.mediaCaption} compact />}
         {post.image && <img className="xt-media" src={post.image.url} alt={post.image.alt} loading="lazy" referrerPolicy="no-referrer" />}
         {note ? (
-          <NoteBox note={note} market={market} onBet={() => setBetting(true)} betRequest={betRequest} />
+          <NoteBox note={note} market={market} onBet={() => setBetting({})} betRequest={betRequest} number={voice?.noteNumber} />
         ) : (
           <div className="xt-box xt-empty xt-row">
             <IconUsers size={20} stroke={1.8} className="muted" aria-hidden="true" />
@@ -247,7 +459,7 @@ function PostCard({ post, note, market }: { post: Post; note: CardNote | null; m
         // and the card's text moved 12 px to the left while the dialog was open. Keys pass: the
         // dialog hears Escape and Tab on the document, and the card answers only its own Enter.
         <div style={{ display: 'contents' }} onClick={(event) => event.stopPropagation()}>
-          <NoteDialog post={post} context={post.context} onClose={() => setBetting(false)} />
+          <NoteDialog post={post} context={post.context} bet={betting.bet} onClose={() => setBetting(null)} />
         </div>
       )}
     </article>
@@ -268,12 +480,15 @@ function NoteBox({
   market,
   onBet,
   betRequest,
+  number,
 }: {
   note: CardNote;
   market: NoteMarket | null | undefined;
   onBet: () => void;
-  /** Goes up to open the strip's bet sheet. */
-  betRequest: number;
+  /** Starts a bet in the strip. */
+  betRequest: BetRequest | undefined;
+  /** The note's number for a voice command ("the second note"), while the voice bar is on. */
+  number?: number;
 }) {
   const { account, prepare, freshNoteId } = useDemo();
   const source = useMarketSource();
@@ -286,6 +501,7 @@ function NoteBox({
     <div className={note.note && note.note.id === freshNoteId ? 'xt-box note-fresh' : 'xt-box'} onClick={(event) => event.stopPropagation()}>
       <div className="xt-box-head">
         <IconUsers size={18} stroke={1.8} aria-hidden="true" />
+        {number !== undefined && <span className="voice-number">Note {number}</span>}
         {note.shown ? 'Readers added context' : 'Proposed note'}
         {!note.shown && <span className="xt-state">needs ratings</span>}
       </div>

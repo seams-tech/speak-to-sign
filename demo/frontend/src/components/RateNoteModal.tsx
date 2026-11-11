@@ -24,9 +24,13 @@ interface Props {
   onSent: (rating: Rating, transactionHash: string) => void;
   /** Called when the success card closes (by itself, or with Done). */
   onDone: () => void;
+  /** The answer that the dialog opens with. */
+  initialRating?: Rating;
+  /** Start the spoken step at once, with `initialRating`: the visitor asked for it by voice. */
+  autoSign?: boolean;
 }
 
-export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
+export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, autoSign = false }: Props) {
   const { account, status, myRatings, prepare, signingIn, hostSignIn, endSignIn } = useDemo();
   useEffect(() => hostSignIn(), [hostSignIn]);
   const enrolled = useEnrolled(account);
@@ -34,7 +38,7 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
   const titleId = useId();
   const signInTitleId = useId();
   const previous = myRatings[note.id];
-  const [choice, setChoice] = useState<Rating | null>(null);
+  const [choice, setChoice] = useState<Rating | null>(initialRating ?? null);
   const [phase, setPhase] = useState<SignPhase>({ state: 'idle' });
   const signing = phase.state !== 'idle';
   const locked = phase.state === 'pending' || phase.state === 'preparing';
@@ -47,6 +51,14 @@ export function RateNoteModal({ note, onClose, onSent, onDone }: Props) {
     );
     if (result?.kind === 'sent') onSent(rating, result.transactionHash);
   };
+
+  const autoSigned = useRef(false);
+  useEffect(() => {
+    if (!autoSign || autoSigned.current || !choice) return;
+    autoSigned.current = true;
+    void startSigning();
+    // Once, when the dialog opens.
+  }, []);
 
   const sent = phase.state === 'done' && phase.result.kind === 'sent';
   const finish = () => modal.current?.close(onDone);

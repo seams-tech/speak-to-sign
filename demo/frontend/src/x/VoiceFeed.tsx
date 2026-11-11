@@ -10,20 +10,9 @@ import { shortAccount } from '../config';
 import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
 import type { Note } from '../notes/types';
-import { postCardId } from './Timeline';
+import { postCardId, showCard } from './Timeline';
 
 const MAX_ROWS = 6;
-
-/** Brings a post's card into view in the timeline, and flashes it. */
-function showCard(postId: number) {
-  const card = document.getElementById(postCardId(postId));
-  if (!card) return;
-  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  card.classList.remove('note-fresh');
-  // A new frame restarts the flash when the same card is chosen twice.
-  requestAnimationFrame(() => card.classList.add('note-fresh'));
-  window.setTimeout(() => card.classList.remove('note-fresh'), 2400);
-}
 
 /** The newest notes of all posts, newest first. */
 export function newestNotes(notesByPost: Record<number, Note[]>, limit = MAX_ROWS): Note[] {

@@ -32,6 +32,8 @@ interface Props {
   onSent: (summary: string, transactionHash: string) => void;
   /** Called when the success card closes (by itself, or with Done). */
   onDone: () => void;
+  /** Start the spoken step as soon as the draft is in: the visitor asked for the note by voice. */
+  autoSign?: boolean;
 }
 
 /**
@@ -42,7 +44,7 @@ interface Props {
  * The button also runs what is still missing first: sign in, set up the voice, testnet NEAR. After
  * the note posts, the dialog shows the result for a moment and closes by itself.
  */
-export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
+export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false }: Props) {
   const { account, status, prepare, signingIn, hostSignIn, endSignIn } = useDemo();
   useEffect(() => hostSignIn(), [hostSignIn]);
   const enrolled = useEnrolled(account);
@@ -104,6 +106,15 @@ export function WriteNoteModal({ post, onClose, onSent, onDone }: Props) {
     const result = await runVoiceAction(prepare, !!status?.signedIn, setPhase, (signer) => signer.requestNote(note));
     if (result?.kind === 'sent') onSent(note.summary, result.transactionHash);
   };
+
+  const autoSigned = useRef(false);
+  const draftReady = !typingNote && !typing && speakable && noteOk;
+  useEffect(() => {
+    if (!autoSign || autoSigned.current || !draftReady) return;
+    autoSigned.current = true;
+    void startSigning();
+    // Once, when the prefilled draft is in.
+  }, [autoSign, draftReady]);
 
   const sent = phase.state === 'done' && phase.result.kind === 'sent';
   const finish = () => modal.current?.close(onDone);

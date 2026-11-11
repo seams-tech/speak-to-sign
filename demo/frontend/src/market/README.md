@@ -179,6 +179,10 @@ market refused has no `bet` event, and its USDC came back. Before the bet, the
 page asks for the sign-in, the voice setup and the test USDC
 (`source.signsByVoice`).
 
+A new market is a spoken request too: `seams.near.speakToSign.signAndSendTransaction`
+with the summary "Open a prediction market on this note" (`OPEN_MARKET_SENTENCE`).
+The verdict binds the receiver and the actions, so the sentence names no amount.
+
 `source.voice`, `<SayBet>` and the request kind `market_bet` of
 `/api/voice-verify` are the older page-side "say it" step. Only the mock
 source uses them now (`/market-preview.html?voice`).

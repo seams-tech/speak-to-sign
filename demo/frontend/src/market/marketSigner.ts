@@ -1,18 +1,24 @@
 // The changes of the pm-notes contract, signed by the Seams Wallet. The money is USDC: a bet or
 // a seed is the token's `ft_transfer_call` to the market, and a claim makes the market call the
-// token's `ft_transfer`. A bet is a spoken request (`seams.near.speakToSign.typed.bet`, Wallet
-// 0.66.0): the bettor says it, and the Wallet sends it with the signed verdict and no confirm.
-// The other changes use the Wallet's normal confirm step (passkey).
+// token's `ft_transfer`. A bet and a new market are spoken requests (`seams.near.speakToSign`,
+// Wallet 0.66.0): the owner says the sentence, and the Wallet sends the transaction with no
+// confirm. A bet is the typed request `bet`, whose verdict goes with the bet. A new market is a
+// spoken transaction with a summary. The other changes use the Wallet's normal confirm step
+// (passkey).
 
 import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
 import { isUserRejection } from '../signer/rejection';
-import { errorText, toSignResult } from '../signer/seamsSigner';
+import { errorText, toSignResult, type SpokenSent } from '../signer/seamsSigner';
 import { spokenAmount } from './spokenBet';
 import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
+type SpeakToSign = NonNullable<Seams['near']['speakToSign']>;
+
+/** What the owner says to open a market. Plain words only: the Wallet's rule for a summary. */
+export const OPEN_MARKET_SENTENCE = 'Open a prediction market on this note';
 
 const TGAS = 1_000_000_000_000n;
 /** A normal market call. */
@@ -33,6 +39,7 @@ const REQUEST_IN_BATCH_GAS = (290n * TGAS).toString();
 export const RESOLUTION_FEE_YOCTO = YOCTO_PER_NEAR / 100n;
 
 export interface MarketSigner {
+  /** The owner says `OPEN_MARKET_SENTENCE` in the Wallet card. `progress` hears `sent` only. */
   createMarket(input: { noteId: number; question: string; context: string; closesAtMs: number; seed: bigint }, progress?: SignProgress): Promise<SignResult>;
   /** The bettor says the bet in the Wallet card. `progress` hears `sent` only. */
   bet(input: { marketId: number; side: Side; amount: bigint }, progress?: SignProgress): Promise<SignResult>;
@@ -146,48 +153,42 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
   const marketRefusal = (expectedEvent: string, events: ContractEvent[], outcome: unknown): string | null =>
     events.some((event) => event.event === expectedEvent) ? null : `The market refused it, and the USDC came back. ${panicOf(outcome) ?? ''}`.trim();
 
-  /** One spoken bet: the Wallet card records the sentence, checks the verdict and sends the bet. */
-  const spokenBet = async (marketId: number, side: Side, amount: bigint, progress?: SignProgress): Promise<SignResult> => {
+  /**
+   * One spoken request that sends USDC to the market: the Wallet card records the sentence, the
+   * verifier checks it, and the Wallet sends the transaction. `call` makes the request.
+   */
+  const spokenUsdc = async (
+    expectedEvent: string,
+    progress: SignProgress | undefined,
+    call: (voice: SpeakToSign, walletId: string, onProgress: (event: { stage: string }) => void) => Promise<SpokenSent>,
+  ): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     const voice = seams.near.speakToSign;
     if (!voice) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
-    const decimal = spokenAmount(amount)?.replaceAll(',', '');
-    if (!decimal) return { kind: 'refused', reason: 'A spoken bet is a whole number of cents.' };
     try {
       const result = toSignResult(
-        await voice.typed.bet({
-          walletId,
-          contract,
-          token,
-          marketId,
-          outcome: side,
-          amount: decimal,
-          onProgress: (event) => {
-            if (event.stage === 'transaction_sent') progress?.('sent');
-          },
+        await call(voice, walletId, (event) => {
+          if (event.stage === 'transaction_sent') progress?.('sent');
         }),
       );
       if (result.kind !== 'sent' || !nearAccountId) return result;
-      // The Wallet reports a transaction that succeeded. The market can still have refused the bet.
+      // The Wallet reports a transaction that succeeded. The market can still have refused it.
       const outcome = await finalOutcome(rpcUrl, result.transactionHash, nearAccountId).catch(() => null);
-      const refusal = outcome === null ? null : marketRefusal('bet', eventsOf(outcome), outcome);
+      const refusal = outcome === null ? null : marketRefusal(expectedEvent, eventsOf(outcome), outcome);
       return refusal ? { kind: 'refused', reason: refusal } : result;
     } catch (cause) {
       return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
     }
   };
 
-  /** Sends USDC to the market with `ft_transfer_call`, with the Wallet's confirm step. */
-  const sendUsdc = (amount: bigint, msg: Record<string, unknown>, expectedEvent: string, confirm: ConfirmText, progress?: SignProgress) =>
-    send(
-      [{ method: 'ft_transfer_call', args: { receiver_id: contract, amount: amount.toString(), msg: JSON.stringify(msg) }, deposit: 1n, gas: FT_CALL_GAS }],
-      confirm,
-      progress,
-      (events, outcome) => marketRefusal(expectedEvent, events, outcome),
-      token,
+  const spokenBet = async (marketId: number, side: Side, amount: bigint, progress?: SignProgress): Promise<SignResult> => {
+    const decimal = spokenAmount(amount)?.replaceAll(',', '');
+    if (!decimal) return { kind: 'refused', reason: 'A spoken bet is a whole number of cents.' };
+    return spokenUsdc('bet', progress, (voice, id, onProgress) =>
+      voice.typed.bet({ walletId: id, contract, token, marketId, outcome: side, amount: decimal, onProgress }),
     );
+  };
 
-  const usdc = (amount: bigint) => `${Number(amount) / 1_000_000} USDC`;
   const jevAnswered = (events: ContractEvent[]) => {
     const failed = events.find((event) => event.event === 'resolution_failed');
     return failed ? `JEV gave no answer that counts: ${String(failed.data.reason)}. You can ask again.` : null;
@@ -198,13 +199,30 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
   };
 
   return {
+    // The seed goes to the market with the token's `ft_transfer_call`. The verdict binds the
+    // receiver and the actions, so the sentence names no amount.
     createMarket: ({ noteId, question, context, closesAtMs, seed }, progress) =>
-      sendUsdc(
-        seed,
-        { action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs },
-        'market_created',
-        { title: `Open a market with ${usdc(seed)}`, body: 'Half of your seed goes on yes and half on no. It pays like any other bet.' },
-        progress,
+      spokenUsdc('market_created', progress, (voice, id, onProgress) =>
+        voice.signAndSendTransaction({
+          walletId: id,
+          transaction: {
+            receiverId: token,
+            actions: [
+              functionCall({
+                method: 'ft_transfer_call',
+                args: {
+                  receiver_id: contract,
+                  amount: seed.toString(),
+                  msg: JSON.stringify({ action: 'create_market', question, context, note_id: noteId, closes_at_ms: closesAtMs }),
+                },
+                gas: FT_CALL_GAS,
+                deposit: '1',
+              }),
+            ],
+          },
+          summary: OPEN_MARKET_SENTENCE,
+          onProgress,
+        }),
       ),
     bet: ({ marketId, side, amount }, progress) => spokenBet(marketId, side, amount, progress),
     closeMarket: (marketId, progress) =>

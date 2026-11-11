@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { useHoldVoice } from '../voice/hold';
 
 /** How long the close fade runs (the CSS `.overlay-leaving`). */
 const EXIT_MS = 140;
@@ -48,6 +49,8 @@ export function Modal({
   onOutside?: () => void;
   children: ReactNode;
 }) {
+  // The words that the visitor says to a dialog (a sentence that signs) are not a command.
+  useHoldVoice();
   const dialogRef = useRef<HTMLDivElement>(null);
   const lockedRef = useRef(locked);
   const onCloseRef = useRef(onClose);

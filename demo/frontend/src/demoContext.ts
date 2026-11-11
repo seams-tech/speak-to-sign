@@ -53,8 +53,10 @@ export interface DemoState {
   freshNoteId: number | null;
   /** The step that `prepare` runs now, if any. */
   preparing: PrepareStep | null;
-  openWrite(postId: number): void;
-  openRate(noteId: number): void;
+  /** `autoSign`: the spoken step starts by itself (a voice command asked for the note). */
+  openWrite(postId: number, options?: { autoSign?: boolean }): void;
+  /** `rating` with `autoSign`: the dialog opens with this answer, and the spoken step starts by itself. */
+  openRate(noteId: number, options?: { rating?: Rating; autoSign?: boolean }): void;
   /** Opens the sign-in. Resolves with the account, or null when the visitor closes it. */
   openSignIn(): Promise<string | null>;
   /** True while the sign-in is open. */

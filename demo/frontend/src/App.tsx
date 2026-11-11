@@ -44,8 +44,8 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   const [myRatings, setMyRatings] = useState<Record<number, Rating>>({});
   const [noteTx, setNoteTx] = useState<Record<number, string>>({});
   const [ratingTxByKey, setRatingTxByKey] = useState<Record<string, string>>({});
-  const [writeFor, setWriteFor] = useState<number | null>(null);
-  const [rateFor, setRateFor] = useState<number | null>(null);
+  const [writeFor, setWriteFor] = useState<{ postId: number; autoSign: boolean } | null>(null);
+  const [rateFor, setRateFor] = useState<{ noteId: number; rating?: Rating; autoSign: boolean } | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [preparing, setPreparing] = useState<PrepareStep | null>(null);
@@ -375,8 +375,8 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     ratingTx,
     freshNoteId,
     preparing,
-    openWrite: setWriteFor,
-    openRate: setRateFor,
+    openWrite: (postId, options) => setWriteFor({ postId, autoSign: options?.autoSign ?? false }),
+    openRate: (noteId, options) => setRateFor({ noteId, rating: options?.rating, autoSign: options?.autoSign ?? false }),
     openSignIn,
     signingIn,
     hostSignIn,
@@ -385,8 +385,8 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     reload,
   };
 
-  const writePost = writeFor === null ? undefined : findPost(writeFor);
-  const rateNote = rateFor === null ? undefined : Object.values(notesByPost).flat().find((note) => note.id === rateFor);
+  const writePost = writeFor === null ? undefined : findPost(writeFor.postId);
+  const rateNote = rateFor === null ? undefined : Object.values(notesByPost).flat().find((note) => note.id === rateFor.noteId);
 
   return (
     <DemoContext.Provider value={state}>
@@ -404,6 +404,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
           <WriteNoteModal
             key={writePost.id}
             post={writePost}
+            autoSign={writeFor?.autoSign}
             onClose={() => setWriteFor(null)}
             onSent={(summary, hash) => void onNoteSent(writePost.id, summary, hash)}
             onDone={() => {
@@ -416,6 +417,8 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
           <RateNoteModal
             key={rateNote.id}
             note={rateNote}
+            initialRating={rateFor?.rating}
+            autoSign={rateFor?.autoSign}
             onClose={() => setRateFor(null)}
             onSent={(rating, hash) => void onRatingSent(rateNote, rating, hash)}
             onDone={() => {

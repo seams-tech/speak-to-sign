@@ -10,9 +10,9 @@ import { useDemo } from '../demoContext';
 import { useFunds } from '../faucet/funds';
 import { useMarketSource } from '../market/contractSource';
 import { amountText } from '../market/math';
-import { NoteMarketStrip } from '../market/NoteMarket';
+import { NoteMarketStrip, type BetRequest } from '../market/NoteMarket';
 import { useBetVoice } from '../market/SayBet';
-import { NEAR_CURRENCY, type Currency } from '../market/types';
+import { NEAR_CURRENCY, type Currency, type Side } from '../market/types';
 import { MediaThumb } from './Media';
 import { Modal, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
@@ -32,7 +32,18 @@ export const CONTEXT_MARKET_NOTE_ID = 0;
  * A visitor who is not signed in taps a bet button too: the dialog turns into the sign-in, then
  * back, the faucet sends testnet USDC, and the strip places the bet. One dialog all the way.
  */
-export function NoteDialog({ post, context, onClose }: { post: Post; context: Context; onClose: () => void }) {
+export function NoteDialog({
+  post,
+  context,
+  bet,
+  onClose,
+}: {
+  post: Post;
+  context: Context;
+  /** A bet that the visitor asked for by voice: the dialog opens and places it. */
+  bet?: { side: Side; amount: bigint | null };
+  onClose: () => void;
+}) {
   const { account, prepare, preparing, signingIn, hostSignIn, endSignIn } = useDemo();
   useEffect(() => hostSignIn(), [hostSignIn]);
   const source = useMarketSource();
@@ -44,7 +55,10 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
   const currency = source.currency ?? NEAR_CURRENCY;
   // A tap bets the slider's amount: 0.1 to 1 USDC (the market takes 0.1 USDC or more), 0.1 at
   // first, so the faucet's 2 USDC give twenty bets.
-  const [stakeTenths, setStakeTenths] = useState(1);
+  const [stakeTenths, setStakeTenths] = useState(() =>
+    bet?.amount ? Math.max(1, Math.min(MAX_STAKE_TENTHS, Number(bet.amount / tenthOf(currency)))) : 1,
+  );
+  const [betRequest] = useState<BetRequest | undefined>(() => (bet ? { seq: 1, side: bet.side, place: true } : undefined));
   const stake = tenthOf(currency) * BigInt(stakeTenths);
   const [balance, setBalance] = useState<bigint | null>(null);
   useEffect(() => {
@@ -125,6 +139,7 @@ export function NoteDialog({ post, context, onClose }: { post: Post; context: Co
                   account={account}
                   onSignIn={readyToBet}
                   directBet={stake}
+                  openBet={betRequest}
                   stakeControl={<StakeSlider tenths={stakeTenths} currency={currency} onChange={setStakeTenths} />}
                   placeholder
                 />

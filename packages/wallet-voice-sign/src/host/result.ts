@@ -41,6 +41,20 @@ export function verifierUnavailable(
   return { kind: 'unavailable', reason: 'verifier_unavailable', detail };
 }
 
+/** The code of the Seams verify route when OutLayer did not answer within the route's limit. */
+const VERIFIER_TIMEOUT = 'verifier_timeout';
+
+/** The verify route gave up on OutLayer: the recordings are not the cause, and a retry can pass. */
+export function isVerifierTimeout(
+  result: Readonly<{ kind: string; reason: string; detail?: string }>,
+): boolean {
+  return (
+    result.kind === 'unavailable' &&
+    result.reason === 'verifier_unavailable' &&
+    result.detail === VERIFIER_TIMEOUT
+  );
+}
+
 /** The `performance.now()` marks of one recording, its verify call and core's outcome. */
 type StageMarks = Readonly<{
   speechMs: number;

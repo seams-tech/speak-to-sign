@@ -80,7 +80,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     });
   } catch (cause) {
     const timedOut = cause instanceof DOMException && cause.name === 'TimeoutError';
-    return json({ error: timedOut ? 'The verifier did not answer in time. Try again.' : 'The verifier is not reachable.' }, 502);
+    const error = timedOut
+      ? 'OutLayer timed out: the verifier did not answer in time. Your recording is not the cause. Try again in a minute.'
+      : 'The verifier is not reachable.';
+    return json({ error }, 502);
   }
   if (!response.ok) return json({ error: outlayerFailure(response.status) }, 502);
   const output = readOutlayerOutput(await response.text());

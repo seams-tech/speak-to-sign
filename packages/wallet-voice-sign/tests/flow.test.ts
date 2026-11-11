@@ -146,6 +146,17 @@ test('a failure of the verify route signs nothing', async () => {
   expect(host.signed).toEqual([]);
 });
 
+test('an OutLayer timeout names OutLayer, and another route failure does not', async () => {
+  const timedOut = fakeHost({ reply: routeFailure('verifier_timeout') });
+  await runApproval(timedOut.approval());
+  expect(timedOut.events).toContain('show: OutLayer timed out');
+  expect(timedOut.captions).toEqual(['The OutLayer verifier did not answer in time.']);
+
+  const unreachable = fakeHost({ reply: routeFailure('verifier_unreachable') });
+  await runApproval(unreachable.approval());
+  expect(unreachable.events).toContain('show: The check is not available');
+});
+
 const CORE_OUTCOMES: Array<[string, SpeakToSignSigning, object]> = [
   [
     'a verdict mismatch',

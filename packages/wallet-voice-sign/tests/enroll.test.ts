@@ -116,6 +116,16 @@ test('a failure of the verify route enrolls nothing', async () => {
   });
 });
 
+test('an OutLayer timeout names OutLayer, and another route failure does not', async () => {
+  const timedOut = enrollmentHost({ reply: routeFailure('verifier_timeout') });
+  await runEnrollment(timedOut.enrollmentInput());
+  expect(timedOut.events.at(-1)).toBe('show: OutLayer timed out');
+
+  const unreachable = enrollmentHost({ reply: routeFailure('verifier_unreachable') });
+  await runEnrollment(unreachable.enrollmentInput());
+  expect(unreachable.events.at(-1)).toBe('show: The check is not available');
+});
+
 test('a verifier refusal keeps its reason and its detail', () => {
   expect(readEnrollmentOutput(REFUSED_OUTPUT)).toEqual({
     kind: 'refused',

@@ -135,7 +135,7 @@ async function enrollOnce(speakToSign: SpeakToSign, walletId: string): Promise<S
     case 'cancelled':
       return { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
     case 'unavailable':
-      return { kind: 'failed', message: withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail) };
+      return { kind: 'failed', message: unavailableText(result) };
   }
 }
 
@@ -153,7 +153,7 @@ export function toSignResult(result: SpokenSent): SignResult {
     case 'cancelled':
       return { kind: 'cancelled' };
     case 'unavailable':
-      return { kind: 'unavailable', reason: withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail) };
+      return { kind: 'unavailable', reason: unavailableText(result) };
   }
 }
 
@@ -199,6 +199,14 @@ const ENROLL_REFUSALS: Record<string, string> = {
   not_authorized: 'The signed message is not from a full-access key of this account.',
   authorization_unavailable: 'The verifier could not read the access keys of this account.',
 };
+
+/** The text of an `unavailable` result. A route timeout (`verifier_timeout`) names OutLayer. */
+export function unavailableText(result: { reason: string; detail?: string }): string {
+  if (result.reason === 'verifier_unavailable' && result.detail === 'verifier_timeout') {
+    return 'OutLayer timed out: the verifier did not answer in time. Your recording is not the cause. Try again in a minute.';
+  }
+  return withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail);
+}
 
 function withDetail(text: string, detail: string | undefined): string {
   return detail ? `${text} ${detail}` : text;

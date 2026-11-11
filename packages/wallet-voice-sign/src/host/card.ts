@@ -5,7 +5,13 @@ import type {
   PhraseSegmentState,
 } from '@seams/wallet/speak-to-sign-host';
 import { heardCaption } from './heardWords';
-import type { FailedResult } from './result';
+import { isVerifierTimeout, type FailedResult } from './result';
+
+/** OutLayer did not run the verifier in time. The cause is not the recording, so say so. */
+const OUTLAYER_TIMEOUT = {
+  headline: 'OutLayer timed out',
+  caption: 'The OutLayer verifier did not answer in time.',
+} as const;
 
 /**
  * The line under the sentence has six segments. A spoken request has one segment for the
@@ -259,8 +265,18 @@ const SERVICE_REFUSALS: ReadonlySet<string> = new Set([
 
 /** The verifier refused the recordings, or did not answer. Nothing was stored. */
 export function notEnrolledView(
-  result: Readonly<{ kind: 'refused' | 'unavailable'; reason: string }>,
+  result: Readonly<{ kind: 'refused' | 'unavailable'; reason: string; detail?: string }>,
 ): PhraseResultView {
+  if (isVerifierTimeout(result)) {
+    return {
+      kind: 'result',
+      label: 'Not enrolled',
+      ...OUTLAYER_TIMEOUT,
+      detail: 'Your recordings are not the cause. Try again in a minute.',
+      action: { label: 'Close' },
+      line: line(ENROLL_LINE, 'verifier', 'fail', 'skip'),
+    };
+  }
   const refused = result.kind === 'refused' && !SERVICE_REFUSALS.has(result.reason);
   return {
     kind: 'result',
@@ -317,6 +333,14 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
     retry: true,
   };
   if (result.kind === 'unavailable') {
+    if (isVerifierTimeout(result)) {
+      return {
+        ...OUTLAYER_TIMEOUT,
+        detail: 'Your recording is not the cause. Try again in a minute.',
+        at: 'speaker',
+        retry: true,
+      };
+    }
     switch (result.reason) {
       case 'not_submitted':
         return {

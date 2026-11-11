@@ -162,10 +162,15 @@ The rule is `words_pass` in `crates/voice-verifier/src/words.rs`.
 ### 3. The verdict check
 
 `@seams/voice-verdict` (`packages/voice-verdict/`) checks a signed verdict
-before anything is signed. Seams Wallet core and the Seams co-signer call its
-`checkVerdict` (from `@seams/wallet` 0.67.0), and so can any application. It
+before anything is signed. Any application can call its `checkVerdict`. It
 checks the pinned key, the signature, the fields, the expiry, and that the
 verdict binds the request and the sentence that the signer built itself.
+
+Seams Wallet core and the Seams co-signer call `checkVerdict` on the `dev`
+branch of `seams-wallet` (merge
+[`bb2014e1`](https://github.com/seams-tech/seams-wallet/commit/bb2014e1f)), and
+the next Wallet release ships it. Until then, a published Wallet, such as the
+0.63.0 that the demo pins, has its own earlier copy of the check.
 
 ```bash
 (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')

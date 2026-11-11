@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useHoldVoice } from '../voice/hold';
 
@@ -11,6 +11,18 @@ const RESIZE_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
 /** Closes the dialog with its close animation, then calls `after` (default: `onClose`). */
 export interface ModalHandle {
   close(after?: () => void): void;
+}
+
+/** The panel of the dialog that a step is in. */
+const DialogPanel = createContext<RefObject<HTMLDivElement | null> | null>(null);
+
+/**
+ * Reads the height of the dialog now, in CSS pixels (0 outside a dialog). A step that gets its
+ * size late (a Wallet card) holds this height first, so the dialog changes its size only once.
+ */
+export function useDialogHeight(): () => number {
+  const panel = useContext(DialogPanel);
+  return useCallback(() => panel?.current?.offsetHeight ?? 0, [panel]);
 }
 
 /** Open dialogs, newest last. Only the newest one answers Escape and Tab. */
@@ -108,7 +120,7 @@ export function Modal({
       aria-labelledby={labelledBy}
       tabIndex={-1}
     >
-      {children}
+      <DialogPanel value={dialogRef}>{children}</DialogPanel>
     </div>
   );
 

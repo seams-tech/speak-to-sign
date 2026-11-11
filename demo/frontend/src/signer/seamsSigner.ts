@@ -1,6 +1,7 @@
 // The real signer: Seams Wallet Speak-to-Sign (SDK 0.66.0, `seams.near.speakToSign`).
 //
-// requestNote and requestRating run one spoken request in the Wallet iframe: the owner says the
+// requestNote and requestRating run one spoken request in the Wallet iframe (its card shows in the
+// page's open dialog, src/signer/voiceCard.ts): the owner says the
 // summary or the rating sentence, the verifier checks the voice and the words, and the Wallet
 // signs `add_note` or `rate_note` on the notes contract from the owner's own account.
 
@@ -8,6 +9,7 @@ import { summaryRefusal, type SpeakToSignEnrollmentResult, type SpeakToSignResul
 import type { useSeams } from '@seams/wallet/react';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 import { isCancelError, isUserRejection } from './rejection';
+import { inVoiceCard } from './voiceCard';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type SpeakToSign = NonNullable<Seams['near']['speakToSign']>;
@@ -58,11 +60,11 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     requestNote: async ({ postId, text, summary }) => {
       // The Wallet refuses a summary that breaks the SDK's rule, so check it first.
       if (summaryRefusal(summary) !== null) return { kind: 'refused', reason: REFUSALS.summary_not_speakable ?? 'The summary is not speakable.' };
-      return await run((speakToSign, id) => speakToSign.typed.note({ walletId: id, contract, postId, text, summary }));
+      return await run((speakToSign, id) => inVoiceCard((place) => speakToSign.typed.note({ walletId: id, contract, postId, text, summary, ...place })));
     },
 
     requestRating: ({ noteId, rating }) =>
-      run((speakToSign, id) => speakToSign.typed.rating({ walletId: id, contract, noteId, rating })),
+      run((speakToSign, id) => inVoiceCard((place) => speakToSign.typed.rating({ walletId: id, contract, noteId, rating, ...place }))),
 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
@@ -124,7 +126,7 @@ const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active o
 
 /** One verifier enrollment. A thrown error goes to withFreshUnlock. */
 async function enrollOnce(speakToSign: SpeakToSign, walletId: string): Promise<SetupOutcome> {
-  const result: SpeakToSignEnrollmentResult = await speakToSign.enroll({ walletId });
+  const result: SpeakToSignEnrollmentResult = await inVoiceCard((place) => speakToSign.enroll({ walletId, ...place }));
   switch (result.kind) {
     case 'enrolled':
       return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };

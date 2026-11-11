@@ -6,12 +6,11 @@
 // 3 minutes), the creator closes the betting and asks JEV in one transaction, and an action that
 // starts while signed out runs after the sign-in.
 
-import { useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { IconChartBar, IconChevronDown, IconScale, IconX } from '@tabler/icons-react';
-import { Modal, type ModalHandle } from '../components/Modal';
-import { Morph, MorphView } from '../components/Morph';
-import { SignInStep } from '../components/SignInModal';
-import { DemoContext } from '../demoContext';
+import type { ModalHandle } from '../components/Modal';
+import { Morph } from '../components/Morph';
+import { WalletDialog } from '../components/WalletDialog';
 import type { SignResult } from '../signer/notesSigner';
 import {
   amountText,
@@ -804,18 +803,9 @@ function Sparkline({ points }: { points: OddsPoint[] }) {
   );
 }
 
-/** The page's hosted sign-in, when the page has one (the preview has none). */
-function useHostedSignIn(): { signingIn: boolean; end: (signedIn: boolean) => void } {
-  const demo = useContext(DemoContext);
-  const host = demo?.hostSignIn;
-  useEffect(() => (host ? host() : undefined), [host]);
-  return { signingIn: demo?.signingIn ?? false, end: (signedIn) => demo?.endSignIn(signedIn) };
-}
-
-
 /**
- * One dialog for one flow: the sheet, and the page's sign-in as a step of the same dialog. While
- * the sign-in shows, the sheet stays mounted (hidden), so it can go on after the sign-in.
+ * One dialog for one flow: the sheet, with the Wallet's cards as steps of the same dialog
+ * (WalletDialog).
  */
 function SheetDialog({
   titleId,
@@ -830,28 +820,11 @@ function SheetDialog({
   /** The sheet. `close` plays the dialog's close animation. */
   children: (close: () => void) => ReactNode;
 }) {
-  const { signingIn, end } = useHostedSignIn();
   const modal = useRef<ModalHandle>(null);
-  const signInTitleId = useId();
   return (
-    <Modal
-      labelledBy={signingIn ? signInTitleId : titleId}
-      onClose={onClose}
-      locked={locked && !signingIn}
-      handle={modal}
-      onOutside={signingIn ? () => end(false) : undefined}
-    >
-      <Morph view={signingIn ? 'signin' : 'sheet'} flex>
-        <MorphView name="sheet" keep>
-          {children(() => modal.current?.close())}
-        </MorphView>
-        {signingIn && (
-          <MorphView name="signin">
-            <SignInStep titleId={signInTitleId} onSignedIn={() => end(true)} onBack={() => end(false)} />
-          </MorphView>
-        )}
-      </Morph>
-    </Modal>
+    <WalletDialog titleId={titleId} onClose={onClose} locked={locked} handle={modal}>
+      {children(() => modal.current?.close())}
+    </WalletDialog>
   );
 }
 

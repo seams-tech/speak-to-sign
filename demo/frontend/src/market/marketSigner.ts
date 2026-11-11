@@ -11,6 +11,7 @@ import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
 import { isUserRejection } from '../signer/rejection';
 import { errorText, toSignResult, type SpokenSent } from '../signer/seamsSigner';
+import { inVoiceCard, type VoiceCardPlace } from '../signer/voiceCard';
 import { spokenAmount } from './spokenBet';
 import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
 
@@ -160,16 +161,23 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
   const spokenUsdc = async (
     expectedEvent: string,
     progress: SignProgress | undefined,
-    call: (voice: SpeakToSign, walletId: string, onProgress: (event: { stage: string }) => void) => Promise<SpokenSent>,
+    call: (voice: SpeakToSign, walletId: string, onProgress: (event: { stage: string }) => void, place: VoiceCardPlace) => Promise<SpokenSent>,
   ): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     const voice = seams.near.speakToSign;
     if (!voice) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     try {
       const result = toSignResult(
-        await call(voice, walletId, (event) => {
-          if (event.stage === 'transaction_sent') progress?.('sent');
-        }),
+        await inVoiceCard((place) =>
+          call(
+            voice,
+            walletId,
+            (event) => {
+              if (event.stage === 'transaction_sent') progress?.('sent');
+            },
+            place,
+          ),
+        ),
       );
       if (result.kind !== 'sent' || !nearAccountId) return result;
       // The Wallet reports a transaction that succeeded. The market can still have refused it.
@@ -184,8 +192,8 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
   const spokenBet = async (marketId: number, side: Side, amount: bigint, progress?: SignProgress): Promise<SignResult> => {
     const decimal = spokenAmount(amount)?.replaceAll(',', '');
     if (!decimal) return { kind: 'refused', reason: 'A spoken bet is a whole number of cents.' };
-    return spokenUsdc('bet', progress, (voice, id, onProgress) =>
-      voice.typed.bet({ walletId: id, contract, token, marketId, outcome: side, amount: decimal, onProgress }),
+    return spokenUsdc('bet', progress, (voice, id, onProgress, place) =>
+      voice.typed.bet({ walletId: id, contract, token, marketId, outcome: side, amount: decimal, onProgress, ...place }),
     );
   };
 
@@ -202,7 +210,7 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
     // The seed goes to the market with the token's `ft_transfer_call`. The verdict binds the
     // receiver and the actions, so the sentence names no amount.
     createMarket: ({ noteId, question, context, closesAtMs, seed }, progress) =>
-      spokenUsdc('market_created', progress, (voice, id, onProgress) =>
+      spokenUsdc('market_created', progress, (voice, id, onProgress, place) =>
         voice.signAndSendTransaction({
           walletId: id,
           transaction: {
@@ -222,6 +230,7 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
           },
           summary: OPEN_MARKET_SENTENCE,
           onProgress,
+          ...place,
         }),
       ),
     bet: ({ marketId, side, amount }, progress) => spokenBet(marketId, side, amount, progress),

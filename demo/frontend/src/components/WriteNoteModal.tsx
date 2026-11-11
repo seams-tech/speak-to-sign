@@ -5,9 +5,8 @@ import type { Post } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { useEnrolled } from '../signer/voiceSetup';
 import { checkSummary, SUMMARY_MAX_WORDS } from '../summaryRules';
-import { Modal, type ModalHandle } from './Modal';
-import { Morph, MorphView } from './Morph';
-import { SignInStep } from './SignInModal';
+import type { ModalHandle } from './Modal';
+import { WalletDialog } from './WalletDialog';
 import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
 
 const MAX_NOTE_CHARS = 280;
@@ -45,12 +44,10 @@ interface Props {
  * the note posts, the dialog shows the result for a moment and closes by itself.
  */
 export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false }: Props) {
-  const { account, status, prepare, signingIn, hostSignIn, endSignIn } = useDemo();
-  useEffect(() => hostSignIn(), [hostSignIn]);
+  const { account, status, prepare } = useDemo();
   const enrolled = useEnrolled(account);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
-  const signInTitleId = useId();
   const draft = post.noteDraft;
   const prefillNote = draft?.text ?? '';
   const prefill = draft?.summary ?? '';
@@ -123,17 +120,8 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
     !typing && summary.trim() !== '' && !speakable ? `Use 1 to ${SUMMARY_MAX_WORDS} words, with letters A to Z only.` : null;
 
   return (
-    <Modal
-      labelledBy={signingIn ? signInTitleId : titleId}
-      onClose={onClose}
-      locked={locked && !signingIn}
-      handle={modal}
-      onOutside={signingIn ? () => endSignIn(false) : undefined}
-    >
-      <Morph view={signingIn ? 'signin' : 'compose'} flex>
-        {/* Kept while the sign-in shows: what the visitor wrote stays as it was. */}
-        <MorphView name="compose" keep>
-          <header className="dialog-head">
+    <WalletDialog titleId={titleId} onClose={onClose} locked={locked} handle={modal}>
+      <header className="dialog-head">
             <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
               <IconX size={20} />
             </button>
@@ -202,13 +190,6 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
               onDone={sent ? finish : () => modal.current?.close()}
             />
           </footer>
-        </MorphView>
-        {signingIn && (
-          <MorphView name="signin">
-            <SignInStep titleId={signInTitleId} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
-          </MorphView>
-        )}
-      </Morph>
-    </Modal>
+    </WalletDialog>
   );
 }

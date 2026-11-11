@@ -14,9 +14,9 @@ import { NoteMarketStrip, type BetRequest } from '../market/NoteMarket';
 import { useBetVoice } from '../market/SayBet';
 import { NEAR_CURRENCY, type Currency, type Side } from '../market/types';
 import { MediaThumb } from './Media';
-import { Modal, type ModalHandle } from './Modal';
-import { Morph, MorphView } from './Morph';
-import { SignInStep } from './SignInModal';
+import type { ModalHandle } from './Modal';
+import { Morph } from './Morph';
+import { WalletDialog } from './WalletDialog';
 
 
 /**
@@ -30,7 +30,8 @@ export const CONTEXT_MARKET_NOTE_ID = 0;
  * The note view, kept short: the quoted post, the note, then the bet: a slider for its amount
  * and two colored buttons.
  * A visitor who is not signed in taps a bet button too: the dialog turns into the sign-in, then
- * back, the faucet sends testnet USDC, and the strip places the bet. One dialog all the way.
+ * back, the faucet sends testnet USDC, and the strip places the bet. A spoken bet turns the
+ * dialog into the Wallet's voice card. One dialog all the way.
  */
 export function NoteDialog({
   post,
@@ -44,14 +45,12 @@ export function NoteDialog({
   bet?: { side: Side; amount: bigint | null };
   onClose: () => void;
 }) {
-  const { account, prepare, preparing, signingIn, hostSignIn, endSignIn } = useDemo();
-  useEffect(() => hostSignIn(), [hostSignIn]);
+  const { account, prepare, preparing } = useDemo();
   const source = useMarketSource();
   const betVoice = useBetVoice(source);
   const funds = useFunds(account, false);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
-  const signInTitleId = useId();
   const currency = source.currency ?? NEAR_CURRENCY;
   // A tap bets the slider's amount: 0.1 to 1 USDC (the market takes 0.1 USDC or more), 0.1 at
   // first, so the faucet's 2 USDC give twenty bets.
@@ -94,17 +93,8 @@ export function NoteDialog({
   const line = preparing === 'funds' ? 'funds' : problem ? 'problem' : short ? 'short' : 'none';
 
   return (
-    <Modal
-      labelledBy={signingIn ? signInTitleId : titleId}
-      onClose={onClose}
-      locked={false}
-      handle={modal}
-      onOutside={signingIn ? () => endSignIn(false) : undefined}
-    >
-      <Morph view={signingIn ? 'signin' : 'note'} flex>
-        {/* Kept while the sign-in shows: the strip waits there to place the tapped bet. */}
-        <MorphView name="note" keep>
-          <header className="dialog-head">
+    <WalletDialog titleId={titleId} onClose={onClose} locked={false} handle={modal}>
+      <header className="dialog-head">
             <button type="button" className="icon-btn" onClick={() => modal.current?.close()} aria-label="Close">
               <IconX size={20} />
             </button>
@@ -161,14 +151,7 @@ export function NoteDialog({
               </div>
             </div>
           </div>
-        </MorphView>
-        {signingIn && (
-          <MorphView name="signin">
-            <SignInStep titleId={signInTitleId} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
-          </MorphView>
-        )}
-      </Morph>
-    </Modal>
+    </WalletDialog>
   );
 }
 

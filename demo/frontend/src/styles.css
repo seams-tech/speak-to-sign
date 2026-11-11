@@ -1490,15 +1490,16 @@ code {
 .morph-in > .dialog-body > :nth-child(n + 4) {
   animation-delay: 210ms;
 }
-/* The sign-in step: the dialog shrinks to the Wallet's card, and its own white fades out once
-   the card is painted (the SDK marks the anchor ready), so the card is the dialog. */
-.dialog:has(.morph-view:not([hidden]) > .signin-step) {
+/* A Wallet card as a step (the sign-in, the voice card): the dialog shrinks to the card, and its
+   own white fades out once the card is painted (the SDK marks the anchor ready), so the card is
+   the dialog. */
+.dialog:has(.morph-view:not([hidden]) > .wallet-step) {
   max-width: 420px;
 }
-.dialog:has(.morph-view:not([hidden]) > .signin-step [data-seams-auth-menu-ready]) {
+.dialog:has(.morph-view:not([hidden]) > .wallet-step [data-seams-auth-menu-ready]) {
   background-color: transparent;
 }
-.signin-step .field-error {
+.wallet-step .field-error {
   padding: 8px 12px;
   background: var(--bg);
   border-radius: 12px;

@@ -83,7 +83,7 @@ export function SignInStep({
       <h2 id={titleId} className="sr-only">
         Sign in to Seams Wallet
       </h2>
-      <div className="signin-step">
+      <div className="wallet-step">
         <SignInMenu onSignedIn={onSignedIn} onCancel={onBack} />
         <CardCorner onClick={onBack} />
       </div>

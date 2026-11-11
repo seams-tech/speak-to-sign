@@ -6,9 +6,8 @@ import { RATING_SENTENCES, type Rating } from '../signer/notesSigner';
 import { useEnrolled } from '../signer/voiceSetup';
 import { shortAccount } from '../config';
 import { Linkified } from './bits';
-import { Modal, type ModalHandle } from './Modal';
-import { Morph, MorphView } from './Morph';
-import { SignInStep } from './SignInModal';
+import type { ModalHandle } from './Modal';
+import { WalletDialog } from './WalletDialog';
 import { runVoiceAction, SpeakStep, speakHint, useAutoClose, type SignPhase } from './SpeakStep';
 
 const OPTIONS: { rating: Rating; answer: string }[] = [
@@ -31,12 +30,10 @@ interface Props {
 }
 
 export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, autoSign = false }: Props) {
-  const { account, status, myRatings, prepare, signingIn, hostSignIn, endSignIn } = useDemo();
-  useEffect(() => hostSignIn(), [hostSignIn]);
+  const { account, status, myRatings, prepare } = useDemo();
   const enrolled = useEnrolled(account);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
-  const signInTitleId = useId();
   const previous = myRatings[note.id];
   const [choice, setChoice] = useState<Rating | null>(initialRating ?? null);
   const [phase, setPhase] = useState<SignPhase>({ state: 'idle' });
@@ -65,17 +62,8 @@ export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, au
   useAutoClose(sent, finish);
 
   return (
-    <Modal
-      labelledBy={signingIn ? signInTitleId : titleId}
-      onClose={onClose}
-      locked={locked && !signingIn}
-      handle={modal}
-      onOutside={signingIn ? () => endSignIn(false) : undefined}
-    >
-      <Morph view={signingIn ? 'signin' : 'compose'} flex>
-        {/* Kept while the sign-in shows: what the visitor wrote stays as it was. */}
-        <MorphView name="compose" keep>
-          <header className="dialog-head">
+    <WalletDialog titleId={titleId} onClose={onClose} locked={locked} handle={modal}>
+      <header className="dialog-head">
             <button type="button" className="icon-btn" onClick={() => modal.current?.close()} disabled={locked} aria-label="Close">
               <IconX size={20} />
             </button>
@@ -125,13 +113,6 @@ export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, au
               onDone={sent ? finish : () => modal.current?.close()}
             />
           </footer>
-        </MorphView>
-        {signingIn && (
-          <MorphView name="signin">
-            <SignInStep titleId={signInTitleId} onSignedIn={() => endSignIn(true)} onBack={() => endSignIn(false)} />
-          </MorphView>
-        )}
-      </Morph>
-    </Modal>
+    </WalletDialog>
   );
 }

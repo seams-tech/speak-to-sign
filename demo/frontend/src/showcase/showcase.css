@@ -2054,8 +2054,9 @@ button.ss-seams {
   }
 }
 
-/* The setup steps in the nav. They come in when the sheet covers the hero, and they go when
-   every step is done. */
+/* The setup steps in the nav. They come in when the sheet covers the hero. On a wide screen they
+   stay when every step is done: they show the account, the voice and the balances. Below 1200px
+   the nav has room for one step, the first that is not done, so done steps do not show there. */
 .ss-nav-setup {
   flex: 1;
   min-width: 0;
@@ -2074,10 +2075,6 @@ button.ss-seams {
   opacity: 1;
   transform: none;
   pointer-events: auto;
-}
-
-.ss-nav-setup:not(:has(.step:not(.step-done))) {
-  visibility: hidden;
 }
 
 .ss-nav-setup > div,

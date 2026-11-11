@@ -147,21 +147,46 @@ sandbox test checks that this view runs within the view gas limit.
 
 ## Build
 
+### Reproducible build
+
+This build gives the WASM to deploy. It gives the same bytes on any computer
+(see [`../README.md`](../README.md#reproducible-build)). It needs Docker,
+git and cargo-near 0.22.0.
+
+```bash
+../reproducible.sh build community-notes   # writes res/community_notes.wasm and reproducible.sha256
+../reproducible.sh check community-notes   # builds the recorded commit again and compares
+```
+
+The build of 11 Nov 2026 gave:
+
+| Item               | Value |
+| ------------------ | ----- |
+| Commit             | `777b84429096604e77e217480e9f89a398f5da13` |
+| Size               | 146,408 bytes |
+| SHA-256            | `0b821a5c459d31b7aed4b6459b3aa572189c927411878665d8eae633d51f7f80` |
+| Code hash (base58) | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` |
+
+`reproducible.sha256` holds the same commit and SHA-256.
+
+The deployed code (`5nqrLnLp…`, see "Testnet deployment") is not this build.
+It came from the local build below.
+
+### Local build
+
 ```bash
 ./build.sh
 ```
 
-The script builds `res/community_notes.wasm` and prints its size and SHA-256.
-The build of 9 Nov 2026 gave:
+The script builds `res/community_notes.wasm` with the local toolchain, and
+prints its size and SHA-256. It is fast, and the sandbox tests use it. Its
+bytes depend on the computer, because the WASM holds the local source paths
+of panic locations. The build of 9 Nov 2026 gave:
 
 | Item    | Value                                                              |
 | ------- | ------------------------------------------------------------------ |
 | Size    | 169,267 bytes                                                      |
 | SHA-256 | `472d1eaa420b22d71439bf2db341a45d59ba9aa63b094e758e9a3af3a561a253` |
-
-This build is not reproducible on a different computer. The WASM holds the
-local source paths of panic locations, so another home folder gives a
-different hash.
 
 ## Test
 
@@ -186,7 +211,7 @@ Deployed on 9 Nov 2026 from commit `7f0e014`.
 | Item                | Value                                                                  |
 | ------------------- | ---------------------------------------------------------------------- |
 | Contract account    | `notes.seams-v1.testnet` (created by `seams-v1.testnet` with 5 NEAR)   |
-| Code hash (base58)  | `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY`, the SHA-256 of the release WASM above |
+| Code hash (base58)  | `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY`, the SHA-256 of the local build of 9 Nov 2026 (see "Local build") |
 | Create account      | transaction `GxZNoaKqZnoR9kmoFK2PVJqYqDaPUDBrScd1Eks7h9fa`             |
 | Deploy              | transaction `7eVv1CLTX5MTaanpJvJVHj2PXNv23aztqQHqmJyCc5a4`             |
 | Smoke test          | `add_note` from `seams-v1.testnet`, transaction `4QQh3AXaz64BhGqhCjd72qGYt2iFuNB8LGfn4HtdQowM`, 2.2 Tgas |
@@ -206,7 +231,8 @@ with a new account name. They sign with the key in `~/.near-credentials/testnet/
    near account create-account fund-myself notes.seams-v1.testnet '5 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-2. Deploy the WASM. No init call is necessary.
+2. Deploy the WASM of the reproducible build (`../reproducible.sh build
+   community-notes`). No init call is necessary.
 
    ```bash
    near contract deploy notes.seams-v1.testnet use-file res/community_notes.wasm without-init-call network-config testnet sign-with-legacy-keychain send

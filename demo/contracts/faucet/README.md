@@ -30,12 +30,42 @@ call `drip` and nothing else.
 cargo test
 ```
 
+### Reproducible build
+
+This build gives the WASM to deploy. It gives the same bytes on any computer
+(see [`../README.md`](../README.md#reproducible-build)). It needs Docker,
+git and cargo-near 0.22.0.
+
+```bash
+../reproducible.sh build faucet   # writes res/speak_to_sign_faucet.wasm and reproducible.sha256
+../reproducible.sh check faucet   # builds the recorded commit again and compares
+```
+
+The build of 11 Nov 2026 gave:
+
+| Item               | Value |
+| ------------------ | ----- |
+| Commit             | `777b84429096604e77e217480e9f89a398f5da13` |
+| Size               | 130,317 bytes |
+| SHA-256            | `538b75805d96ab6487489574e1d2b901af7052a9764ecfe44cbcfe5ee0fc78b3` |
+| Code hash (base58) | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` |
+
+`reproducible.sha256` holds the same commit and SHA-256.
+
+The deployed code (`c963c346…c619`) is not this build. It came from the local
+build below.
+
+### Local build
+
 ```bash
 ./build.sh
 ```
 
-`./build.sh` writes `res/speak_to_sign_faucet.wasm` (156,586 bytes, SHA-256
-`c963c346736b5c67fa0f611c5042170d82f7779faabdfecedba3b79dda1bc619`).
+`./build.sh` writes `res/speak_to_sign_faucet.wasm` with the local toolchain
+(156,586 bytes, SHA-256
+`c963c346736b5c67fa0f611c5042170d82f7779faabdfecedba3b79dda1bc619`). Its
+bytes depend on the computer, because the WASM holds the local source paths
+of panic locations.
 
 ## Testnet
 

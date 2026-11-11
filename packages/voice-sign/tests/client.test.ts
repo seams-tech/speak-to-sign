@@ -4,7 +4,14 @@ import { test } from 'node:test';
 
 import { confirmationRequest } from '@seams/voice-verdict';
 
-import { callVerifier, callVerifierWithAttestation, VerifierCallError, type VerifierConfig } from '../src/client.ts';
+import {
+  callVerifier,
+  callVerifierWithAttestation,
+  relayToVerifier,
+  VerifierCallError,
+  type VerifierConfig,
+  type VerifierInput,
+} from '../src/client.ts';
 
 const PAYLOAD_SHA256 = '42'.repeat(32);
 
@@ -100,4 +107,53 @@ test('the client reports a call that gave no verifier output', async () => {
   await assert.rejects(callVerifier({ ...CONFIG, fetch: down }, input), (error: unknown) => error instanceof VerifierCallError && error.code === 'network');
   await assert.rejects(callVerifier({ ...CONFIG, baseUrl: 'http://outlayer.test' }, input), RangeError);
   await assert.rejects(callVerifier({ ...CONFIG, project: 'nope' }, input), RangeError);
+});
+
+test('the client takes a sealed recording in place of a plain one', async () => {
+  const output = { kind: 'seams_voice_enrollment_v3', outcome: 'accept' };
+  let seen: Record<string, unknown> = {};
+  const fetch = fakeFetch(({ body }) => {
+    seen = body.input as Record<string, unknown>;
+    return Response.json({ status: 'completed', output });
+  });
+  await callVerifier({ ...CONFIG, fetch }, { op: 'enroll', owner: 'app:u', audio_sealed_b64: ['x', 'y', 'z'] });
+  assert.deepEqual(seen, { op: 'enroll', owner: 'app:u', audio_sealed_b64: ['x', 'y', 'z'] });
+  const sealed = { op: 'transcribe', owner: 'app:u', audio_sealed_b64: 'b' } satisfies VerifierInput;
+  // @ts-expect-error A recording is plain or sealed, not both.
+  const both = { op: 'transcribe', owner: 'app:u', audio_wav_b64: 'a', audio_sealed_b64: 'b' } satisfies VerifierInput;
+  assert.ok(sealed && both);
+});
+
+test('the relay sends an input that it does not read and gives the output unchanged', async () => {
+  // A Wallet input: the recording is sealed, and the request has fields that this client does not type.
+  const input = {
+    op: 'verify',
+    owner: 'alice.testnet',
+    request: { kind: 'seams_voice_spoken_request_v1', network: 'testnet', summary: 'Send five NEAR to bob' },
+    contacts: ['bob.testnet'],
+    audio_sealed_b64: 'c2VhbGVk',
+  };
+  const output = { kind: 'seams_voice_verify_output_v2', verdict_json: '{}', signature_b64: 'AA==', public_key: null, ms: { total: 1 } };
+  let seen: Record<string, unknown> = {};
+  const call = await relayToVerifier(
+    {
+      ...CONFIG,
+      fetch: fakeFetch(({ headers, body }) => {
+        assert.equal(headers.get('X-Payment-Key'), 'test-payment-key');
+        seen = body;
+        return Response.json({ status: 'completed', output, call_id: 'c-2' });
+      }),
+    },
+    input,
+  );
+  assert.deepEqual(seen.input, input);
+  assert.deepEqual(Object.keys(seen).sort(), ['async', 'input', 'resource_limits', 'secrets_ref', 'version_key']);
+  assert.deepEqual(call.output, output);
+  assert.equal(call.callId, 'c-2');
+  // An error output of the verifier is no output of a known kind.
+  const error = { kind: 'seams_voice_error_v1', detail: 'audio_sealed_b64 does not open' };
+  await assert.rejects(
+    relayToVerifier({ ...CONFIG, fetch: fakeFetch(() => Response.json({ status: 'completed', output: error })) }, input),
+    (thrown: unknown) => thrown instanceof VerifierCallError && thrown.code === 'output',
+  );
 });

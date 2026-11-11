@@ -36,19 +36,30 @@ export interface VerifierConfig {
 /** A request object of the verifier, by `kind`. `confirmationRequest` builds one. */
 export type VerifierRequest = { kind: string } & Record<string, unknown>;
 
+/**
+ * One recording, in one of two fields, not both:
+ * - `audio_wav_b64`: a 16 kHz mono PCM16 WAV, standard base64.
+ * - `audio_sealed_b64`: that WAV sealed to the verifier's audio key with `sealAudio` of
+ *   `@seams/voice-verdict`, standard base64. Only the verifier can open it. Verifier 0.12.0 and later.
+ */
+export type VerifierRecording = { audio_wav_b64: string; audio_sealed_b64?: never } | { audio_sealed_b64: string; audio_wav_b64?: never };
+
+/** The recordings of an enrollment: exactly three, all plain or all sealed. */
+export type VerifierRecordings =
+  | { audio_wav_b64: string[]; audio_sealed_b64?: never }
+  | { audio_sealed_b64: string[]; audio_wav_b64?: never };
+
 export type VerifierInput =
-  | {
+  | ({
       op: 'enroll';
       owner: string;
-      /** Exactly three 16 kHz mono PCM16 WAVs, standard base64. */
-      audio_wav_b64: string[];
       /** Only for a NEAR owner: the NEP-413 authorization. */
       authorization?: { public_key: string; signature_b64: string; nonce_b64: string };
-    }
-  | { op: 'verify'; owner: string; request: VerifierRequest; contacts: string[]; audio_wav_b64: string }
-  | { op: 'select'; owner: string; requests: VerifierRequest[]; contacts: string[]; audio_wav_b64: string }
-  | { op: 'transcribe'; owner: string; audio_wav_b64: string }
-  | { op: 'detect'; owner: string; intents: readonly IntentSpec[]; audio_wav_b64: string };
+    } & VerifierRecordings)
+  | ({ op: 'verify'; owner: string; request: VerifierRequest; contacts: string[] } & VerifierRecording)
+  | ({ op: 'select'; owner: string; requests: VerifierRequest[]; contacts: string[] } & VerifierRecording)
+  | ({ op: 'transcribe'; owner: string } & VerifierRecording)
+  | ({ op: 'detect'; owner: string; intents: readonly IntentSpec[] } & VerifierRecording);
 
 /** The output of `verify` and `select`. Check it with `checkVerdict`: this object is not proof. */
 export interface VerifyOutput {
@@ -101,6 +112,9 @@ export interface EnrollOutput {
   detail: string | null;
 }
 
+/** An output of the verifier that this client accepts. Its `kind` tells which one. */
+export type VerifierOutput = EnrollOutput | VerifyOutput | TranscribeOutput | DetectOutput;
+
 /** The call did not give an output of the verifier. */
 export class VerifierCallError extends Error {
   override name = 'VerifierCallError';
@@ -142,11 +156,8 @@ export async function callVerifier(
   input: Extract<VerifierInput, { op: 'transcribe' }>,
 ): Promise<TranscribeOutput>;
 export async function callVerifier(config: VerifierConfig, input: Extract<VerifierInput, { op: 'detect' }>): Promise<DetectOutput>;
-export async function callVerifier(
-  config: VerifierConfig,
-  input: VerifierInput,
-): Promise<EnrollOutput | VerifyOutput | TranscribeOutput | DetectOutput> {
-  return (await callVerifierWithAttestation(config, input as Extract<VerifierInput, { op: 'enroll' }>)).output;
+export async function callVerifier(config: VerifierConfig, input: VerifierInput): Promise<VerifierOutput> {
+  return (await runVerifier(config, input)).output;
 }
 
 /** As `callVerifier`, and it also gives the attestation URL of the call. */
@@ -166,10 +177,35 @@ export async function callVerifierWithAttestation(
   config: VerifierConfig,
   input: Extract<VerifierInput, { op: 'detect' }>,
 ): Promise<VerifierCall<DetectOutput>>;
-export async function callVerifierWithAttestation(
+export async function callVerifierWithAttestation(config: VerifierConfig, input: VerifierInput): Promise<VerifierCall<VerifierOutput>> {
+  return await runVerifier(config, input);
+}
+
+/**
+ * Relays an input that this server does not read to the verifier, for a server between a
+ * browser and the verifier. For example, the browser sealed the recording to the verifier's audio
+ * key, so this server has only ciphertext. The verifier checks the input. The result is as for
+ * `callVerifierWithAttestation`: an output of a known kind, unchanged, or a `VerifierCallError`.
+ *
+ * Check the input's `owner` before the call. Your payment key pays for each run, and it is the
+ * authority for the enrollment of each owner, so relay only the inputs of the owner that the
+ * caller proved to be.
+ */
+export async function relayToVerifier(
   config: VerifierConfig,
-  input: VerifierInput,
-): Promise<VerifierCall<EnrollOutput | VerifyOutput | TranscribeOutput | DetectOutput>> {
+  input: Readonly<Record<string, unknown>>,
+): Promise<VerifierCall<VerifierOutput>> {
+  return await runVerifier(config, input);
+}
+
+const OUTPUT_KINDS: readonly string[] = [
+  'seams_voice_verify_output_v2',
+  'seams_voice_enrollment_v3',
+  'seams_voice_transcript_output_v1',
+  'seams_voice_intent_output_v1',
+] satisfies readonly VerifierOutput['kind'][];
+
+async function runVerifier(config: VerifierConfig, input: object): Promise<VerifierCall<VerifierOutput>> {
   if (!/^[a-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(config.project)) throw new RangeError('project must be owner/project');
   const base = new URL(config.baseUrl);
   if (base.protocol !== 'https:') throw new RangeError('baseUrl must be an HTTPS URL');
@@ -214,18 +250,12 @@ export async function callVerifierWithAttestation(
     );
   }
   const kind = (output as { kind?: unknown }).kind;
-  const kinds = [
-    'seams_voice_verify_output_v2',
-    'seams_voice_enrollment_v3',
-    'seams_voice_transcript_output_v1',
-    'seams_voice_intent_output_v1',
-  ];
-  if (typeof kind !== 'string' || !kinds.includes(kind)) {
+  if (typeof kind !== 'string' || !OUTPUT_KINDS.includes(kind)) {
     // An input without a known operation gives `seams_voice_error_v1`.
     throw new VerifierCallError('output', `the verifier gave the output kind ${String(kind)}`);
   }
   return {
-    output: output as EnrollOutput | VerifyOutput | TranscribeOutput | DetectOutput,
+    output: output as VerifierOutput,
     callId: typeof reply.call_id === 'string' ? reply.call_id : null,
     attestationUrl: typeof reply.attestation_url === 'string' ? reply.attestation_url : null,
     timeMs: typeof reply.time_ms === 'number' ? reply.time_ms : null,

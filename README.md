@@ -464,6 +464,11 @@ The diffs:
 4. It returns a verdict signed with a project-bound ed25519 key. The verdict expires after 120 s. Its outcome is `accept`, `step_up` or `refuse`.
 5. Wallet core checks the verdict against the key that the Wallet pins, then signs the transfer through the owner's Wallet Session. On `step_up`, the owner approves again.
 
+From verifier 0.12.0 the audio is confidential: the device seals each
+recording to a key that exists only inside the OutLayer TEE, and the servers
+between them carry ciphertext. The diagram is
+[section 9 of `docs/architecture.md`](docs/architecture.md#9-confidential-audio).
+
 The specification is `docs/voice-intents-spec.md`. The diagrams are in
 `docs/architecture.md`. Design and record:
 `seams-wallet/docs/refactor-227-speak-to-sign-without-passkey.md` and

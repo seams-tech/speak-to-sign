@@ -131,10 +131,11 @@ sequenceDiagram
 
   Wallet->>Owner: Show the sentence
   Owner->>Wallet: Say the sentence
-  Wallet->>Route: verify input with the request and the WAV
+  Wallet->>Wallet: Seal the WAV to the verifier's audio key
+  Wallet->>Route: verify input with the request and the sealed WAV
   Route->>Verifier: HTTPS call
   Verifier->>Verifier: Render the request and compute the digests
-  Verifier->>Verifier: Decode the WAV and run the energy gate
+  Verifier->>Verifier: Open the sealed WAV, decode it and run the energy gate
   par Speaker
     Verifier->>Speaker: Canonical WAV and nonce
     Speaker-->>Verifier: Signed embedding
@@ -281,3 +282,99 @@ flowchart TB
   CL -.-> VK
   PO -.-> VK
 ```
+
+## 9. Confidential audio
+
+A recording is sealed on the owner's device and opened only inside a TEE.
+The servers between them carry ciphertext. Verifier 0.12.0 and later; the
+rules are in section 5.1 of the specification.
+
+```mermaid
+flowchart TB
+  subgraph Device["Owner's device (browser)"]
+    REC["(1) Record<br/>one WAV, 16 kHz, at most 8 s"]
+    SEAL["(2) Seal<br/>HPKE to the pinned audio key"]
+  end
+  subgraph Carriers["Carriers: sealed audio only"]
+    ROUTE["(3) Seams verify route<br/>checks the session and the owner"]
+    COORD["(4) OutLayer coordinator<br/>queues the call, stores its input"]
+  end
+  subgraph Worker["OutLayer worker (Intel TDX TEE)"]
+    KEY["Audio key<br/>made in the keystore TEE"]
+    OPEN["(5) Verifier opens the WAV<br/>and checks voice and words"]
+    TPL[("Voice template<br/>192 numbers, keystore-encrypted")]
+    MARK[("Used-audio mark<br/>SHA-256 of the WAV")]
+  end
+  subgraph Services["Model services (each in a TEE)"]
+    SPK["(6a) Speaker service on Phala<br/>makes a signed embedding"]
+    STT["(6b) NEAR AI Whisper<br/>makes the transcript"]
+  end
+  VERDICT["(7) Signed verdict<br/>back to the Wallet, no audio"]
+
+  REC --> SEAL
+  SEAL -- "sealed WAV" --> ROUTE
+  ROUTE --> COORD
+  COORD -- "sealed WAV" --> OPEN
+  KEY -.-> OPEN
+  TPL <--> OPEN
+  MARK --- OPEN
+  OPEN <-- "WAV over TLS, embedding back" --> SPK
+  OPEN <-- "WAV over TLS, text back" --> STT
+  SPK ~~~ VERDICT
+  OPEN --> VERDICT
+
+  classDef plain fill:#FAECE7,stroke:#993C1D,color:#4A1B0C
+  classDef sealed fill:#E1F5EE,stroke:#0F6E56,color:#04342C
+  classDef store fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A
+  class REC,SEAL,OPEN,SPK,STT plain
+  class ROUTE,COORD sealed
+  class KEY,TPL,MARK,VERDICT store
+```
+
+Orange boxes hold the plain recording. Green boxes hold only the sealed
+recording. Grey boxes hold no audio.
+
+| Step | Place | Form of the recording |
+| --- | --- | --- |
+| 1. Record | The VoiceID surface of the Wallet, in the browser | Plain, in memory |
+| 2. Seal | Wallet core, with `sealAudio` of `@seams/voice-verdict` | Plain in, sealed out |
+| 3. Seams verify route | The Seams server | Sealed |
+| 4. OutLayer coordinator | OutLayer's API and its call record | Sealed |
+| 5. Verifier | The OutLayer worker, inside its TEE | Plain, only for this run |
+| 6a. Speaker service | A Phala dstack confidential VM (Intel TDX) | Plain, sent over TLS |
+| 6b. NEAR AI Whisper | NEAR AI Cloud | Plain, sent over TLS |
+| 7. Verdict | Back through the same servers | No audio |
+
+What is kept after a run:
+
+- **The voice template.** One embedding of 192 numbers for each owner, made
+  from three enrollment recordings. It is in the worker storage under
+  `template:v3:<owner>`, encrypted by the OutLayer keystore.
+- **The used-audio mark.** The SHA-256 of each recording that the verifier
+  saw, so that no recording passes twice.
+- **No audio.** The verifier keeps no recording. It compares the embedding of
+  a request with the template and then drops it.
+
+Who holds which key:
+
+- **The audio key.** An X25519 key pair. The OutLayer keystore made the
+  private key inside its TEE as the secret `PROTECTED_AUDIO_KEY`, and gives it
+  only to a run of this project. The Wallet pins the public key in its code.
+- **The seal.** HPKE base mode with X25519, HKDF-SHA256 and
+  ChaCha20-Poly1305. Each recording has a new ephemeral key. The operation
+  and the owner are in the `aad`, so a sealed recording opens only for that
+  owner's `verify` or `enroll`.
+
+Limits:
+
+- **The two model services see the recording.** The verifier pins the key of
+  the Phala service from its TDX attestation. NEAR AI Cloud states that its
+  inference runs in a TEE; the verifier does not check an attestation of
+  NEAR AI.
+- **The request is not secret.** The Wallet sends the request fields in plain
+  text, and the verdict names the heard words.
+- **The project owner.** A new verifier version of the same OutLayer project
+  gets the audio key. The OutLayer access rule "One build only" limits the
+  key to one WASM hash; it is not set.
+- **The released Wallet.** Wallet core seals on `dev` of `seams-wallet`.
+  `@seams/wallet` 0.66.0 on npm sends a plain WAV.

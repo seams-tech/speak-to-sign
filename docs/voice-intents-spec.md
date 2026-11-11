@@ -117,7 +117,8 @@ generates.
 
 A Wallet can seal each recording to the verifier, so that the Seams server
 and OutLayer's coordinator carry only ciphertext. The verifier opens the
-recording inside its TEE. Verifier 0.12.0 and later.
+recording inside its TEE. Verifier 0.12.0 and later. The diagram of the path
+is section 9 of [`architecture.md`](architecture.md#9-confidential-audio).
 
 - **Key.** The audio key is an X25519 key pair. The private key is the
   OutLayer secret `PROTECTED_AUDIO_KEY`: 32 bytes that the keystore made

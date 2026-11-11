@@ -184,46 +184,6 @@ button.tab.tab-on {
   cursor: default;
   user-select: none;
 }
-/* "Why sign by voice?" is background reading: it is dim, so the timeline has the attention. */
-.xt-dim {
-  opacity: 0.4;
-}
-/* The title, the row titles and the icons get the grey of the body text, so no part of the box
-   is darker than the rest. */
-.xt-dim .side-title,
-.xt-dim .xt-why-title,
-.xt-dim .xt-why-icon {
-  color: var(--muted);
-}
-/* "Why sign by voice?": rows in the look of X's news box, with an icon at the left. */
-.xt-why {
-  margin-bottom: -4px;
-}
-.xt-why-row {
-  display: flex;
-  gap: 12px;
-  padding: 10px 16px;
-}
-.xt-why-icon {
-  flex: none;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 9999px;
-  background: var(--panel);
-  color: var(--ink);
-}
-.xt-why-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.xt-why-title {
-  font-weight: 700;
-  line-height: 20px;
-}
 /* A card's note: two lines, or all of it when it is open. */
 .xt-note-open {
   display: block;

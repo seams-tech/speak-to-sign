@@ -503,8 +503,7 @@ the scroll area's round top corners are the sheet's corners at the nav. A post
 that opens starts at the top of the sheet.
 
 The app opens on the timeline. Its right column (`src/x/VoiceFeed.tsx`) has a
-search box for the look only, the box "Why sign by voice?" with three short
-reasons, and "Signed by voice": the newest notes with the sentence that each
+search box for the look only, and "Signed by voice": the newest notes with the sentence that each
 author said, shown only when there is a note. "Home" in the app's navigation opens the timeline. The voice
 multisig page (`/multisig/`) keeps the page with a small screen and a window
 (`Showcase.tsx`).

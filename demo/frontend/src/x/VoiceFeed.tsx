@@ -1,11 +1,9 @@
 // The right column of the notes app, in the order of X's own right column:
 // - a search box, for the look only: it takes no click and no key;
-// - "Why sign by voice?": three short reasons, in the place of X's news box;
 // - "Signed by voice": the newest notes, each with the sentence that its author said to post it.
 //   It shows only when there is a note.
 
-import type { ReactNode } from 'react';
-import { IconEyeCheck, IconHandOff, IconMicrophone, IconRobotOff, IconSearch } from '@tabler/icons-react';
+import { IconMicrophone, IconSearch } from '@tabler/icons-react';
 import { shortAccount } from '../config';
 import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
@@ -22,31 +20,6 @@ export function newestNotes(notesByPost: Record<number, Note[]>, limit = MAX_ROW
     .slice(0, limit);
 }
 
-/**
- * Why a voice signature, in three rows. Each row says only what the demo does: notes and
- * ratings are signed by voice. A bet is signed with a Wallet confirm, so no row is about bets.
- */
-const REASONS: { icon: ReactNode; kicker: string; title: string; text: string }[] = [
-  {
-    icon: <IconRobotOff size={20} stroke={1.8} />,
-    kicker: 'Community Notes',
-    title: 'Hard for bots to fake',
-    text: 'You read each note aloud. A verifier checks that the voice is yours.',
-  },
-  {
-    icon: <IconEyeCheck size={20} stroke={1.8} />,
-    kicker: 'No blind signing',
-    title: 'You say what you sign',
-    text: 'The wallet signs only when your words match the request. A phishing request does not match.',
-  },
-  {
-    icon: <IconHandOff size={20} stroke={1.8} />,
-    kicker: 'One breath',
-    title: 'Your voice is the approval',
-    text: 'Speech biometrics are cryptographically bound to signatures. It proves who you are and what you meant in one breath.',
-  },
-];
-
 export function VoiceFeed() {
   const { notesByPost } = useDemo();
   const notes = newestNotes(notesByPost);
@@ -57,25 +30,6 @@ export function VoiceFeed() {
         <IconSearch size={18} stroke={1.8} />
         <span>Search</span>
       </div>
-      <section className="side-box xt-dim" aria-labelledby="why-voice-title">
-        <h2 id="why-voice-title" className="side-title">
-          Why sign by voice?
-        </h2>
-        <ul className="trend-list xt-why">
-          {REASONS.map((reason) => (
-            <li key={reason.title} className="xt-why-row">
-              <span className="xt-why-icon" aria-hidden="true">
-                {reason.icon}
-              </span>
-              <span className="xt-why-text">
-                <span className="trend-kicker">{reason.kicker}</span>
-                <span className="xt-why-title">{reason.title}</span>
-                <span className="trend-meta muted">{reason.text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
       {notes.length > 0 && (
         <section className="side-box" aria-labelledby="voice-feed-title">
           <h2 id="voice-feed-title" className="side-title">

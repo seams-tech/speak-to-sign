@@ -96,7 +96,7 @@ export function jevCommandRequest(request: CommandRequest, model: string): unkno
     'The person does not tell the website to place a bet.',
   );
   questions.open_market = noul(
-    'Does the person ask to open, start or create a new prediction market on a note? A request to only see the open markets is not one.',
+    'Does the person ask to open, start, create or make a new prediction market? A market is on the community note of a post, so a market "on this post", "on this one", "on the second post" or "on the note" is the same request. Sentences such as "open a market on this post", "start a market on this one", "make a market for the first note" and "open a prediction market" ask for a new market. A request to only see the open markets ("show the open markets", "go to open markets") is not one.',
     'The person asks to open a new prediction market.',
     'The person asks for something else, or for nothing.',
   );

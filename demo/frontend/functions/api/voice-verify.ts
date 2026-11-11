@@ -43,8 +43,12 @@ const ENV_NAMES = [
 
 /** One clip: 8 s of 16 kHz PCM16 is a 256,044-byte WAV, about 342 KB in base64, with room for the fields. */
 const MAX_BODY_BYTES = 400 * 1024;
-/** The verifier calls two remote models. */
-const TIMEOUT_MS = 20_000;
+/**
+ * The verifier calls two remote models, and OutLayer can hold a job before a worker runs it.
+ * On 2026-11-11 that wait swung from 1 s to more than 90 s within minutes, while the
+ * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s.
+ */
+const TIMEOUT_MS = 30_000;
 /** The proposal kinds of the voice multisig page, and the spoken bet of the note market (verifier 0.8.0 or later). */
 const REQUEST_KINDS = ['multisig_propose', 'multisig_hide_note', 'market_bet'];
 const RESOURCE_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };

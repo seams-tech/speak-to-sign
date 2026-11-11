@@ -18,7 +18,13 @@ words. So a wrong command cannot sign.
 ## How one sentence runs
 
 1. `listen.ts` gives the words while the visitor speaks (the browser's Web
-   Speech API: Chrome and Safari).
+   Speech API: Chrome and Safari). If Chrome's on-device model for English is
+   installed, the audio stays on the device, and Chrome gets the command words
+   and the authors on the screen as `phrases`, so that it prefers them over
+   words that sound the same. Chrome takes `phrases` only on the device. Without
+   the model, the bar offers to install it (one download), and it uses the
+   browser's speech service until then. The bar shows "On device" with the
+   time when the words come from the device.
 2. `VoiceBar.tsx` shows the words on one line (`Transcript.tsx`): the newest
    words bright at the right, the sentences before them grey, fading out at
    the left. It sends each new piece of the sentence to `classify.ts`.

@@ -15,7 +15,7 @@ import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import type { Screen, VoiceCommand } from './command';
 import { useVoiceHeld } from './hold';
-import { canListen, listen } from './listen';
+import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
 
@@ -24,6 +24,44 @@ const INTERIM_PAUSE_MS = 180;
 
 /** Each finished sentence of the line has its own id, for React. */
 let saidSeq = 0;
+
+/**
+ * The words of the commands. With Chrome's on-device model, Chrome prefers these words over
+ * words that sound the same. The names of the authors on the screen come with them.
+ */
+const COMMAND_PHRASES = [
+  'bet',
+  'bet yes',
+  'bet no',
+  'bet no on this post',
+  'yes',
+  'no',
+  'dollar',
+  'cents',
+  'USDC',
+  'community note',
+  'write a community note',
+  'add a community note',
+  'note',
+  'market',
+  'open a market',
+  'prediction market',
+  'rate',
+  'helpful',
+  'somewhat helpful',
+  'not helpful',
+  'next post',
+  'previous post',
+  'go back',
+  'scroll to',
+  'this post',
+  'controversial',
+  'open markets',
+  'decided',
+  'fresh',
+];
+/** A name that Chrome can take as a phrase. */
+const SAYABLE_NAME = /^[\p{L}\p{N}' .-]{2,40}$/u;
 
 /** The shortcut as the visitor's keyboard shows it. */
 const SHORTCUT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
@@ -78,6 +116,11 @@ export function VoiceBar({
   const [status, setStatus] = useState<Status | null>(null);
   /** Who classified the last sentence, and how long it took: "JEV · 359 ms". */
   const [timing, setTiming] = useState<string | null>(null);
+  /** Where the words come from now, and the state of Chrome's on-device model. */
+  const [mode, setMode] = useState<ListenMode | null>(null);
+  const [device, setDevice] = useState<DeviceSpeech | null>(null);
+  /** A new value starts the listener again: after the model is installed. */
+  const [restart, setRestart] = useState(0);
   /** Why the microphone cannot listen. The bar then takes typed commands. */
   const [stopReason, setStopReason] = useState<string | null>(() => (canListen() ? null : 'unsupported'));
   const [typed, setTyped] = useState('');
@@ -165,13 +208,37 @@ export function VoiceBar({
     const listener = listen({
       onWords: (text, final) => hear.current(text, final),
       onStopped: setStopReason,
+      onMode: setMode,
+      phrases: () => [...COMMAND_PHRASES, ...screenRef.current().posts.map((post) => post.author.trim()).filter((name) => SAYABLE_NAME.test(name))],
     });
     return () => {
       listener.stop();
       window.clearTimeout(interimTimer.current);
       request.current?.abort();
     };
-  }, [listening]);
+  }, [listening, restart]);
+
+  // Chrome's on-device model: with it, the bar can give Chrome the words of the commands.
+  useEffect(() => {
+    if (!on) return;
+    let current = true;
+    void deviceSpeech().then((state) => {
+      if (current) setDevice(state);
+    });
+    return () => {
+      current = false;
+    };
+  }, [on]);
+  const install = async () => {
+    setDevice('downloading');
+    if (await installDeviceSpeech()) {
+      setDevice('available');
+      setRestart((count) => count + 1);
+    } else {
+      setDevice('downloadable');
+      setStatus({ text: 'Chrome did not install its speech model. The bar goes on with the speech service.', isProblem: true });
+    }
+  };
 
   const submitTyped = (event: FormEvent) => {
     event.preventDefault();
@@ -244,13 +311,22 @@ export function VoiceBar({
           <p className={status?.isProblem ? 'voice-status voice-status-problem' : 'voice-status'} role="status">
             {status ? status.text : stopReason !== null && !held && <span className="voice-hint">{hint}</span>}
           </p>
+          {!status && listening && mode === 'server' && (device === 'downloadable' || device === 'downloading') && (
+            <button type="button" className="voice-offer" onClick={() => void install()} disabled={device === 'downloading'}>
+              {device === 'downloading' ? 'Chrome downloads its speech model…' : 'Hear commands better: use speech on this device (one download)'}
+            </button>
+          )}
         </div>
       ) : (
         <span className="voice-off">
           Voice commands <kbd className="voice-key">{SHORTCUT}</kbd>
         </span>
       )}
-      {on && timing && <span className="voice-timing">{timing}</span>}
+      {on && timing && (
+        <span className="voice-timing" title={mode === 'device' ? 'Speech on this device, with the command words' : "The browser's speech service"}>
+          {mode === 'device' ? `On device · ${timing}` : timing}
+        </span>
+      )}
     </div>
   );
 }

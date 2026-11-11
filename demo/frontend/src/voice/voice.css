@@ -129,6 +129,30 @@
 .voice-status-problem {
   color: #ff9aa2;
 }
+/* The offer of Chrome's on-device model, under the words. */
+.voice-offer {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  opacity: 0.7;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.voice-offer:disabled {
+  text-decoration: none;
+  cursor: default;
+}
 /* "JEV · 359 ms" at the right end of the bar. */
 .voice-timing {
   flex: none;

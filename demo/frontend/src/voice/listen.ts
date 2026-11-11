@@ -20,6 +20,7 @@ interface Recognition {
   interimResults: boolean;
   onresult: ((event: RecognitionEvent) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
+  onaudiostart: (() => void) | null;
   onend: (() => void) | null;
   start(): void;
   abort(): void;
@@ -43,9 +44,18 @@ export interface Listener {
 const FATAL = new Set(['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network']);
 
 /**
+ * A recognition that ends before it gets audio did not listen. Chrome does this when another tab
+ * holds its speech service: each new recognition stops the other one. The listener then waits
+ * longer before each new start, and after this many ends in a row it stops with 'busy'.
+ */
+const MAX_DEAF_ENDS = 6;
+const FIRST_RETRY_MS = 200;
+
+/**
  * Listens until `stop`. `onWords` hears the words of the sentence so far; `final` is true once,
  * at the end of each sentence. The browser ends a recognition after some silence, so it starts
- * again by itself. `onStopped` hears why it cannot go on. Call it from a click.
+ * again by itself. `onStopped` hears why it cannot go on. Call it from a click, and only in the
+ * visible tab: two tabs that listen stop each other.
  */
 export function listen(handlers: { onWords(text: string, final: boolean): void; onStopped(reason: string): void }): Listener {
   const Class = recognitionClass();
@@ -55,9 +65,16 @@ export function listen(handlers: { onWords(text: string, final: boolean): void; 
   }
   let stopped = false;
   let current: Recognition | null = null;
+  let deafEnds = 0;
+  let retry = 0;
   const start = () => {
     const recognition = new Class();
     current = recognition;
+    let heard = false;
+    recognition.onaudiostart = () => {
+      heard = true;
+      deafEnds = 0;
+    };
     recognition.lang = 'en-US';
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -81,7 +98,18 @@ export function listen(handlers: { onWords(text: string, final: boolean): void; 
       handlers.onStopped(event.error);
     };
     recognition.onend = () => {
-      if (!stopped) start();
+      if (stopped) return;
+      if (heard) {
+        start();
+        return;
+      }
+      deafEnds += 1;
+      if (deafEnds >= MAX_DEAF_ENDS) {
+        stopped = true;
+        handlers.onStopped('busy');
+        return;
+      }
+      retry = window.setTimeout(start, FIRST_RETRY_MS * 2 ** (deafEnds - 1));
     };
     try {
       recognition.start();
@@ -94,6 +122,7 @@ export function listen(handlers: { onWords(text: string, final: boolean): void; 
   return {
     stop() {
       stopped = true;
+      window.clearTimeout(retry);
       current?.abort();
     },
   };

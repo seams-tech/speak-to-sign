@@ -6,7 +6,8 @@
 // A command that shows a tab or goes to a named post runs on an unfinished sentence. "Next
 // post" and a command that opens a signing step (a note, a rating, a bet, a market) wait for
 // the end of the sentence. The signature itself is the
-// spoken request in the Seams Wallet, and the bar does not listen while a dialog is open.
+// spoken request in the Seams Wallet, and the bar does not listen while a dialog is open or
+// while the tab is out of view.
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
@@ -30,7 +31,19 @@ const STOP_REASONS: Record<string, string> = {
   'service-not-allowed': 'The speech service of this browser is not allowed. Type the command.',
   'audio-capture': 'No microphone was found. Type the command.',
   network: 'The speech service of this browser did not answer. Type the command.',
+  busy: 'Another tab or app uses the speech service. Close it, then turn voice commands off and on.',
 };
+
+/** True while the visitor can see this tab. Only the visible tab listens: two tabs stop each other. */
+function useTabVisible(): boolean {
+  const [visible, setVisible] = useState(() => document.visibilityState === 'visible');
+  useEffect(() => {
+    const update = () => setVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+  return visible;
+}
 
 interface Status {
   text: string;
@@ -56,6 +69,7 @@ export function VoiceBar({
   onTarget: (postId: number) => void;
 }) {
   const held = useVoiceHeld();
+  const visible = useTabVisible();
   const [words, setWords] = useState<{ text: string; final: boolean } | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   /** Why the microphone cannot listen. The bar then takes typed commands. */
@@ -125,7 +139,12 @@ export function VoiceBar({
     } else interimTimer.current = window.setTimeout(() => void run(), INTERIM_PAUSE_MS);
   });
 
-  const listening = on && !held && stopReason === null;
+  // A tab that comes back into view tries again: the tab that held the speech service can be gone.
+  useEffect(() => {
+    if (visible) setStopReason((reason) => (reason === 'busy' ? null : reason));
+  }, [visible]);
+
+  const listening = on && !held && visible && stopReason === null;
   useEffect(() => {
     if (!listening) return;
     const listener = listen({

@@ -48,6 +48,10 @@ that opens a signing step waits for the end of the sentence.
   a signature does not go there: the Seams Wallet records it.
 - The bar does not listen while a dialog is open, so the sentence that signs
   is not read as a command.
+- Only the visible tab listens. Chrome gives its speech service to one
+  recognition at a time, so two tabs that listen stop each other. If a
+  recognition ends six times in a row with no audio, the bar stops and says
+  that the speech service is busy.
 - With no speech recognition (Firefox, or a refused microphone), the bar
   takes a typed command.
 - With no answer from the route, word rules in `command.ts` know the three

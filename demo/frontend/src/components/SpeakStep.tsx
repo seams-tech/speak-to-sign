@@ -218,7 +218,7 @@ function ResultCard({
 
   const view: Record<Exclude<SignResult['kind'], 'sent'>, { icon: ReactNode; title: string }> = {
     refused: { icon: <IconX size={16} stroke={2.4} />, title: 'Not signed' },
-    cancelled: { icon: <IconBan size={16} stroke={2} />, title: 'You closed the Wallet card' },
+    cancelled: { icon: <IconBan size={16} stroke={2} />, title: 'You left the Wallet card' },
     unavailable: { icon: <IconPlugConnectedX size={16} stroke={2} />, title: 'Speak-to-Sign is not available' },
   };
   const { icon } = view[result.kind];

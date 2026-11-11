@@ -148,7 +148,9 @@ function fakeVerifier(fake: Fake): typeof fetch {
       renderer: 'spoken-intent/1',
       verifier: 'test',
       request_digest: digest,
-      spoken_text_digest: null,
+      // The real verifier signs the digest of the sentence that it rendered. This fake does not
+      // render, and the package does not check this digest, so any 32 bytes stand in for it.
+      spoken_text_digest: accepted ? Buffer.alloc(32, 7).toString('base64url') : null,
       audio_digest: recording,
       outcome: accepted ? 'accept' : 'refuse',
       reason: accepted ? null : fake.speaker === false ? 'speaker' : 'words',

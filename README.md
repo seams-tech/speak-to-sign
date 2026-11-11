@@ -36,8 +36,8 @@ You need:
 - `git`, `curl`, `jq` and `shasum` (on Linux, `sha256sum` gives the same hash).
 - Rust from rustup. `demo/contracts/community-notes/` pins Rust 1.97.0 with the
   `wasm32-unknown-unknown` target; rustup installs it on the first `cargo` call.
-- Node 24 and pnpm 11. `corepack enable` gives the pnpm version that
-  `seams-wallet` pins.
+- Node 24 and pnpm 11. `corepack enable` gives the pnpm version that the
+  packages pin.
 - Network access. The sandbox test downloads a nearcore sandbox binary on its
   first run.
 
@@ -53,14 +53,10 @@ mkdir speak-to-sign-check && cd speak-to-sign-check
 git clone https://github.com/seams-tech/speak-to-sign
 ```
 
-```bash
-git clone https://github.com/seams-tech/seams-wallet && git -C seams-wallet checkout --quiet b12cf643c
-```
-
-`b12cf643c` is Wallet SDK 0.59.0 on the `main` branch of `seams-wallet`. The
-pass counts in step 3 are for that commit. Use a full clone (no `--depth`),
-because the dates in "Baseline and hackathon work" come from the history. The
-full clone of `seams-wallet` is about 320 MB.
+This repository is all that you need. Seams Wallet is a dependency from npm
+(`@seams/wallet`), and its repository is not part of these steps. Use a full
+clone (no `--depth`), because the dates in "Baseline and hackathon work" come
+from the history.
 
 ### 1. Spoken-intent golden vectors
 
@@ -97,21 +93,8 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 `committed_spoken_intent_vectors_match_generator` (in `tests/vectors.rs`)
 fails if the committed golden file differs from what the code generates.
 
-The Wallet checks its TypeScript port (step 3) against its own copy of this
-golden file. At `b12cf643c` the copy is an earlier version of the file. Later
-commits here added only transcript-reading vectors (`normalize_punctuated`).
-The 24 request vectors, with their sentences, Borsh bytes and digests, are the
-same in both files:
-
-```bash
-diff <(jq -S .requests speak-to-sign/crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json) <(jq -S .requests seams-wallet/crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json) && echo 'the 24 request vectors are the same'
-```
-
-Expected:
-
-```text
-the 24 request vectors are the same
-```
+Step 3 checks the request digest of every vector of this file again, in
+TypeScript.
 
 ### 2. The verifier
 
@@ -173,62 +156,41 @@ does not pass. A summary of fewer than four words, and every rating, needs the
 exact words. "This note is not helpful." for a `helpful` rating is refused.
 The rule is `words_pass` in `crates/voice-verifier/src/words.rs`.
 
-### 3. The Wallet verdict check
+### 3. The verdict check
+
+`@seams/voice-verdict` (`packages/voice-verdict/`) checks a signed verdict
+before anything is signed. Seams Wallet core and the Seams co-signer call its
+`checkVerdict` (from `@seams/wallet` 0.67.0), and so can any application. It
+checks the pinned key, the signature, the fields, the expiry, and that the
+verdict binds the request and the sentence that the signer built itself.
 
 ```bash
-(cd seams-wallet && pnpm install --frozen-lockfile)
+(cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')
 ```
 
-pnpm can print `[WARN] Failed to create bin ...` lines. They name scripts of
-packages that this step does not build. The test does not use them.
-
-```bash
-(cd seams-wallet && pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/speakToSignHost.unit.test.ts --project=chromium --reporter=list)
-```
-
-The test runs in Node and needs no browser download. Its config starts a Vite
-server on port 4203. If that port is in use, put
-`SEAMS_TEST_FRONTEND_URL=http://localhost:4387` before `pnpm`.
-
-Expected (20 tests):
+Expected (51 tests in all):
 
 ```text
-Running 20 tests using 1 worker
-
-  ✓   1 [chromium] › unit/speakToSignHost.unit.test.ts:172:1 › the transfer port matches every account transfer vector of the spoken-intent crate (18ms)
-  ✓   2 [chromium] › unit/speakToSignHost.unit.test.ts:186:1 › only speakable accounts and whole hundredths of NEAR pass (6ms)
-  ✓   3 [chromium] › unit/speakToSignHost.unit.test.ts:201:1 › the WAV is 16 kHz mono PCM16 with a 44-byte header and at most 8 s (2ms)
-  ✓   4 [chromium] › unit/speakToSignHost.unit.test.ts:216:1 › the shared signed verdict vectors pass the core check as voice and voice-and-passkey (4ms)
-  ✓   5 [chromium] › unit/speakToSignHost.unit.test.ts:248:1 › the core check refuses a verdict that does not bind this transfer, clip, time and key (6ms)
-  ✓   6 [chromium] › unit/speakToSignHost.unit.test.ts:320:1 › a verifier refusal passes through with its reason and what was heard (0ms)
-  ✓   7 [chromium] › unit/speakToSignHost.unit.test.ts:458:1 › a spoken payment verifies the typed transfer and lets core pay with the verdict (6ms)
-  ✓   8 [chromium] › unit/speakToSignHost.unit.test.ts:513:1 › a refusal shows on the card, and "Try again" records the sentence again (3ms)
-  ✓   9 [chromium] › unit/speakToSignHost.unit.test.ts:535:1 › a payment records at most five times, then the refusal offers only Close (6ms)
-  ✓  10 [chromium] › unit/speakToSignHost.unit.test.ts:552:1 › the words that the verifier heard are aligned with the sentence and marked (1ms)
-  ✓  11 [chromium] › unit/speakToSignHost.unit.test.ts:594:1 › nothing is paid for a bad request, a missing receiver, a refusal or a failed route (2ms)
-  ✓  12 [chromium] › unit/speakToSignHost.unit.test.ts:627:1 › core refusals, a failed transfer and recording problems map to results (6ms)
-  ✓  13 [chromium] › unit/speakToSignHost.unit.test.ts:810:1 › core records clips, checks receivers and calls only the Seams verify route (212ms)
-  ✓  14 [chromium] › unit/speakToSignHost.unit.test.ts:851:1 › core pays once per flow, from the owner, with the approval the verdict names (5ms)
-  ✓  15 [chromium] › unit/speakToSignHost.unit.test.ts:957:1 › a transfer that never left the Wallet lets another verdict of the flow pay (1ms)
-  ✓  16 [chromium] › unit/speakToSignHost.unit.test.ts:997:1 › core signs the enrollment message only for three clips it recorded (6ms)
-  ✓  17 [chromium] › unit/speakToSignHost.unit.test.ts:1075:1 › the note port matches every note and rating vector of the spoken-intent crate (5ms)
-  ✓  18 [chromium] › unit/speakToSignHost.unit.test.ts:1092:1 › the summary rules match the crate (2ms)
-  ✓  19 [chromium] › unit/speakToSignHost.unit.test.ts:1107:1 › a spoken note verifies the summary and lets core sign the note (2ms)
-  ✓  20 [chromium] › unit/speakToSignHost.unit.test.ts:1165:1 › core signs one add_note call with no deposit for the verdict of this note only (4ms)
-
-  20 passed (2.5s)
+✔ a step-up verdict passes only on request
+✔ a verdict for another request or another recording
+✔ a verdict of another renderer
+✔ a verdict that expires further ahead than one life is not yet valid
+✔ a verdict for another sentence
+✔ a verdict for one community note does not pass for another note
+ℹ pass 51
+ℹ fail 0
 ```
 
-Test 20, "core signs one add_note call with no deposit for the verdict of
-this note only", gives Wallet core a validly signed verdict for the same post
-and note text, but with the summary "The bridge is closed.". Core refuses it with
+"A verdict for one community note does not pass for another note" signs a
+verdict for the `community_note` request of the golden file. The check passes
+for that note, and gives `request_mismatch` for the
+`community_note_one_word` note. Wallet core refuses such a verdict with
 `{ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' }`
-and signs nothing. With the verdict of this note, core signs one transaction:
+and signs nothing. With the verdict of the note, core signs one transaction:
 `add_note` on the notes contract with the note's `post_id`, `text` and
-`summary`, 30 Tgas and a deposit of `0`. The code is
-`signNoteWithVerdict` in
-`packages/wallet/src/core/transactionFeatures/hostOperations.ts` of
-`seams-wallet`.
+`summary`, 30 Tgas and a deposit of `0`. That code is in the Wallet, the
+dependency: `signNoteWithVerdict` in
+[`packages/wallet/src/core/transactionFeatures/hostOperations.ts`](https://github.com/seams-tech/seams-wallet/blob/dev/packages/wallet/src/core/transactionFeatures/hostOperations.ts).
 
 ### 4. The notes contract
 
@@ -396,24 +358,28 @@ existed before the window; it is the baseline. All of this repository was
 made in the window. The table gives the first commit of each part in UTC
 author time.
 
-Define a helper that prints the first commit that added a path:
+For a part of this repository, the command prints its first commit. Define
+this helper first:
 
 ```bash
 first() { TZ=UTC git -C "$1" log --diff-filter=A --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- "$2" | head -1 | cut -c1-100; }
 ```
 
-| Part | Where | First commit | Command |
+For a part of the Wallet, the dependency, the last column links the commit on
+GitHub.
+
+| Part | Where | First commit | Command or link |
 | ---- | ----- | ------------ | ------- |
-| **Baseline.** Seams Wallet with Router A/B threshold signing, ed25519-yao and threshold ECDSA. Parts are checked with Lean, Verus and TLA+. | `seams-wallet`: `crates/router-ab-*`, `crates/ed25519-yao`, `crates/*/formal-verification` | 2026-09-11 17:10, `cdb1c4a1` | `first seams-wallet crates/ed25519-yao` |
-| **Baseline.** VoiceID UI scaffold: a voice assistant card with no speech check. | `seams-wallet`: `packages/wallet/src/react/components/VoiceAssistantCard.tsx` (removed later) | 2026-10-13 03:28, `21503882` | `first seams-wallet packages/wallet/src/react/components/VoiceAssistantCard.tsx` |
-| Window starts. The last earlier commit on `seams-wallet` `main` is `620794d9`. | | 2026-10-18 23:54 | `TZ=UTC git -C seams-wallet log -1 --before=2026-10-19T00:00:00Z --date=format-local:'%Y-%m-%d %H:%M' --format='%cd UTC %h %s'` |
-| VoiceID speech verification. | `seams-wallet`: commits that name VoiceID; `packages/voiceid` from 2026-10-26 | 2026-10-22 16:36, `9ace901f` | `TZ=UTC git -C seams-wallet log -i --grep=voiceid --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' \| sed -n 2p` |
+| **Baseline.** Seams Wallet with Router A/B threshold signing, ed25519-yao and threshold ECDSA. Parts are checked with Lean, Verus and TLA+. | `seams-wallet`: `crates/router-ab-*`, `crates/ed25519-yao`, `crates/*/formal-verification` | 2026-09-11 17:10, `cdb1c4a1` | [`cdb1c4a1`](https://github.com/seams-tech/seams-wallet/commit/cdb1c4a1) |
+| **Baseline.** VoiceID UI scaffold: a voice assistant card with no speech check. | `seams-wallet`: `packages/wallet/src/react/components/VoiceAssistantCard.tsx` (removed later) | 2026-10-13 03:28, `21503882` | [`21503882`](https://github.com/seams-tech/seams-wallet/commit/21503882) |
+| Window starts. The last earlier commit on `seams-wallet` `main` is `620794d9`. | | 2026-10-18 23:54 | [`620794d9`](https://github.com/seams-tech/seams-wallet/commit/620794d9) |
+| VoiceID speech verification. | `seams-wallet`: commits that name VoiceID; `packages/voiceid` from 2026-10-26 | 2026-10-22 16:36, `9ace901f` | [`9ace901f`](https://github.com/seams-tech/seams-wallet/commit/9ace901f) |
 | The `spoken-intent` crate. It moved here from `seams-wallet` `crates/spoken-intent` with its history. | `speak-to-sign`: `crates/spoken-intent/` (was `spoken-intent/`) | 2026-11-07 06:50, `923e576` | `first speak-to-sign spoken-intent` |
 | The verifier, the speaker service and the Gate 0 probes. | `speak-to-sign`: `crates/voice-verifier/`, `crates/speaker-service/`, `research/gate0/` (was `voice-verifier/`, `speaker-service/`, `gate0/`, `voice-probe/`) | 2026-11-07 12:21, `6e5abf1` | `first speak-to-sign voice-verifier` |
-| Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/wallet-voice-sign/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | `first seams-wallet packages/speak-to-sign` |
+| Speak-to-Sign in the Wallet. | `seams-wallet`: `packages/speak-to-sign` (now `packages/wallet-voice-sign/` here, with its history), `packages/wallet/src/core/transactionFeatures/` | 2026-11-07 12:20, `4b0d7981` | [`4b0d7981`](https://github.com/seams-tech/seams-wallet/commit/4b0d7981) |
 | Spoken notes in the verifier (version 0.4.0). | `speak-to-sign`: `crates/voice-verifier/src` (was `voice-verifier/src`) | 2026-11-09 10:14, `ff1409b` | `TZ=UTC git -C speak-to-sign log -S community_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- voice-verifier/src \| head -1` |
 | The community notes contract. | `speak-to-sign`: `demo/contracts/community-notes/` (was `community-notes/`, then `contracts/community-notes/`) | 2026-11-09 10:21, `7f0e014` | `first speak-to-sign community-notes` |
-| Spoken notes in the Wallet. | `seams-wallet`: `packages/wallet/src` | 2026-11-09 10:25, `bec40080` | `TZ=UTC git -C seams-wallet log -S add_note --reverse --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' -- packages/wallet/src \| head -1` |
+| Spoken notes in the Wallet. | `seams-wallet`: `packages/wallet/src` | 2026-11-09 10:25, `bec40080` | [`bec40080`](https://github.com/seams-tech/seams-wallet/commit/bec40080) |
 | The Spoken Notes demo page. | `speak-to-sign`: `demo/frontend/` (was `demo/`; an earlier Python demo client is from 2026-11-07) | 2026-11-09 10:33, `e25f1ec` | `TZ=UTC git -C speak-to-sign log -1 --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' e25f1ec` |
 | The Speak to pay example. | `speak-to-sign`: `examples/` | 2026-11-09 11:05, `2999fd6` | `first speak-to-sign examples` |
 | The JEV prediction market for community notes: a parimutuel USDC market, the OutLayer resolver (JEV on NEAR AI), and the strip in the notes demo. | `speak-to-sign`: `demo/contracts/jev-prediction-market/`, `demo/frontend/src/market/` | 2026-11-09 15:11, `a6c2376` | `first speak-to-sign demo/contracts/jev-prediction-market` |
@@ -436,17 +402,9 @@ The diffs:
 - `seams-wallet`, all changes in the window:
   <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...b12cf643c293a9a042d3df56f5a3689e69cf8b33>.
   Most of these 632 commits are general Wallet work. The Speak-to-Sign paths
-  are new files only:
-
-  ```bash
-  git -C seams-wallet diff --shortstat 620794d91 b12cf643c -- packages/voiceid packages/speak-to-sign packages/wallet/src/core/transactionFeatures crates/spoken-intent
-  ```
-
-  Expected:
-
-  ```text
-  91 files changed, 17110 insertions(+)
-  ```
+  (`packages/voiceid`, `packages/speak-to-sign`,
+  `packages/wallet/src/core/transactionFeatures` and `crates/spoken-intent`)
+  are new files only: 91 files, 17,110 added lines.
 
 ## Libraries, services and tools
 

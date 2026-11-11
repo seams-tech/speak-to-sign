@@ -99,7 +99,9 @@ function fakeSpeakToSign() {
       renderer: 'spoken-intent/1',
       verifier: 'fake',
       request_digest: built ? Buffer.from(built.digest).toString('base64url') : null,
-      spoken_text_digest: null,
+      // The real verifier signs the digest of the sentence that it rendered. This stand-in does
+      // not render, and the page does not check this digest, so any 32 bytes stand in for it.
+      spoken_text_digest: built ? Buffer.alloc(32, 7).toString('base64url') : null,
       audio_digest: Buffer.from(await audioDigest(new Uint8Array(Buffer.from(input.audio_wav_b64, 'base64')))).toString('base64url'),
       outcome: built ? 'accept' : 'refuse',
       reason: built ? null : 'words',

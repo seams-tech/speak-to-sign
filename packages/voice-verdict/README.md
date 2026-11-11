@@ -83,13 +83,19 @@ The checks run in this order. The first check that fails gives the refusal.
 | 1 | The key is 32 bytes (`ed25519:<base58>`, hex or bytes). | `bad_public_key` |
 | 2 | The signature is standard base64 of 64 bytes. | `bad_signature_encoding` |
 | 3 | The key signed `SHA-256("seams:outlayer:voice-verdict:v2" \|\| verdictJson)`. | `bad_signature` |
-| 4 | The text is JSON with exactly the 13 fields. | `malformed` |
+| 4 | The text is JSON with exactly the 13 fields. An `accept` or `step_up` has the three digests and no `reason`. Only a `step_up` has a `policy_rule`. | `malformed` |
 | 5 | `kind` is `seams_voice_signed_verdict_v2`. | `wrong_kind` |
-| 6 | `outcome` is not `refuse`. The refusal has the verifier's `reason`. | `refused` |
-| 7 | `outcome` is not `step_up`, or `acceptStepUp` is `true`. | `step_up` |
-| 8 | `expires_at_ms` is not before `nowMs`. | `expired` |
-| 9 | `request_digest` is `requestDigest`, if you give one. | `request_mismatch` |
-| 10 | `audio_digest` is `audioDigest`, if you give one. | `audio_mismatch` |
+| 6 | `renderer` is `spoken-intent/1` (`RENDERER_VERSION`). | `wrong_renderer` |
+| 7 | `outcome` is not `refuse`. The refusal has the verifier's `reason`. | `refused` |
+| 8 | `outcome` is not `step_up`, or `acceptStepUp` is `true`. | `step_up` |
+| 9 | `expires_at_ms` is after `nowMs`. | `expired` |
+| 10 | `expires_at_ms` is not more than 150 s (`MAX_VERDICT_LIFE_MS`) after `nowMs`. A later expiry means a verifier clock that runs ahead. | `not_yet_valid` |
+| 11 | `request_digest` is `requestDigest`, if you give one. | `request_mismatch` |
+| 12 | `spoken_text_digest` is `spokenTextDigest`, if you give one. | `spoken_text_mismatch` |
+| 13 | `audio_digest` is `audioDigest`, if you give one. | `audio_mismatch` |
+
+Seams Wallet core and the Seams co-signer use this check before they sign a
+voice-approved transaction.
 
 `checkVerdict` does not throw for a bad verdict. It throws only if the
 runtime has no Ed25519 in Web Crypto.

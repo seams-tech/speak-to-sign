@@ -1,4 +1,4 @@
-// Records the microphone in the page and gives the verifier's WAV (src/multisig/wav.ts):
+// Records the microphone in the page and gives the verifier's WAV (./wav.ts):
 // 16 kHz mono PCM16, at most 8 s. An AudioWorklet copies the samples at the device rate; the
 // page resamples them when the recording stops. The microphone settings are the ones that the
 // Seams VoiceID capture uses, so the voice sounds the same as at enrollment.

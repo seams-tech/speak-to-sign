@@ -501,7 +501,7 @@ Each top-level folder says what its contents are for.
 | `demo/frontend/` | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
 | `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
 | `demo/contracts/jev-prediction-market/` | The note market `pm-notes.seams-v1.testnet`: parimutuel bets in testnet USDC on a community note, resolved by JEV through OutLayer (`resolver/`), with a JEV-weighted payout. See its README. |
-| `demo/contracts/voice-multisig/` | The voice multisig `multisig.seams-v1.testnet`: a visitor proposes a NEAR transfer or the hide of a note by voice, and two admins approve. See its README. |
+| `demo/contracts/voice-multisig/` | The voice multisig `multisig.seams-v1.testnet`: a visitor proposes a NEAR transfer or the hide of a note by voice, and two admins approve. The demo site has no page for it. See its README. |
 | `demo/contracts/faucet/` | The faucet `seams-faucet.testnet`: 0.2 NEAR and 2 testnet USDC for a new account, once. See its README. |
 | `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
 | `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |

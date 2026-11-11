@@ -1,4 +1,4 @@
-// A small NEAR transaction signer for the Pages Functions (the faucet and the multisig admins):
+// A small NEAR transaction signer for the Pages Functions (the faucet):
 // one function call, signed with an ed25519 key through WebCrypto, encoded with Borsh, sent over
 // JSON-RPC. No NEAR library: the Workers runtime has WebCrypto and fetch. The browser never
 // loads this file.

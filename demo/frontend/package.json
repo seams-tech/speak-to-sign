@@ -15,7 +15,6 @@
     "dev:https": "caddy run --config Caddyfile --adapter caddyfile"
   },
   "dependencies": {
-    "@fontsource/dm-sans": "5.3.0",
     "@fontsource/hanken-grotesk": "5.3.0",
     "@seams/voice-verdict": "0.67.1",
     "@seams/voiceid": "0.67.0",

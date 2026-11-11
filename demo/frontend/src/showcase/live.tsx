@@ -1,61 +1,26 @@
-// The live app of a Speak-to-Sign page. The app renders once, into an element of its own,
-// and that element moves between the small screen of its row and the big window. So a click
-// expands the same running app: its page, its sign-in and its data stay as they are.
+// The live Community Notes app of the Speak-to-Sign page.
 
-import { useLayoutEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useMemo } from 'react';
 import { useSeams } from '@seams/wallet/react';
 import { App as NotesApp } from '../App';
 import { config } from '../config';
-import { LiveMultisigScreen } from '../multisig/LiveMultisigScreen';
 import { createContractMarketSource, MarketSourceContext } from '../market/contractSource';
 import { createSeamsMarketSigner } from '../market/marketSigner';
 import { createMissingKeySigner, createSeamsSigner } from '../signer/seamsSigner';
 import { ExampleGuard } from './guard';
 
-export type LiveId = 'notes' | 'multisig';
-
-const nodes = new Map<LiveId, HTMLDivElement>();
-
-function liveNode(id: LiveId): HTMLDivElement {
-  let node = nodes.get(id);
-  if (!node) {
-    node = document.createElement('div');
-    node.className = 'ss-live-node';
-    nodes.set(id, node);
-  }
-  return node;
-}
-
-/** The place where the live app `id` shows while `active`. */
-export function LiveSlot({ id, active = true }: { id: LiveId; active?: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (active) ref.current?.appendChild(liveNode(id));
-  }, [id, active]);
-  return <div className="ss-live-slot" ref={ref} />;
-}
-
 /**
- * Renders the live app of the page (`page`) into its element. With `seams`, it needs
- * SeamsWebProvider above it. Without a Seams publishable key, the notes app shows the notes and
- * cannot sign, and there is no live multisig screen. The app has its own guard, so an error in it
+ * The notes app. With `seams`, it needs SeamsWebProvider above it. Without a Seams publishable
+ * key, the app shows the notes and cannot sign. The app has its own guard, so an error in it
  * does not blank the page.
  */
-export function LiveApps({ page, seams, onMultisigSignIn }: { page: LiveId; seams: boolean; onMultisigSignIn: () => void }) {
+export function LiveNotes({ seams }: { seams: boolean }) {
   return (
-    <>
-      {page === 'notes' &&
-        createPortal(<ExampleGuard name="notes">{seams ? <SeamsNotes /> : <KeylessNotes />}</ExampleGuard>, liveNode('notes'))}
-      {page === 'multisig' &&
-        seams &&
-        createPortal(
-          <ExampleGuard name="multisig">
-            <LiveMultisigScreen onSignIn={onMultisigSignIn} />
-          </ExampleGuard>,
-          liveNode('multisig'),
-        )}
-    </>
+    <div className="ss-live-slot">
+      <div className="ss-live-node">
+        <ExampleGuard name="notes">{seams ? <SeamsNotes /> : <KeylessNotes />}</ExampleGuard>
+      </div>
+    </div>
   );
 }
 

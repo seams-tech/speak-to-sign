@@ -1,10 +1,8 @@
 // POST /api/voice-verify  { input }  ->  the verifier output, unchanged  or  { error }
 //
-// Runs the OutLayer voice verifier for the voice multisig screen, with the demo's own OutLayer
-// payment key, the way the Seams verify route does (/speak-to-sign/v1/verify). It takes only
-// the `verify` op with the request kind `multisig_propose` (a transfer), `multisig_hide_note`
-// (a reported note; verifier 0.7.0 or later) or `market_bet` (a spoken bet of the note market;
-// verifier 0.8.0 or later).
+// Runs the OutLayer voice verifier for the spoken bet of the note market, with the demo's own
+// OutLayer payment key, the way the Seams verify route does (/speak-to-sign/v1/verify). It takes
+// only the `verify` op with the request kind `market_bet` (verifier 0.8.0 or later).
 //
 // The Seams route checks that the caller owns `owner`; this route cannot. The verifier still
 // checks the voice against the owner's template, and the contract checks that the owner signs
@@ -13,7 +11,7 @@
 // Over HTTPS, OutLayer derives the verifier's storage cell and its verdict signing key from the
 // owner of the payment key. The visitors enroll their voices through the Seams staging server,
 // so this route must use the same payment key, project and secrets profile as that route, and a
-// verifier version with the multisig kinds (0.6.0 or later). With another payment key, every
+// verifier version with the `market_bet` kind (0.8.0 or later). With another payment key, every
 // verify refuses `template_missing`, and the verdicts carry a key that the contract does not pin.
 
 import { isObject } from '../../src/guards.ts';
@@ -24,7 +22,7 @@ interface Env {
   VOICE_OUTLAYER_BASE_URL?: string;
   /** owner/project, for example seams-v1.testnet/voice-verifier */
   VOICE_OUTLAYER_PROJECT?: string;
-  /** The WASM hash of a verifier version that has the multisig kinds (0.6.0 or later). */
+  /** The WASM hash of a verifier version that has the `market_bet` kind (0.8.0 or later). */
   VOICE_OUTLAYER_VERSION_KEY?: string;
   /** The OutLayer payment key of the Seams staging verify route. It goes only into the X-Payment-Key header. */
   VOICE_OUTLAYER_PAYMENT_KEY?: string;
@@ -49,8 +47,8 @@ const MAX_BODY_BYTES = 400 * 1024;
  * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s.
  */
 const TIMEOUT_MS = 30_000;
-/** The proposal kinds of the voice multisig page, and the spoken bet of the note market (verifier 0.8.0 or later). */
-const REQUEST_KINDS = ['multisig_propose', 'multisig_hide_note', 'market_bet'];
+/** The spoken bet of the note market (verifier 0.8.0 or later). */
+const REQUEST_KIND = 'market_bet';
 const RESOURCE_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -137,8 +135,8 @@ function parseInput(text: string): Record<string, unknown> | string {
   }
   const { input } = body;
   if (input.op !== 'verify') return 'This route runs only the verify op.';
-  if (!isObject(input.request) || !REQUEST_KINDS.includes(String(input.request.kind))) {
-    return 'This route takes only the request kinds multisig_propose, multisig_hide_note and market_bet.';
+  if (!isObject(input.request) || input.request.kind !== REQUEST_KIND) {
+    return 'This route takes only the request kind market_bet.';
   }
   return input;
 }

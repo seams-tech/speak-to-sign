@@ -2,12 +2,9 @@
 # The Pages Function in functions/api/summary.ts needs the secret NEAR_AI_API_KEY.
 # functions/api/voice-verify.ts needs the OutLayer settings of the Seams staging verify route:
 # VOICE_OUTLAYER_BASE_URL, VOICE_OUTLAYER_PROJECT, VOICE_OUTLAYER_VERSION_KEY (a verifier with
-# multisig_propose), VOICE_OUTLAYER_PAYMENT_KEY (secret), VOICE_OUTLAYER_SECRETS_PROFILE and
+# market_bet), VOICE_OUTLAYER_PAYMENT_KEY (secret), VOICE_OUTLAYER_SECRETS_PROFILE and
 # VOICE_OUTLAYER_SECRETS_ACCOUNT_ID.
-# functions/api/multisig/approve.ts needs the secrets MULTISIG_ADMIN_A_KEY and
-# MULTISIG_ADMIN_B_KEY (function-call keys for approve and execute on the multisig contract,
-# multisig.seams-v1.testnet).
-# Optional: MULTISIG_ADMIN_A, MULTISIG_ADMIN_B, MULTISIG_CONTRACT and NEAR_RPC_URL. See README.md.
+# Optional: NEAR_RPC_URL. See README.md.
 # functions/api/x/eligible-posts.ts needs the secrets X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN and
 # X_ACCESS_TOKEN_SECRET (the OAuth 1.0a keys of a Community Notes AI Note Writer account).
 # Its subject filter needs NEAR_AI_API_KEY, unless X_ELIGIBLE_TOPICS is "all".

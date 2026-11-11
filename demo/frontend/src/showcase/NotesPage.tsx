@@ -27,7 +27,7 @@ import { GrainField } from './grain/GrainField';
 import { grainFieldSource } from './grain/fields';
 import { fieldScrim, THEMES, useTheme } from './theme';
 import { ThemePicker } from './ThemePicker';
-import { LiveApps, LiveSlot } from './live';
+import { LiveNotes } from './live';
 import { KeylessOnboarding, SeamsOnboarding } from './Onboarding';
 
 const SOURCE_URL = 'https://github.com/seams-tech/speak-to-sign';
@@ -201,7 +201,6 @@ export function NotesPage({ seams }: { seams: boolean }) {
               </ul>
             </div>
           </div>
-          {/* The multisig page sends a visitor here (#setup) to set up the voice and get testnet NEAR. */}
           <div className="ss-setup-strip" id="setup" aria-label="Set up">
             {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
           </div>
@@ -209,13 +208,12 @@ export function NotesPage({ seams }: { seams: boolean }) {
 
         <main className="ss-sheet" ref={sheetRef} aria-label="Community Notes">
           <div className="ss-sheet-app">
-            <LiveSlot id="notes" />
+            <LiveNotes seams={seams} />
           </div>
         </main>
         </div>
       </div>
 
-      <LiveApps page="notes" seams={seams} onMultisigSignIn={() => setSignIn(true)} />
       {seams && signIn && <SignInModal onClose={() => setSignIn(false)} onSignedIn={() => setSignIn(false)} />}
     </>
   );

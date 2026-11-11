@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { IconMicrophone, IconPlayerStopFilled } from '@tabler/icons-react';
-import { startRecording, type Recorder } from '../multisig/recorder';
+import { startRecording, type Recorder } from '../voice/recorder';
 import type { BetVerdict, BetVoice, MarketSource, Side } from './types';
 
 /** The spoken bet of `source`, when its contract takes a bet only with a verdict. Null if not. */

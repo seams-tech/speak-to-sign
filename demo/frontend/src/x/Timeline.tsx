@@ -9,13 +9,13 @@ import { ActionRow, AuthorBadge, Avatar, Media, PostText } from '../components/b
 import { NoteRateLine, shownNote } from '../components/NotesBox';
 import { CONTEXT_MARKET_NOTE_ID, NoteDialog } from '../components/PostContext';
 import { POSTS, type Post } from '../data/posts';
-import { RATING_LABELS, useDemo } from '../demoContext';
+import { useDemo } from '../demoContext';
 import { useMarketSource } from '../market/contractSource';
 import { amountText, jevSentence, percentText, timeLeftText, yesShareBps } from '../market/math';
 import { NoteMarketStrip, type BetRequest } from '../market/NoteMarket';
 import { useBetVoice } from '../market/SayBet';
 import { marketContext } from '../market/noteContext';
-import { NEAR_CURRENCY, type NoteMarket, type Side } from '../market/types';
+import type { NoteMarket, Side } from '../market/types';
 import type { Note } from '../notes/types';
 import { MAX_SCREEN_POSTS, type Screen, type TimelineTab, type VoiceCommand } from '../voice/command';
 import { VoiceBar } from '../voice/VoiceBar';
@@ -265,67 +265,62 @@ export function Timeline() {
     posts: spoken.map(({ post, note }) => ({ postId: post.id, author: post.author.name, text: post.text, note: note?.text })),
     focusedPostId,
   });
-  const runCommand = (command: VoiceCommand): { ok: boolean; text: string } => {
+  /** Runs a voice command. The result is the problem to show in the bar, or null when it ran. */
+  const runCommand = (command: VoiceCommand): string | null => {
     if (command.kind === 'show') {
       setTab(command.tab);
       timelineTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return { ok: true, text: `Showing: ${TABS.find(({ id }) => id === command.tab)?.label ?? command.tab}.` };
+      return null;
     }
-    if (command.kind === 'none') return { ok: true, text: 'No command in that sentence.' };
+    if (command.kind === 'none') return 'No command in that sentence.';
     if (command.kind === 'move') {
       // From the focused post, to any post of the tab. With no post in view, "next" is the first post.
       const target = visible[command.to === 'next' ? focusIndex + 1 : focusIndex - 1];
-      if (!target) return { ok: false, text: command.to === 'next' ? 'This is the last post.' : 'This is the first post.' };
+      if (!target) return command.to === 'next' ? 'This is the last post.' : 'This is the first post.';
       focusCard(target.post.id);
-      // No number: the numbers can start again when the post comes to the centre.
-      return { ok: true, text: `The post by ${target.post.author.name}.` };
+      return null;
     }
     if (command.kind === 'go') {
       const target = spoken.find((candidate) => candidate.post.id === command.postId);
-      if (!target) return { ok: false, text: 'That post is not on the screen.' };
+      if (!target) return 'That post is not on the screen.';
       focusCard(target.post.id);
-      return { ok: true, text: `Post ${spoken.indexOf(target) + 1}, by ${target.post.author.name}.` };
+      return null;
     }
     if (command.kind === 'no_target') {
       const needs = { rate: 'A rating', bet: 'A bet', open_market: 'A market' } as const;
-      if (command.action === 'go') return { ok: false, text: 'Say which post: "scroll to the second post".' };
-      return { ok: false, text: command.action === 'write_note' ? 'That post is not on the screen.' : `${needs[command.action]} needs a note. That note is not on the screen.` };
+      if (command.action === 'go') return 'Say which post: "scroll to the second post".';
+      return command.action === 'write_note' ? 'That post is not on the screen.' : `${needs[command.action]} needs a note. That note is not on the screen.`;
     }
     const card = spoken.find((candidate) => candidate.post.id === command.postId);
-    if (!card) return { ok: false, text: 'That post is not on the screen.' };
+    if (!card) return 'That post is not on the screen.';
     showCard(card.post.id);
     if (command.kind === 'write_note') {
       openWrite(card.post.id, { autoSign: true });
-      return { ok: true, text: `A note on the post of ${card.post.author.name}. Read the sentence aloud to sign it.` };
+      return null;
     }
     const noteName = `Note ${noteNumbers.get(card.post.id) ?? ''}`.trim();
     if (command.kind === 'rate') {
       // Only a note of this app takes a rating, and not from its own author.
       const note = card.note?.note;
-      if (!note) return { ok: false, text: `${noteName} is from X. It takes no rating here.` };
-      if (note.author === account) return { ok: false, text: `You wrote ${noteName.toLowerCase()}. Other accounts rate it.` };
+      if (!note) return `${noteName} is from X. It takes no rating here.`;
+      if (note.author === account) return `You wrote ${noteName.toLowerCase()}. Other accounts rate it.`;
       openRate(note.id, { rating: command.rating, autoSign: true });
-      return { ok: true, text: `${noteName}: ${RATING_LABELS[command.rating].toLowerCase()}. Say the sentence to sign the rating.` };
+      return null;
     }
     const market = marketOf(card);
     // A note of this app with no market can get one: the strip's "Open a market".
     const canOpenMarket = market === null && card.note?.note !== undefined && source.createMarket !== undefined;
     if (command.kind === 'open_market' || (canOpenMarket && command.kind === 'bet')) {
-      if (market) return { ok: false, text: `${noteName} has a market already.` };
-      if (!canOpenMarket) return { ok: false, text: `${noteName} cannot get a market now.` };
+      if (market) return `${noteName} has a market already.`;
+      if (!canOpenMarket) return `${noteName} cannot get a market now.`;
       const bet = command.kind === 'bet' ? { side: command.side, amount: command.amount ?? undefined, place: true } : {};
       setVoiceBet({ postId: card.post.id, request: { seq: nextBetSeq(), open: true, ...bet } });
-      const opening = `A new market on ${noteName.toLowerCase()}. Say the sentence to open it.`;
-      return { ok: true, text: command.kind === 'bet' ? `${noteName} has no market yet. Say the sentence to open one. Your bet comes next.` : opening };
+      return null;
     }
-    if (marketTab(market, Date.now()) !== 'open') return { ok: false, text: `${noteName} has no open market, so it takes no bet.` };
-    const currency = source.currency ?? NEAR_CURRENCY;
-    const amount = command.amount ?? undefined;
-    const number = noteNumbers.get(card.post.id);
-    setVoiceBet({ postId: card.post.id, bet: command, request: { seq: nextBetSeq(), side: command.side, amount, place: true } });
+    if (marketTab(market, Date.now()) !== 'open') return `${noteName} has no open market, so it takes no bet.`;
     // With no amount in the sentence, the bet takes the amount that the sheet or the slider shows.
-    const stake = amount ? `${amountText(amount, currency)} ` : '';
-    return { ok: true, text: `Bet ${stake}on ${command.side}, note ${number ?? ''}.${amount ? '' : ' I heard no amount.'} Say the bet to sign it.` };
+    setVoiceBet({ postId: card.post.id, bet: command, request: { seq: nextBetSeq(), side: command.side, amount: command.amount ?? undefined, place: true } });
+    return null;
   };
 
   return (

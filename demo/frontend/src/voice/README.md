@@ -19,7 +19,9 @@ words. So a wrong command cannot sign.
 
 1. `listen.ts` gives the words while the visitor speaks (the browser's Web
    Speech API: Chrome and Safari).
-2. `VoiceBar.tsx` sends each new piece of the sentence to `classify.ts`.
+2. `VoiceBar.tsx` shows the words on one line (`Transcript.tsx`): the newest
+   words bright at the right, the sentences before them grey, fading out at
+   the left. It sends each new piece of the sentence to `classify.ts`.
 3. `POST /api/voice-command` asks JEV one Noul question for each fact: each
    tab, "add a note", "bet", "the bet is on no", and one for each post and
    note on the screen (`functions/lib/jevCommand.ts`). JEV answers all of them
@@ -27,7 +29,10 @@ words. So a wrong command cannot sign.
 4. `decideCommand` in `command.ts` makes one command from the probabilities.
    The amount of a bet comes from the words (`spokenUsdc`). So does its side
    (`spokenSide`), when the words name only one side.
-5. The timeline runs the command (`runCommand` in `src/x/Timeline.tsx`).
+5. The timeline runs the command (`runCommand` in `src/x/Timeline.tsx`). The
+   bar shows a line only when the command cannot run, or when the sentence
+   has no command. At its right end, it shows who classified the sentence
+   and how long it took ("JEV · 359 ms").
 
 A command that only shows posts runs on an unfinished sentence. A command
 that opens a signing step waits for the end of the sentence.

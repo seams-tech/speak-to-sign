@@ -1,7 +1,8 @@
 // The voice bar at the foot of the timeline. With the microphone on, the visitor says what the
 // page must do: "show me controversial posts", "add a community note to this one", "bet one
-// dollar on no on the second note". The words show while the visitor speaks. Each new piece of
-// the sentence goes to the classifier (classify.ts), so the page moves before the sentence ends.
+// dollar on no on the second note". The words show while the visitor speaks, on one line after
+// the sentences before them (Transcript.tsx). Each new piece of the sentence goes to the
+// classifier (classify.ts), so the page moves before the sentence ends.
 //
 // A command that shows a tab or goes to a named post runs on an unfinished sentence. "Next
 // post" and a command that opens a signing step (a note, a rating, a bet, a market) wait for
@@ -15,12 +16,14 @@ import { classify } from './classify';
 import type { Screen, VoiceCommand } from './command';
 import { useVoiceHeld } from './hold';
 import { canListen, listen } from './listen';
+import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
 
 /** An unfinished sentence goes to the classifier after this pause in the stream of words. */
 const INTERIM_PAUSE_MS = 180;
-/** How long a finished sentence stays in the bar. */
-const CLEAR_MS = 3_500;
+
+/** Each finished sentence of the line has its own id, for React. */
+let saidSeq = 0;
 
 /** The shortcut as the visitor's keyboard shows it. */
 const SHORTCUT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
@@ -45,10 +48,9 @@ function useTabVisible(): boolean {
   return visible;
 }
 
+/** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
   text: string;
-  /** The classifier's time, and who answered. */
-  detail?: string;
   isProblem: boolean;
 }
 
@@ -63,15 +65,19 @@ export function VoiceBar({
   onToggle: (on: boolean) => void;
   /** The screen at this moment, for the classifier. */
   screen: () => Screen;
-  /** Runs a command. The result is the line that the bar shows; `ok: false` is a problem. */
-  onCommand: (command: VoiceCommand) => { ok: boolean; text: string };
+  /** Runs a command. The result is the problem that the bar shows, or null when it ran. */
+  onCommand: (command: VoiceCommand) => string | null;
   /** An unfinished sentence asks for a note or a bet on this post: show the post, and wait. */
   onTarget: (postId: number) => void;
 }) {
   const held = useVoiceHeld();
   const visible = useTabVisible();
-  const [words, setWords] = useState<{ text: string; final: boolean } | null>(null);
+  /** The finished sentences, oldest first, and the sentence that the visitor says now. */
+  const [said, setSaid] = useState<SaidSentence[]>([]);
+  const [live, setLive] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
+  /** Who classified the last sentence, and how long it took: "JEV · 359 ms". */
+  const [timing, setTiming] = useState<string | null>(null);
   /** Why the microphone cannot listen. The bar then takes typed commands. */
   const [stopReason, setStopReason] = useState<string | null>(() => (canListen() ? null : 'unsupported'));
   const [typed, setTyped] = useState('');
@@ -88,16 +94,22 @@ export function VoiceBar({
   // One sentence at a time: a newer piece of it replaces the request of an older piece.
   const request = useRef<AbortController | null>(null);
   const interimTimer = useRef(0);
-  const clearTimer = useRef(0);
   /** The command that the sentence ran already, so that its next piece does not run it again. */
   const ran = useRef<string | null>(null);
   /** The post that the sentence showed already. */
   const shown = useRef<number | null>(null);
+  /** A sentence is on its way: its first words came, and its end did not. */
+  const speaking = useRef(false);
 
   const hear = useRef((text: string, final: boolean) => {
     window.clearTimeout(interimTimer.current);
-    window.clearTimeout(clearTimer.current);
-    setWords({ text, final });
+    // A new sentence: the line about the last one goes.
+    if (!speaking.current) setStatus(null);
+    speaking.current = !final;
+    if (final) {
+      setSaid((before) => [...before, { id: (saidSeq += 1), text }].slice(-MAX_SAID));
+      setLive(null);
+    } else setLive(text);
     const run = async () => {
       request.current?.abort();
       const controller = new AbortController();
@@ -112,16 +124,21 @@ export function VoiceBar({
       const { command } = result;
       // For a look at what the speech service wrote, and what the page made of it.
       if (final) console.debug('[voice]', JSON.stringify(text), command);
-      const detail = `${result.by === 'jev' ? 'JEV' : 'word rules'} · ${result.ms} ms`;
+      const timed = `${result.by === 'jev' ? 'JEV' : 'word rules'} · ${result.ms} ms`;
       if (command.kind === 'none') {
         // The words stay in the line, so the visitor sees what the speech service wrote.
-        if (final) setStatus({ text: `No command in “${text}”.`, detail, isProblem: false });
+        if (final) {
+          setTiming(timed);
+          setStatus({ text: 'No command in that sentence.', isProblem: false });
+        }
       } else if (final || command.kind === 'show' || command.kind === 'go') {
         const key = JSON.stringify(command, (_, value: unknown) => (typeof value === 'bigint' ? value.toString() : value));
         if (ran.current !== key) {
           ran.current = key;
-          const outcome = onCommandRef.current(command);
-          setStatus({ text: outcome.text, detail, isProblem: !outcome.ok });
+          // A command that ran needs no words: the page shows what it did.
+          const problem = onCommandRef.current(command);
+          setTiming(timed);
+          setStatus(problem === null ? null : { text: problem, isProblem: true });
         }
       } else if ('postId' in command && shown.current !== command.postId) {
         // The page shows the post of a note or a bet at once. The signing step waits for the end.
@@ -133,10 +150,8 @@ export function VoiceBar({
         shown.current = null;
       }
     };
-    if (final) {
-      void run();
-      clearTimer.current = window.setTimeout(() => setWords(null), CLEAR_MS);
-    } else interimTimer.current = window.setTimeout(() => void run(), INTERIM_PAUSE_MS);
+    if (final) void run();
+    else interimTimer.current = window.setTimeout(() => void run(), INTERIM_PAUSE_MS);
   });
 
   // A tab that comes back into view tries again: the tab that held the speech service can be gone.
@@ -157,7 +172,6 @@ export function VoiceBar({
       request.current?.abort();
     };
   }, [listening]);
-  useEffect(() => () => window.clearTimeout(clearTimer.current), []);
 
   const submitTyped = (event: FormEvent) => {
     event.preventDefault();
@@ -167,22 +181,12 @@ export function VoiceBar({
     hear.current(text, true);
   };
 
-  // A sentence stays in the bar while its dialog is open, so the visitor sees what the page heard.
-  const heldWith = useRef(false);
-  useEffect(() => {
-    if (held) {
-      heldWith.current = true;
-      window.clearTimeout(clearTimer.current);
-    } else if (heldWith.current) {
-      heldWith.current = false;
-      setWords(null);
-    }
-  }, [held]);
-
   const toggle = () => {
     if (!on && canListen()) setStopReason(null);
     setStatus(null);
-    setWords(null);
+    setTiming(null);
+    setSaid([]);
+    setLive(null);
     onToggle(!on);
   };
   // Cmd+K (Ctrl+K on Windows and Linux) turns the bar on and off. A key press counts as the
@@ -234,19 +238,11 @@ export function VoiceBar({
               />
             </form>
           ) : (
-            <p className={words?.final === false ? 'voice-words voice-words-live' : 'voice-words'} aria-live="off">
-              {words ? <span>{words.text}</span> : <span className="voice-hint">{hint}</span>}
-            </p>
+            <Transcript said={said} live={live} caret={listening} hint={hint} />
           )}
+          {/* Always in the document, so a screen reader hears a new problem; empty, it takes no room. */}
           <p className={status?.isProblem ? 'voice-status voice-status-problem' : 'voice-status'} role="status">
-            {status ? (
-              <>
-                {status.text}
-                {status.detail && <span className="voice-detail"> {status.detail}</span>}
-              </>
-            ) : (
-              stopReason !== null && !held && <span className="voice-hint">{hint}</span>
-            )}
+            {status ? status.text : stopReason !== null && !held && <span className="voice-hint">{hint}</span>}
           </p>
         </div>
       ) : (
@@ -254,6 +250,7 @@ export function VoiceBar({
           Voice commands <kbd className="voice-key">{SHORTCUT}</kbd>
         </span>
       )}
+      {on && timing && <span className="voice-timing">{timing}</span>}
     </div>
   );
 }

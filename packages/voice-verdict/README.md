@@ -97,7 +97,7 @@ The checks run in this order. The first check that fails gives the refusal.
 | 13 | `audio_digest` is `audioDigest`, if you give one. | `audio_mismatch` |
 
 Seams Wallet core and the Seams co-signer use this check before they sign a
-voice-approved transaction, from the Wallet release after 0.66.0.
+voice-approved transaction, from Seams Wallet 0.67.0.
 
 `checkVerdict` does not throw for a bad verdict. It throws only if the
 runtime has no Ed25519 in Web Crypto.

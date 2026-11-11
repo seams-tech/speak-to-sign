@@ -2,6 +2,7 @@ import { styleNonce } from '../config';
 import type { VoiceCaptureEvent } from '../microphone';
 import { useSystemVoiceMicrophone } from '../microphoneInput';
 import type { VoiceCheckingStyle } from './ribbon';
+import { ROW_EASE, ROW_IN_DELAY_MS, ROW_IN_MS, ROW_OUT_MS, ROW_STAGGER_MS } from './rowMotion';
 import { VoiceVisual } from './visual';
 
 const CSS = `
@@ -62,7 +63,7 @@ const CSS = `
 .seams-voiceid-prompt > .seams-voiceid-status { grid-area: 4 / 1; }
 .seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
 .seams-voiceid-progress-slot:empty { visibility: hidden; }
-.seams-voiceid-activation-surface .seams-voiceid-record-slot { transition: opacity 300ms cubic-bezier(0.2, 0, 0, 1) 140ms, visibility 0s linear 0s; }
+.seams-voiceid-activation-surface .seams-voiceid-record-slot { transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1) 80ms, visibility 0s linear 0s; }
 .seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { opacity: 0; visibility: hidden; transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
@@ -1050,12 +1051,6 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected capture event: ${String(value)}`);
 }
 
-// Rows leave together, then arrive one after another (the phrase card's own timing).
-const ROW_OUT_MS = 150;
-const ROW_IN_MS = 300;
-const ROW_IN_DELAY_MS = 60;
-const ROW_STAGGER_MS = 40;
-const ROW_EASE = 'cubic-bezier(0.2, 0, 0, 1)';
 const ROW_MOTION = 'seams-voiceid-row';
 /** A frame that never reaches the card's size stops being followed after this time. */
 const FRAME_FILL_LIMIT_MS = 800;

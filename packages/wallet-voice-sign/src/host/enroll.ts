@@ -12,7 +12,7 @@ import { enrollInput, readEnrollmentOutput } from './verifier';
 export const ENROLLMENT_PHRASES = [
   'My voice is my signature for this wallet.',
   'I send money only when I say so.',
-  'Seams, please learn how I sound today.',
+  'Please learn how I sound today.',
 ] as const;
 
 /**

@@ -9,7 +9,7 @@ configureVoiceCapture({ assetBase: '../assets/' });
 const ENROLLMENT_PHRASES = [
   'My voice is my signature for this wallet.',
   'I send money only when I say so.',
-  'Seams, please learn how I sound today.',
+  'Please learn how I sound today.',
 ];
 
 const log = document.querySelector('#log');

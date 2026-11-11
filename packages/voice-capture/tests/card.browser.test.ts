@@ -79,7 +79,7 @@ test('the example records three enrollment phrases, one card after another', asy
   for (const phrase of [
     'My voice is my signature for this wallet.',
     'I send money only when I say so.',
-    'Seams, please learn how I sound today.',
+    'Please learn how I sound today.',
   ]) {
     await expect(card.getByText(phrase)).toBeVisible();
     await card.getByRole('button', { name: 'Record' }).click();

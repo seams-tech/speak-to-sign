@@ -4,6 +4,9 @@ Speak-to-Sign lets the owner of a NEAR account approve one exact call with
 their own voice. The hackathon demo is community notes on an X-style page.
 Testnet only.
 
+Judges: [`JUDGES.md`](JUDGES.md) is the short path to see it work and to
+check each claim.
+
 1. You type a community note on a post. To post it, you read a short summary of the note aloud.
 2. An attested verifier checks the audio: an OutLayer TEE worker, NEAR AI Whisper for the words and ReDimNet on Phala for the speaker.
 3. The verifier signs a verdict. The verdict binds the speaker and the heard words to the exact note: the SHA-256 of the note text, the post, the contract and the owner. For a rating, it binds the note id and the rating.

@@ -2,18 +2,17 @@ import {
   IconBell,
   IconBookmark,
   IconChecklist,
-  IconDots,
   IconDotsCircleHorizontal,
   IconHome,
   IconMail,
   IconSearch,
   IconUser,
 } from '@tabler/icons-react';
-import { shortAccount } from '../config';
 import { useDemo } from '../demoContext';
 import { paths } from '../router';
 
 const DECOR = [
+  { label: 'Home', Icon: IconHome },
   { label: 'Explore', Icon: IconSearch },
   { label: 'Notifications', Icon: IconBell },
   { label: 'Messages', Icon: IconMail },
@@ -24,54 +23,24 @@ const DECOR = [
 
 /**
  * The left navigation. Wide screens show the labels; narrow screens show icons only.
- * "Home" opens the timeline. The other menu items copy the look only, in a dim grey that does
- * not invite a click. The account works.
+ * The menu items copy the look only, in a dim grey that does not invite a click. There is no
+ * account block. The timeline has the attention.
  */
 export function Rail() {
-  const { account, status, openSignIn } = useDemo();
-
   return (
-    <header className="rail">
-      <nav className="rail-inner" aria-label="Main">
-        <a className="rail-item rail-link" href={paths.timeline}>
-          <span className="rail-item-pill">
-            <IconHome size={24} stroke={1.8} />
-            <span className="rail-label">Home</span>
-          </span>
-        </a>
+    // For the look only, as on X. Screen readers and the keyboard pass over it.
+    <div className="rail" aria-hidden="true">
+      <div className="rail-inner">
         {DECOR.map(({ label, Icon }) => (
-          <span key={label} className="rail-item" aria-hidden="true">
+          <span key={label} className="rail-item">
             <span className="rail-item-pill">
               <Icon size={24} stroke={1.6} />
               <span className="rail-label">{label}</span>
             </span>
           </span>
         ))}
-      </nav>
-
-      {account ? (
-        <div className="rail-me" title={account}>
-          <span className="rail-me-avatar" aria-hidden="true">
-            {account.charAt(0).toUpperCase()}
-          </span>
-          <span className="rail-me-text">
-            <b className="rail-me-name">{shortAccount(account)}</b>
-            <span className="muted rail-me-sub">{status?.voiceReady ? 'VoiceID on' : 'VoiceID off'}</span>
-          </span>
-          <IconDots className="rail-me-dots" size={18} aria-hidden="true" />
-        </div>
-      ) : (
-        <button type="button" className="rail-me rail-me-btn" onClick={openSignIn}>
-          <span className="rail-me-avatar rail-me-avatar-empty" aria-hidden="true">
-            <IconUser size={20} stroke={1.8} />
-          </span>
-          <span className="rail-me-text">
-            <b className="rail-me-name">Sign in</b>
-            <span className="muted rail-me-sub">to Seams Wallet</span>
-          </span>
-        </button>
-      )}
-    </header>
+      </div>
+    </div>
   );
 }
 

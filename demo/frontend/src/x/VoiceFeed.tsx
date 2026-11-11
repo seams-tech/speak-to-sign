@@ -68,7 +68,7 @@ export function VoiceFeed() {
         <IconSearch size={18} stroke={1.8} />
         <span>Search</span>
       </div>
-      <section className="side-box" aria-labelledby="why-voice-title">
+      <section className="side-box xt-dim" aria-labelledby="why-voice-title">
         <h2 id="why-voice-title" className="side-title">
           Why sign by voice?
         </h2>

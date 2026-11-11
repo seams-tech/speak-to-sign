@@ -153,12 +153,19 @@ button.tab.tab-on {
   align-items: center;
   gap: 4px;
 }
-/* The search box is for the look only. */
-.xt-search {
+/* The search box is for the look only, so it is dim. */
+/* Two classes: the app's own .side-search rule loads later. */
+.side-search.xt-search {
   flex: none;
   background: var(--bg);
+  border-color: var(--line);
+  color: var(--faint);
   cursor: default;
   user-select: none;
+}
+/* "Why sign by voice?" is background reading: it is dim, so the timeline has the attention. */
+.xt-dim {
+  opacity: 0.4;
 }
 /* "Why sign by voice?": rows in the look of X's news box, with an icon at the left. */
 .xt-why {
@@ -188,12 +195,6 @@ button.tab.tab-on {
 .xt-why-title {
   font-weight: 700;
   line-height: 20px;
-}
-/* "Home" in the navigation is a real link now. */
-a.rail-item {
-  color: var(--ink);
-  text-decoration: none;
-  cursor: pointer;
 }
 /* A card's note: two lines, or all of it when it is open. */
 .xt-note-open {

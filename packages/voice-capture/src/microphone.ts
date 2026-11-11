@@ -115,6 +115,24 @@ export function requireVoiceForeground(): void {
   }
 }
 
+/**
+ * The browser starts audio only after the person acts on the page (a click or a key). A
+ * recording that starts by itself gets this error, and the caller then shows its Record control.
+ */
+export class VoiceUserActionNeededError extends Error {
+  constructor() {
+    super(`Select Record to use ${captureConfig().label}.`);
+    this.name = 'VoiceUserActionNeededError';
+  }
+}
+
+/** The time that a permitted audio context needs at most to start, after its setup. */
+const AUDIO_START_MS = 1_000;
+
+function elapsed(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function cancelled(): Error {
   return new Error(`${captureConfig().label} recording was cancelled.`);
 }
@@ -341,7 +359,9 @@ class VoiceRecording {
     worklet.port.onmessage = this.receiveFrame;
     context.createMediaStreamSource(this.stream).connect(worklet);
     worklet.connect(context.destination);
-    await resumed;
+    // A browser that waits for a click or a key keeps the context suspended, with no error.
+    await Promise.race([resumed.catch(() => {}), elapsed(AUDIO_START_MS)]);
+    if (context.state !== 'running') throw new VoiceUserActionNeededError();
   }
 
   private readonly receiveFrame = (event: MessageEvent<unknown>): void => {

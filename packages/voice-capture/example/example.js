@@ -18,7 +18,13 @@ const detector = () => (document.querySelector('#level').checked ? 'level' : 'mo
 
 /** Shows one sentence, records it and returns its WAV, or null when the person closed the card. */
 async function recordSentence(sentence, signal) {
-  const surface = openPhraseCard({ sentence, signal, detector: detector(), frame: { parent } });
+  const surface = openPhraseCard({
+    sentence,
+    signal,
+    detector: detector(),
+    autoStart: document.querySelector('#auto').checked,
+    frame: { parent },
+  });
   try {
     const recording = await surface.record();
     if (recording.kind === 'cancelled') return null;

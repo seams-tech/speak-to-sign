@@ -141,12 +141,15 @@ The asset paths are fixed strings today (`/sdk/voiceid/...`).
 - `BrowserInferenceModel`, `voiceActivityModel`: the model loader. VoiceID uses the loader for
   its own models.
 - Types and errors: `VoiceCaptureEvent`, `VoiceCaptureQuality`, `VoiceActivityEvent`,
-  `InsufficientVoiceAudioError`, `VoiceMicrophoneInterruptedError`, the load error.
+  `InsufficientVoiceAudioError`, `VoiceMicrophoneInterruptedError`,
+  `VoiceUserActionNeededError`, the load error.
 
 ### Entry point `./card`: the phrase card
 
 - `openPhraseCard({ sentence, signal, frame? })` returns the surface `{ record, show, close }`.
   It is today's `openPhrase` without the Wallet iframe parts.
+  With `autoStart: true`, the first recording starts with no press on Record. If the browser
+  starts audio only after a press, the card keeps its Record button.
 - The surface types: `PhraseSurface`, `PhraseRecording`, `PhraseView`, `PhraseCheckView`,
   `PhraseResultView`, `PhraseSegmentState`, `PhraseChoice`, `PhraseText`.
 - `VoicePrompt`, `PhraseCard`, `VoiceRibbon`, `VoiceVisual`, `leaveSurface`: the building

@@ -13,6 +13,7 @@ export {
   requireVoiceUserAction,
   voiceQualityMessage,
   InsufficientVoiceAudioError,
+  VoiceUserActionNeededError,
   type VoiceActivityEvent,
   type VoiceCaptureEvent,
   type VoiceCaptureObserver,

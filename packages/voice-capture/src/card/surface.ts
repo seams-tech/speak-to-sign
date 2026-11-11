@@ -6,6 +6,7 @@ import {
   voiceQualityMessage,
   type VoiceCaptureEvent,
   type VoiceRecordingOptions,
+  VoiceUserActionNeededError,
 } from '../microphone';
 import { VoiceMicrophoneInterruptedError } from '../microphoneInput';
 import { expectedSpeechMs } from '../speechPause';
@@ -38,6 +39,12 @@ export type PhraseCardInput = Readonly<{
   frame?: PhraseCardFrame;
   /** The speech detector of the recordings. Default: `model`. */
   detector?: VoiceRecordingOptions['detector'];
+  /**
+   * The first recording starts when the caller asks for it, with no press on Record. Use it
+   * when the person just asked for this card, with a click or a key. If the browser does not
+   * start audio without a press, the card stays with its Record button.
+   */
+  autoStart?: boolean;
 }>;
 
 /**
@@ -62,6 +69,8 @@ class CardSurface implements PhraseSurface {
   private view: PhraseView | null = null;
   private started = false;
   private closed = false;
+  /** The next recording starts with no press. A card that continues another never does. */
+  private autoStart: boolean;
   /** The voiced time of the whole sentence, after which a shorter pause ends a recording. */
   private readonly expectedSpeechMs: number;
   /** The speech detector has started; before that, a recording waits for it to load. */
@@ -72,6 +81,7 @@ class CardSurface implements PhraseSurface {
     const outer = input.signal;
     this.outer = outer;
     this.detector = input.detector;
+    this.autoStart = input.autoStart === true;
     this.expectedSpeechMs = expectedSpeechMs(sentence);
     // A card that the host just finished stays on screen for this card: the host marks it.
     const handedOver = document.querySelector<HTMLElement>(
@@ -104,6 +114,7 @@ class CardSurface implements PhraseSurface {
       // The card starts as the card it replaces, so the swap does not show; then its rows change.
       this.prompt.continueFrom(handedOverPrompt);
       this.prompt.record.hidden = true;
+      this.autoStart = false;
     }
     this.card = new PhraseCard(
       this.prompt,
@@ -134,7 +145,10 @@ class CardSurface implements PhraseSurface {
     if (this.view) {
       this.view = null;
       void this.card.showPrompt();
+    } else if (this.autoStart) {
+      this.begin(recording);
     }
+    this.autoStart = false;
     return recording.promise;
   }
 
@@ -171,15 +185,19 @@ class CardSurface implements PhraseSurface {
       return;
     }
     if (!this.recording || this.started) return;
+    this.begin(this.recording);
+  };
+
+  private begin(recording: Deferred<PhraseRecording>): void {
     this.started = true;
     this.prompt.record.disabled = true;
     this.prompt.status.textContent = this.speechDetectorReady
       ? 'Opening microphone…'
       : `Loading ${captureConfig().label}…`;
-    void this.attempt(this.recording);
-  };
+    void this.attempt(recording, this.autoStart);
+  }
 
-  private async attempt(recording: Deferred<PhraseRecording>): Promise<void> {
+  private async attempt(recording: Deferred<PhraseRecording>, unpressed = false): Promise<void> {
     const recorder = new AbortController();
     this.recorder = recorder;
     try {
@@ -206,6 +224,11 @@ class CardSurface implements PhraseSurface {
         this.retry(error.message);
         return;
       }
+      // The browser wants a press first: the card is the usual prompt again.
+      if (unpressed && error instanceof VoiceUserActionNeededError) {
+        this.retry(PROMPT_MESSAGE, 'Record');
+        return;
+      }
       this.started = false;
       this.recording = null;
       recording.reject(error instanceof Error ? error : new Error(String(error)));
@@ -222,9 +245,9 @@ class CardSurface implements PhraseSurface {
     else this.prompt.capture(event);
   };
 
-  private retry(message: string): void {
+  private retry(message: string, action = 'Try again'): void {
     this.started = false;
-    this.prompt.record.textContent = 'Try again';
+    this.prompt.record.textContent = action;
     this.prompt.ready(message);
     this.prompt.record.focus();
   }

@@ -108,6 +108,9 @@ try {
 
 - `record()` resolves with `recorded` (the samples) or `cancelled`. A too quiet recording
   stays on the card with "Try again".
+- `autoStart: true` starts the first recording with no press on Record. Use it when the person
+  just asked for the card with a click or a key. If the browser starts audio only after a
+  press, the card keeps its Record button.
 - `show()` resolves with `action` when the person selects the button of a result, `closed`
   when the person closes the card, or `replaced` when a new view or recording takes its place.
 - The card uses the CSS variables `--seams-colors-*`, `--seams-shape-*` and

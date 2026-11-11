@@ -110,3 +110,32 @@ test('the phrase card with the speech model records, and Cancel ends a new recor
   await expect(page.locator('#log')).toHaveText('The recording was cancelled.');
   await expect(card).toHaveCount(0);
 });
+
+test('a card with autoStart records with no press on Record', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  await page.getByLabel('Record with no model download').check();
+  await page.getByLabel('Start the recording with no press on Record').check();
+  await page.getByRole('button', { name: 'Record one sentence' }).click();
+  const card = page.getByRole('dialog', { name: 'Say this with your voice' });
+  await expect(card.getByText('Recorded', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(page.locator('#log')).toHaveText(/^One sentence:/);
+});
+
+test('a card with autoStart keeps its Record button when the browser waits for a press', async ({
+  page,
+}) => {
+  // A browser that waits for a press keeps the audio context suspended, with no error.
+  await page.addInitScript(() => {
+    AudioContext.prototype.resume = () => new Promise<void>(() => {});
+    Object.defineProperty(AudioContext.prototype, 'state', { get: () => 'suspended' });
+  });
+  await page.goto(`${origin}/example/`);
+  await page.getByLabel('Record with no model download').check();
+  await page.getByLabel('Start the recording with no press on Record').check();
+  await page.getByRole('button', { name: 'Record one sentence' }).click();
+  const card = page.getByRole('dialog', { name: 'Say this with your voice' });
+  await expect(card.getByText('Opening microphone…')).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Record' })).toBeEnabled({ timeout: 10_000 });
+  await expect(card.getByText('Read it naturally, then pause.')).toBeVisible();
+});

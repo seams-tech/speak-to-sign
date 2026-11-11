@@ -185,12 +185,12 @@ one wallet works on all three.
 
 ## What must be live
 
-| Part                     | Where                                                        | Status on 9 Nov 2026                                   |
+| Part                     | Where                                                        | Status on 11 Nov 2026                                  |
 | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
 | Notes contract           | `notes.seams-v1.testnet` (`../contracts/community-notes/`)             | Deployed.                                              |
-| Seams Wallet host        | `https://staging.sign.seams.sh`                              | 0.60.0: Speak-to-Sign host API 7 with spoken notes.    |
-| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.4.1 (staging deploy b77bf2cf): community notes and ratings. |
-| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/speak-to-sign`    | This page pins 0.60.0.                                 |
+| Seams Wallet host        | `https://staging.sign.seams.sh`                              | 0.67.0: Speak-to-Sign host API 10, sealed recordings.  |
+| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.12.0 (version key `bfe81633…`): it opens sealed recordings. |
+| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`, `@seams/wallet-voice-sign` | This page pins 0.67.0.                                 |
 | Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin, `https://localhost:5443` and `https://localhost:8443`. |
 
 ## Run it locally
@@ -239,10 +239,9 @@ pnpm preview      # http://localhost:8788
 ```
 
 `build:site` (`scripts/build-site.mjs`) needs `pnpm install` in
-`../../examples/speak-to-pay` too. Each build of this app also needs
-`pnpm install` in `../../packages/voice-verdict`: `src/voiceRoute.ts`
-imports the seal code from there, with its cipher `@noble/ciphers`. It gives the Speak to pay build the same
+`../../examples/speak-to-pay` too. It gives the Speak to pay build the same
 `VITE_SEAMS_*` settings as `demo/frontend/`, so it writes nothing into `examples/`.
+The seal code (`sealAudio`) comes from `@seams/voice-verdict` on npm.
 
 To sign in on the built site, open it through Caddy at https://localhost:8443
 (`pnpm dev:https`), not at `http://localhost:8788`.

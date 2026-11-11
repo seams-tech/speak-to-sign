@@ -1,7 +1,7 @@
 import type { SeamsConfigsInput } from '@seams/wallet';
 import { seamsTestnetConfig } from '@seams/wallet/react';
-import { speakToSign } from '@seams/speak-to-sign';
 import { voiceIdAuthMethod } from '@seams/voiceid';
+import { speakToSign } from '@seams/wallet-voice-sign';
 import { config } from '../config';
 
 /**

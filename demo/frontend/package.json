@@ -17,9 +17,10 @@
   "dependencies": {
     "@fontsource/dm-sans": "5.3.0",
     "@fontsource/hanken-grotesk": "5.3.0",
-    "@seams/speak-to-sign": "0.66.0",
-    "@seams/voiceid": "0.66.0",
-    "@seams/wallet": "0.66.0",
+    "@seams/voice-verdict": "0.67.1",
+    "@seams/voiceid": "0.67.0",
+    "@seams/wallet": "0.67.0",
+    "@seams/wallet-voice-sign": "0.67.0",
     "@tabler/icons-react": "^3.51.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

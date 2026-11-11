@@ -7,7 +7,7 @@
 // (`audio_wav_b64`). The key is `VITE_VOICE_AUDIO_KEY`: the verifier's `audio_key` answer, after
 // scripts/audio-key.mjs checked its signature against the verdict key.
 
-import { AUDIO_KEY_BYTES, sealAudio } from '../../../packages/voice-verdict/src/audioEnvelope.ts';
+import { AUDIO_KEY_BYTES, sealAudio } from '@seams/voice-verdict';
 import { base64 } from './multisig/wav.ts';
 
 /** The verifier's audio key (32 bytes), or null if this build has none. Node tests have no `env`. */

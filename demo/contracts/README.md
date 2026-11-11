@@ -77,7 +77,8 @@ curl -s -X POST https://api-v2.sourcescan.dev/api/verify/rust -H 'Content-Type: 
 ```
 
 It answers `{"message":"Contract verified successfully","checksum":"<code hash>"}`.
-Send one request at a time. Two requests at the same time can fail with a
+If SourceScan already verified the deployed code, it answers
+`{"message":"Code hash didn't change"}`. Send one request at a time. Two requests at the same time can fail with a
 nonce error of the SourceScan signer.
 
 `./build.sh` in each contract folder is a fast local build for the sandbox

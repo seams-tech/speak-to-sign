@@ -219,16 +219,27 @@ calls it as the Wallet does (30 Tgas, no deposit). First build the WASM:
 (cd speak-to-sign/demo/contracts/community-notes && ./build.sh 2>&1 | tail -3)
 ```
 
-Expected on the computer that deployed the contract:
+It prints the size and the SHA-256 of the WASM. This quick build is not the
+same on another computer: the WASM holds the local source paths of panic
+locations. For the same bytes on any computer, check the reproducible build
+(`cargo near build reproducible-wasm`, NEP-330). It needs Docker and
+cargo-near, and takes 1 to 2.5 minutes:
 
-```text
-res/community_notes.wasm
-size:    169267 bytes
-sha256:  472d1eaa420b22d71439bf2db341a45d59ba9aa63b094e758e9a3af3a561a253
+```bash
+(cd speak-to-sign/demo/contracts && ./reproducible.sh check community-notes 2>/dev/null | tail -5)
 ```
 
-On another computer the hash can be different: the WASM holds the local
-source paths of panic locations.
+Expected:
+
+```text
+community-notes
+commit    777b84429096604e77e217480e9f89a398f5da13
+recorded  0b821a5c459d31b7aed4b6459b3aa572189c927411878665d8eae633d51f7f80
+built     0b821a5c459d31b7aed4b6459b3aa572189c927411878665d8eae633d51f7f80
+result    same bytes
+```
+
+`demo/contracts/README.md` describes the build of all four contracts.
 
 ```bash
 (cd speak-to-sign/demo/contracts/community-notes && cargo test -p community-notes-sandbox 2>&1 | grep -E 'Running|Doc-tests|test result|^test')
@@ -335,8 +346,11 @@ Expected on 2026-11-09 (a spoken note from the demo appears here later):
 []
 ```
 
-The deployed code is the release WASM of step 4. The code hash is the
-base58 form of its SHA-256 `472d1eaa…`:
+The deployed code is the upgrade of 2026-11-11: a `build.sh` WASM of `dev`
+01dde86, built on the computer that deployed it (see "Testnet deployment" in
+`demo/contracts/community-notes/README.md`). The code hash is the base58 form
+of its SHA-256 `e6093bb1…26be`. It is not the reproducible build of step 4, so
+it can be checked only against that record:
 
 ```bash
 curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"notes.seams-v1.testnet"}}' | jq -r .result.code_hash
@@ -345,7 +359,7 @@ curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"j
 Expected:
 
 ```text
-5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY
+GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP
 ```
 
 ### What needs a microphone
@@ -469,7 +483,7 @@ for an application with no wallet (`@seams/voice-verdict`,
 
 | Item                | Value                                                                                        |
 | ------------------- | -------------------------------------------------------------------------------------------- |
-| Verifier            | `seams-v1.testnet/voice-verifier`, version 0.11.0, `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8`, active since 2026-11-11 (`set_active_version` tx `69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`). All request kinds, application owners, `select`, `transcribe` and `detect`. Version 0.5.2 (`96b79b51…d7e5`) was active from 2026-11-09 17:04 UTC. The Wallet server and the demo routes each send their own `version_key`. |
+| Verifier            | `seams-v1.testnet/voice-verifier`, version 0.12.0, `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946`, active since 2026-11-11 (`set_active_version` tx `HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`). All request kinds, application owners, `select`, `transcribe`, `detect` and sealed audio. Before it, 0.11.0 (`d2f8b630…d9f8`) was active on 2026-11-11, and 0.5.2 (`96b79b51…d7e5`) from 2026-11-09 17:04 UTC. The Wallet server and the demo routes each send their own `version_key`. |
 | Verifier with notes | version 0.4.0, `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`, added 2026-11-09 and not active (FastFS tx `GPzHTAuC2VADuGR46ks7Mij8oPcZ4xVW9h7VuEkyqfuh`, `add_version` tx `9k7qWvG1JcCVyfzRjWjbWsjdK5MjXwQQ7vh71rT8me7y`). It adds `community_note` and `note_rating`; transfers are unchanged. A caller selects it by `version_key`. |
 | Verifier with multisig | version 0.6.1, `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb`, added 2026-11-10 and not active (FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). It reads "point" for "dot" and a left-out "dash" in a spoken multisig proposal. The voice multisig route selects it by `version_key`. Version 0.6.0, `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9`, added 2026-11-10 and not active (FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). It adds `multisig_propose` and `multisig_confirm`; the other kinds are unchanged. The voice multisig route used it until 0.6.1. |
 | Earlier verifiers   | version 0.5.1, `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258`, and version 0.4.1, `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`, not active. Version 0.3.1, `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`, transfers only, not active. |

@@ -236,8 +236,9 @@ The build of 11 Nov 2026 gave:
 
 `reproducible.sha256` holds the same commit and SHA-256.
 
-The deployed code (`c3f420b8…e037`) is not this build. It came from the local
-build below.
+The deployed code (code hash `FqqfwkqeYU6itKskpCEEJBWdeYYVAF1SpjCeftfnc5pt`,
+the upgrade of 2026-11-11 in "Testnet deployment") is not this build. It came
+from the local build below, of `dev` 01dde86.
 
 ### Local build
 

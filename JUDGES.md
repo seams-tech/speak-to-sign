@@ -74,25 +74,26 @@ git clone https://github.com/seams-tech/speak-to-sign
    (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')
    ```
 
-3. The active verifier comes from this source. Build commit `be35842` in
+3. The active verifier comes from this source. Build commit `a816798` in
    Docker, then read the active version on OutLayer.
 
    ```bash
-   # See: sha256 d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8
-   (cd speak-to-sign && git checkout --quiet be35842 && crates/voice-verifier/build.sh --docker 2>&1 | tail -1; git checkout --quiet dev)
-   # See: the same hash (verifier 0.11.0).
+   # See: sha256 bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946
+   (cd speak-to-sign && git checkout --quiet a816798 && crates/voice-verifier/build.sh --docker 2>&1 | tail -1; git checkout --quiet dev)
+   # See: the same hash (verifier 0.12.0).
    curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"outlayer.testnet\",\"method_name\":\"get_project\",\"args_base64\":\"$(printf '%s' '{"project_id":"seams-v1.testnet/voice-verifier"}' | base64 | tr -d '\n')\"}}" | jq -r '.result.result | implode | fromjson | .active_version'
    ```
 
 4. The deployed notes contract.
 
    ```bash
-   # See: 5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY
+   # See: GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP
    curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"notes.seams-v1.testnet"}}' | jq -r .result.code_hash
    ```
 
-   It is the base58 form of `472d1eaa…a253`, the `build.sh` WASM of commit
-   `a3c3660` on the computer that deployed it (see "Not covered").
+   It is the base58 form of `e6093bb1…26be`, the `build.sh` WASM of `dev`
+   01dde86 on the computer that deployed it, from the upgrade of 2026-11-11
+   (see "Not covered").
 
 ## Claim -> where to check it
 
@@ -127,8 +128,10 @@ boundaries", and spec section 11:
 - The Phala app owner can change the speaker service and keep its key.
 - The verifier does not check a proof of the NEAR RPC access-key view at
   enrollment.
-- The contract WASM build is not reproducible on another computer: the WASM
-  holds local source paths. The verifier build is reproducible.
+- The deployed contracts came from local `build.sh` builds, so their code is
+  not the reproducible build of `demo/contracts/reproducible.sh`. A redeploy
+  of the reproducible WASM would make it checkable. The verifier build is
+  reproducible.
 - Testnet only.
 
 ## Baseline and hackathon work

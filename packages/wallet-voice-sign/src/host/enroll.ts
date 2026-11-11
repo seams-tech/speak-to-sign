@@ -4,7 +4,7 @@ import type {
   SpeakToSignHostEnrollment,
 } from '@seams/wallet/speak-to-sign-host';
 import { enrolledView, enrollSavingView, enrollSigningView, notEnrolledView } from './card';
-import { shortDetail, verifierUnavailable, voiceIdUnavailable } from './result';
+import { shortDetail, showNow, verifierUnavailable, voiceIdUnavailable } from './result';
 import { readEnrollmentOutput } from './verifier';
 
 /**
@@ -36,10 +36,10 @@ export async function runEnrollment(
     clips = recorded;
   }
 
-  void operations.show(enrollSigningView());
+  showNow(operations, enrollSigningView());
   const reply = await operations.enrollClips(
     clips,
-    () => void operations.show(enrollSavingView()),
+    () => showNow(operations, enrollSavingView()),
   );
   if (reply.kind === 'not_signed') {
     return { kind: 'unavailable', reason: 'not_submitted', detail: shortDetail(reply.error) };

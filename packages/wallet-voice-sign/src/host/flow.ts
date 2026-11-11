@@ -16,6 +16,7 @@ import {
 } from './card';
 import {
   mapSigning,
+  showNow,
   stageTimes,
   verifierUnavailable,
   voiceIdUnavailable,
@@ -62,7 +63,7 @@ async function signOnce(
   if (clip.kind === 'unavailable') {
     return { kind: 'final', result: voiceIdUnavailable(clip.detail) };
   }
-  void surface.show(verifyingView());
+  showNow(surface, verifyingView());
 
   const verifyStartedAt = performance.now();
   const reply = await operations.verify(clip);
@@ -133,16 +134,16 @@ function paymentHooks(
     surface.show(paidView(card, transactionHash, seconds()));
   return {
     hooks: {
-      accepted: () => void surface.show(sendingView(card, 'voice')),
+      accepted: () => showNow(surface, sendingView(card, 'voice')),
       approveStepUp: async (policyText) => {
         const choice = await surface.show(stepUpView(card.noun, policyText, 'asking'));
         if (choice !== 'action') return false;
         approval = { kind: 'passkey', approvedAt: performance.now() };
-        void surface.show(stepUpView(card.noun, policyText, 'waiting'));
+        showNow(surface, stepUpView(card.noun, policyText, 'waiting'));
         return true;
       },
       broadcasting: () => {
-        if (approval.kind === 'passkey') void surface.show(sendingView(card, 'passkey'));
+        if (approval.kind === 'passkey') showNow(surface, sendingView(card, 'passkey'));
       },
       included: (transactionHash) => {
         paidCard = showPaid(transactionHash);

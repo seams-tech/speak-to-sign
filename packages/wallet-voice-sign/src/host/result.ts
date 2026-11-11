@@ -113,3 +113,14 @@ export function mapSigning(
       return signing satisfies never;
   }
 }
+
+/**
+ * Shows a view that the flow does not wait for, such as a check. The surface refuses a view
+ * once the flow ended; that refusal has no one to tell.
+ */
+export function showNow<View>(
+  surface: Readonly<{ show(view: View): Promise<unknown> }>,
+  view: View,
+): void {
+  void surface.show(view).catch(() => {});
+}

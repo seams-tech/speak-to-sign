@@ -575,6 +575,7 @@ The deploy transactions and the way to build each contract again are in
 - **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
 - **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.
 - **Voice clones.** A good clone that a compromised device plays can pass. This build has no liveness check and no fresh words.
+- **Synthetic voices.** A text-to-speech voice can enroll and pass. The verifier does not detect synthetic speech, and it does not refuse one voice on many accounts.
 
 ## Evidence
 

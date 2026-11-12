@@ -17,6 +17,61 @@ and signs only a matching request. Its source is
 [`seams-wallet` at 0.67.0](https://github.com/seams-tech/seams-wallet/tree/6ae9e42a93ec1df5f958256b0427bb8e403137ed).
 Every command below needs only this repo.
 
+## Why it is useful
+
+Each use case below says what works today and what is not done yet.
+
+### 1. Hands-free finance: one sentence instead of approval prompts
+
+People now give AI agents spoken commands. When an agent must spend money,
+it stops, and the user reads a prompt and clicks through it. Many prompts in
+a row cause approval fatigue: people click "approve" and do not read. With
+Speak-to-Sign, the spoken sentence is the approval. The sentence states the
+intent ("send 2 NEAR to alice.testnet"), and the voice shows who said it. The
+user does not type, and does not click through a prompt.
+
+- **Today:** speak to pay (`examples/speak-to-pay/`, at `/pay/` of the demo
+  site) pays one exact amount to one exact account. Above 10 NEAR, the
+  verifier asks for a passkey too (`step_up`).
+- **Not done:** no agent proposes the call yet, and the user reads the
+  sentence from the screen. A verdict usually takes about 2 s, but the
+  OutLayer delay has gone above 90 s.
+
+### 2. Spoken multisig: signers know what they sign
+
+Multisig transactions are hard to read, and signing them is tedious, so
+signers often sign blind. On 21 February 2025, attackers took about
+US$1.5 billion from Bybit. They changed the Safe{Wallet} page, and the
+signers approved a transaction that they did not see. When each signer reads
+the request aloud, the signer hears what they approve. The verifier checks
+the heard words against the request that is signed, so the words on a
+changed page do not match.
+
+- **Today:** `multisig.seams-v1.testnet` (`demo/contracts/voice-multisig/`).
+  A visitor proposes a transfer, or the hide of a note, by voice. The contract
+  checks the verdict on chain, and two admins approve.
+- **Not done:** the admins approve with a plain signed call, not by voice.
+  Voice approval by each admin is the next step. The demo site has no page
+  for the multisig.
+
+### 3. Social sites and marketplaces: actions that are easy for people and costly for bots
+
+Bots and AI agents now write a large part of the reviews, replies and
+comments on the web. Speak-to-Sign puts a voice step into the actions that
+matter: a community note, a rating, a review or a bet. For a person, one
+sentence read aloud is natural and fast. For a bot farm, it adds a cost to
+each action: each account needs a voice, and each action needs new audio of
+the exact text.
+
+- **Today:** the community notes demo. Each note, rating and bet needs the
+  enrolled voice of the account, and each recording passes one time only. A
+  bot that takes over an account cannot post as that account without the
+  owner's voice or a good clone of it.
+- **Not done:** this build cannot prove that a live person speaks. A
+  text-to-speech voice can enroll and pass, and one voice can enroll on many
+  accounts. To make bot farms costly, the verifier needs a liveness check
+  (fresh words), synthetic-speech detection and one voice per account.
+
 ## See it in 2 minutes
 
 You need a browser with passkeys and a microphone.
@@ -128,6 +183,8 @@ boundaries", and spec section 11:
 
 - A good voice clone that a compromised device plays can pass. This build has
   no liveness check and no fresh words.
+- A text-to-speech voice can enroll and pass. The verifier does not detect
+  synthetic speech, and it does not refuse one voice on many accounts.
 - The NEAR AI transcript has no signature. A false transcript can pass the
   word check.
 - The owner of the OutLayer project can deploy new code that signs with the

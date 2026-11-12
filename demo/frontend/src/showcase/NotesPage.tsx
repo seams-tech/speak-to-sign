@@ -191,13 +191,16 @@ export function NotesPage({ seams }: { seams: boolean }) {
               </h1>
               <p className="ss-hero-sub">
                 Say what you want to do, and your words become a confidential transaction intent. NEAR infra checks that the voice is yours
-                and that the transaction is what you said, before your wallet signs.
+                and that the transaction is what you said.
               </p>
-              {/* The short form of "How it differs" and "Questions a judge asks" in JUDGES.md: the spoken exact call is the
-                  approval, and a voice clone alone gets nothing, as the keys stay on the person's device. */}
+              {/* The short form of "How it differs" in JUDGES.md: the spoken summary of the exact call is the approval, and
+                  the verifier checks the words and the speaker. The summary is the sentence that `render` of spoken-intent
+                  makes from the call, or for a note the short summary that the Seams server writes of it. */}
               <ul className="ss-hero-sub ss-hero-why">
-                <li>You approve by saying the exact transaction. If your words do not match it, nothing is signed, so you never sign blind.</li>
-                <li>Your voice must match the voice that you enrolled. A cloned voice alone gets nothing: your keys stay on your device.</li>
+                <li>
+                  Each transaction gets a short summary, and you approve by saying it. If the words or the voice do not match,
+                  nothing is signed, so you never sign blind.
+                </li>
               </ul>
             </div>
           </div>

@@ -1,10 +1,10 @@
 [package]
 name = "voice-multisig"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2024"
 rust-version = "1.95"
 publish = false
-description = "Voice multisig for the Speak-to-Sign demo: any account proposes a hidden NEAR transfer with a signed voice verdict, checked on chain, and admin accounts approve it"
+description = "Voice-only multisig for the Speak-to-Sign demo: M of N signers propose and approve a hidden NEAR transfer or note hide, each with a signed voice verdict that the contract checks on chain"
 repository = "https://github.com/seams-tech/speak-to-sign"
 
 # The reproducible build (NEP-330): `cargo near build reproducible-wasm` builds

@@ -10,7 +10,7 @@ import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
 import { isUserRejection } from '../signer/rejection';
-import { spokenRequest, walletErrorText, type SpokenSent } from '../signer/seamsSigner';
+import { contractReason, spokenRequest, walletErrorText, type SpokenSent } from '../signer/seamsSigner';
 import { inVoiceCard, type VoiceCardPlace } from '../signer/voiceCard';
 import { spokenAmount } from './spokenBet';
 import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
@@ -291,10 +291,4 @@ function eventsOf(outcome: unknown): ContractEvent[] {
 function panicOf(outcome: unknown): string | null {
   const match = /Smart contract panicked: ([^"\\]+)/.exec(JSON.stringify(outcome ?? null));
   return match ? `The market says: ${match[1]}.` : null;
-}
-
-/** The contract's own message out of NEAR's failure text ("Smart contract panicked: ..."). */
-function contractReason(error: string): string {
-  const match = /Smart contract panicked: ([^"\\]+)/.exec(error);
-  return match ? `The contract refused: ${match[1]}.` : `The transaction failed: ${error}`;
 }

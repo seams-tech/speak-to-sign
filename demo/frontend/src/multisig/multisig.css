@@ -1,0 +1,406 @@
+/* The spoken multisig page (/multisig/). Light theme only; the colours are the tokens at the top
+   of src/styles.css. */
+
+.ms-page {
+  min-height: 100vh;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: 'Hanken Grotesk', var(--font);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.ms-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 14px 16px;
+}
+
+.ms-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ms-nav-gap {
+  flex: 1;
+}
+
+/* The Seams pill of the Community Notes nav (SeamsSettingsPill): its logo is white. */
+.ms-nav .ss-seams {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--ink);
+  color: var(--on-ink);
+  cursor: pointer;
+}
+
+.ms-nav .ss-seams-wordmark {
+  width: 48px;
+  height: auto;
+}
+
+.ms-nav .ss-seams-mark {
+  display: none;
+}
+
+.ms-main {
+  display: grid;
+  gap: 16px;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 8px 16px 64px;
+}
+
+.ms-intro h1 {
+  margin: 8px 0 6px;
+  font-size: 32px;
+  letter-spacing: -0.01em;
+}
+
+.ms-intro p {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.ms-setup {
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 12px 16px;
+  background: var(--bg);
+}
+
+.ms-card {
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--bg);
+}
+
+.ms-card h2,
+.ms-list h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.ms-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ms-list h2 {
+  margin: 8px 0 0;
+}
+
+.ms-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.ms-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ms-value {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ms-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ms-signers,
+.ms-ticks,
+.ms-sent {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ms-signers li,
+.ms-ticks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.ms-signers a {
+  color: var(--muted);
+}
+
+.ms-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.ms-dot-a {
+  background: linear-gradient(135deg, #1d9bf0, #7856ff);
+}
+
+.ms-dot-b {
+  background: linear-gradient(135deg, #00ba7c, #e2b719);
+}
+
+.ms-you {
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+  font-size: 12px;
+}
+
+.ms-muted {
+  color: var(--muted);
+}
+
+.ms-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ms-error {
+  margin: 8px 0 0;
+  border: 1px solid #f7c6ca;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #fdeced;
+  color: #8a1019;
+  font-size: 14px;
+}
+
+.ms-error p {
+  margin: 0;
+}
+
+.ms-error p + p {
+  margin-top: 4px;
+}
+
+.ms-fields {
+  display: grid;
+  grid-template-columns: 1fr 160px;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .ms-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ms-field {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ms-field input {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.ms-field em {
+  color: #8a1019;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.ms-form > .ms-label {
+  margin-top: 16px;
+}
+
+.ms-say {
+  margin: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--accent-bg);
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ms-say-empty {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ms-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ms-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ms-btn-stop {
+  background: var(--red);
+}
+
+.ms-btn-ghost {
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.ms-btn-sm {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.ms-rec,
+.ms-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ms-rec-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ms-rec-now {
+  color: var(--red);
+  font-size: 15px;
+}
+
+.ms-rec-bar {
+  width: 120px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.ms-rec-bar i {
+  display: block;
+  height: 100%;
+  background: var(--red);
+}
+
+.ms-proposal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms-nonce {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--panel);
+  font-weight: 700;
+}
+
+.ms-proposal-what {
+  display: inline-flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.ms-status {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ms-status-wait {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+
+.ms-status-ready {
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+}
+
+.ms-status-done {
+  background: #e3f7ef;
+  color: #006b47;
+}
+
+.ms-tick {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 50%;
+}
+
+.ms-tick-done .ms-tick {
+  border: 0;
+  background: var(--green);
+  color: #fff;
+}
+
+.ms-approve {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.ms-sent li {
+  font-size: 14px;
+}
+
+.ms-sent-failed {
+  color: #8a1019;
+}

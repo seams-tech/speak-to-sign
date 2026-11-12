@@ -1,18 +1,27 @@
 # Speak-to-Sign demo site
 
-This folder builds one page, `/` (`index.html`): Community Notes, live on NEAR
-testnet. A hero says what a spoken approval is and has the setup steps. The
-notes app is on a sheet under the hero. The page style follows the Seams
-Wallet site. Its code is in `src/showcase/` (`main.tsx`, `NotesPage.tsx`, and
-`live.tsx` for the notes app with its signer).
+This folder builds two pages, live on NEAR testnet:
+
+- `/` (`index.html`): Community Notes. A hero says what a spoken approval is
+  and has the setup steps. The notes app is on a sheet under the hero. The
+  page style follows the Seams Wallet site. Its code is in `src/showcase/`
+  (`main.tsx`, `NotesPage.tsx`, and `live.tsx` for the notes app with its
+  signer).
+- `/multisig/` (`multisig/index.html`): the spoken multisig, version 3.0.0 of
+  `../contracts/voice-multisig` (`config.multisigContract`,
+  `VITE_MULTISIG_CONTRACT`). A signer types a transfer and reads it aloud; each
+  other signer says it from memory; the proposer's browser executes it. The
+  Seams Wallet signs `propose`, `approve` and `execute` with its normal confirm
+  step. Its code is in `src/multisig/` (`MultisigPage.tsx`).
 
 ## The voice route (`/api/voice-verify`)
 
-The spoken bet of the note market records the microphone in the page
-(`src/voice/recorder.ts`): a 16 kHz mono PCM16 WAV of at most 8 s. The page
-sends it to `/api/voice-verify` (`functions/api/voice-verify.ts`), which calls
-the OutLayer verifier with the request kind `market_bet` (the only kind that
-the route takes; verifier 0.8.0 or later). The route needs the six
+The spoken bet of the note market and the multisig page record the microphone
+in the page (`src/voice/recorder.ts`): a 16 kHz mono PCM16 WAV of at most 8 s.
+The page sends it to `/api/voice-verify` (`functions/api/voice-verify.ts`),
+which calls the OutLayer verifier. The route takes only three request kinds:
+`market_bet` (verifier 0.8.0 or later), `multisig_propose` and
+`multisig_confirm` (0.6.0 or later). The route needs the six
 `VOICE_OUTLAYER_*` variables (see Settings). They take effect at the next
 Pages deploy.
 
@@ -188,6 +197,7 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
+| `VITE_MULTISIG_CONTRACT`            | `voice-multisig-2.seams-v1.testnet`   |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
 | `VITE_VOICE_AUDIO_KEY`              | none: recordings go as plain WAVs     |
@@ -228,7 +238,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment,politics,health`. `all` turns the filter off. The filter needs a JEV key: `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://testnet-api.outlayer.ai` (`*.outlayer.fastnear.com` is retired). |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
-| `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` (0.8.0 or later; 0.12.0 or later for sealed recordings). |
+| `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` and the multisig kinds (0.8.0 or later; 0.12.0 or later for sealed recordings). |
 | `VOICE_OUTLAYER_PAYMENT_KEY` | Secret. The OutLayer payment key of the Seams staging verify route. Another key finds no voice templates. |
 | `VOICE_OUTLAYER_SECRETS_PROFILE` | The secrets profile of the Seams staging verify route. |
 | `VOICE_OUTLAYER_SECRETS_ACCOUNT_ID` | The secrets account of the Seams staging verify route. |
@@ -517,7 +527,8 @@ For a public link, add a Cloudflare rate-limiting rule on them (and on
 | `functions/api/faucet.ts`        | The testnet faucet: one `drip` transaction for an account. |
 | `src/faucet/nearTx.ts`           | A small NEAR signer for the functions (Borsh, WebCrypto Ed25519). |
 | `src/voice/recorder.ts`, `wav.ts` | The microphone recorder and the verifier's WAV.            |
-| `functions/api/voice-verify.ts`  | Sends a `market_bet` voice check to the OutLayer verifier. |
+| `functions/api/voice-verify.ts`  | Sends a `market_bet`, `multisig_propose` or `multisig_confirm` voice check to the OutLayer verifier. |
+| `src/multisig/`                  | The spoken multisig page: views, verifier call, Wallet calls, the page. |
 | `functions/lib/http.ts`          | The parts that the functions share: same origin, body size, JSON. |
 | `tests/`                         | Unit tests (`pnpm test`).                                  |
 

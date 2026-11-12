@@ -3,13 +3,20 @@ import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// One page: Community Notes at / (index.html). `pnpm dev` serves it with hot reload. `/api/*`
-// goes to the Pages Function that `pnpm dev:api` runs with wrangler on port 8788.
+// Two pages: Community Notes at / (index.html) and the spoken multisig at /multisig/
+// (multisig/index.html). `pnpm dev` serves both with hot reload. `/api/*` goes to the Pages
+// Function that `pnpm dev:api` runs with wrangler on port 8788.
 export default defineConfig({
   plugins: [react(), localVoiceCapture()],
   build: {
     // The Seams Wallet SDK is most of the bundle (about 240 kB gzip).
     chunkSizeWarningLimit: 1000,
+    rolldownOptions: {
+      input: {
+        notes: path.resolve(import.meta.dirname, 'index.html'),
+        multisig: path.resolve(import.meta.dirname, 'multisig/index.html'),
+      },
+    },
   },
   server: {
     port: 5173,

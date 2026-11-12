@@ -30,10 +30,10 @@ function noul(question: string, yes: string, no: string): Noul {
 }
 
 const SHOW: Record<TimelineTab, string> = {
-  fresh: 'the newest posts, or all posts (the tab "Fresh")',
+  fresh: 'the newest posts, the posts for the visitor, or all posts (the tab "For you")',
   controversial: 'controversial or disputed posts (the tab "Controversial")',
   open: 'the open markets: the posts with an open prediction market (the tab "Open markets")',
-  decided: 'the decided markets: the posts whose prediction market is decided (the tab "Decided")',
+  decided: 'the decided or settled markets: the posts whose prediction market is decided (the tab "Settled")',
 };
 
 const MOVE: Record<MoveTo, string> = {

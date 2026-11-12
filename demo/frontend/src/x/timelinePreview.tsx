@@ -44,9 +44,9 @@ const EXAMPLE_STATES: Record<string, CardState> = {
 
 type Tab = 'fresh' | 'open' | 'decided';
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'fresh', label: 'Fresh' },
+  { id: 'fresh', label: 'For you' },
   { id: 'open', label: 'Open markets' },
-  { id: 'decided', label: 'Decided' },
+  { id: 'decided', label: 'Settled' },
 ];
 
 function stateOf(post: XPost): CardState {

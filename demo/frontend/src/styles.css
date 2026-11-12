@@ -1722,10 +1722,6 @@ code {
   padding: 0;
   margin-bottom: 4px;
 }
-.q-block {
-  display: block;
-  margin-top: 4px;
-}
 .field-help {
   margin-bottom: 8px;
 }
@@ -1822,7 +1818,7 @@ fieldset:disabled .choice {
 .note-input {
   min-height: 92px;
 }
-/* The write dialog: the note in a soft box, then the sentence to read aloud. */
+/* The write dialog: the note in a soft box. The Wallet card shows the summary to read aloud. */
 .wn-label {
   display: block;
   margin: 4px 0 4px;
@@ -1843,17 +1839,10 @@ fieldset:disabled .choice {
   outline-offset: -1px;
   background: var(--bg);
 }
-.wn-note ~ .q-block {
-  margin-top: 16px;
-}
-/* While the prefilled sentence types itself in. */
-.summary-typing {
+/* While the prefilled note types itself in. */
+.note-typing {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-bg);
-}
-.summary-input {
-  font-size: 17px;
-  resize: none;
 }
 .counter {
   text-align: right;
@@ -1869,21 +1858,6 @@ fieldset:disabled .choice {
   display: flex;
   gap: 8px;
   margin-top: 8px;
-}
-.summary-tools {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
-.summary-tools .muted {
-  flex: 1;
-  min-width: 120px;
-}
-.word-count {
-  font-size: 13px;
-  color: var(--muted);
 }
 .field-error {
   margin-top: 8px;

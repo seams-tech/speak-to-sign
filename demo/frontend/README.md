@@ -80,10 +80,10 @@ cp .dev.vars.example .dev.vars   # then set NEAR_AI_API_KEY in .dev.vars
 cp .env.example .env.local       # then set the VITE_SEAMS_* key and environment (ask the project owner)
 ```
 
-Start the summary function, the page and the HTTPS proxy, each in its own terminal:
+Start the functions, the page and the HTTPS proxy, each in its own terminal:
 
 ```bash
-pnpm dev:api     # wrangler pages dev on http://localhost:8788 (the /api/summary function)
+pnpm dev:api     # wrangler pages dev on http://localhost:8788 (the functions under functions/api/)
 ```
 
 ```bash
@@ -387,7 +387,7 @@ too).
   on the card itself opens the bet (the demo post's dialog, or the strip's
   bet sheet while the market takes bets), and otherwise the write dialog.
   "Signed by voice" in the right column brings a note's card into view.
-- **Tabs.** "Fresh" shows all posts. "Open markets" and "Decided" show the
+- **Tabs.** "For you" shows all posts. "Open markets" and "Settled" show the
   posts with a market in that state.
 - **Post ids.** An X post id has 64 bits, and the Seams Wallet refuses a post
   id above 2^53 - 1. `notePostId` in `src/x/xPosts.ts` drops the lowest 10
@@ -402,20 +402,21 @@ too).
 - `/timeline-preview.html` is the first design mock, with example notes and
   markets. It is dev only.
 
-## Summary rules and `/api/summary`
+## The spoken summary of a note
 
-`src/summaryRules.ts` ports `summaryRefusal` from the SDK. The Wallet refuses a
-summary that breaks it with `summary_not_speakable`:
+The page gives the Seams Wallet only the note (`spoken.note({ contract, postId, text })`).
+It gives no summary, so it cannot choose the words that the author says:
 
-- 1 to 12 words, at most 120 bytes.
-- Letters A to Z only, one space between words. A comma can end a word, and
-  one `.`, `!` or `?` can end the summary. No digits, apostrophes, hyphens or links.
-- It does not start with "send", "sent" or "sends".
+1. The Wallet asks the Seams server for a summary. The server writes it from the
+   note with `Qwen/Qwen3.8-27B` on NEAR AI, with thinking off.
+2. The Wallet card shows the note, the summary under it, and the voice line.
+   The author says the summary.
+3. The verifier gets the note text. It checks the voice and the words, and it asks
+   JEV if the summary gives the main point of the note. A summary that does not
+   fit gives `summary_mismatch`.
 
-`functions/api/summary.ts` takes `POST { text }` (1 to 280 characters). It asks
-NEAR AI for one plain sentence, opens contractions ("don't" → "do not"),
-checks the rules, and asks once more if a rule fails. It returns
-`{ summary, model }` or `{ error }`. It refuses requests from other origins.
+This needs the Seams Wallet with iframe protocol 25.0.0 and verifier 0.13.0
+(see `docs/note-summary-plan.md`).
 
 ## Deploy to Cloudflare Pages
 
@@ -457,8 +458,9 @@ the project that allows the Pages origin. One deploy ships the site and `/pay/`.
 deploy `../../examples/speak-to-pay` alone to the same project: that would
 replace the whole site with the Speak to pay page.
 
-The summary route spends NEAR AI credit. For a public link, add a Cloudflare
-rate-limiting rule on `/api/summary` (and on `/api/voice-verify`, see above).
+The routes `/api/voice-command` and `/api/x/eligible-posts` spend NEAR AI credit.
+For a public link, add a Cloudflare rate-limiting rule on them (and on
+`/api/voice-verify`, see above).
 
 ## Files
 
@@ -468,10 +470,8 @@ rate-limiting rule on `/api/summary` (and on `/api/voice-verify`, see above).
 | `src/signer/seamsSigner.ts`      | The Seams Wallet signer and the plain-word reasons.        |
 | `src/seams/seamsConfig.ts`       | The SeamsWeb configuration.                                |
 | `src/notes/`                     | Note types, the contract rule, the RPC store, the balance. |
-| `src/summaryRules.ts`            | The spoken summary rules (port of the SDK).                |
 | `src/components/`                | Note parts, modals, setup panel.                           |
 | `src/data/posts.ts`              | Fictional posts.                                           |
-| `functions/api/summary.ts`       | The Cloudflare Pages Function for NEAR AI summaries.       |
 | `functions/api/faucet.ts`        | The testnet faucet: one `drip` transaction for an account. |
 | `src/faucet/nearTx.ts`           | A small NEAR signer for the functions (Borsh, WebCrypto Ed25519). |
 | `src/voice/recorder.ts`, `wav.ts` | The microphone recorder and the verifier's WAV.            |

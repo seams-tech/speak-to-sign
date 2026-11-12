@@ -27,8 +27,11 @@ export interface SignerStatus {
 
 export interface NotesSigner {
   status(): Promise<SignerStatus>;
-  /** The owner reads `summary` aloud. On accept, the Wallet signs `add_note`. */
-  requestNote(input: { postId: number; text: string; summary: string }): Promise<SignResult>;
+  /**
+   * The Seams server writes a short summary of `text`, and the owner reads it aloud from the
+   * Wallet card. On accept, the Wallet signs `add_note`.
+   */
+  requestNote(input: { postId: number; text: string }): Promise<SignResult>;
   /** The owner says the sentence for `rating`. On accept, the Wallet signs `rate_note`. */
   requestRating(input: { noteId: number; rating: Rating }): Promise<SignResult>;
 }

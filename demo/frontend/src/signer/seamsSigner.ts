@@ -1,11 +1,12 @@
 // The real signer: Seams Wallet Speak-to-Sign (SDK 0.68.0, `seams.near.spoken`).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe (its card shows in the
-// page's open dialog, src/signer/voiceCard.ts): the owner says the
-// summary or the rating sentence, the verifier checks the voice and the words, and the Wallet
-// signs `add_note` or `rate_note` on the notes contract from the owner's own account.
+// page's open dialog, src/signer/voiceCard.ts). For a note, the Seams server writes a short
+// summary and the card shows it under the note; for a rating, the card shows the rating sentence.
+// The owner says it, the verifier checks the voice, the words and (for a note) that the summary
+// fits the note, and the Wallet signs `add_note` or `rate_note` from the owner's own account.
 
-import { summaryRefusal, type SpeakToSignEnrollmentResult, type SpeakToSignResult, type SpeakToSignSentTransaction } from '@seams/wallet';
+import type { SpeakToSignEnrollmentResult, SpeakToSignResult, SpeakToSignSentTransaction } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 import { isCancelError, isUserRejection } from './rejection';
@@ -58,11 +59,9 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
       return { signedIn: true, accountId: nearAccountId ?? undefined, voiceReady: availability.kind === 'enabled' };
     },
 
-    requestNote: async ({ postId, text, summary }) => {
-      // The Wallet refuses a summary that breaks the SDK's rule, so check it first.
-      if (summaryRefusal(summary) !== null) return { kind: 'refused', reason: REFUSALS.summary_not_speakable ?? 'The summary is not speakable.' };
-      return await run((spoken, id) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, summary, ...place })));
-    },
+    // The Seams server writes the summary, and the Wallet card shows it under the note.
+    requestNote: ({ postId, text }) =>
+      run((spoken, id) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, ...place }))),
 
     requestRating: ({ noteId, rating }) =>
       run((spoken, id) => inVoiceCard((place) => spoken.rating({ walletSession: id, contract, noteId, rating, ...place }))),
@@ -171,6 +170,8 @@ const REFUSALS: Record<string, string> = {
   storage: 'The verifier could not store its record.',
   transcriber_unavailable: 'The speech-to-text service did not answer.',
   summary_not_speakable: 'The summary must be 1 to 12 words of letters A to Z.',
+  summary_mismatch: 'The verifier found that the summary does not give the main point of the note.',
+  summary_check_unavailable: 'The summary check service did not answer.',
   note_not_valid: 'The note, the contract or the id is not valid.',
   bet_not_valid: 'The market, the outcome or the amount of the bet is not valid.',
   verdict_mismatch: 'The signed verdict did not match this request, so the Wallet signed nothing.',
@@ -183,6 +184,7 @@ const UNAVAILABLE: Record<string, string> = {
   flow_not_available: 'The Seams Wallet on this server has no spoken notes yet.',
   voiceid_unavailable: 'VoiceID is not on for this wallet. Turn it on in the setup steps.',
   verifier_unavailable: 'The Speak-to-Sign verifier did not answer.',
+  summary_unavailable: 'Seams could not write a summary of the note. Try again.',
   not_submitted: 'The Wallet did not send the transaction.',
   submission_unknown: 'The transaction may have gone out. Check the explorer before you try again.',
 };

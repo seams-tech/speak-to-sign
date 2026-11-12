@@ -123,8 +123,8 @@ const PREPARE_VIEW: Record<PrepareStep, { icon: ReactNode; title: string; text: 
 
 interface SpeakStepProps {
   phase: SignPhase;
-  /** The words that the owner says. */
-  sentence: string;
+  /** The words that the owner says. Absent when the Wallet card shows them (a note's summary). */
+  sentence?: string;
   buttonLabel: string;
   hint: string;
   disabled: boolean;
@@ -174,16 +174,21 @@ function SpeakButton(props: SpeakStepProps & { phase: Exclude<SignPhase, { state
   const text = step ? (
     step.text
   ) : live ? (
-    <>
-      Click Record, then say: <q className="say">{props.sentence}</q>
-    </>
+    props.sentence ? (
+      <>
+        Click Record, then say: <q className="say">{props.sentence}</q>
+      </>
+    ) : (
+      'Read the sentence on the card aloud.'
+    )
   ) : props.disabled && props.disabledHint ? (
     props.disabledHint
   ) : (
     props.hint
   );
   // Read out when the button turns to a step or the wait. The button keeps the focus.
-  const status = step ? `${step.title}. ${step.text}` : live ? `Speak in the Seams Wallet card. Click Record, then say: ${props.sentence}` : '';
+  const say = props.sentence ? `Click Record, then say: ${props.sentence}` : 'Read the sentence on the card aloud.';
+  const status = step ? `${step.title}. ${step.text}` : live ? `Speak in the Seams Wallet card. ${say}` : '';
 
   return (
     <div className="speak">
@@ -225,7 +230,7 @@ function ResultCard({
     const seconds = result.endOfSpeechToReceiptMs === undefined ? null : (result.endOfSpeechToReceiptMs / 1000).toFixed(1);
     return (
       <Card>
-        <q className="card-quote">{sentence}</q>
+        {sentence && <q className="card-quote">{sentence}</q>}
         <Check>Biometric CAPTCHA: voice matched {accountId ? shortAccount(accountId) : 'the account owner'}</Check>
         <Check>{wordsLine}</Check>
         {result.approval === 'voice_and_passkey' && <Check>A policy rule asked for your passkey too</Check>}

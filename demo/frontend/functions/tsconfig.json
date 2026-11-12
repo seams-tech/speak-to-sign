@@ -14,5 +14,5 @@
     "types": ["@cloudflare/workers-types"],
     "noEmit": true
   },
-  "include": ["./**/*.ts", "../src/summaryRules.ts", "../src/faucet/nearTx.ts", "../src/guards.ts", "../src/x/types.ts", "../src/x/noteDrafts.ts", "../src/voice/command.ts"]
+  "include": ["./**/*.ts", "../src/faucet/nearTx.ts", "../src/guards.ts", "../src/x/types.ts", "../src/x/noteDrafts.ts", "../src/voice/command.ts"]
 }

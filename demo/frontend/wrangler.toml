@@ -1,5 +1,5 @@
 # Cloudflare Pages project for the Community Notes demo.
-# The Pages Function in functions/api/summary.ts needs the secret NEAR_AI_API_KEY.
+# functions/api/voice-command.ts and functions/api/x/eligible-posts.ts use the secret NEAR_AI_API_KEY.
 # functions/api/voice-verify.ts needs the OutLayer settings of the Seams staging verify route:
 # VOICE_OUTLAYER_BASE_URL, VOICE_OUTLAYER_PROJECT, VOICE_OUTLAYER_VERSION_KEY (a verifier with
 # market_bet), VOICE_OUTLAYER_PAYMENT_KEY (secret), VOICE_OUTLAYER_SECRETS_PROFILE and

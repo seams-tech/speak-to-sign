@@ -29,7 +29,7 @@ export const FIXTURE_POSTS: XPost[] = [
       "views": 119613
     },
     "topic": "sport",
-    "draft": { "text": "The two lists cover different spans: 2 games for Chase and 5 games for Jefferson. So the totals do not compare the players fairly. The post gives no source for the numbers.", "summary": "these numbers compare two games with five games" }
+    "draft": { "text": "The two lists cover different spans: 2 games for Chase and 5 games for Jefferson. So the totals do not compare the players fairly. The post gives no source for the numbers." }
   },
   {
     "id": "2119918368736088126",
@@ -58,7 +58,7 @@ export const FIXTURE_POSTS: XPost[] = [
       "views": 443903
     },
     "topic": "science",
-    "draft": { "text": "The post is about Marthe Gautier and the 1959 paper on Down syndrome. It names no source, and it does not say who the colleague was or what the paper credits to each of them.", "summary": "this story names no source for its claim" }
+    "draft": { "text": "The post is about Marthe Gautier and the 1959 paper on Down syndrome. It names no source, and it does not say who the colleague was or what the paper credits to each of them." }
   },
   {
     "id": "2119879956310512018",
@@ -81,7 +81,7 @@ export const FIXTURE_POSTS: XPost[] = [
       "views": 82896
     },
     "topic": "sport",
-    "draft": { "text": "This is one person's report of what other people said about crowd noise. The post names no game, no statement from the team and no recording. It is an opinion, not a confirmed fact.", "summary": "this is hearsay about crowd noise with no proof" }
+    "draft": { "text": "This is one person's report of what other people said about crowd noise. The post names no game, no statement from the team and no recording. It is an opinion, not a confirmed fact." }
   },
   {
     "id": "2119872309796442122",
@@ -104,7 +104,7 @@ export const FIXTURE_POSTS: XPost[] = [
       "views": 129110
     },
     "topic": "entertainment",
-    "draft": { "text": "The post says that James Gunn was fired and links only a commentary video. It gives no statement from the studio. Treat it as a rumour until the studio confirms it.", "summary": "this firing claim has no statement from the studio" }
+    "draft": { "text": "The post says that James Gunn was fired and links only a commentary video. It gives no statement from the studio. Treat it as a rumour until the studio confirms it." }
   },
   {
     "id": "2119192900617510976",
@@ -127,6 +127,6 @@ export const FIXTURE_POSTS: XPost[] = [
       "views": 15783
     },
     "topic": "technology",
-    "draft": { "text": "The post describes ten web domains and their search ranks, and it does not list the domains or show the search results. A reader cannot check the claim as it is written.", "summary": "this post gives no way to check its claim" }
+    "draft": { "text": "The post describes ten web domains and their search ranks, and it does not list the domains or show the search results. A reader cannot check the claim as it is written." }
   }
 ];

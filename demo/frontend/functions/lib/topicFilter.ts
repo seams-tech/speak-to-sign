@@ -29,7 +29,7 @@ export function isTopic(value: unknown): value is Topic {
 }
 
 const NEAR_AI_URL = 'https://cloud-api.near.ai/v1/chat/completions';
-/** The same small model as /api/summary. */
+/** A small model that NEAR AI hosts itself: the one that the Seams server uses for a note's summary. */
 export const DEFAULT_TOPIC_MODEL = 'Qwen/Qwen3.8-27B';
 const BATCH = 20;
 const MAX_POST_CHARS = 500;

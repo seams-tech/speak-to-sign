@@ -304,12 +304,12 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   );
 
   // After `add_note`, read the post until the new note shows, and keep its transaction.
-  const onNoteSent = async (postId: number, summary: string, hash: string) => {
+  const onNoteSent = async (postId: number, text: string, hash: string) => {
     if (accountRef.current) void readFunds(accountRef.current);
     for (let attempt = 0; attempt < 10; attempt += 1) {
       try {
         const notes = await loadPost(postId);
-        const mine = notes.find((note) => note.author === accountRef.current && note.summary === summary);
+        const mine = notes.find((note) => note.author === accountRef.current && note.text === text);
         if (mine) {
           setNoteTx((current) => (current[mine.id] ? current : { ...current, [mine.id]: hash }));
           setFreshNoteId(mine.id);
@@ -406,7 +406,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             post={writePost}
             autoSign={writeFor?.autoSign}
             onClose={() => setWriteFor(null)}
-            onSent={(summary, hash) => void onNoteSent(writePost.id, summary, hash)}
+            onSent={(text, hash) => void onNoteSent(writePost.id, text, hash)}
             onDone={() => {
               setWriteFor(null);
               showToast('Your note was signed and submitted');

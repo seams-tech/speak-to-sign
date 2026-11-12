@@ -52,8 +52,6 @@ export interface NoteDraft {
   /** At most 280 characters, with a link to a source. */
   text: string;
   sources: 'yes' | 'no';
-  /** The spoken summary: 1 to 12 words of ASCII letters (src/summaryRules.ts). */
-  summary: string;
 }
 
 export interface Post {
@@ -117,7 +115,6 @@ export const POSTS: Post[] = [
       reasons: ['It presents an unverified claim as a fact'],
       text: 'This account posts AI-written engagement bait daily, with new numbers each time. Thumbnails can outlive deleted photos, but nothing shows they keep full photos, and the video shows no search. https://pasqualepillitteri.it/en/news/28147/deleted-iphone-photos-claude-code-viral-post',
       sources: 'yes',
-      summary: 'this post is engagement bait and its photo claim has no proof',
     },
   },
 ];

@@ -25,10 +25,10 @@ import './timeline.css';
 
 type Tab = TimelineTab;
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'fresh', label: 'Fresh' },
+  { id: 'fresh', label: 'For you' },
   { id: 'controversial', label: 'Controversial' },
   { id: 'open', label: 'Open markets' },
-  { id: 'decided', label: 'Decided' },
+  { id: 'decided', label: 'Settled' },
 ];
 
 /**

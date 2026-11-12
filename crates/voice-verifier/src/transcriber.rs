@@ -36,6 +36,10 @@ pub struct Provider {
     /// The OutLayer secret (an environment variable) with its API key.
     pub api_key_env: &'static str,
     pub timeout_secs: u64,
+    /// The media type of the `file` part. Venice refuses `audio/wav` with
+    /// status 422 ("The audio could not be processed", 2026-11-12) and takes
+    /// `audio/x-wav`.
+    pub file_type: &'static str,
     /// True: the request goes sealed to a gateway whose TDX quote the worker
     /// checked. False: plain HTTPS, and no check.
     pub attested: bool,
@@ -46,6 +50,7 @@ pub const NEAR_AI: Provider = Provider {
     model: NEAR_AI_MODEL,
     api_key_env: NEAR_AI_API_KEY_ENV,
     timeout_secs: NEAR_AI_TIMEOUT_SECS,
+    file_type: "audio/wav",
     attested: true,
 };
 
@@ -54,6 +59,7 @@ pub const VENICE: Provider = Provider {
     model: VENICE_MODEL,
     api_key_env: VENICE_API_KEY_ENV,
     timeout_secs: VENICE_TIMEOUT_SECS,
+    file_type: "audio/x-wav",
     attested: false,
 };
 
@@ -66,17 +72,18 @@ pub const PROVIDER: &Provider = if cfg!(feature = "venice") { &VENICE } else { &
 /// `multipart/form-data` with exactly the fields `model`, `language` and
 /// `file`. The boundary comes from the WAV digest, so it is deterministic
 /// and is not in the body. Returns (content type, body).
-fn multipart_body(model: &str, wav: &[u8]) -> (String, Vec<u8>) {
+fn multipart_body(provider: &Provider, wav: &[u8]) -> (String, Vec<u8>) {
     let boundary = format!("seams{}", hex(&sha256(wav)));
     let mut body = Vec::with_capacity(wav.len() + 512);
-    for (name, value) in [("model", model), ("language", NEAR_AI_LANGUAGE)] {
+    for (name, value) in [("model", provider.model), ("language", NEAR_AI_LANGUAGE)] {
         body.extend_from_slice(
             format!("--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n").as_bytes(),
         );
     }
     body.extend_from_slice(
         format!(
-            "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"clip.wav\"\r\nContent-Type: audio/wav\r\n\r\n"
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"clip.wav\"\r\nContent-Type: {}\r\n\r\n",
+            provider.file_type
         )
         .as_bytes(),
     );
@@ -89,7 +96,7 @@ fn multipart_body(model: &str, wav: &[u8]) -> (String, Vec<u8>) {
 /// [`NEAR_AI_TRANSCRIPTIONS_URL`] with the API key, the multipart body and
 /// no model alias (so the gateway runs the named model).
 pub fn transcription_message(api_key: &str, wav: &[u8]) -> Vec<u8> {
-    let (content_type, body) = multipart_body(NEAR_AI.model, wav);
+    let (content_type, body) = multipart_body(&NEAR_AI, wav);
     let rest = NEAR_AI_TRANSCRIPTIONS_URL.strip_prefix("https://").expect("an https URL");
     let (authority, path) = rest.split_at(rest.find('/').expect("a path"));
     let headers = [
@@ -123,7 +130,7 @@ pub fn transcription_request(
 /// The POST to a service with no checked gateway (Venice AI), over plain
 /// HTTPS: the same form, with the API key in a header.
 pub fn plain_request(provider: &Provider, api_key: &str, wav: &[u8]) -> PostRequest {
-    let (content_type, body) = multipart_body(provider.model, wav);
+    let (content_type, body) = multipart_body(provider, wav);
     PostRequest {
         url: provider.url.to_string(),
         headers: vec![
@@ -224,6 +231,7 @@ mod tests {
         assert_eq!(text.matches("Content-Disposition").count(), 3);
         assert!(text.contains("name=\"model\"\r\n\r\nfal-ai/wizper\r\n"));
         assert!(text.contains("name=\"language\"\r\n\r\nen\r\n"));
+        assert!(text.contains("filename=\"clip.wav\"\r\nContent-Type: audio/x-wav\r\n\r\n"));
         assert!(!text.contains("prompt"));
         assert!(request.body.windows(wav.len()).any(|window| window == wav));
     }

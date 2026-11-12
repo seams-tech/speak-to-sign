@@ -14,7 +14,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.14.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.14.1 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -39,7 +39,11 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.12.0  | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` | The source on this branch at commit `a816798` (536,004 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `3ZTwf8cWSAo4m8wNuvabsNynVwW3bcUZ4gfGB4n2MiuZ`, `add_version` tx `ByxnDTxpbs7pyDa4j6WahS7dpJYwGM4sLYSvvUx1cbai`). **Active** since 2026-11-11 (`set_active_version` tx `HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`): a call with no `version_key` runs it. Before the switch, a test with plain audio gave the expected result for `enroll`, `verify` (the word check and the speaker check too), `select`, `transcribe` and `detect`, each with its TDX quote bound to this WASM. The `local-speaker` variant is not built. Adds sealed audio: `verify`, `enroll`, `select`, `transcribe` and `detect` take each recording in `audio_sealed_b64` (HPKE to the audio key, the OutLayer secret `PROTECTED_AUDIO_KEY`) in place of `audio_wav_b64`, and the new operation `audio_key` returns the audio public key with a signature of the verdict key. Plain audio works as before. See "Sealed audio" below. |
 | 0.13.0  | `1b7771544f3bcf5b3ba9e9bf3ac611f6abad21e7538f67b2666fd8aafc8cf930` | The source on this branch at commit `a4d6ce7` (548,960 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `7MFXux9gJQHPHBKJtGacMKgpa3AUfgFhyNNQrvHdLGBz`, `add_version` tx `5DVbadJ1CSwyxkdi5oRGjLvRtySvQQoD3umnkXzo9zB4`). **Not active**: a call reaches it only with `version_key`. The Seams staging server pins it from Wallet 0.69.0. A `community_note` request takes the note text (`note_text`, 1 to 280 characters) in place of `note_sha256_hex`, and the verifier calculates the SHA-256 itself. JEV checks that the summary gives the main point of the note; a fit below 600 thousandths refuses with `summary_mismatch`, and no answer refuses with `summary_check_unavailable`. A Wallet that sends `note_sha256_hex` gets `unsupported`, so the Wallet and this build go live together. See "Note summary check" below. |
 | 0.14.0 (first build, with `dcap-qvl`) | `2f8e75a3590e90518c344f4683a8912fd0876ab3f000981a002f1741b607ffb5` | The source at commit `6f0d43f` (1,038,333 bytes, `build.sh --docker` before the `wasm-opt` step). Added to the OutLayer project on 2026-11-12 (FastFS tx `12q7t1fcC2biqRRuKveo7LUWLREx3MfD2SSGN6tydxja`, `add_version` tx `CRbDmxzJWqLXCvwrfKGKdUWQ1UWJ6xm8FmKRYcuuojHa`). **Not active**, and no caller selects it. It checks NEAR AI's attestation and sends each recording to Whisper only sealed to the checked gateway (see "NEAR AI attestation"). In a test on 2026-11-12 its first call ran the check inside OutLayer (424.8 million instructions), and two later calls read the stored result (`tee_cached` 1, `tee` 63 and 189 ms). NEAR AI Whisper gave no reply during the test, so no call came to a verdict. Its load time is about 1.1 s above 0.13.0 (see "Size and load time"). |
-| 0.14.0 (the source on `dev`) | Not on OutLayer | The source at commit `ab8f6bc` (494,721 bytes, sha256 `d265bf0588700be099c74e7c905f9b542004e95aad28fce8a2db71b4398a3416`, `build.sh --docker`). The same check as the first build, with the worker's own TDX quote check in place of `dcap-qvl`. It writes `0.14.0` in a verdict, as the first build does, so that text does not name one build. |
+| 0.14.0 (before the speech-to-text adapter) | Not on OutLayer | The source at commit `ab8f6bc` (494,721 bytes, sha256 `d265bf0588700be099c74e7c905f9b542004e95aad28fce8a2db71b4398a3416`, `build.sh --docker`). The same check as the first build, with the worker's own TDX quote check in place of `dcap-qvl`. It writes `0.14.0` in a verdict, as the first build does, so that text does not name one build. |
+| 0.14.0 | `b9a315b7a5f7c730437b432d860e6e5b8d8216a9e753eb66bd74d4c788849293` | The source at commit `454c76e`, with the speech-to-text adapter (495,707 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `EgHoTjLDS1NHMU5oYet9cGbW7Z8kKDd1qkmEGMEuTncK`, `add_version` tx `7JB9gA17Xn8LWkNB2iGyvuTnBhP6tP3Smi3UbqGUF29q`). **Not active.** Three `verify` calls got the checked gateway from the worker storage (`tee` 49 to 230 ms) and then no reply of NEAR AI Whisper, which was down. It writes `0.14.0`, as two earlier builds do. Use 0.14.1. |
+| 0.14.0+venice | `59ee371cac571d8ef611baf0d1f6f9a9a9b568f87f56f5d2e2a2a38e3b07fa66` | The `venice` build of commit `454c76e` (400,206 bytes, `build.sh --venice --docker`). Added on 2026-11-12 (FastFS tx `4uZrJVGTfht1kKHRrQxx45De3HnAeW4cXW8YGFYhsDBm`, `add_version` tx `Bnapmuj5E4kXxfpezSxXBVoaqK4b68gQ94mP5Ga8Rf2c`). **Not active. Do not use it:** it sends the file part as `audio/wav`, and Venice answers 422, so each call with words refuses with `transcriber_unavailable` (`transcriber: status_422`). |
+| 0.14.1 | Not on OutLayer: `1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c` | The source of this commit, default build (495,774 bytes, `build.sh --docker`). The same behaviour as 0.14.0 `b9a315b7…`; the version number says that it is a build with the Venice fix. |
+| 0.14.1+venice | `344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8` | The `venice` build of this commit (400,267 bytes, `build.sh --venice --docker`). Added on 2026-11-12 (FastFS tx `3GoiG3msinq45Hue3P2eBarsJ8KyGqcQqPaW2v8DzaR6`, `add_version` tx `7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip`). **Not active**: a call reaches it only with `version_key`. It sends the file part as `audio/x-wav`, which Venice accepts. See "Speech-to-text service". |
 
 Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
 `b0f53da4…bff3` and the two "standalone preview" builds. So that text does
@@ -319,10 +323,10 @@ service it is.
 | Transport | Oblivious HTTP, sealed to the gateway that the worker checked (see "NEAR AI attestation") | Plain HTTPS |
 | Check of the service | The TDX quotes of the gateway and of the model. No checked gateway, no request. | None. Venice gives no TEE quote. |
 | Who can read the audio | The worker and the NEAR AI TDX VMs | The worker and Venice AI |
-| Version in each signed output | `0.14.0` | `0.14.0+venice` |
+| Version in each signed output | `0.14.1` | `0.14.1+venice` |
 | OutLayer secret | `NEAR_AI_API_KEY` | `VENICE_API_KEY`, and `NEAR_AI_API_KEY` for a note and for `detect` |
 | Manifest | `manifest/outlayer.json` | `manifest/outlayer-venice.json`: `api.venice.ai` in place of the two Intel hosts |
-| Worker (`--docker`, this commit) | 495,707 bytes | 400,206 bytes: the gateway check is not in it |
+| Worker (`--docker`, this commit) | 495,774 bytes | 400,267 bytes: the gateway check is not in it |
 
 The `venice` build is the fallback for an outage of NEAR AI Whisper. On
 2026-11-12 Whisper gave no reply for more than an hour, while the rest of
@@ -334,9 +338,9 @@ Facts of the `venice` build:
 - **Venice is not attested.** Its terms say that it keeps no data, but
   nothing here checks that. While a caller selects this build, a party
   outside a TEE reads each recording. Do not say that only TEEs open the
-  audio for a verdict of `0.14.0+venice`.
+  audio for a verdict that ends in `+venice`.
 - **The verdict says so.** The field `verifier` of each verdict, transcript
-  and intent is `0.14.0+venice`, and the TDX quote of the call names the
+  and intent is `0.14.1+venice`, and the TDX quote of the call names the
   WASM hash of this build. The verdict key is the same (it is bound to the
   project), so a contract or a Wallet that pins only the key accepts it. A
   checker that must refuse Venice reads `verifier`.
@@ -347,7 +351,8 @@ Facts of the `venice` build:
   model of `detect` stay on NEAR AI. A note with no `NEAR_AI_API_KEY`
   refuses with `summary_check_unavailable`.
 - The request has the same form: `model`, `language` and `file`, with no
-  prompt. Venice adds `duration` to its reply; the worker reads only `text`.
+  prompt. The file part is `audio/x-wav`: Venice answers 422 for
+  `audio/wav`. Venice adds `duration` to its reply; the worker reads only `text`.
 - `local-speaker` and `venice` together do not compile.
 - The shared vectors are those of the default build. `cargo test --features
   venice` skips them and the tests of the gateway check, and runs the others

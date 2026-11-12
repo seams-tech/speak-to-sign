@@ -124,48 +124,21 @@ This repository is all that you need. Seams Wallet is a dependency from npm
 clone (no `--depth`), because the dates in "Baseline and hackathon work" come
 from the history.
 
-### 1. Spoken-intent golden vectors
+### 1. The sentence and the signed bytes
 
-The `spoken-intent` crate renders a request into the one English sentence
-that the owner says. It also computes the request digest that the verdict
-binds. `fixtures/spoken_intent_vectors_v1.json` is the golden file: 37
-requests (12 transfers, 7 multisig approvals, 3 community notes, 3 note
-ratings, 3 merge approvals, 3 market bets, 2 transactions, 1 signed message
-and 3 confirmations), with their sentences, Borsh bytes and digests, plus the
-vectors for normalization, transcript parsing and sound-alike words.
+The main claim is that the words you say are the call that gets signed. The
+`spoken-intent` crate makes both from one request: the English sentence, and
+the digest that the verdict binds. This test proves that the two stay
+together: 37 fixed requests, each with its sentence and its digest, in
+`fixtures/spoken_intent_vectors_v1.json`. If the code makes another sentence
+or another digest for one of them, the test fails.
 
 ```bash
-(cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
+# See: 9 "ok" lines, 39 passed.
+(cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep 'test result')
 ```
 
-Expected (39 tests):
-
-```text
-     Running unittests src/lib.rs (target/debug/deps/spoken_intent-a16e3c61734de2f2)
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/accounts.rs (target/debug/deps/accounts-01376625692ffcf7)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/bet.rs (target/debug/deps/bet-76c08390431ab697)
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/multisig.rs (target/debug/deps/multisig-0ff6ff0545e0bba6)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/normalize.rs (target/debug/deps/normalize-cfb59b3220c05961)
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/punctuated.rs (target/debug/deps/punctuated-679c9bdf9b6ce233)
-test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/render.rs (target/debug/deps/render-4db1d85cafcf77f4)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/vectors.rs (target/debug/deps/vectors-21056aa4746d8cc3)
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
-   Doc-tests spoken_intent
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-```
-
-`committed_spoken_intent_vectors_match_generator` (in `tests/vectors.rs`)
-fails if the committed golden file differs from what the code generates.
-
-Step 3 checks the request digest of every vector of this file again, in
-TypeScript.
+Step 3 checks the digest of each of these requests again, in TypeScript.
 
 ### 2. The verifier
 

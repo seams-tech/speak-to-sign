@@ -47,6 +47,10 @@ politics or health, but not about war, crime or adult content.
 Pitch words: **Biometric CAPTCHA** is the voice gate. **Spoken Lease** is the
 signed output: one call, for a short time.
 
+Pitch sentence, for the X post: "Speak-to-Sign turns speech into a Confidential
+Voice Intent. Your audio is sealed in the browser and opens only inside a TEE,
+which signs who spoke and what they said."
+
 There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 

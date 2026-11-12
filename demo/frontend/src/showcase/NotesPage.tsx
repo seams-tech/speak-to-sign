@@ -190,15 +190,14 @@ export function NotesPage({ seams }: { seams: boolean }) {
                 Sign with your voice.
               </h1>
               <p className="ss-hero-sub">
-                Say the request. Your Seams Wallet signs only when the voice is yours and the words match. No confirm tap, and you cannot sign
-                what you did not say.
+                Say what you want to do, and your words become a transaction intent. NEAR infra checks that the voice is yours and that the
+                transaction is what you said, before your Seams Wallet signs.
               </p>
               {/* The short form of "Why sign by voice?" in the root README. */}
-              <ul className="ss-hero-points" aria-label="Why sign by voice">
-                <li>Each note needs your voice</li>
-                <li>No blind signing</li>
-                <li>One sentence is the approval</li>
-              </ul>
+              <p className="ss-hero-sub ss-hero-why">
+                Each signature shows that a person acted, not a bot. You cannot sign blind, and your own spoken words show that you meant
+                the action.
+              </p>
             </div>
           </div>
           <div className="ss-setup-strip" id="setup" aria-label="Set up">

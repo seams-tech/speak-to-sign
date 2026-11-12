@@ -112,16 +112,16 @@ fn verify_steps(
         requests.push(service_request(&clip.wav, &nonce));
     }
     let words_at = requests.len();
-    let (words_post, words) = words_request(host, ms, &api_key, &clip.wav)?;
-    requests.push(words_post);
+    let words = words_request(host, ms, &api_key, &clip.wav, &mut requests)?;
     let summary_at = push_summary_check(&mut requests, &api_key, &input.request);
 
     // 4. The template and the used-audio mark, while the requests are in
     //    flight. A refusal here drops them.
     let local = [&clip];
-    let flight = in_flight(host, ms, requests, pins.local_speaker.then_some(&local[..]), |host, ms| {
-        verify_storage(host, &input.owner, &digest_b64u, ms)
-    })?;
+    let flight =
+        in_flight(host, ms, requests, Some(words.early), pins.local_speaker.then_some(&local[..]), |host, ms| {
+            verify_storage(host, &input.owner, &digest_b64u, ms)
+        })?;
     let (record, results) = (flight.value, flight.results);
     if let Some(timed) = results.first().filter(|_| !pins.local_speaker) {
         ms.record("speaker", timed.ms);

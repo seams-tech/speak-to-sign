@@ -56,6 +56,13 @@ impl Host for WasmHost {
         self.batch = Some(http_batch::Batch::start(requests));
     }
 
+    fn post_add(&mut self, requests: Vec<PostRequest>) {
+        match &mut self.batch {
+            Some(batch) => batch.add(requests),
+            None => self.batch = Some(http_batch::Batch::start(requests)),
+        }
+    }
+
     fn post_poll(&mut self) {
         if let Some(batch) = &mut self.batch {
             batch.poll();

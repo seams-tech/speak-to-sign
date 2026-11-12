@@ -161,6 +161,43 @@ impl Fake {
 
     /// The fake NEAR AI gateway: opens the sealed request with its key, and
     /// seals the Whisper reply for it.
+    /// The reply of each request of a batch.
+    fn replies(&mut self, requests: &[PostRequest]) -> Vec<Timed> {
+        requests
+            .iter()
+            .map(|request| {
+                self.posts.push(request.url.clone());
+                let result = if request.url == SPEAKER_EMBED_URL {
+                    self.speaker_reply(request)
+                } else if request.url == NEAR_AI_OHTTP_URL {
+                    self.gateway_reply(request)
+                } else if request.url == NEAR_AI_CHAT_URL {
+                    match &self.chat {
+                        Some(content) => {
+                            let reply = json!({ "choices": [{ "message": { "role": "assistant", "content": content } }] });
+                            Ok((200, reply.to_string().into_bytes()))
+                        }
+                        None => Ok((503, b"{}".to_vec())),
+                    }
+                } else if request.url == NEAR_AI_SYSTEMONE_URL {
+                    self.summary_checks.push(serde_json::from_slice(&request.body).expect("JSON body"));
+                    match self.summary_fit {
+                        Some(noul) => {
+                            let reply = json!({ "answers": { "fits": { "type": "noul", "noul": noul } } });
+                            Ok((200, reply.to_string().into_bytes()))
+                        }
+                        None => Ok((503, b"{}".to_vec())),
+                    }
+                } else if request.url == NEAR_RPC_URL {
+                    self.rpc_reply(request)
+                } else {
+                    Err("unknown host".into())
+                };
+                Timed { result, ms: 7 }
+            })
+            .collect()
+    }
+
     fn gateway_reply(&mut self, request: &PostRequest) -> Result<(u16, Vec<u8>), String> {
         assert_eq!(request.headers, [("Content-Type".to_string(), "message/ohttp-req".to_string())]);
         let opened = fake_gateway().open(&request.body);
@@ -329,40 +366,12 @@ impl Host for Fake {
     }
     fn post_start(&mut self, requests: Vec<PostRequest>) {
         self.events.push("start");
-        let results = requests
-            .iter()
-            .map(|request| {
-                self.posts.push(request.url.clone());
-                let result = if request.url == SPEAKER_EMBED_URL {
-                    self.speaker_reply(request)
-                } else if request.url == NEAR_AI_OHTTP_URL {
-                    self.gateway_reply(request)
-                } else if request.url == NEAR_AI_CHAT_URL {
-                    match &self.chat {
-                        Some(content) => {
-                            let reply = json!({ "choices": [{ "message": { "role": "assistant", "content": content } }] });
-                            Ok((200, reply.to_string().into_bytes()))
-                        }
-                        None => Ok((503, b"{}".to_vec())),
-                    }
-                } else if request.url == NEAR_AI_SYSTEMONE_URL {
-                    self.summary_checks.push(serde_json::from_slice(&request.body).expect("JSON body"));
-                    match self.summary_fit {
-                        Some(noul) => {
-                            let reply = json!({ "answers": { "fits": { "type": "noul", "noul": noul } } });
-                            Ok((200, reply.to_string().into_bytes()))
-                        }
-                        None => Ok((503, b"{}".to_vec())),
-                    }
-                } else if request.url == NEAR_RPC_URL {
-                    self.rpc_reply(request)
-                } else {
-                    Err("unknown host".into())
-                };
-                Timed { result, ms: 7 }
-            })
-            .collect();
-        self.batch = Some(results);
+        self.batch = Some(self.replies(&requests));
+    }
+    fn post_add(&mut self, requests: Vec<PostRequest>) {
+        self.events.push("add");
+        let replies = self.replies(&requests);
+        self.batch.get_or_insert_with(Vec::new).extend(replies);
     }
     fn post_poll(&mut self) {
         self.events.push("poll");

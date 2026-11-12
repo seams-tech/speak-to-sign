@@ -135,7 +135,7 @@ fn a_note_is_signed_only_if_its_summary_gives_its_main_point() {
     assert_eq!(outcome, "accept", "{out}");
     // JEV got the note and the said summary, in the batch of the transcript.
     assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL, NEAR_AI_SYSTEMONE_URL]);
-    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]);
     assert_eq!(fake.summary_checks.len(), 1);
     assert_eq!(fake.summary_checks[0]["state"], json!({ "note": NOTE, "summary": "The bridge stays open" }));
     assert!(out["ms"]["summary"].is_u64(), "{out}");

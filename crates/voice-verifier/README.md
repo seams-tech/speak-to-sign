@@ -60,6 +60,15 @@ cargo test           # native tests (fake host), and the shared vectors
 `build.sh` honors `CARGO_TARGET_DIR`. `rust-toolchain.toml` pins Rust 1.97.1
 with the `wasm32-wasip2` target. rustup installs it on the first call.
 
+After the Rust build, `build.sh` runs `wasm-opt -Oz` (binaryen 133) on the
+core module and makes the component with `wasm-tools component new`
+(wasm-tools 1.263.0). The worker is then about 18 % smaller. OutLayer loads
+the WASM on each call, and the load time grows with its size (see "Size and
+load time"). `./build.sh --docker` downloads the two tools from their GitHub
+releases into `target/tools/` and checks their SHA-256. `./build.sh` needs
+the same versions of `wasm-opt` and `wasm-tools` on the `PATH`, and writes
+`target/worker/seams-voice-verifier.wasm`.
+
 ## Reproducible build
 
 The OutLayer version key is the SHA-256 of the WASM. So you can check that a
@@ -105,6 +114,8 @@ These things make the bytes the same:
 - `build.sh` remaps the local folders that rustc writes into panic locations:
   the clone to `/speak-to-sign`, `CARGO_HOME` to `/cargo`, and the rust-src of
   the toolchain to `/rustc/<commit>`. It replaces any `RUSTFLAGS`.
+- `build.sh` pins the versions of `wasm-opt` and `wasm-tools`, and for
+  `--docker` the SHA-256 of each download (builds from 2026-11-13).
 
 The host platform changes the bytes. The Cargo hash of each crate that uses a
 build script or a procedural macro (for example `serde` and `sha2`) is
@@ -124,6 +135,38 @@ Checks on 2026-11-10, each from a fresh clone:
 The versions up to 0.5.1 in the Versions table were built on a Mac before
 these changes. Their version keys depend on the folders of that Mac, so
 another machine cannot build them again.
+
+## Size and load time
+
+OutLayer loads the compiled WASM on each call: it reads the file, checks its
+hash and its signature, and deserializes it. No loaded module stays in
+memory (`worker/src/compiled_cache.rs` of OutLayer). So the size of the WASM
+is time on each call.
+
+Measured on OutLayer testnet on 2026-11-12, with an input that does no work
+(`{"op":"none"}`), five calls for each version, in turn:
+
+| Version | WASM bytes | `time_ms`, median |
+| ------- | ---------- | ----------------- |
+| 0.5.2   | 373,865    | 1,169             |
+| 0.10.0  | 460,283    | 1,440             |
+| 0.12.0  | 536,004    | 1,622             |
+| 0.13.0  | 548,960    | 1,641             |
+| 0.14.0 with dcap-qvl (`2f8e75a3…`) | 1,038,333 | 2,723 |
+
+That is about 2.3 ms for each KB. The value changes with the day (about
+1 ms for each KB on 2026-11-11), so compare two versions only in the same
+run. What made the worker smaller, for the source with the NEAR AI check
+(`./build.sh --docker`):
+
+| Step                                                         | WASM bytes |
+| ------------------------------------------------------------ | ---------- |
+| The first build of 0.14.0, with dcap-qvl                     | 1,038,333  |
+| `wasm-opt -Oz` in `build.sh`                                 | 851,975    |
+| The worker's own TDX quote check in place of dcap-qvl        | 560,034    |
+| The inputs and two model replies read by hand, without serde | 494,339    |
+
+The time of the last three builds on OutLayer is not measured.
 
 ## Services
 
@@ -294,6 +337,16 @@ The host carries the requests during the storage calls. A storage refusal
 (`template_missing`, `audio_reused`, `storage`) drops the requests
 (`Host::post_cancel`); a reused recording can thus cost one NEAR AI call.
 
+An operation with words needs one storage read before its Whisper request:
+the record of the checked NEAR AI gateway (see "NEAR AI attestation"). The
+speaker request needs no checked gateway. So it starts first, the read runs
+while it is in flight, and the Whisper request and the summary check then
+join the same batch (`Host::post_add`). On 2026-11-12 the read took 63 and
+189 ms (`tee`), and the speaker reply 789 to 1,445 ms for a clip of 1.5 s.
+So the read costs time only if the Whisper reply is the last one. No audio
+goes to NEAR AI before the gateway is checked. `post_add` did not yet run
+on OutLayer.
+
 `verify` reads the template, then writes the used-audio mark with one atomic
 set-if-absent, while the requests are in flight (0.5.1 and later). So the
 mark is off the critical path, and a reused recording is refused by the same
@@ -313,7 +366,7 @@ Stage times (`ms`, not signed), in ms:
 | `parallel`   | yes      | yes      | start of the requests to the last response (send + storage + wait) |
 | `speaker`    | yes      | yes      | speaker service response (`enroll`: the slowest of three)          |
 | `transcribe` | yes      |          | NEAR AI response (at most the template read late)                  |
-| `tee`        | yes      |          | 0.14.0 and later: get the checked NEAR AI gateway, before the requests |
+| `tee`        | yes      |          | 0.14.0 and later: get the checked NEAR AI gateway, while the speaker request is in flight |
 | `tee_cached` | yes      |          | 1: the stored check; 0: a new check; 2: the stored check, because the new one could not reach a service |
 | `summary`    | yes      |          | JEV response, a community note only (0.13.0 and later)             |
 | `redimnet`   | yes      |          | the service's own model time                                       |
@@ -586,7 +639,8 @@ in the worker storage of the project, `nearai-gateway:v1`: the gateway key,
 the OHTTP key configuration, the compose hash, the TCB status, the SHA-256
 of the quote and the time of the check. All callers and all versions of the
 project share it. Each operation with words (`verify`, `select`,
-`transcribe`, `detect`) does this before it sends any request:
+`transcribe`, `detect`) does this before it sends a request to NEAR AI. The
+speaker request is in flight during these steps:
 
 - It reads the record. If the check is younger than 6 hours
   (`config::NEAR_AI_ATTESTATION_TTL_MS`), it seals to the key configuration
@@ -597,7 +651,8 @@ project share it. Each operation with words (`verify`, `select`,
   up to 24 hours after that check (`config::NEAR_AI_ATTESTATION_GRACE_MS`).
   After that, it refuses with `transcriber_unavailable`.
 - If an answer fails a check, it refuses with `transcriber_not_attested`, also
-  within the 24 hours. No request goes out.
+  within the 24 hours. No request goes to NEAR AI, and the speaker request is
+  dropped.
 - A reply that does not open, or the status 400 of the OHTTP endpoint (the
   gateway could not open the request, for example after a change of its
   key), refuses with `transcriber_not_attested` and drops the record. The

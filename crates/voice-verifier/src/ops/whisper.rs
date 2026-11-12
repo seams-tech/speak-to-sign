@@ -39,26 +39,66 @@ pub(super) fn api_key(host: &dyn Host) -> Result<String, Refusal> {
 /// What reads the reply of one Whisper request.
 pub(super) struct Words {
     opener: ResponseOpener,
+    /// The requests that went out before the Whisper request, for
+    /// [`in_flight`](super::steps::in_flight).
+    pub(super) early: Early,
 }
 
-/// The Whisper request of `wav`, sealed to the checked gateway. It records
-/// the stages `tee` (the time to get the checked gateway) and `tee_cached`
-/// (1: the stored record; 0: a new check; 2: the stored record, because the
-/// new check could not reach a service).
+/// The requests of an operation that are in flight before the rest.
+#[derive(Clone, Copy)]
+pub(super) struct Early {
+    /// How many requests, from the start of the list.
+    pub(super) count: usize,
+    /// When they started.
+    pub(super) started: Instant,
+}
+
+/// Starts the requests of `requests` (the speaker request), then adds the
+/// Whisper request of `wav`, sealed to the checked gateway, to the list.
+///
+/// The read of the gateway record is a blocking storage call. The speaker
+/// request needs no checked gateway, so it goes out first, and the read
+/// runs while it is in flight. No audio goes to Whisper before the gateway
+/// is checked. A refusal here drops the requests that are in flight.
+///
+/// It records the stages `tee` (the time to get the checked gateway) and
+/// `tee_cached` (1: the stored record; 0: a new check; 2: the stored record,
+/// because the new check could not reach a service).
 pub(super) fn words_request(
     host: &mut dyn Host,
     ms: &mut Stages,
     api_key: &str,
     wav: &[u8],
-) -> Result<(PostRequest, Words), Refusal> {
+    requests: &mut Vec<PostRequest>,
+) -> Result<Words, Refusal> {
+    let early = Early { count: requests.len(), started: Instant::now() };
+    if !requests.is_empty() {
+        host.post_start(requests.clone());
+    }
+    match sealed_request(host, ms, api_key, wav) {
+        Ok((request, opener)) => {
+            requests.push(request);
+            Ok(Words { opener, early })
+        }
+        Err(refusal) => {
+            host.post_cancel();
+            Err(refusal)
+        }
+    }
+}
+
+fn sealed_request(
+    host: &mut dyn Host,
+    ms: &mut Stages,
+    api_key: &str,
+    wav: &[u8],
+) -> Result<(PostRequest, ResponseOpener), Refusal> {
     let started = Instant::now();
     let gateway = checked_gateway(host, ms);
     ms.since("tee", started);
     let config = gateway?.key_config().ok_or_else(|| not_attested("record: key_config"))?;
     let seed = host.random32().map_err(|_| Refusal::new(Reason::TranscriberUnavailable, "transcriber: random"))?;
-    let (request, opener) =
-        transcription_request(&config, api_key, wav, &seed).map_err(|error| not_attested(format!("ohttp: {error}")))?;
-    Ok((request, Words { opener }))
+    transcription_request(&config, api_key, wav, &seed).map_err(|error| not_attested(format!("ohttp: {error}")))
 }
 
 /// The transcript of the reply. A reply that does not open drops the

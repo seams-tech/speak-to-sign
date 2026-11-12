@@ -36,6 +36,15 @@ fn verify(fake: &mut Fake) -> (String, Value, Value) {
     (name, out["detail"].clone(), out["ms"].clone())
 }
 
+/// A refusal of the gateway: the speaker request was in flight (it starts
+/// before the read of the gateway record) and was dropped. Nothing went to
+/// NEAR AI.
+fn assert_sent_to_the_speaker_service_only(fake: &Fake) {
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL]);
+    assert_eq!(fake.events.last(), Some(&"cancel"));
+    assert!(fake.sealed_requests.is_empty());
+}
+
 #[test]
 fn a_fresh_record_needs_no_check() {
     let mut fake = ready();
@@ -61,21 +70,23 @@ fn an_old_record_is_checked_again_with_a_fresh_nonce() {
     assert_eq!(fake.gets.len(), 6);
     assert!(fake.gets[0].starts_with(NEAR_AI_ATTESTATION_URL));
     assert!(fake.gets[1..].iter().all(|url| url.contains("trustedservices.intel.com")));
-    assert_eq!(fake.events[..4], ["worker_get", "get_all", "get_all", "worker_set"]);
+    // The speaker request is in flight during the read of the record and
+    // during the check.
+    assert_eq!(fake.events[..6], ["start", "worker_get", "get_all", "get_all", "worker_set", "add"]);
     assert_eq!((name.as_str(), detail.as_str()), ("transcriber_not_attested", Some("transcriber: ohttp: status_400")));
     // That reply drops the record, so the next call checks again.
     assert_eq!(fake.worker[NEAR_AI_GATEWAY_RECORD_KEY], b"{}");
 }
 
 #[test]
-fn no_record_and_no_answer_refuses_before_any_audio_goes_out() {
+fn no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper() {
     let mut fake = ready();
     fake.worker.clear();
     fake.attestation = Attestation::Down;
     let (name, detail, _) = verify(&mut fake);
     assert_eq!(name, "transcriber_unavailable");
     assert_eq!(detail, "attestation: report: connection refused");
-    assert!(fake.posts.is_empty());
+    assert_sent_to_the_speaker_service_only(&fake);
 }
 
 #[test]
@@ -94,7 +105,7 @@ fn after_the_grace_period_a_service_that_is_down_refuses() {
     let (name, detail, _) = verify(&mut fake);
     assert_eq!(name, "transcriber_unavailable");
     assert_eq!(detail, "attestation: report: connection refused");
-    assert!(fake.posts.is_empty());
+    assert_sent_to_the_speaker_service_only(&fake);
 }
 
 #[test]
@@ -103,7 +114,7 @@ fn a_failed_check_refuses_even_within_the_grace_period() {
     fake.attestation = Attestation::WrongModel;
     let (name, detail, _) = verify(&mut fake);
     assert_eq!((name.as_str(), detail.as_str()), ("transcriber_not_attested", Some("attestation: model: name")));
-    assert!(fake.posts.is_empty());
+    assert_sent_to_the_speaker_service_only(&fake);
 }
 
 #[test]

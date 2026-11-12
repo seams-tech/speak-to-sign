@@ -4,6 +4,7 @@
 //! the used-audio mark.
 use std::time::Instant;
 
+use super::whisper::Early;
 use super::{Pins, Refusal};
 use crate::audio::{decode_wav, wav_bytes};
 use crate::config::{audio_used_key, AUDIO_KEY_ENV};
@@ -103,13 +104,25 @@ pub(super) struct Flight<T> {
 pub(super) fn in_flight<T>(
     host: &mut dyn Host,
     ms: &mut Stages,
-    requests: Vec<PostRequest>,
+    mut requests: Vec<PostRequest>,
+    early: Option<Early>,
     local: Option<&[&Clip]>,
     storage: impl FnOnce(&mut dyn Host, &mut Stages) -> Result<T, Reason>,
 ) -> Result<Flight<T>, Reason> {
-    let flight = Instant::now();
-    host.post_start(requests);
-    ms.since("send", flight);
+    // With `early`, the first requests are in flight already (see
+    // [`words_request`](super::whisper::words_request)): the rest join them.
+    let sending = Instant::now();
+    let flight = match early {
+        Some(early) => {
+            host.post_add(requests.split_off(early.count));
+            early.started
+        }
+        None => {
+            host.post_start(requests);
+            sending
+        }
+    };
+    ms.since("send", sending);
     let stored = Instant::now();
     let value = match storage(host, ms) {
         Ok(value) => value,

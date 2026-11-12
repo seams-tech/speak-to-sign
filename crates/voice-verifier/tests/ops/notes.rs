@@ -72,10 +72,14 @@ fn verify_accepts_a_spoken_note_summary() {
     // A short summary needs the exact words.
     assert_eq!(spoken(note_input(&wav, "Bridge stays open"), "Bridge stays opened.").0, "words");
     assert_eq!(spoken(note_input(&wav, "Bridge stays open"), "Bridge stays open!").0, "accept");
-    // A summary with a negation: dropping it is refused.
+    // A summary with a negation: dropping it or replacing a word with one is refused.
     let negated = "The bridge is not closed for six months";
     assert_eq!(spoken(note_input(&wav, negated), "The bridge is not closed for 6 months.").0, "accept");
     assert_eq!(spoken(note_input(&wav, negated), "The bridge is closed for six months.").0, "words");
+    assert_eq!(spoken(note_input(&wav, "The bridge is closed today"), "The bridge isn't closed today.").0, "words");
+    assert_eq!(spoken(note_input(&wav, "This post shows real footage"), "This post shows no footage.").0, "words");
+    assert_eq!(spoken(note_input(&wav, "We do approve this"), "We don't approve this.").0, "words");
+    assert_eq!(spoken(note_input(&wav, "Open the bridge without tolls"), "Open the bridge tolls.").0, "words");
 }
 
 #[test]

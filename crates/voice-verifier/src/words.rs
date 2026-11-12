@@ -60,32 +60,40 @@ pub fn check_words(
 /// forgiven when the summary has at least this many words.
 const SUMMARY_FORGIVE_MIN_WORDS: usize = 4;
 
+/// Negation words and apostrophe-stripped `-n't` contractions ("isn't" -> "isnt").
+const NEGATION_WORDS: [&str; 34] = [
+    "not", "no", "never", "none", "nothing", "neither", "nor", "nobody", "nowhere", "without",
+    "cannot", "non", "dont", "doesnt", "didnt", "isnt", "arent", "wasnt", "werent", "hasnt",
+    "havent", "hadnt", "wont", "wouldnt", "cant", "couldnt", "shouldnt", "mustnt", "aint",
+    "shant", "neednt", "mightnt", "oughtnt", "darent",
+];
+
 /// The word decision. A transfer, an approval, a rating and a merge
 /// approval need the exact words. A summary (of a note, a transaction, a signed message or a
 /// confirmation) also passes with one word
 /// changed or dropped, when the heard words are still closer to the summary
 /// than to every near miss. An added word is as close to the near miss with
-/// "not" in its place, so it does not pass, and an added or dropped "not"
-/// never passes. The changed or dropped word is never a number
-/// word.
+/// "not" in its place, so it does not pass, and an added, dropped or changed
+/// negation or number word never passes.
 pub(crate) fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected: &[SpokenToken]) -> bool {
     if check.matched {
         return true;
     }
-    // A number word holds a value: the one changed word can be "forty" for
-    // "fourteen". So the changed or dropped word must not be a number word,
-    // on either side.
-    let heard: Vec<&str> = check.heard.split(' ').collect();
+    // A number word holds a value ("forty" for "fourteen"), and a negation
+    // flips the meaning ("no" for "real", "isnt" for "is").
+    let heard: Vec<&str> = check.heard.split_whitespace().collect();
     let at = expected.iter().zip(&heard).take_while(|(want, got)| want.as_str() == **got).count();
-    let number = |word: Option<&str>| word.is_some_and(spoken_intent::is_number_word);
+    let guarded = |word: Option<&str>| {
+        word.is_some_and(|w| spoken_intent::is_number_word(w) || NEGATION_WORDS.contains(&w))
+    };
     let said = expected.get(at).map(SpokenToken::as_str);
-    let has_number = match heard.len().cmp(&expected.len()) {
+    let has_guarded = match heard.len().cmp(&expected.len()) {
         // One word dropped: the expected word at the first difference.
-        std::cmp::Ordering::Less => number(said),
+        std::cmp::Ordering::Less => guarded(said),
         // One word added: the heard word there.
-        std::cmp::Ordering::Greater => number(heard.get(at).copied()),
+        std::cmp::Ordering::Greater => guarded(heard.get(at).copied()),
         // One word changed: both.
-        std::cmp::Ordering::Equal => number(said) || number(heard.get(at).copied()),
+        std::cmp::Ordering::Equal => guarded(said) || guarded(heard.get(at).copied()),
     };
     matches!(
         request,
@@ -93,7 +101,7 @@ pub(crate) fn words_pass(request: &SpokenRequestV1, check: &WordCheck, expected:
             | SpokenRequestV1::Transaction { .. }
             | SpokenRequestV1::SignedMessage { .. }
             | SpokenRequestV1::Confirmation { .. }
-    ) && !has_number
+    ) && !has_guarded
         && expected.len() >= SUMMARY_FORGIVE_MIN_WORDS
         && check.distance == Some(1)
         && check.margin_milli.is_some_and(|margin| margin > 0)

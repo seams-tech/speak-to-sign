@@ -116,6 +116,12 @@ function Preview() {
             setMinimized(false);
             note('restored from the pill');
           }}
+          onClose={() => {
+            note('closed from the pill');
+            setMinimized(false);
+            setProgress(null);
+            setOpen(false);
+          }}
         />
       )}
     </main>

@@ -133,7 +133,8 @@ export function WalletDialog({
           />
         </div>
       )}
-      {call && minimized && <CardPill progress={progress} onOpen={minimized.restore} />}
+      {/* Close ends the card with its dialog: the step unmounts, as when the card's own Close ends it. */}
+      {call && minimized && <CardPill progress={progress} onOpen={minimized.restore} onClose={onClose} />}
     </Modal>
   );
 }

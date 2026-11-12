@@ -36,8 +36,8 @@ only.
 
 ## What you can do by voice
 
-The demo is community notes on an X-style page. The same verifier also
-approves payments and multisig transfers.
+The demo is community notes on a voice-controlled X.com-style page. The same
+voice verifier also approves payments and multisig transfers.
 
 | You do this | You say | What checks it |
 | --- | --- | --- |

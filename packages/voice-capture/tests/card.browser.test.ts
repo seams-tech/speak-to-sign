@@ -469,6 +469,44 @@ test('a card with a context shows the text above the sentence, and the rows keep
   }
 });
 
+test('a result shows the seal, then its headline, details and button, and the seal takes the theme colour', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Opens a card with these CSS variables, shows a result, and reads the seal's colour and the
+  // rows' places.
+  const resultCard = async (variables: Record<string, string>) => {
+    await page.goto(`${origin}/example/`);
+    return page.evaluate(async (variables) => {
+      for (const [name, value] of Object.entries(variables)) document.documentElement.style.setProperty(name, value);
+      document.documentElement.style.setProperty('--seams-colors-textPrimary', 'rgb(15, 20, 25)');
+      const module = '/browser/card.js';
+      const { openPhraseCard } = await import(module);
+      // The fake microphone plays the speech fixture: the card records, then shows the result.
+      const surface = openPhraseCard({ sentence: 'Send two NEAR to alice.testnet', signal: new AbortController().signal, detector: 'level', autoStart: true });
+      await surface.record();
+      // A result resolves when the person presses its button: the test reads the card first.
+      void surface.show({ kind: 'result', label: '', headline: 'Sent', caption: 'Send two NEAR to alice.testnet', detail: 'Checked and sent in 2.0 s', action: { label: 'Done' }, line: 'seal' });
+      const card = document.querySelector<HTMLElement>('.seams-voiceid-prompt')!;
+      while (card.dataset.phraseView !== 'result') await new Promise((resolve) => setTimeout(resolve, 50));
+      // The rows fade in and the line row glides to its place.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      const top = (selector: string) => card.querySelector(`:scope > ${selector}`)!.getBoundingClientRect().top;
+      const bottom = (selector: string) => card.querySelector(`:scope > ${selector}`)!.getBoundingClientRect().bottom;
+      return {
+        seal: getComputedStyle(card.querySelector('.seams-voiceid-status-line')!).color,
+        rows: ['.seams-voiceid-status-line', '.seams-voiceid-phrase', '.seams-voiceid-status', '.seams-voiceid-record-slot'].map(top),
+        below: card.getBoundingClientRect().bottom - bottom('.seams-voiceid-record-slot'),
+      };
+    }, variables);
+  };
+  expect((await resultCard({})).seal).toBe('rgb(15, 20, 25)');
+  expect((await resultCard({ '--seams-colors-voiceLine': 'rgb(29, 155, 240)' })).seal).toBe('rgb(29, 155, 240)');
+  const result = await resultCard({ '--seams-colors-voiceLine': 'rgb(29, 155, 240)', '--seams-colors-voiceSeal': 'rgb(0, 186, 124)' });
+  expect(result.seal).toBe('rgb(0, 186, 124)');
+  // Each row is below the one before it, and the button has only the card's padding under it.
+  for (let i = 1; i < result.rows.length; i += 1) expect(result.rows[i]!).toBeGreaterThan(result.rows[i - 1]!);
+  expect(result.below).toBeLessThan(30);
+});
+
 test('a form card shows the Record button in place of the voice line until it records', async ({ page }) => {
   await page.goto(`${origin}/example/`);
   const result = await page.evaluate(async () => {

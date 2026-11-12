@@ -90,6 +90,11 @@ export interface MarketSource {
   /** The market about a note, or null when the note has none (most notes have none). */
   getMarketForNote(noteId: number): Promise<NoteMarket | null>;
   getPosition(marketId: number, accountId: string): Promise<MarketPosition>;
+  /**
+   * The markets where the account has a stake, newest first, with its position in each. Leave it
+   * out to hide "Your bets" in the right column.
+   */
+  getPositions?(accountId: string): Promise<{ market: NoteMarket; position: MarketPosition }[]>;
   /** The newest points of the odds chart, oldest first (the contract keeps about 50). */
   getOddsHistory(marketId: number): Promise<OddsPoint[]>;
   /**

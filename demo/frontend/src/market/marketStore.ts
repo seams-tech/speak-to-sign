@@ -19,6 +19,11 @@ export class MarketStore {
     return (await this.view<MarketView | null>('get_market_for_note', { note_id: noteId })) ?? null;
   }
 
+  /** The markets, newest first: `limit` of them, before the market `before` when it is set. */
+  async markets(limit: number, before?: number): Promise<MarketView[]> {
+    return (await this.view<MarketView[]>('get_markets', { before: before ?? null, limit })) ?? [];
+  }
+
   async position(marketId: number, accountId: string): Promise<PositionView> {
     return await this.view<PositionView>('get_position', { market_id: marketId, account_id: accountId });
   }

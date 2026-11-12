@@ -1,5 +1,6 @@
 // The right column of the notes app, in the order of X's own right column:
 // - a search box, for the look only: it takes no click and no key;
+// - "Your bets": the markets where the signed-in account has a stake (MyBets.tsx);
 // - "Signed by voice": the newest notes, each with the sentence that its author said to post it,
 //   and a link to the transaction that added it. It shows only when there is a note.
 
@@ -11,6 +12,7 @@ import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { findNoteTransactions } from '../notes/noteTransactions';
 import type { Note } from '../notes/types';
+import { MyBets } from './MyBets';
 import { postCardId, showCard } from './Timeline';
 
 const MAX_ROWS = 6;
@@ -57,6 +59,7 @@ export function VoiceFeed() {
         <IconSearch size={18} stroke={1.8} />
         <span>Search</span>
       </div>
+      <MyBets />
       {notes.length > 0 && (
         <section className="side-box" aria-labelledby="voice-feed-title">
           <h2 id="voice-feed-title" className="side-title">

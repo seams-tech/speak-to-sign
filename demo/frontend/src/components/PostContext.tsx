@@ -27,8 +27,8 @@ import { WalletDialog } from './WalletDialog';
 export const CONTEXT_MARKET_NOTE_ID = 0;
 
 /**
- * The note view, kept short: the quoted post, the note, then the bet: a slider for its amount
- * and two colored buttons.
+ * The note view, kept short and in one frame, as X's dialogs: the quoted post, the note, then
+ * the bet: a slider for its amount and two colored buttons.
  * A visitor who is not signed in taps a bet button too: the dialog turns into the sign-in, then
  * back, the faucet sends testnet USDC, and the strip places the bet. A spoken bet turns the
  * dialog into the Wallet's voice card. One dialog all the way.
@@ -95,62 +95,60 @@ export function NoteDialog({
   return (
     <WalletDialog titleId={titleId} onClose={onClose} locked={false} handle={modal}>
       <header className="dialog-head">
-            <button type="button" className="icon-btn" onClick={() => modal.current?.close()} aria-label="Close">
-              <IconX size={20} />
-            </button>
-            <h2 id={titleId}>Note</h2>
-          </header>
-          <div className="dialog-body">
-            <div className="pc-note">
-              <div className="pc-post pc-post-row">
-                {post.media && <MediaThumb kind={post.media} />}
-                <div className="pc-post-main">
-                  <div className="pc-post-head">
-                    <b>{post.author.name}</b>
-                    <span className="muted">
-                      @{post.author.handle} · {post.age}
-                    </span>
-                  </div>
-                  <p className="pc-post-text">{post.text}</p>
-                </div>
-              </div>
-              <div className="pc-status">
-                <p className="pc-status-row">
-                  <IconCircleCheckFilled size={18} className="pc-ok" aria-hidden="true" />
-                  <b>Rated helpful on X</b>
-                </p>
-                <p className="pc-note-text">{context.text}</p>
-              </div>
-              <div className="pc-bet">
-                <b className="pc-bet-title">Is this note true?</b>
-                <NoteMarketStrip
-                  noteId={CONTEXT_MARKET_NOTE_ID}
-                  source={source}
-                  account={account}
-                  onSignIn={readyToBet}
-                  directBet={stake}
-                  openBet={betRequest}
-                  stakeControl={<StakeSlider tenths={stakeTenths} currency={currency} onChange={setStakeTenths} />}
-                  placeholder
-                />
-                <Morph view={line}>
-                  {line === 'funds' ? (
-                    <p className="pc-practice pc-busy" role="status">
-                      <span className="spinner" aria-hidden="true" /> Getting testnet USDC for your bets from the faucet…
-                    </p>
-                  ) : line === 'problem' ? (
-                    <p className="pc-practice pc-problem" role="alert">
-                      {problem} <UsdcLink />
-                    </p>
-                  ) : line === 'short' ? (
-                    <p className="pc-practice">
-                      <UsdcLink />
-                    </p>
-                  ) : null}
-                </Morph>
-              </div>
+        <button type="button" className="icon-btn" onClick={() => modal.current?.close()} aria-label="Close">
+          <IconX size={20} />
+        </button>
+        <h2 id={titleId}>Note</h2>
+      </header>
+      <div className="dialog-body dialog-body-flush">
+        <div className="pc-post pc-post-row">
+          {post.media && <MediaThumb kind={post.media} />}
+          <div className="pc-post-main">
+            <div className="pc-post-head">
+              <b>{post.author.name}</b>
+              <span className="muted">
+                @{post.author.handle} · {post.age}
+              </span>
             </div>
+            <p className="pc-post-text">{post.text}</p>
           </div>
+        </div>
+        <div className="pc-status">
+          <p className="pc-status-row">
+            <IconCircleCheckFilled size={18} className="pc-ok" aria-hidden="true" />
+            <b>Rated helpful on X</b>
+          </p>
+          <p className="pc-note-text">{context.text}</p>
+        </div>
+        <div className="pc-bet">
+          <b className="pc-bet-title">Is this note true?</b>
+          <NoteMarketStrip
+            noteId={CONTEXT_MARKET_NOTE_ID}
+            source={source}
+            account={account}
+            onSignIn={readyToBet}
+            directBet={stake}
+            openBet={betRequest}
+            stakeControl={<StakeSlider tenths={stakeTenths} currency={currency} onChange={setStakeTenths} />}
+            placeholder
+          />
+          <Morph view={line}>
+            {line === 'funds' ? (
+              <p className="pc-practice pc-busy" role="status">
+                <span className="spinner" aria-hidden="true" /> Getting testnet USDC for your bets from the faucet…
+              </p>
+            ) : line === 'problem' ? (
+              <p className="pc-practice pc-problem" role="alert">
+                {problem} <UsdcLink />
+              </p>
+            ) : line === 'short' ? (
+              <p className="pc-practice">
+                <UsdcLink />
+              </p>
+            ) : null}
+          </Morph>
+        </div>
+      </div>
     </WalletDialog>
   );
 }

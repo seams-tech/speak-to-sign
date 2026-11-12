@@ -160,18 +160,6 @@ export const WALLET_THEMES: Record<ThemeName, AppearanceTheme> = {
   light: { id: 'x-light', mode: 'light', colors: walletColors(LIGHT_TOKENS.colors, X_LIGHT), shape: X_SHAPE },
 };
 
-/**
- * The Wallet's theme for a page theme as the CSS variables that its components read. For a
- * Wallet card that runs in the page itself: the dev preview of the voice card (src/dev).
- */
-export function walletThemeVars(theme: ThemeName): Record<string, string> {
-  const { colors = {}, shape = {} } = WALLET_THEMES[theme];
-  return {
-    ...Object.fromEntries(Object.entries(colors).map(([key, value]) => [`--seams-colors-${key}`, value])),
-    ...Object.fromEntries(Object.entries(shape).map(([key, value]) => [`--seams-shape-${key}`, value])),
-  };
-}
-
 /** SeamsWebProvider with the Wallet's theme for the page's theme. */
 export function ThemedSeamsProvider({
   config,

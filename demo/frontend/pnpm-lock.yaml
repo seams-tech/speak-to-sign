@@ -33,9 +33,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^5.20261109.1
         version: 5.20261109.1
-      '@seams/voice-capture':
-        specifier: 0.68.1
-        version: 0.68.1
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
@@ -614,10 +611,6 @@ packages:
 
   '@seams/voice-capture@0.68.0':
     resolution: {integrity: sha512-9QYdh1ow71Luyn+hh8TxnxeBgtRx0Jg8Mvj4t5V8u4909SBKtrMUVkKDUdKL31aOZoZ0dTobhE2JbXPe3pFMhA==}
-    engines: {node: '>=24'}
-
-  '@seams/voice-capture@0.68.1':
-    resolution: {integrity: sha512-qwcTtfL8id1sYUDwBvbeYTyOhjjf/+jHQA0F5D8GhXFe1DQY+xM+cCDRRYJh3uqY/Yf95NnXU1LoHJA5dmi2AA==}
     engines: {node: '>=24'}
 
   '@seams/voice-verdict@0.68.0':
@@ -1634,13 +1627,6 @@ snapshots:
       '@scure/base': 1.2.6
 
   '@seams/voice-capture@0.68.0':
-    dependencies:
-      onnxruntime-web: 1.30.0
-      preact: 10.29.8
-    transitivePeerDependencies:
-      - preact-render-to-string
-
-  '@seams/voice-capture@0.68.1':
     dependencies:
       onnxruntime-web: 1.30.0
       preact: 10.29.8

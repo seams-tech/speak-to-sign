@@ -7,7 +7,7 @@
 import { Children, isValidElement, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /** How long the old step takes to fade out (the CSS `.morph-out`). */
-const OUT_MS = 120;
+const OUT_MS = 100;
 
 interface ViewProps {
   name: string;

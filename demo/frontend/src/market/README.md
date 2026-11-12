@@ -29,8 +29,8 @@ one Wallet confirm.
    seed or time.
 2. **Bet.** "Bet yes" or "Bet no". With `directBet`, the bet goes out at once;
    without it, the bet sheet asks for the side and the amount. The bar, the
-   pool and "Your bets" move as soon as the Wallet sends the transaction, and
-   the bar pulses until the market's view has the bet.
+   pool and "Your position" move as soon as the Wallet sends the transaction,
+   and the bar and the new pill pulse until the market's view has the bet.
 3. **Close and ask JEV.** The creator sees "Close betting and ask JEV now":
    `close_market` and `request_resolution` in one transaction. After the
    close time, anyone sees "Ask JEV now".

@@ -829,15 +829,12 @@ code {
   display: grid;
   gap: 4px;
 }
-/* 16 px, as X's quoted post in its composer. The other boxes in a dialog (the note and sentence
-   boxes, the fields, the result card) match it. */
-.pc-note {
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  overflow: hidden;
-}
+/* The note dialog has one frame, as X's own dialogs: no box inside it. Its sections (the post,
+   the note and the bet) go from edge to edge, with 16 px of space at the sides and a divider
+   between them (.dialog-body-flush). */
 .pc-post {
   padding: 12px 16px;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 .pc-post-main {
@@ -850,7 +847,6 @@ code {
   gap: 6px;
   min-width: 0;
   white-space: nowrap;
-  font-size: 14px;
 }
 .pc-post-head .muted {
   overflow: hidden;
@@ -867,8 +863,7 @@ code {
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-top: 2px;
-  font-size: 14px;
-  line-height: 19px;
+  line-height: 20px;
   color: var(--muted);
 }
 .media-thumb {
@@ -896,14 +891,13 @@ code {
   color: #fff;
 }
 .pc-status {
-  padding: 12px 16px 14px;
+  padding: 12px 16px;
 }
 .pc-status-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
-  font-size: 14px;
 }
 .pc-ok {
   color: var(--green);
@@ -917,14 +911,15 @@ code {
   line-height: 20px;
 }
 .pc-bet {
-  padding: 14px 0 4px;
+  padding: 12px 0 8px;
   border-top: 1px solid var(--line);
-  background: var(--panel);
 }
+/* A section heading, as X's "What's happening": 20 px, extra bold. */
 .pc-bet-title {
   display: block;
   padding: 0 16px 2px;
-  font-size: 17px;
+  font-size: 20px;
+  font-weight: 800;
 }
 /* In the note view the strip shows only the odds and the two bet buttons: its own question
    row (the title says it), the odds chart and the "odds change" line under the buttons are
@@ -932,6 +927,7 @@ code {
    height when the market arrives. */
 .pc-bet .nm-strip {
   border-top: 0;
+  font-size: 15px;
 }
 .pc-bet .nm-strip > .nm-row:first-child,
 .pc-bet .nm-spark,
@@ -942,53 +938,33 @@ code {
   gap: 10px;
   margin-top: 14px;
 }
+/* The two bet buttons are X's large pill buttons: 52 px high, 17 px bold text, no shadow. They
+   fill with the market's yes blue and no red (--bet-yes, --bet-no in src/market/market.css).
+   White text on both has a contrast of 3:1 or more, and the labels are large text (17 px bold).
+   A pointer makes the fill a little darker, as on X. */
 .pc-bet .nm-bet:first-child:not(:last-child),
 .pc-bet .nm-bet:last-child:not(:first-child) {
-  height: 48px;
+  --fill: var(--bet-yes);
+  height: 52px;
   border: 0;
   color: #fff;
-  font-size: 19px;
+  background: var(--fill);
+  font-size: 17px;
   font-weight: 700;
   transition:
-    filter 120ms ease,
+    background-color 120ms ease,
     scale 150ms ease-out;
 }
-/* Blue for yes and red for no, even to the eye: both are OKLCH lightness 0.57 and chroma 0.16
-   (the strongest blue that sRGB holds at that lightness), with hues 250 and 15. White text on
-   both is above 4.4:1, and the labels are large text (19 px bold). The small yes and no shares
-   mix in --contrast: darker on the light theme, lighter on a dark one. */
-.pc-bet {
-  --bet-yes: #037ad1;
-  --bet-no: #c34659;
-}
-.pc-bet .nm-bet:first-child:not(:last-child) {
-  background: var(--bet-yes);
-  box-shadow: 0 6px 14px -8px rgba(3, 122, 209, 0.55);
-}
 .pc-bet .nm-bet:last-child:not(:first-child) {
-  background: var(--bet-no);
-  box-shadow: 0 6px 14px -8px rgba(195, 70, 89, 0.55);
+  --fill: var(--bet-no);
 }
 .pc-bet .nm-loading .nm-bet {
   opacity: 0.55;
-  box-shadow: none;
 }
 @media (hover: hover) and (pointer: fine) {
   .pc-bet .nm-bet:not(:disabled):hover {
-    filter: brightness(0.93);
+    background: color-mix(in oklch, var(--fill), #000 8%);
   }
-}
-.pc-bet .nm-bar-yes {
-  background: var(--bet-yes);
-}
-.pc-bet .nm-bar-no {
-  background: var(--bet-no);
-}
-.pc-bet .nm-yes {
-  color: color-mix(in srgb, var(--bet-yes) 80%, var(--contrast));
-}
-.pc-bet .nm-no {
-  color: color-mix(in srgb, var(--bet-no) 80%, var(--contrast));
 }
 /* The bet slider over the two buttons, in X's blue as X's own sliders: a thin pale blue track
    that fills in --accent up to a round --accent thumb. A pointer over the thumb gives it a pale
@@ -1091,7 +1067,7 @@ code {
 }
 .pc-practice {
   padding: 0 16px 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .pc-busy {
@@ -1185,6 +1161,17 @@ code {
   margin-top: -8px;
   padding: 0 16px 12px;
   font-size: 13px;
+}
+/* "Your bets" (src/x/MyBets.tsx): the position pills under the question, and one line for each
+   bet with its transaction link. */
+.my-bet-pills {
+  margin-top: 6px;
+}
+.my-bet-txs {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 0;
+  list-style: none;
 }
 .trend-kicker {
   font-size: 13px;
@@ -1471,7 +1458,7 @@ code {
 }
 .morph-out {
   opacity: 0;
-  transition: opacity 120ms ease-out;
+  transition: opacity 100ms ease-out;
 }
 @keyframes morph-part-in {
   from {
@@ -1481,7 +1468,7 @@ code {
 }
 .morph-in > *,
 .morph-in > .dialog-body > * {
-  animation: morph-part-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: morph-part-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 .morph-in > :nth-child(2) {
   animation-delay: 50ms;
@@ -1608,6 +1595,15 @@ code {
 /* With no footer under it, the body keeps the same space below as at its sides. */
 .dialog-body:last-child {
   padding-bottom: 20px;
+}
+/* A body whose sections go from edge to edge and keep their own space, as the note dialog
+   (src/components/PostContext.tsx). The head has the same 16 px sides, so the close button
+   lines up with the sections' text. */
+.dialog-body.dialog-body-flush {
+  padding: 0;
+}
+.dialog-head:has(+ .dialog-body-flush) {
+  padding: 0 16px;
 }
 .dialog-foot {
   flex: none;

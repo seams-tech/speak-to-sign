@@ -448,7 +448,9 @@ const CSS = `
   margin: auto;
   overflow: visible;
   opacity: 0;
-  color: var(--seams-colors-textPrimary, #eff2f3);
+  /* The theme can colour the check's line and the seal that it closes into (the disc behind the
+     tick): voiceSeal, else the voice line's colour, else the card's text colour. */
+  color: var(--seams-colors-voiceSeal, var(--seams-colors-voiceLine, var(--seams-colors-textPrimary, #eff2f3)));
 }
 .seams-voiceid-ribbon { transition: opacity 120ms ease; }
 .seams-voiceid-prompt[data-phrase-line="status"] > .seams-voiceid-ribbon { opacity: 0; }
@@ -496,6 +498,17 @@ const CSS = `
   grid-template-rows: [context] auto [title] auto [phrase] minmax(6rem, auto) [line] 5rem [status] minmax(3.375rem, auto) [action] 0;
 }
 .seams-voiceid-prompt[data-auto-start] > .seams-voiceid-record-slot { display: none; }
+/* The result reads from the top as one group: the seal, the headline under it, the caption and
+   the detail, then the button. Every row has its content's height, so the card has no empty
+   band, and the line row glides to its new place (phraseCard.ts transition). An empty label
+   takes no room. */
+.seams-voiceid-prompt[data-phrase-view="result"] {
+  grid-template-rows: [context] auto [title] auto [line] 4.5rem [phrase] auto [status] auto [action] auto;
+}
+.seams-voiceid-prompt[data-phrase-view="result"] > h2:empty { display: none; }
+.seams-voiceid-prompt[data-phrase-view="result"] > .seams-voiceid-phrase { margin-top: 0.5rem; }
+.seams-voiceid-prompt[data-phrase-view="result"] > .seams-voiceid-status { min-height: 0; margin-top: 0.375rem; }
+.seams-voiceid-prompt[data-phrase-view="result"] > .seams-voiceid-record-slot { margin-top: 1.5rem; }
 .seams-voiceid-prompt[data-phrase-view] .seams-voiceid-microphone { display: none; }
 .seams-voiceid-prompt .seams-voiceid-close { transition: opacity 150ms ease, visibility 0s linear 0s; }
 /* The check hides Back and Close, as the caller works; Minimize stays. */

@@ -152,6 +152,7 @@ try {
   | `--seams-colors-voiceLine` | `colors.voiceLine` | The voice line, its ring and its seal | The text colour |
   | `--seams-colors-voiceEcho` | `colors.voiceEcho` | Echo lines 1 and 3 behind the line | `voiceLine` |
   | `--seams-colors-voiceEchoDeep` | `colors.voiceEchoDeep` | Echo line 2 | `voiceEcho` |
+  | `--seams-colors-voiceSeal` | `colors.voiceSeal` | The check's line and the seal behind the tick of a result | `voiceLine` |
   | `--seams-colors-voiceBeam` | `colors.voiceBeam` | The Beam palette: `colorful`, `mono`, `ocean`, `sunset`, `forest`, `candy`, `ice` or `gold`. `mono` is grey, band included | `ocean` |
   | `--seams-shape-voiceLineWidth` | `shape.voiceLineWidth` | The width of the voice line | `1px` |
   | `--seams-shape-voiceEchoWidth` | `shape.voiceEchoWidth` | The width of the echo lines | `0.65px` |

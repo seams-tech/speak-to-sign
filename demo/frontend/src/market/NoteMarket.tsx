@@ -37,6 +37,7 @@ import {
   type Side,
   type SignStage,
 } from './types';
+import { announceBet } from './myBets';
 import { SayBet, useBetVoice } from './SayBet';
 import './market.css';
 
@@ -312,9 +313,10 @@ export function NoteMarketStrip({
         return fail(result);
       }
       await load().catch(() => undefined);
+      // The position row shows the bet, and the Wallet's card has said that it went out.
       setBusy(null);
       setPendingBet(null);
-      setNotice({ text: `Your bet of ${amountText(amount, currency)} on ${action.side} is in.`, isError: false });
+      announceBet();
       return null;
     }
 
@@ -593,15 +595,7 @@ export function NoteMarketStrip({
               {waiting?.kind === 'ask' ? SETTING_UP : 'Ask JEV now'}
             </button>
           )}
-          {staked > 0n && (
-            <p className="nm-muted nm-small">
-              Your bets:{' '}
-              {[mine.yes > 0n && `${amountText(mine.yes, currency)} on yes`, mine.no > 0n && `${amountText(mine.no, currency)} on no`]
-                .filter(Boolean)
-                .join(' · ')}
-              {pendingBet && ' (arriving)'}
-            </p>
-          )}
+          {staked > 0n && <Position mine={mine} pending={pendingBet?.side ?? null} currency={currency} />}
         </>
       )}
       {noticeLine}
@@ -615,10 +609,10 @@ export function NoteMarketStrip({
           account={account}
           onSignIn={onSignIn}
           onClose={() => setBetSide(null)}
-          onDone={(text) => {
-            // The sheet closes itself with its close animation.
-            setNotice({ text, isError: false });
+          onDone={() => {
+            // The sheet closes itself with its close animation. The position row shows the bet.
             void load().catch(() => undefined);
+            announceBet();
           }}
         />
       )}
@@ -765,6 +759,27 @@ function Resolved({
   );
 }
 
+/**
+ * The reader's position in the market: one tinted pill for each side with a stake, such as
+ * "0.10 USDC yes". A bet that the Wallet has sent but the market has not counted yet pulses.
+ */
+function Position({ mine, pending, currency }: { mine: { yes: bigint; no: bigint }; pending: Side | null; currency: Currency }) {
+  const sides = (['yes', 'no'] as const).filter((side) => mine[side] > 0n);
+  return (
+    <div className="nm-position">
+      <span className="nm-muted">Your position</span>
+      <span className="nm-pills">
+        {sides.map((side) => (
+          <span key={side} className={`nm-pill nm-pill-${side}`} data-pending={pending === side || undefined}>
+            {amountText(mine[side], currency)} {side}
+            {pending === side && <span className="sr-only"> (arriving)</span>}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 function SplitBar({ yesBps, pending = false }: { yesBps: number; pending?: boolean }) {
   const yes = Math.max(0, Math.min(100, yesBps / 100));
   return (
@@ -878,7 +893,8 @@ function BetSheet({
   account?: string;
   onSignIn: () => void | Promise<boolean>;
   onClose: () => void;
-  onDone: (message: string) => void;
+  /** The bet went out. */
+  onDone: () => void;
 }) {
   const titleId = useId();
   const currency = source.currency ?? NEAR_CURRENCY;
@@ -905,7 +921,7 @@ function BetSheet({
     const result = await source.bet({ marketId: market.id, side, amount, verdict }, setStage);
     setStage(null);
     if (result.kind === 'sent') close();
-    if (result.kind === 'sent') onDone(`Your bet of ${amountText(amount, currency)} on ${side} is in.`);
+    if (result.kind === 'sent') onDone();
     // A closed or rejected Wallet window needs no note: the sheet stays as it was.
     else if (result.kind !== 'cancelled') setError(result.reason);
   };

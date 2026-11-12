@@ -3,10 +3,10 @@
 
 import { createContext, useContext } from 'react';
 import { config } from '../config';
-import type { MarketView } from './contractTypes';
+import type { MarketView, PositionView } from './contractTypes';
 import { type MarketSigner, missingKeyMarketSigner } from './marketSigner';
 import { MarketNotDeployed, MarketStore } from './marketStore';
-import { USDC_CURRENCY, type MarketSource, type NoteMarket } from './types';
+import { USDC_CURRENCY, type MarketPosition, type MarketSource, type NoteMarket } from './types';
 
 export function createContractMarketSource(signer: MarketSigner, store = new MarketStore(config.marketRpcUrl, config.marketContract)): MarketSource {
   let deployed: Promise<boolean> | null = null;
@@ -29,14 +29,11 @@ export function createContractMarketSource(signer: MarketSigner, store = new Mar
         throw cause;
       }
     },
-    async getPosition(marketId, accountId) {
-      const view = await store.position(marketId, accountId);
-      return {
-        yes: BigInt(view.yes),
-        no: BigInt(view.no),
-        claimed: view.claimed,
-        payout: view.payout === null ? undefined : BigInt(view.payout),
-      };
+    getPosition: async (marketId, accountId) => toPosition(await store.position(marketId, accountId)),
+    async getPositions(accountId) {
+      const markets = await store.markets(MAX_POSITION_MARKETS);
+      const positions = await Promise.all(markets.map(async (view) => ({ market: toNoteMarket(view), position: toPosition(await store.position(view.id, accountId)) })));
+      return positions.filter(({ position }) => position.yes > 0n || position.no > 0n);
     },
     async getOddsHistory(marketId) {
       return (await store.oddsHistory(marketId)).map((point) => ({ atMs: point.at_ms, yesBps: point.yes_bps }));
@@ -53,6 +50,18 @@ export function createContractMarketSource(signer: MarketSigner, store = new Mar
     // The Wallet signs a bet as a spoken request: its card records the sentence, and the bet
     // carries the signed verdict for the contract. So the page has no "say it" step (`voice`).
     signsByVoice: true,
+  };
+}
+
+/** The newest markets that "Your bets" reads: one view of the contract (it gives 50 at most). */
+const MAX_POSITION_MARKETS = 50;
+
+function toPosition(view: PositionView): MarketPosition {
+  return {
+    yes: BigInt(view.yes),
+    no: BigInt(view.no),
+    claimed: view.claimed,
+    payout: view.payout === null ? undefined : BigInt(view.payout),
   };
 }
 

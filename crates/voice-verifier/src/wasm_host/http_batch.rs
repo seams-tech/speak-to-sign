@@ -14,7 +14,7 @@
 //! failed or answered). The host then carries the requests while the
 //! worker makes its blocking storage calls. [`Batch::wait`] polls the
 //! responses. A dropped batch drops its futures and streams.
-use seams_voice_verifier::host::{PostRequest, Timed};
+use seams_voice_verifier::host::{GetRequest, PostRequest, Reply, Timed};
 use std::time::{Duration, Instant};
 use wasi::http::outgoing_handler::{self, FutureIncomingResponse};
 use wasi::http::types::{Fields, IncomingResponse, Method, OutgoingBody, OutgoingRequest, RequestOptions, Scheme};
@@ -34,27 +34,50 @@ struct Flight {
     ms: u64,
 }
 
-/// One blocking HTTPS GET: the status and the body. A batch that is in
-/// flight stays in flight: this call waits only on its own response.
-#[cfg(feature = "local-speaker")]
-pub fn get(url: &str, timeout_secs: u64, max_response_bytes: usize) -> Result<(u16, Vec<u8>), String> {
-    let request = PostRequest {
-        url: url.to_string(),
+/// Blocking HTTPS GETs, all in flight at once: the status, the header
+/// fields and the body of each, in request order. A batch that is in flight
+/// stays in flight: this call waits only on its own responses.
+pub fn get_all(requests: &[GetRequest]) -> Vec<Result<Reply, String>> {
+    let futures: Vec<Result<FutureIncomingResponse, String>> = requests.iter().map(start_get).collect();
+    futures
+        .into_iter()
+        .zip(requests)
+        .map(|(future, request)| {
+            let future = future?;
+            future.subscribe().block();
+            match future.get() {
+                Some(Ok(Ok(response))) => read_reply(response, request.max_response_bytes),
+                Some(Ok(Err(error))) => Err(format!("{error:?}")),
+                Some(Err(())) => Err("response taken".into()),
+                None => Err("no response".into()),
+            }
+        })
+        .collect()
+}
+
+fn start_get(request: &GetRequest) -> Result<FutureIncomingResponse, String> {
+    let get = PostRequest {
+        url: request.url.clone(),
         headers: Vec::new(),
         body: Vec::new(),
-        timeout_secs,
-        max_response_bytes,
+        timeout_secs: request.timeout_secs,
+        max_response_bytes: request.max_response_bytes,
     };
-    let (future, body, stream) = start_with(&request, &Method::Get)?;
+    let (future, body, stream) = start_with(&get, &Method::Get)?;
     drop(stream);
     OutgoingBody::finish(body, None).map_err(|error| format!("finish: {error:?}"))?;
-    future.subscribe().block();
-    match future.get() {
-        Some(Ok(Ok(response))) => read(response, max_response_bytes),
-        Some(Ok(Err(error))) => Err(format!("{error:?}")),
-        Some(Err(())) => Err("response taken".into()),
-        None => Err("no response".into()),
-    }
+    Ok(future)
+}
+
+/// The status, the header fields and the body of a response.
+fn read_reply(response: IncomingResponse, max: usize) -> Result<Reply, String> {
+    let headers = {
+        let fields = response.headers();
+        let entries = fields.entries();
+        entries.into_iter().map(|(name, value)| (name, String::from_utf8_lossy(&value).into_owned())).collect()
+    };
+    let (status, body) = read(response, max)?;
+    Ok(Reply { status, headers, body })
 }
 
 fn start(request: &PostRequest) -> Result<(FutureIncomingResponse, OutgoingBody, OutputStream), String> {

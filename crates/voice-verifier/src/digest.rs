@@ -30,14 +30,18 @@ pub fn hex(bytes: &[u8]) -> String {
 
 /// Decodes `2 * N` hex characters into `N` bytes.
 pub fn from_hex<const N: usize>(text: &str) -> Option<[u8; N]> {
-    if text.len() != 2 * N || !text.is_ascii() {
+    if text.len() != 2 * N {
         return None;
     }
-    let mut out = [0u8; N];
-    for (index, slot) in out.iter_mut().enumerate() {
-        *slot = u8::from_str_radix(&text[index * 2..index * 2 + 2], 16).ok()?;
+    from_hex_bytes(text)?.try_into().ok()
+}
+
+/// Decodes an even number of hex characters.
+pub fn from_hex_bytes(text: &str) -> Option<Vec<u8>> {
+    if !text.len().is_multiple_of(2) || !text.is_ascii() {
+        return None;
     }
-    Some(out)
+    (0..text.len()).step_by(2).map(|at| u8::from_str_radix(&text[at..at + 2], 16).ok()).collect()
 }
 
 const BASE58: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";

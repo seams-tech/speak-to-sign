@@ -5,7 +5,7 @@ mod http_batch;
 
 use outlayer::{signing_keys, storage};
 use seams_voice_verifier::config::SIGNING_KEY_PATH;
-use seams_voice_verifier::host::{Host, PostRequest, Timed};
+use seams_voice_verifier::host::{GetRequest, Host, PostRequest, Reply, Timed};
 
 #[derive(Default)]
 pub struct WasmHost {
@@ -27,6 +27,18 @@ impl Host for WasmHost {
 
     fn storage_set_if_equals(&mut self, key: &str, expected: &[u8], value: &[u8]) -> Result<bool, String> {
         storage::set_if_equals(key, expected, value).map(|(written, _)| written).map_err(|error| error.to_string())
+    }
+
+    fn worker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
+        storage::get_worker(key).map_err(|error| error.to_string())
+    }
+
+    fn worker_set(&mut self, key: &str, value: &[u8]) -> Result<(), String> {
+        storage::set_worker_with_options(key, value, Some(false)).map_err(|error| error.to_string())
+    }
+
+    fn get_all(&mut self, requests: Vec<GetRequest>) -> Vec<Result<Reply, String>> {
+        http_batch::get_all(&requests)
     }
 
     fn marker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
@@ -78,12 +90,19 @@ impl Host for WasmHost {
 
         let fetched = Instant::now();
         let (pinned, model_cached) = seams_voice_verifier::model_cache::load(&mut WorkerStore, || {
-            let (status, bytes) = http_batch::get(REDIMNET_URL, REDIMNET_TIMEOUT_SECS, REDIMNET_BYTES)
+            let request = GetRequest {
+                url: REDIMNET_URL.to_string(),
+                timeout_secs: REDIMNET_TIMEOUT_SECS,
+                max_response_bytes: REDIMNET_BYTES,
+            };
+            let reply = http_batch::get_all(&[request])
+                .pop()
+                .unwrap_or_else(|| Err("no response".into()))
                 .map_err(|error| format!("model fetch: {error}"))?;
-            if status != 200 {
-                return Err(format!("model fetch: status_{status}"));
+            if reply.status != 200 {
+                return Err(format!("model fetch: status_{}", reply.status));
             }
-            Ok(bytes)
+            Ok(reply.body)
         })?;
         let model = Model::new(pinned);
         let fetch_ms = fetched.elapsed().as_millis() as u64;

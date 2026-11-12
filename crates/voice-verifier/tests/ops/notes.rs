@@ -3,7 +3,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde_json::{json, Value};
 
-use seams_voice_verifier::config::{NEAR_AI_SYSTEMONE_URL, NEAR_AI_TRANSCRIPTIONS_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{NEAR_AI_SYSTEMONE_URL, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::{b64u, sha256};
 
 use crate::fake::{call, checked_verdict, clip, enrolled, outcome_name, spoken, OWNER};
@@ -130,8 +130,8 @@ fn a_note_is_signed_only_if_its_summary_gives_its_main_point() {
     let (outcome, out, fake) = note_with_fit(Some(0.9));
     assert_eq!(outcome, "accept", "{out}");
     // JEV got the note and the said summary, in the batch of the transcript.
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL, NEAR_AI_SYSTEMONE_URL]);
-    assert_eq!(fake.events, ["start", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL, NEAR_AI_SYSTEMONE_URL]);
+    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "wait"]);
     assert_eq!(fake.summary_checks.len(), 1);
     assert_eq!(fake.summary_checks[0]["state"], json!({ "note": NOTE, "summary": "The bridge stays open" }));
     assert!(out["ms"]["summary"].is_u64(), "{out}");
@@ -175,5 +175,5 @@ fn a_rating_has_no_summary_check() {
     fake.summary_fit = None;
     let out = call(&mut fake, rating_input(&wav, "helpful"));
     assert_eq!(outcome_name(&checked_verdict(&out)), "accept", "{out}");
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
 }

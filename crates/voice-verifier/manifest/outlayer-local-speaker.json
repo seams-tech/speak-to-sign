@@ -5,7 +5,9 @@
     "network": [
       { "host": "test.fastfs.io", "timeout_secs": 30 },
       { "host": "cloud-api.near.ai", "timeout_secs": 30 },
-      { "host": "test.rpc.fastnear.com", "timeout_secs": 10 }
+      { "host": "test.rpc.fastnear.com", "timeout_secs": 10 },
+      { "host": "api.trustedservices.intel.com", "timeout_secs": 10 },
+      { "host": "certificates.trustedservices.intel.com", "timeout_secs": 10 }
     ]
   },
   "signing_keys": [

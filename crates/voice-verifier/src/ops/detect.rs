@@ -14,11 +14,10 @@ use serde_json::Value;
 use super::request::{unsupported, Owner};
 use super::steps::{decode_clip, in_flight, local_embedding, reply, speaker_reply};
 use super::verify::verify_storage;
+use super::whisper::{api_key, words_reply, words_request};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
-use crate::config::{
-    MAX_INTENT_TEXT_BYTES, MAX_SLOTS_JSON_BYTES, NEAR_AI_API_KEY_ENV, NEAR_AI_CHAT_MODEL, VERDICT_TTL_MS,
-};
+use crate::config::{MAX_INTENT_TEXT_BYTES, MAX_SLOTS_JSON_BYTES, NEAR_AI_CHAT_MODEL, VERDICT_TTL_MS};
 use crate::digest::b64u;
 use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
@@ -26,7 +25,6 @@ use crate::input::DetectInput;
 use crate::intent::{chat_request, intents_digest, intents_valid, parse_proposal};
 use crate::output::{short, DetectOutput, IntentResult, Outcome, Reason, Stages};
 use crate::speaker_client::service_request;
-use crate::transcriber::{parse_reply, transcription_request};
 use crate::words::{cut_at, printable};
 
 /// One detect run.
@@ -82,18 +80,15 @@ fn detect_steps(
     }
 
     // The speaker and the words, as in `transcribe`.
-    let Some(api_key) =
-        host.secret(NEAR_AI_API_KEY_ENV).map(|key| key.trim().to_string()).filter(|key| !key.is_empty())
-    else {
-        return Err(Refusal::new(Reason::TranscriberUnavailable, "transcriber: no_api_key"));
-    };
+    let api_key = api_key(host)?;
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
     let mut requests = Vec::with_capacity(2);
     if !pins.local_speaker {
         requests.push(service_request(&clip.wav, &nonce));
     }
     let words_at = requests.len();
-    requests.push(transcription_request(&api_key, &clip.wav));
+    let (words_post, words) = words_request(host, ms, &api_key, &clip.wav)?;
+    requests.push(words_post);
     let local = [&clip];
     let flight = in_flight(host, ms, requests, pins.local_speaker.then_some(&local[..]), |host, ms| {
         verify_storage(host, owner.as_str(), &digest_b64u, ms)
@@ -109,7 +104,7 @@ fn detect_steps(
     if !speaker_passes(score) {
         return Err(Reason::Speaker.into());
     }
-    let heard = reply(results.get(words_at), "transcriber", Reason::TranscriberUnavailable, parse_reply)?;
+    let heard = words_reply(host, results.get(words_at), &words)?;
     let text = cut_at(&printable(&heard), MAX_INTENT_TEXT_BYTES);
     if text.is_empty() {
         return Err(Reason::Words.into());

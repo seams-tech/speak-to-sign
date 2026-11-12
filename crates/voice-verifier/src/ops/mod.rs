@@ -19,7 +19,8 @@
 //!
 //! Each flow has its own file. `request.rs` types the request of a `verify`
 //! input, `multisig.rs` builds and records the multisig kinds, and
-//! `steps.rs` holds the steps that both flows use.
+//! `steps.rs` holds the steps that both flows use. `whisper.rs` holds the
+//! Whisper request, sealed to the checked NEAR AI gateway.
 mod audio_key;
 mod detect;
 mod enroll;
@@ -29,6 +30,7 @@ mod select;
 mod steps;
 mod transcribe;
 mod verify;
+mod whisper;
 
 use serde_json::Value;
 

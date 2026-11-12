@@ -1,15 +1,20 @@
-//! The word model: Whisper large-v3 on NEAR AI Cloud.
+//! The word model: Whisper large-v3 on NEAR AI Cloud, over Oblivious HTTP.
 //!
 //! The request holds only the audio and the fields `model` and `language`.
-//! It never holds the expected text or a prompt. NEAR AI is a trusted party
-//! for the transcript: a transcription has no signature today.
+//! It never holds the expected text or a prompt. The whole HTTP request,
+//! with the API key, is sealed to the OHTTP key of the NEAR AI gateway that
+//! `nearai_attestation` checked, and goes to [`NEAR_AI_OHTTP_URL`]. So only
+//! that TDX VM opens the audio, and a reply that opens came from it, for
+//! this request. NEAR AI does not sign a transcription.
 use serde::Deserialize;
 
 use crate::config::{
-    NEAR_AI_LANGUAGE, NEAR_AI_MAX_RESPONSE_BYTES, NEAR_AI_MODEL, NEAR_AI_TIMEOUT_SECS, NEAR_AI_TRANSCRIPTIONS_URL,
+    NEAR_AI_LANGUAGE, NEAR_AI_MAX_RESPONSE_BYTES, NEAR_AI_MODEL, NEAR_AI_OHTTP_URL, NEAR_AI_TIMEOUT_SECS,
+    NEAR_AI_TRANSCRIPTIONS_URL,
 };
 use crate::digest::{hex, sha256};
 use crate::host::PostRequest;
+use crate::ohttp::{bhttp_request, bhttp_response, seal_request, KeyConfig, ResponseOpener};
 
 /// `multipart/form-data` with exactly the fields `model`, `language` and
 /// `file`. The boundary comes from the WAV digest, so it is deterministic
@@ -33,21 +38,66 @@ fn multipart_body(wav: &[u8]) -> (String, Vec<u8>) {
     (format!("multipart/form-data; boundary={boundary}"), body)
 }
 
-/// The POST to NEAR AI, without the network.
-pub fn transcription_request(api_key: &str, wav: &[u8]) -> PostRequest {
+/// The transcription request as a Binary HTTP message: the POST to
+/// [`NEAR_AI_TRANSCRIPTIONS_URL`] with the API key, the multipart body and
+/// no model alias (so the gateway runs the named model).
+pub fn transcription_message(api_key: &str, wav: &[u8]) -> Vec<u8> {
     let (content_type, body) = multipart_body(wav);
-    PostRequest {
-        url: NEAR_AI_TRANSCRIPTIONS_URL.to_string(),
-        headers: vec![
-            ("Authorization".to_string(), format!("Bearer {api_key}")),
-            ("Content-Type".to_string(), content_type),
-            // No model alias, so the gateway runs the named model.
-            ("x-no-aliasing".to_string(), "true".to_string()),
-        ],
-        body,
+    let rest = NEAR_AI_TRANSCRIPTIONS_URL.strip_prefix("https://").expect("an https URL");
+    let (authority, path) = rest.split_at(rest.find('/').expect("a path"));
+    let headers = [
+        ("authorization".to_string(), format!("Bearer {api_key}")),
+        ("content-type".to_string(), content_type),
+        ("x-no-aliasing".to_string(), "true".to_string()),
+    ];
+    bhttp_request("POST", authority, path, &headers, &body)
+}
+
+/// The POST to the OHTTP endpoint of NEAR AI, without the network: the
+/// transcription request sealed to `config` with the host's `seed`, and
+/// what opens its reply.
+pub fn transcription_request(
+    config: &KeyConfig,
+    api_key: &str,
+    wav: &[u8],
+    seed: &[u8; 32],
+) -> Result<(PostRequest, ResponseOpener), &'static str> {
+    let sealed = seal_request(config, &transcription_message(api_key, wav), seed)?;
+    let request = PostRequest {
+        url: NEAR_AI_OHTTP_URL.to_string(),
+        headers: vec![("Content-Type".to_string(), "message/ohttp-req".to_string())],
+        body: sealed.body,
         timeout_secs: NEAR_AI_TIMEOUT_SECS,
         max_response_bytes: NEAR_AI_MAX_RESPONSE_BYTES,
+    };
+    Ok((request, sealed.opener))
+}
+
+/// Why a reply gives no transcript.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReplyFault {
+    /// NEAR AI did not answer, answered with an error, or gave no text.
+    Unavailable(String),
+    /// The gateway could not open the request (status 400), or the reply
+    /// was not sealed for this request: the binding to the checked gateway
+    /// failed.
+    NotAttested(String),
+}
+
+/// Reads the reply of the OHTTP endpoint: status 200, a body that `opener`
+/// opens, a Binary HTTP response, and in it a reply that [`parse_reply`]
+/// accepts.
+pub fn open_reply(status: u16, body: &[u8], opener: &ResponseOpener) -> Result<String, ReplyFault> {
+    match status {
+        200 => {}
+        400 => return Err(ReplyFault::NotAttested("ohttp: status_400".into())),
+        _ => return Err(ReplyFault::Unavailable(format!("ohttp: status_{status}"))),
     }
+    let opened =
+        opener.open(body).ok_or_else(|| ReplyFault::NotAttested("ohttp: not_sealed_for_this_request".into()))?;
+    let (inner, content) =
+        bhttp_response(&opened).map_err(|error| ReplyFault::Unavailable(format!("bhttp: {error}")))?;
+    parse_reply(inner, &content).map_err(ReplyFault::Unavailable)
 }
 
 /// Reads a reply: status 200 and a JSON object whose `text` is a string with
@@ -75,14 +125,28 @@ mod tests {
     #[test]
     fn request_has_only_the_three_fields_and_the_key() {
         let wav = b"RIFF0000WAVEfake".to_vec();
-        let request = transcription_request("sk-test", &wav);
-        assert_eq!(request.url, "https://cloud-api.near.ai/v1/audio/transcriptions");
-        assert_eq!(request.headers[0], ("Authorization".into(), "Bearer sk-test".into()));
-        let text = String::from_utf8_lossy(&request.body);
+        let message = transcription_message("sk-test", &wav);
+        let text = String::from_utf8_lossy(&message);
+        assert!(text.starts_with("\0\u{4}POST\u{5}https\u{11}cloud-api.near.ai\u{18}/v1/audio/transcriptions"));
+        assert!(text.contains("authorization\u{e}Bearer sk-test"));
+        assert!(text.contains("x-no-aliasing\u{4}true"));
         assert_eq!(text.matches("Content-Disposition").count(), 3);
         assert!(text.contains("openai/whisper-large-v3"));
         assert!(!text.contains("prompt"));
-        assert!(request.body.windows(wav.len()).any(|window| window == wav));
+        assert!(message.windows(wav.len()).any(|window| window == wav));
+    }
+
+    #[test]
+    fn the_post_holds_only_ciphertext() {
+        use hpke::{Kem, Serializable};
+        let (_, public) = hpke::kem::X25519HkdfSha256::derive_keypair(b"gateway");
+        let config = KeyConfig { key_id: 1, public_key: public.to_bytes().into() };
+        let wav = b"RIFF0000WAVEfake".to_vec();
+        let (request, _) = transcription_request(&config, "sk-test", &wav, &[3; 32]).unwrap();
+        assert_eq!(request.url, "https://cloud-api.near.ai/ohttp");
+        assert_eq!(request.headers, [("Content-Type".to_string(), "message/ohttp-req".to_string())]);
+        assert!(!request.body.windows(wav.len()).any(|window| window == wav));
+        assert!(!request.body.windows(7).any(|window| window == b"sk-test"));
     }
 
     #[test]

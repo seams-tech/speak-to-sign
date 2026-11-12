@@ -8,22 +8,20 @@ use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest};
 use super::multisig::{self, Prepared};
 use super::request::{known_accounts, typed_request, unsupported, SERVED_NETWORK};
 use super::steps::{
-    check_summary, consume, decode_clip, in_flight, local_embedding, push_summary_check, reply, speaker_reply,
+    check_summary, consume, decode_clip, in_flight, local_embedding, push_summary_check, speaker_reply,
 };
+use super::whisper::{api_key, words_reply, words_request};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
-use crate::config::{template_key, MAX_CONTACTS, NEAR_AI_API_KEY_ENV, VERDICT_TTL_MS};
+use crate::config::{template_key, MAX_CONTACTS, VERDICT_TTL_MS};
 use crate::digest::b64u;
 use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
 use crate::input::VerifyInput;
-use crate::output::{
-    fit_heard, short, sign_verdict, MultisigOpening, Outcome, Reason, Stages, Verdict, VerifyOutput,
-};
+use crate::output::{fit_heard, short, sign_verdict, MultisigOpening, Outcome, Reason, Stages, Verdict, VerifyOutput};
 use crate::policy::{self, Decision};
 use crate::speaker_client::service_request;
 use crate::template::{model_sha256, TemplateRecord};
-use crate::transcriber::{parse_reply, transcription_request};
 use crate::words::{check_words, words_pass};
 
 /// One verify run. The output JSON stays below
@@ -105,11 +103,7 @@ fn verify_steps(
     // 3. The speaker service and NEAR AI, at the same time: the transcript,
     //    and for a note the summary check. The bodies go out now; the
     //    responses are read after the storage calls.
-    let Some(api_key) =
-        host.secret(NEAR_AI_API_KEY_ENV).map(|key| key.trim().to_string()).filter(|key| !key.is_empty())
-    else {
-        return Err(Refusal::new(Reason::TranscriberUnavailable, "transcriber: no_api_key"));
-    };
+    let api_key = api_key(host)?;
     // The `local-speaker` build sends only the NEAR AI request, and runs the
     // model inside the worker while that request is in flight.
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
@@ -118,7 +112,8 @@ fn verify_steps(
         requests.push(service_request(&clip.wav, &nonce));
     }
     let words_at = requests.len();
-    requests.push(transcription_request(&api_key, &clip.wav));
+    let (words_post, words) = words_request(host, ms, &api_key, &clip.wav)?;
+    requests.push(words_post);
     let summary_at = push_summary_check(&mut requests, &api_key, &input.request);
 
     // 4. The template and the used-audio mark, while the requests are in
@@ -155,7 +150,7 @@ fn verify_steps(
     }
 
     // 6. The transcript.
-    let transcript = reply(results.get(words_at), "transcriber", Reason::TranscriberUnavailable, parse_reply)?;
+    let transcript = words_reply(host, results.get(words_at), &words)?;
 
     // 7. Words: the heard tokens must equal the rendered tokens (a note
     //    summary may differ by one word, see `words_pass`).

@@ -201,6 +201,8 @@ const REFUSALS: Record<string, string> = {
   speaker_unavailable: 'The speaker check service did not answer.',
   storage: 'The verifier could not store its record.',
   transcriber_unavailable: 'The speech-to-text service did not answer.',
+  // Verifier 0.14.0 and later: the NEAR AI gateway failed its TEE check.
+  transcriber_not_attested: 'The speech-to-text service did not pass its TEE check, so the verifier did not use it.',
   summary_not_speakable: 'The summary must be 1 to 12 words of letters A to Z.',
   summary_mismatch: 'The verifier found that the summary does not give the main point of the note.',
   summary_check_unavailable: 'The summary check service did not answer.',

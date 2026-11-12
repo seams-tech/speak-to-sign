@@ -56,8 +56,15 @@ pub enum Reason {
     /// `enroll` only: another enrollment of this owner changed the template
     /// during this one.
     TemplateExists,
-    /// NEAR AI did not answer, answered with an error, or gave no text.
+    /// NEAR AI did not answer, answered with an error, or gave no text. Also:
+    /// the attestation of the NEAR AI gateway could not be checked (no
+    /// answer of NEAR AI or Intel PCS), and no checked gateway of the last
+    /// 24 hours is stored.
     TranscriberUnavailable,
+    /// The attestation of the NEAR AI gateway failed a check, or the reply of
+    /// Whisper was not sealed by the checked gateway for this request. No
+    /// audio went out after a failed check, and no transcript is used.
+    TranscriberNotAttested,
     /// `enroll` only: the authorization is not a valid NEP-413 signature of
     /// this enrollment by a full-access key of the owner.
     NotAuthorized,
@@ -86,7 +93,7 @@ pub enum Reason {
 #[cfg(test)]
 impl Reason {
     /// Every reason, in declaration order.
-    const ALL: [Reason; 19] = [
+    const ALL: [Reason; 20] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -98,6 +105,7 @@ impl Reason {
         Reason::Storage,
         Reason::TemplateExists,
         Reason::TranscriberUnavailable,
+        Reason::TranscriberNotAttested,
         Reason::NotAuthorized,
         Reason::AuthorizationUnavailable,
         Reason::ProposalMissing,
@@ -261,7 +269,17 @@ impl VerifyOutput {
         detail: Option<String>,
     ) -> Self {
         let (signature_b64, public_key) = signed.unzip();
-        Self { kind: VERIFY_OUTPUT_KIND, verdict_json, signature_b64, public_key, policy_text, ms, detail, multisig: None, selected: None }
+        Self {
+            kind: VERIFY_OUTPUT_KIND,
+            verdict_json,
+            signature_b64,
+            public_key,
+            policy_text,
+            ms,
+            detail,
+            multisig: None,
+            selected: None,
+        }
     }
 }
 
@@ -654,7 +672,7 @@ mod tests {
         let text = verdict_json(&Verdict::new());
         assert_eq!(
             text,
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.13.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.14.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);
@@ -678,6 +696,7 @@ mod tests {
                 "storage",
                 "template_exists",
                 "transcriber_unavailable",
+                "transcriber_not_attested",
                 "not_authorized",
                 "authorization_unavailable",
                 "proposal_missing",

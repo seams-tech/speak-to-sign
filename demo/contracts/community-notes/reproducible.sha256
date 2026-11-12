@@ -1,3 +1,3 @@
-# cargo near build reproducible-wasm of commit 777b84429096604e77e217480e9f89a398f5da13 (146408 bytes).
+# cargo near build reproducible-wasm of commit 119ef0e6ceda8fedd131a8b4a7e6ce554b99751f (204970 bytes).
 # Check it with ../reproducible.sh check community-notes
-0b821a5c459d31b7aed4b6459b3aa572189c927411878665d8eae633d51f7f80  res/community_notes.wasm
+596beeb36aa2a43eccc211e9dcc557b992d19fcd72e3ef8fcfeb9d5aa237d9c3  res/community_notes.wasm

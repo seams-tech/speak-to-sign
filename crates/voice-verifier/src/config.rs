@@ -2,7 +2,7 @@
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.13.0";
+pub const VERIFIER_VERSION: &str = "0.14.0";
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.
@@ -154,6 +154,62 @@ pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
 
+/// Oblivious HTTP on the same host: the worker seals each transcription
+/// request (the audio, the headers and the API key) to the OHTTP key of the
+/// NEAR AI gateway, and posts it here. See `ohttp` and `nearai_attestation`.
+pub const NEAR_AI_OHTTP_URL: &str = "https://cloud-api.near.ai/ohttp";
+/// The attestation report of the gateway and of the Whisper model. It needs
+/// no API key; the worker adds the model, `signing_algo=ed25519` and a fresh
+/// nonce.
+pub const NEAR_AI_ATTESTATION_URL: &str = "https://cloud-api.near.ai/v1/attestation/report";
+pub const NEAR_AI_ATTESTATION_TIMEOUT_SECS: u64 = 20;
+/// A report had 288,651 bytes on 2026-11-12.
+pub const NEAR_AI_ATTESTATION_MAX_BYTES: usize = 1 << 20;
+/// The ed25519 key of the NEAR AI gateway (`signing_address` of
+/// `gateway_attestation` with `signing_algo=ed25519`). The gateway derives
+/// it from the key of its dstack KMS, so every gateway instance has it, and
+/// it signs the OHTTP key configuration. Pinned on 2026-11-12, when three
+/// instances of the gateway gave it, each in a TDX quote with the nonce of
+/// the request.
+pub const NEAR_AI_GATEWAY_KEY_HEX: &str = "40599fb284f43953bb356b09080fd803c960fc10285ad90eca462ca711ad4acb";
+/// A checked gateway is used for this long. The next call checks it again.
+pub const NEAR_AI_ATTESTATION_TTL_MS: u64 = 6 * 3_600_000;
+/// If that check cannot reach NEAR AI or Intel PCS, the last checked
+/// gateway is used up to this age. An answer that fails a check refuses at
+/// once.
+pub const NEAR_AI_ATTESTATION_GRACE_MS: u64 = 24 * 3_600_000;
+/// The worker storage key of the checked gateway (plaintext: it holds only
+/// public values).
+pub const NEAR_AI_GATEWAY_RECORD_KEY: &str = "nearai-gateway:v1";
+// The report fits in the time that the manifest gives the host, and the
+// grace period is longer than the time to live.
+const _: () = assert!(NEAR_AI_ATTESTATION_TIMEOUT_SECS <= NEAR_AI_TIMEOUT_SECS);
+const _: () = assert!(NEAR_AI_ATTESTATION_GRACE_MS > NEAR_AI_ATTESTATION_TTL_MS);
+
+/// Intel PCS: the collateral of a TDX quote (the PCK CRL, the TCB info and
+/// the QE identity), and the CRL of the Intel SGX root CA. Intel signs each
+/// part, and `dcap-qvl` checks the signatures, so these hosts are not
+/// trusted for the collateral. To move them, change these names and the same
+/// hosts in both manifests (a test checks that they agree).
+macro_rules! intel_pcs_host {
+    () => {
+        "api.trustedservices.intel.com"
+    };
+}
+macro_rules! intel_certificates_host {
+    () => {
+        "certificates.trustedservices.intel.com"
+    };
+}
+#[cfg(test)]
+const INTEL_PCS_HOST: &str = intel_pcs_host!();
+#[cfg(test)]
+const INTEL_CERTIFICATES_HOST: &str = intel_certificates_host!();
+pub const INTEL_PCS_URL: &str = concat!("https://", intel_pcs_host!());
+pub const INTEL_ROOT_CA_CRL_URL: &str = concat!("https://", intel_certificates_host!(), "/IntelSGXRootCA.der");
+pub const INTEL_PCS_TIMEOUT_SECS: u64 = 10;
+pub const INTEL_PCS_MAX_BYTES: usize = 256 * 1024;
+
 /// JEV (Typesafe System One) on the same host: the summary check of a
 /// community note. The model is pinned: another version gives other
 /// probabilities.
@@ -291,10 +347,12 @@ mod tests {
         assert!(manifest.get("storage_account").is_none());
         let network = manifest["capabilities"]["network"].as_array().unwrap();
         let hosts: Vec<&str> = network.iter().map(|entry| entry["host"].as_str().unwrap()).collect();
-        assert_eq!(hosts, [SPEAKER_HOST, NEAR_AI_HOST, NEAR_RPC_HOST]);
+        assert_eq!(hosts, [SPEAKER_HOST, NEAR_AI_HOST, NEAR_RPC_HOST, INTEL_PCS_HOST, INTEL_CERTIFICATES_HOST]);
         assert_eq!(network[0]["timeout_secs"], SPEAKER_TIMEOUT_SECS);
         assert_eq!(network[1]["timeout_secs"], NEAR_AI_TIMEOUT_SECS);
         assert_eq!(network[2]["timeout_secs"], NEAR_RPC_TIMEOUT_SECS);
+        assert_eq!(network[3]["timeout_secs"], INTEL_PCS_TIMEOUT_SECS);
+        assert_eq!(network[4]["timeout_secs"], INTEL_PCS_TIMEOUT_SECS);
         assert!(NEAR_RPC_URL.starts_with(&format!("https://{NEAR_RPC_HOST}/")));
         assert_eq!(
             manifest["signing_keys"],
@@ -302,6 +360,10 @@ mod tests {
         );
         assert!(SPEAKER_EMBED_URL.starts_with(&format!("https://{SPEAKER_HOST}/")));
         assert!(NEAR_AI_TRANSCRIPTIONS_URL.starts_with(&format!("https://{NEAR_AI_HOST}/")));
+        assert!(NEAR_AI_OHTTP_URL.starts_with(&format!("https://{NEAR_AI_HOST}/")));
+        assert!(NEAR_AI_ATTESTATION_URL.starts_with(&format!("https://{NEAR_AI_HOST}/")));
+        assert_eq!(INTEL_PCS_URL, format!("https://{INTEL_PCS_HOST}"));
+        assert!(INTEL_ROOT_CA_CRL_URL.starts_with(&format!("https://{INTEL_CERTIFICATES_HOST}/")));
     }
 
     /// The `local-speaker` manifest is the default manifest with the model

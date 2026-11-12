@@ -15,6 +15,33 @@ pub struct PostRequest {
     pub max_response_bytes: usize,
 }
 
+/// One HTTPS GET.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GetRequest {
+    /// `https://...`.
+    pub url: String,
+    /// Connect, first-byte and between-bytes timeout, in seconds.
+    pub timeout_secs: u64,
+    /// A larger response body is an error.
+    pub max_response_bytes: usize,
+}
+
+/// The response of a [`GetRequest`]: the status, the header fields and the
+/// body.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Reply {
+    pub status: u16,
+    pub headers: Vec<(String, String)>,
+    pub body: Vec<u8>,
+}
+
+impl Reply {
+    /// The value of the first header field with this name, in any case.
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers.iter().find(|(key, _)| key.eq_ignore_ascii_case(name)).map(|(_, value)| value.as_str())
+    }
+}
+
 /// One result of [`Host::post_wait`]: (status, body) or an error, and the
 /// time from the start of the batch to the end of the response body.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,6 +78,15 @@ pub trait Host {
     /// Replaces a keystore-encrypted record if it still holds `expected`.
     /// `true` if this call wrote it.
     fn storage_set_if_equals(&mut self, key: &str, expected: &[u8], value: &[u8]) -> Result<bool, String>;
+    /// Reads a plaintext record of the worker storage: one for the whole
+    /// project, for every caller and every version. Only the project's WASM
+    /// writes it.
+    fn worker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String>;
+    /// Writes a plaintext record of the worker storage.
+    fn worker_set(&mut self, key: &str, value: &[u8]) -> Result<(), String>;
+    /// Sends every GET at once and waits for all of them, in request order.
+    /// Call it only when no batch of [`Host::post_start`] is in flight.
+    fn get_all(&mut self, requests: Vec<GetRequest>) -> Vec<Result<Reply, String>>;
     /// Reads a raw (not encrypted) record. No keystore round trip.
     fn marker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String>;
     /// Writes a raw record if the key is absent. `true` if this call wrote it.

@@ -5,7 +5,7 @@ use base64::Engine;
 use serde_json::{json, Value};
 use spoken_intent::{request_digest, AppOwner, ConfirmationContext, SpokenRequestV1, SpokenSummary};
 
-use seams_voice_verifier::config::{template_key, NEAR_AI_TRANSCRIPTIONS_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{template_key, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::{b64u, from_hex};
 use seams_voice_verifier::ops::transfer_request;
 
@@ -137,7 +137,7 @@ fn a_confirmation_binds_the_context_and_the_payload() {
     let vector = vectors["requests"].as_array().unwrap().iter().find(|case| case["name"] == "confirmation_login").unwrap();
     let digest = from_hex::<32>(vector["request_digest_hex"].as_str().unwrap()).unwrap();
     assert_eq!(verdict.request_digest, Some(b64u(&digest)));
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
     // Another context or another payload is another digest.
     assert_ne!(
         confirmation_digest("shop.example/login", "Log in to the example shop"),
@@ -235,15 +235,15 @@ fn select_signs_the_request_that_the_owner_said() {
     assert_eq!(verdict.request_digest, Some(confirmation_digest("shop.example/order", "Cancel my order")));
     assert_eq!(verdict.heard.as_deref(), Some("cancel my order"));
     assert!(verdict.spoken_text_digest.is_some());
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
-    assert_eq!(fake.events, ["start", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
+    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "wait"]);
 
     // The `local-speaker` variant.
     let mut local = app_enrolled();
     let wav = said(&mut local, "Deliver it to my office");
     let out = call_local(&mut local, select_input(USER, shop_actions(), &wav));
     assert_eq!(out["selected"], 2, "{out}");
-    assert_eq!(local.posts, [NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(local.posts, [NEAR_AI_OHTTP_URL]);
 }
 
 #[test]

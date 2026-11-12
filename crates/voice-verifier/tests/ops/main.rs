@@ -1,5 +1,6 @@
 //! `enroll` and `verify` against a fake host: a fake speaker service that
-//! signs as the real one does, a fake NEAR AI, storage maps and a real
+//! signs as the real one does, a fake NEAR AI (its gateway opens the sealed
+//! Whisper request), storage maps and a real
 //! ed25519 signing key. `fake.rs` holds the fake host and the shared input
 //! builders; each other file tests one operation or one request kind.
 mod bets;
@@ -14,6 +15,7 @@ mod sealed;
 mod transcribe;
 mod verify;
 mod web2;
+mod whisper;
 
 use serde_json::json;
 

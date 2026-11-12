@@ -5,7 +5,9 @@
     "network": [
       { "host": "627a3cc63411c2f454cb43695a3747f54618482c-8080.dstack-pha1-prod5.phala.network", "timeout_secs": 30 },
       { "host": "cloud-api.near.ai", "timeout_secs": 30 },
-      { "host": "test.rpc.fastnear.com", "timeout_secs": 10 }
+      { "host": "test.rpc.fastnear.com", "timeout_secs": 10 },
+      { "host": "api.trustedservices.intel.com", "timeout_secs": 10 },
+      { "host": "certificates.trustedservices.intel.com", "timeout_secs": 10 }
     ]
   },
   "signing_keys": [

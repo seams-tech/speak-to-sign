@@ -159,12 +159,18 @@ pub(super) fn reply<T>(
     unavailable: Reason,
     check: impl FnOnce(u16, &[u8]) -> Result<T, String>,
 ) -> Result<T, Refusal> {
-    let checked = match timed.map(|timed| &timed.result) {
-        Some(Ok((status, body))) => check(*status, body),
+    let checked = reply_of(timed).and_then(|(status, body)| check(status, body));
+    checked.map_err(|error| Refusal::new(unavailable, short(&format!("{service}: {error}"))))
+}
+
+/// The status and the body of one response of the batch. A transport error
+/// is `network: …` and a missing result is `no_result`.
+pub(super) fn reply_of(timed: Option<&Timed>) -> Result<(u16, &[u8]), String> {
+    match timed.map(|timed| &timed.result) {
+        Some(Ok((status, body))) => Ok((*status, body)),
         Some(Err(error)) => Err(format!("network: {error}")),
         None => Err("no_result".into()),
-    };
-    checked.map_err(|error| Refusal::new(unavailable, short(&format!("{service}: {error}"))))
+    }
 }
 
 /// The checked speaker service reply for `clip`.

@@ -11,12 +11,14 @@ use seams_voice_verifier::audio::wav_bytes;
 use seams_voice_verifier::authorization::{authorization_message, enrollment_digest, nep413_hash};
 use seams_voice_verifier::config::{
     AUDIO_INFO, AUDIO_KEY_ENV, EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV,
-    NEAR_AI_CHAT_URL, NEAR_AI_SYSTEMONE_URL, NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX,
-    SPEAKER_EMBED_URL,
+    NEAR_AI_ATTESTATION_URL, NEAR_AI_CHAT_URL, NEAR_AI_GATEWAY_KEY_HEX, NEAR_AI_GATEWAY_RECORD_KEY, NEAR_AI_OHTTP_URL,
+    NEAR_AI_SYSTEMONE_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
 };
 use seams_voice_verifier::envelope::{audio_aad, AudioKey};
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
-use seams_voice_verifier::host::{Host, LocalEmbeddings, PostRequest, Timed};
+use seams_voice_verifier::host::{GetRequest, Host, LocalEmbeddings, PostRequest, Reply, Timed};
+use seams_voice_verifier::nearai_attestation::Gateway;
+use seams_voice_verifier::ohttp::gateway::{bhttp_response_bytes, GatewayKey};
 use seams_voice_verifier::output::{verdict_message, Verdict};
 use seams_voice_verifier::speaker_client::service_message;
 use seams_voice_verifier::{run_with, Pins};
@@ -44,6 +46,53 @@ pub(crate) fn embedding(axis: usize, angle: f32) -> Vec<f32> {
     values[axis] = angle.cos();
     values[axis + 1] = angle.sin();
     values
+}
+
+/// The recorded report of the NEAR AI gateway (for the nonce of
+/// [`Fake::random32`]) and Intel's recorded collateral for it.
+const NEAR_AI_REPORT: &[u8] = include_bytes!("../../testdata/nearai_report_v1.json");
+const INTEL_COLLATERAL: &str = include_str!("../../testdata/nearai_collateral_v1.json");
+
+/// The OHTTP key of the fake NEAR AI gateway.
+pub(crate) fn fake_gateway() -> GatewayKey {
+    GatewayKey::derive(b"the fake NEAR AI gateway", 1)
+}
+
+/// A checked gateway record of the fake gateway's key, checked at `at_ms`.
+pub(crate) fn gateway_record(at_ms: u64) -> Vec<u8> {
+    Gateway {
+        gateway_key: NEAR_AI_GATEWAY_KEY_HEX.into(),
+        key_config: hex(&fake_gateway().config_bytes()),
+        compose_hash: "00".repeat(32),
+        tcb_status: "UpToDate".into(),
+        quote_sha256: "00".repeat(32),
+        checked_at_ms: at_ms,
+    }
+    .to_record()
+}
+
+/// What the fake NEAR AI attestation endpoint and Intel PCS answer.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum Attestation {
+    /// The recorded report and collateral.
+    #[default]
+    Recorded,
+    /// The recorded report with another model name.
+    WrongModel,
+    /// No answer.
+    Down,
+}
+
+/// What the fake NEAR AI gateway does with a sealed request.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum GatewayMode {
+    /// Opens it, and seals the reply for it.
+    #[default]
+    Opens,
+    /// Answers 400, as the gateway does for a request that it cannot open.
+    Status400,
+    /// Seals the reply with a changed byte.
+    WrongSeal,
 }
 
 /// What the fake NEAR RPC says about a key of `OWNER`.
@@ -82,8 +131,19 @@ pub(crate) struct Fake {
     /// The accounts whose full-access key is `OWNER_SEED`.
     pub(crate) accounts: Vec<String>,
     pub(crate) posts: Vec<String>,
+    /// The plaintext worker storage (the checked NEAR AI gateway).
+    pub(crate) worker: HashMap<String, Vec<u8>>,
+    /// The URL of each GET.
+    pub(crate) gets: Vec<String>,
+    pub(crate) attestation: Attestation,
+    pub(crate) gateway_mode: GatewayMode,
+    /// The fake wall clock. `Fake::new` sets [`NOW_MS`].
+    pub(crate) now: u64,
+    /// The plaintext of each sealed request that the fake gateway opened.
+    pub(crate) sealed_requests: Vec<Vec<u8>>,
     /// Host calls in order: "start", "wait", "cancel", "get", "marker_get",
-    /// "marker_set", "set", "embed_local".
+    /// "marker_set", "set", "embed_local", "worker_get", "worker_set",
+    /// "get_all".
     pub(crate) events: Vec<&'static str>,
     batch: Option<Vec<Timed>>,
 }
@@ -94,7 +154,69 @@ impl Fake {
         fake.secrets.insert(NEAR_AI_API_KEY_ENV.into(), "sk-test".into());
         fake.secrets.insert(AUDIO_KEY_ENV.into(), AUDIO_KEY_HEX.into());
         fake.accounts.push(OWNER.into());
+        fake.now = NOW_MS;
+        fake.worker.insert(NEAR_AI_GATEWAY_RECORD_KEY.into(), gateway_record(NOW_MS));
         fake
+    }
+
+    /// The fake NEAR AI gateway: opens the sealed request with its key, and
+    /// seals the Whisper reply for it.
+    fn gateway_reply(&mut self, request: &PostRequest) -> Result<(u16, Vec<u8>), String> {
+        assert_eq!(request.headers, [("Content-Type".to_string(), "message/ohttp-req".to_string())]);
+        let opened = fake_gateway().open(&request.body);
+        let Some((message, responder)) = opened.filter(|_| self.gateway_mode != GatewayMode::Status400) else {
+            return Ok((400, br#"{"error":{"message":"OHTTP decapsulation failed"}}"#.to_vec()));
+        };
+        let contains = |part: &[u8]| message.windows(part.len()).any(|window| window == part);
+        assert!(contains(b"/v1/audio/transcriptions"));
+        assert!(contains(b"\x0dauthorization\x0eBearer sk-test"));
+        self.sealed_requests.push(message.clone());
+        let (status, body) = match &self.transcript {
+            Some(text) => (200, json!({ "text": text }).to_string().into_bytes()),
+            None => (503, b"{}".to_vec()),
+        };
+        let mut sealed = responder.seal(&bhttp_response_bytes(status, &body), &[7; 32]);
+        if self.gateway_mode == GatewayMode::WrongSeal {
+            sealed[40] ^= 1;
+        }
+        Ok((200, sealed))
+    }
+
+    /// The fake NEAR AI attestation endpoint and Intel PCS.
+    fn get_reply(&self, request: &GetRequest) -> Result<Reply, String> {
+        if self.attestation == Attestation::Down {
+            return Err("connection refused".into());
+        }
+        if request.url.starts_with(NEAR_AI_ATTESTATION_URL) {
+            assert!(request.url.ends_with(&format!("&nonce={}", "5a".repeat(32))), "{}", request.url);
+            let mut report: Value = serde_json::from_slice(NEAR_AI_REPORT).unwrap();
+            if self.attestation == Attestation::WrongModel {
+                report["model_attestations"][0]["model_name"] = Value::from("openai/whisper-tiny");
+            }
+            return Ok(Reply { status: 200, headers: Vec::new(), body: report.to_string().into_bytes() });
+        }
+        let recorded: Value = serde_json::from_str(INTEL_COLLATERAL).unwrap();
+        let reply = recorded["replies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|reply| reply["url"] == request.url.as_str())
+            .ok_or("unknown host")?;
+        let headers = reply["headers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|pair| (pair[0].as_str().unwrap().to_string(), pair[1].as_str().unwrap().to_string()))
+            .collect();
+        let body = STANDARD.decode(reply["body_b64"].as_str().unwrap()).unwrap();
+        Ok(Reply { status: reply["status"].as_u64().unwrap() as u16, headers, body })
+    }
+
+    /// The time of Intel's recorded collateral: a check of the recorded
+    /// report passes at this time.
+    pub(crate) fn recorded_at() -> u64 {
+        let recorded: Value = serde_json::from_str(INTEL_COLLATERAL).unwrap();
+        recorded["checked_at_ms"].as_u64().unwrap()
     }
 
     pub(crate) fn voice(&mut self, wav: &[u8], values: Vec<f32>) {
@@ -179,6 +301,20 @@ impl Host for Fake {
         self.storage.insert(key.into(), value.to_vec());
         Ok(true)
     }
+    fn worker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
+        self.events.push("worker_get");
+        Ok(self.worker.get(key).cloned())
+    }
+    fn worker_set(&mut self, key: &str, value: &[u8]) -> Result<(), String> {
+        self.events.push("worker_set");
+        self.worker.insert(key.into(), value.to_vec());
+        Ok(())
+    }
+    fn get_all(&mut self, requests: Vec<GetRequest>) -> Vec<Result<Reply, String>> {
+        self.events.push("get_all");
+        self.gets.extend(requests.iter().map(|request| request.url.clone()));
+        requests.iter().map(|request| self.get_reply(request)).collect()
+    }
     fn marker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
         self.events.push("marker_get");
         Ok(self.markers.get(key).cloned())
@@ -199,11 +335,8 @@ impl Host for Fake {
                 self.posts.push(request.url.clone());
                 let result = if request.url == SPEAKER_EMBED_URL {
                     self.speaker_reply(request)
-                } else if request.url == NEAR_AI_TRANSCRIPTIONS_URL {
-                    match &self.transcript {
-                        Some(text) => Ok((200, json!({ "text": text }).to_string().into_bytes())),
-                        None => Ok((503, b"{}".to_vec())),
-                    }
+                } else if request.url == NEAR_AI_OHTTP_URL {
+                    self.gateway_reply(request)
                 } else if request.url == NEAR_AI_CHAT_URL {
                     match &self.chat {
                         Some(content) => {
@@ -261,7 +394,7 @@ impl Host for Fake {
         Ok([0x5a; 32])
     }
     fn now_ms(&mut self) -> u64 {
-        NOW_MS
+        self.now
     }
     fn sign(&mut self, message: &[u8]) -> Result<Vec<u8>, String> {
         Ok(SigningKey::from_bytes(&VERDICT_SEED).sign(message).to_bytes().to_vec())

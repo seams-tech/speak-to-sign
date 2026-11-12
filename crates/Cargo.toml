@@ -18,6 +18,9 @@ exclude = ["spoken-intent", "speaker-service"]
 # with the borsh =1.6.1 pin of spoken-intent.
 [patch.crates-io]
 bit-vec = { path = "voice-verifier/vendor/bit-vec" }
+# The NEAR AI attestation check of voice-verifier needs dcap-qvl without
+# `serde_json/preserve_order` (see the note in its manifest).
+dcap-qvl = { path = "voice-verifier/vendor/dcap-qvl" }
 
 [profile.release]
 opt-level = "z"

@@ -17,13 +17,12 @@ use serde_json::Value;
 use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest, RenderedIntentV1, SpokenRequestV1};
 
 use super::request::{known_accounts, typed_request, unsupported};
-use super::steps::{
-    check_summary, decode_clip, in_flight, local_embedding, push_summary_check, reply, speaker_reply,
-};
+use super::steps::{check_summary, decode_clip, in_flight, local_embedding, push_summary_check, speaker_reply};
 use super::verify::{finish, verify_storage};
+use super::whisper::{api_key, words_reply, words_request};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
-use crate::config::{MAX_CONTACTS, MAX_SELECT_REQUESTS, NEAR_AI_API_KEY_ENV};
+use crate::config::{MAX_CONTACTS, MAX_SELECT_REQUESTS};
 use crate::digest::b64u;
 use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
@@ -31,7 +30,6 @@ use crate::input::SelectInput;
 use crate::output::{Outcome, Reason, Stages, Verdict, VerifyOutput};
 use crate::policy::{self, Decision};
 use crate::speaker_client::service_request;
-use crate::transcriber::{parse_reply, transcription_request};
 use crate::words::check_words;
 
 /// One select run. The output is the output of `verify`, with `selected`.
@@ -101,18 +99,15 @@ fn select_steps(
     ms.since("decode", started);
 
     // 3. and 4. The requests and the storage calls, as in `verify`.
-    let Some(api_key) =
-        host.secret(NEAR_AI_API_KEY_ENV).map(|key| key.trim().to_string()).filter(|key| !key.is_empty())
-    else {
-        return Err(Refusal::new(Reason::TranscriberUnavailable, "transcriber: no_api_key"));
-    };
+    let api_key = api_key(host)?;
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
     let mut requests = Vec::with_capacity(2);
     if !pins.local_speaker {
         requests.push(service_request(&clip.wav, &nonce));
     }
     let words_at = requests.len();
-    requests.push(transcription_request(&api_key, &clip.wav));
+    let (words_post, words) = words_request(host, ms, &api_key, &clip.wav)?;
+    requests.push(words_post);
     // A note among the candidates gets its summary check in the same batch.
     let summary_at: Vec<Option<usize>> =
         input.requests.iter().map(|request| push_summary_check(&mut requests, &api_key, request)).collect();
@@ -145,7 +140,7 @@ fn select_steps(
     }
 
     // 6. The transcript.
-    let transcript = reply(results.get(words_at), "transcriber", Reason::TranscriberUnavailable, parse_reply)?;
+    let transcript = words_reply(host, results.get(words_at), &words)?;
 
     // 7. Words: the heard tokens must equal the rendered tokens of exactly
     //    one candidate.

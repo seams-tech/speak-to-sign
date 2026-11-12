@@ -45,7 +45,7 @@ voice verifier also approves payments and multisig transfers.
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
 | Pay someone (`/pay/` of the demo site) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
-| Approve a multisig transfer | "Approve proposal 3: send 0.1 NEAR to seams-faucet.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
+| Approve a multisig transfer (`/multisig/` of the demo site) | "Approve proposal 3: send 0.1 NEAR to seams-faucet.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 
 In the voice bar, JEV, an AI classifier, turns your words into a command (the
 post, the side and the amount) and opens the correct sheet. JEV never
@@ -59,9 +59,13 @@ You need a browser with passkeys and a microphone.
 2. Do the three setup steps on the page: create a wallet (a passkey), set up
    your voice (three short clips), and get testnet NEAR and USDC (the
    faucet).
-3. On a post, press **Write a note** and read the summary aloud. Or press
-   **Bet** and read the bet aloud.
-4. To see a refusal, read other words, or add or drop a "not". The card shows
+3. Use it with no hands. Turn on the voice bar at the foot of the timeline
+   (**Turn voice commands on**), and say "show me the open markets", then
+   "bet one dollar on no on the second note". The bet sheet opens. Read the
+   bet aloud, and the market contract takes the USDC.
+4. Or use the buttons: on a post, press **Write a note** and read the summary
+   aloud, or press **Bet** and read the bet aloud.
+5. To see a refusal, read other words, or add or drop a "not". The card shows
    the reason and the words that the verifier heard. Nothing is signed.
 
 [`JUDGES.md`, "See it in 2 minutes"](JUDGES.md#see-it-in-2-minutes) has each
@@ -84,7 +88,7 @@ flowchart LR
   end
 
   subgraph Seams["Seams servers"]
-    Route["Verify route<br/>checks the TDX quote<br/>of the verifier call"]
+    Route["Verify route<br/>calls the verifier<br/>over HTTPS"]
   end
 
   subgraph OutLayer["OutLayer TEE (Intel TDX)"]
@@ -160,13 +164,21 @@ The numbers in the diagram are these steps:
    from your own account. The contract checks the verdict again on chain, so
    a bot with a plain NEAR key cannot skip the voice step over RPC.
 
+It is fast. The two models run at the same time. On testnet, one voice check
+took 2.6 to 2.9 s at the client, and 0.36 to 0.48 s of that was the
+verifier's own work
+([the measurements](crates/voice-verifier/README.md#two-variants), 2026-11-11).
+
 The audio is sealed. The device seals each recording to a key that exists
 only inside the OutLayer TEE, and the servers between them carry ciphertext.
 The verifier opens it and sends it to two services. The speaker service is a
 Phala TDX VM with a pinned key. For NEAR AI Whisper, the verifier (0.14.1)
-checks the TDX quotes of NEAR AI's gateway and of Whisper inside the worker,
-and it sends the recording only sealed to the checked gateway
-([details](docs/trust-chain.md#the-near-ai-check)). While NEAR AI's Whisper
+checks the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the
+worker. Then it sends the recording with Oblivious HTTP (HPKE), sealed to the
+key of the checked gateway, so the server that ends the TLS connection sees
+only ciphertext ([details](docs/trust-chain.md#the-near-ai-check)). The quote
+check is our own small TDX verifier, with no large library: the whole worker
+is 495,774 bytes, less than the version before it. While NEAR AI's Whisper
 is down, the verifier uses Whisper on Venice AI, which has no TEE
 ([state](docs/deployed-state.md#the-verifier)).
 
@@ -191,11 +203,20 @@ multisig, the trust boundaries and the path of the audio.
 - **AI drafts and routes, and you approve.** NEAR AI drafts the note, and JEV
   routes your command. Neither can approve a call. Only your spoken sentence
   can.
-- **One sentence is the approval, checked at two layers.** Off chain, the
-  Seams verify route and the Wallet co-signer check the TDX quote of the
-  verifier call at 0 gas, and they guard native NEAR transfers. On chain,
-  `notes`, `pm-notes` and `voice-multisig` check the ed25519 verdict again
+- **One sentence is the approval, checked at two layers.** Off chain, Wallet
+  core and the Seams co-signer check the verdict before they sign: the pinned
+  key, the signature, the expiry and the request digest. They guard native
+  NEAR transfers. On chain, `notes`, `pm-notes` and `voice-multisig` check the
+  ed25519 verdict again, so a bot with a plain NEAR key cannot skip the voice
+  step over RPC
   ([who checks the verdict](docs/voice-intents-spec.md#9-who-checks-the-verdict)).
+  A check of the verifier's TDX quote in the Seams verify route is built, and
+  its deploy is in progress ([state](docs/deployed-state.md#checks-that-are-in-progress)).
+- **It ships, and others can use it.** Seams Wallet has Speak-to-Sign in
+  `@seams/wallet` on npm. For an application with no wallet, three libraries
+  are on npm too: `@seams/voice-capture`, `@seams/voice-verdict` and
+  `@seams/voice-sign`. [`examples/voice-confirm/`](examples/voice-confirm/)
+  is a Web2 page that confirms an action by voice with them.
 - **A voice clone alone signs nothing.** It works only on the person's own
   device, with the Wallet unlocked (see [Trust limits](#trust-limits)).
 
@@ -243,6 +264,11 @@ as verified.
 | Voice multisig (version 3.0.0, voice only, 2 of 2 signers) | [`voice-multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig/`](demo/contracts/voice-multisig/) at commit `99231f6` | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
 | Note market | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) | [`demo/contracts/jev-prediction-market/`](demo/contracts/jev-prediction-market/) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` |
 | Faucet | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) | [`demo/contracts/faucet/`](demo/contracts/faucet/) | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` |
+
+The live multisig run was on a second account,
+[`voice-multisig-2.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-2.seams-v1.testnet),
+which has the same code hash. Its signers have enrolled voices, and its
+proposals are there. `voice-multisig.seams-v1.testnet` has no proposal.
 
 The deploy transactions and the way to build each contract again are in
 [`demo/contracts/README.md`](demo/contracts/README.md#the-deployed-code).
@@ -315,25 +341,37 @@ hackathon. It is the baseline, not hackathon work.
 
 ## Repository
 
-| Folder | What it is |
-| ------ | ---------- |
-| `crates/spoken-intent/` | The `no_std` crate that renders a spoken request into canonical English, computes its request and spoken-text digests, and reads transcripts. Its golden vectors check the Wallet's TypeScript ports. |
-| `crates/voice-verifier/` | The OutLayer worker: `enroll`, `verify`, `select`, `transcribe`, `detect` and `audio_key`. `scripts/fastfs_chunks.py` splits its WASM for the FastFS upload. See its README. |
-| `crates/speaker-service/` | ReDimNet speaker embeddings in a Phala dstack CVM, signed replies. |
-| `packages/voice-sign/` | `@seams/voice-sign`, the library for an application with no wallet: record a sentence, call the verifier, check the verdict. It joins `voice-capture` and `voice-verdict`. |
-| `packages/voice-capture/` | `@seams/voice-capture`: records one spoken sentence in the browser. |
-| `packages/voice-verdict/` | `@seams/voice-verdict`: checks a signed verdict, a signed transcript and the TDX quote of a call, and seals a recording to the verifier (`sealAudio`). One dependency, the cipher `@noble/ciphers`. |
-| `crates/voice-verdict/` | The verdict check in Rust, for a server or a contract. |
-| `examples/voice-confirm/` | A Web2 page and server with no wallet: enroll a voice and confirm an action. |
-| `demo/frontend/` | The demo page, at <https://speak-to-sign.pages.dev/>: post, rate and bet on community notes by voice. See its README. |
-| `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
-| `demo/contracts/jev-prediction-market/` | The note market `pm-notes.seams-v1.testnet`: parimutuel bets in testnet USDC on a community note, resolved by JEV through OutLayer (`resolver/`), with a JEV-weighted payout. See its README. |
-| `demo/contracts/voice-multisig/` | The voice-only multisig, version 3.0.0, on `voice-multisig.seams-v1.testnet`: M of N signers propose and approve a NEAR transfer or the hide of a note, each by voice. The older account `multisig.seams-v1.testnet` (version 2.x, with two admins that approved by key) was deleted on 2026-11-12. Its page is `/multisig/` of the demo source (`demo/frontend/src/multisig/`). Its README has the live run on testnet. |
-| `demo/contracts/faucet/` | The faucet `seams-faucet.testnet`: 0.2 NEAR and 2 testnet USDC for a new account, once. See its README. |
-| `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
-| `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |
-| `AGENTS.md` | A guide for AI agents: the read order and the facts that are easy to miss. |
-| `docs/` | The specs, with an index in `docs/README.md`. |
+```text
+speak-to-sign/
+├── README.md                       this page
+├── JUDGES.md                       the short path for judges: see it, check each claim
+├── AGENTS.md                       a guide for AI reviewers
+├── crates/                         Rust
+│   ├── spoken-intent/              makes the sentence and the digest of a request
+│   ├── voice-verifier/             the verifier: the OutLayer TEE worker
+│   ├── voice-verdict/              the check of a signed verdict, for a server or a contract
+│   └── speaker-service/            the speaker model (ReDimNet) in a Phala TDX VM
+├── packages/                       npm libraries for an application with no wallet
+│   ├── voice-capture/              records one spoken sentence in the browser
+│   ├── voice-verdict/              checks a signed verdict; seals a recording
+│   └── voice-sign/                 record, call the verifier, check the verdict
+├── demo/
+│   ├── frontend/                   the demo site: notes, the market, /multisig/
+│   ├── contracts/
+│   │   ├── community-notes/        notes.seams-v1.testnet
+│   │   ├── jev-prediction-market/  pm-notes.seams-v1.testnet, with its resolver
+│   │   ├── voice-multisig/         the voice-only multisig, and its live run
+│   │   └── faucet/                 seams-faucet.testnet
+│   └── x-refresh-worker/           a scheduled worker that gets new posts from X
+├── examples/
+│   ├── speak-to-pay/               pay a NEAR account by voice (/pay/ of the demo site)
+│   └── voice-confirm/              a Web2 page and server with no wallet
+├── research/gate0/                 feasibility and latency probes: evidence, not product
+├── docs/                           the specs; docs/README.md is the index
+└── scripts/                        site.mjs starts the demo site (pnpm site)
+```
+
+Most folders have a README of their own with the details.
 
 ## Built with
 
@@ -356,9 +394,8 @@ hackathon. It is the baseline, not hackathon work.
   verifier, its inputs and each of its versions.
 - [`demo/contracts/README.md`](demo/contracts/README.md): the four contracts,
   their deploys and the reproducible build.
-- The three libraries for an application with no wallet
-  (`@seams/voice-verdict`, `@seams/voice-capture`, `@seams/voice-sign`) are on
-  npm at 0.69.2, the same version as `@seams/wallet`.
+- [`packages/voice-sign/README.md`](packages/voice-sign/README.md): how an
+  application with no wallet uses the three npm libraries.
 - Design records in other Seams repositories:
   `seams-wallet/docs/refactor-227-speak-to-sign-without-passkey.md`,
   `seams-monorepo/docs/refactor-210-voice-intents.md`, and

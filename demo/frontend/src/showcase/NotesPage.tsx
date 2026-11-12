@@ -17,6 +17,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconBrandGithub } from '@tabler/icons-react';
 import type { CSSProperties } from 'react';
 import { BrandMark } from '../components/BrandMark';
+import { NearAiWarning } from '../components/NearAiWarning';
 import { SignInModal } from '../components/SignInModal';
 import { NearAiWordmark, NearMark, NearWordmark } from './nearMarks';
 // The arrows of OutLayer's logo from outlayer.ai, as a white shape (64 px high).
@@ -143,6 +144,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
             <div className="ss-nav-setup" data-shown={covered || undefined} inert={!covered} aria-label="Set up">
               {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
             </div>
+            <NearAiWarning />
             <a className="ss-nav-link ss-nav-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
               <IconBrandGithub size={17} stroke={1.9} aria-hidden="true" />
               <span>GitHub</span>

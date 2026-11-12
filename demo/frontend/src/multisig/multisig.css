@@ -10,7 +10,9 @@
   line-height: 1.4;
 }
 
+/* Positioned: on a phone it holds the sentence of the NEAR AI warning (nearAiWarning.css). */
 .ms-nav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;

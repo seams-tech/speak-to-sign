@@ -37,6 +37,22 @@ The voice check and the contract's predecessor check still bind each verdict to
 the owner's voice and key. Each call spends OutLayer credit, so add a
 Cloudflare rate-limiting rule on `/api/voice-verify` for a public link.
 
+## The NEAR AI warning (`/api/near-ai-status`)
+
+The verifier sends each recording to NEAR AI's Whisper
+(`openai/whisper-large-v3`). When Whisper is down, every voice check fails.
+On 12 Nov 2026 Whisper failed for about an hour, while the rest of NEAR AI
+answered. So the nav of each page shows a warning while NEAR AI or Whisper is
+down, or while Whisper is slow (`src/components/NearAiWarning.tsx`). A phone
+shows the icon only; a tap opens the sentence.
+
+The page asks `/api/near-ai-status` (`functions/api/near-ai-status.ts`) when
+it opens and each minute. The route asks the NEAR AI model list and sends
+Whisper a silent clip of 0.5 s. An answer after 5 s is slow; no answer in
+10 s or a 5xx answer is down. A 4xx answer (a bad key, a rate limit) shows no
+warning. Each worker keeps one result for one minute, so the page views do
+not each pay for a transcription.
+
 ## Community Notes
 
 A Community Notes page in the light style of X. You post a note and rate a
@@ -223,7 +239,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 
 | Variable          | Meaning                                                                 |
 | ----------------- | ----------------------------------------------------------------------- |
-| `NEAR_AI_API_KEY` | Key for NEAR AI: the chat model of the draft notes, and JEV (`/v1/systemone`) for the subject filter and the voice commands without `TYPESAFE_API_KEY`. Required. |
+| `NEAR_AI_API_KEY` | Key for NEAR AI: the chat model of the draft notes, and JEV (`/v1/systemone`) for the subject filter and the voice commands without `TYPESAFE_API_KEY`. `/api/near-ai-status` uses it to check NEAR AI and Whisper. Required. |
 | `TYPESAFE_API_KEY` | Optional. Key for JEV at Typesafe: the subject filter and the voice commands use it in place of NEAR AI. |
 | `NEAR_AI_MODEL`   | Optional. The chat model of the draft notes. Default `Qwen/Qwen3.8-27B`, a small model that NEAR AI hosts. |
 | `FAUCET_PRIVATE_KEY` | The faucet's function-call key (`ed25519:…`). It can call `drip` on `seams-faucet.testnet` and nothing else. Each drip uses about 0.008 NEAR of its gas allowance. Required for `/api/faucet`, with the KV binding `FAUCET_LIMITS` of `wrangler.toml`. |

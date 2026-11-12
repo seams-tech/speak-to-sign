@@ -319,7 +319,7 @@ A verdict lets a request pass only if all of these are true:
 6. In the Wallet, `audio_digest` equals the digest of the clip that core
    recorded.
 
-Three checkers exist:
+Four checkers exist:
 
 - **Wallet core and the Seams co-signer.** Core builds the request from the
   transaction that it will sign. It refuses a verdict for another request
@@ -335,6 +335,58 @@ Three checkers exist:
   bet only with the verdict of that bet: the key, the expiry, and the digest
   of the bettor, market, side and amount. Each verdict counts once. On
   testnet, `get_voice_config` gives `"required":true`.
+- **The notes contract** (`notes.seams-v1.testnet`). Its source checks the
+  verdict of each note and rating on chain (`check_spoken`: the key, the
+  outcome, the expiry and the digest; each verdict counts once). The
+  deployed build (commit `777b844`) does not have this check yet. So on
+  testnet, only Wallet core and the Seams co-signer check the verdict of a
+  note.
+
+### 9.1 The verdict key and the TDX quote
+
+A verdict has two links of trust:
+
+- **The verdict key** shows that a version of the OutLayer project signed.
+  It does not name the build: the keystore gives the key to every version
+  of the project.
+- **The TDX quote of the verifier call** names the build. Its report data
+  binds the WASM hash, the input and the output of the call, and the
+  verdict is in the output.
+
+[`docs/architecture.md`](architecture.md) section 8.1 records the decision
+and the options that do not work. Each checker checks these links:
+
+| Checker | The verdict and its key | The TDX quote of the verifier call |
+| --- | --- | --- |
+| The Seams verify route (server) | — | Checks it before it returns the verdict: the quote binds the output to the pinned WASM hash, chains to Intel with Intel's collateral, and names a worker image that `worker.outlayer.testnet` approves. It refuses with `attestation_<code>` (`seams-wallet` commit `0b297e976`, `speakToSignAttestation.ts`). |
+| Wallet core (the co-signer on the device) | Checks it (items 1–6 above). | Does not check it. Not planned. |
+| The Seams co-signer | Checks it. | Does not check it. A verdict that did not pass the verify route gets the key check only. |
+| The voice multisig, the note market and the notes contract | Check it on chain. | Do not check it. |
+
+**Why the verify route checks the quote, not the contracts.** In a threshold
+wallet, the verify route checks the TDX quote off chain before the co-signer
+signs. This design beats an on-chain quote check in three ways:
+
+- **Same hardware root of trust.** The verify route checks the Intel TDX quote
+  against Intel's collateral. It binds the output to the pinned WASM hash
+  before it returns the verdict (see the table above).
+- **Zero chain cost for the quote.** One on-chain DCAP check
+  (`tee-verifier-2026-07-22.testnet`) burns about 176 Tgas (0.018 NEAR). It
+  also puts about 30 KB of quote data in each call. The off-chain check adds
+  0 gas and 0 bytes on chain, so transfers, bets and notes stay cheap.
+- **Small on-chain verdict check.** `pm-notes` and `voice-multisig` (and
+  `notes` in source) still check the 64-byte ed25519 verdict signature on
+  chain in about 1 Tgas (`ed25519_verify`). They verify the exact verdict
+  bytes. They do not rebuild JSON on chain.
+
+Each voice action comes from the user's own account through the Seams
+co-signer. Only a contract that pays any caller with no co-signer in front of
+it needs an on-chain quote check. No Speak-to-Sign contract works that way.
+
+**What stays open.** A signer that sends a transaction from a plain key, not
+through the Seams Wallet, gets the key check only. The quote check does not
+remove the trust in the Seams team, which can deploy both the verifier and
+the server.
 
 The plugin gets no signing context, key or session. It can only call the
 scoped core operations `openPrompt`, `receiverExists`, `verify`,
@@ -402,9 +454,12 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
   version also reads the audio key and can open sealed audio. The OutLayer
   access rule "One build only" on the secrets profile limits this to one
   WASM hash, until the owner moves the lock.
-- **Sealed audio after the verifier.** The verifier sends the opened WAV to
-  the speaker service (Phala) and to NEAR AI over HTTPS. Those two services
-  see the recording.
+- **Sealed audio after the verifier.** The verifier sends the opened WAV over
+  HTTPS to the speaker service (a Phala TDX VM, its key pinned from its
+  attestation) and to NEAR AI. NEAR AI's report shows its gateway and Whisper
+  as Intel TDX VMs, but nothing here checks that report, or that TLS ends
+  inside the gateway; see
+  [`trust-chain.md`](trust-chain.md#why-the-near-ai-check-is-not-shipped).
 - **NEAR AI.** The transcript has no signature. A false transcript can pass
   the word check.
 - **Phala.** The owner of the Phala app can change the service code and keep

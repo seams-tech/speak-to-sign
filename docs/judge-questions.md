@@ -165,11 +165,19 @@ through the Seams staging server, and check 3 builds that version too. The
 speaker key of the Phala service comes from its TDX attestation (`SPEAKER_PINNED_KEY_HEX` in
 `crates/voice-verifier/src/config.rs`).
 
+**Why the server checks the quote, not the contracts.** Checking the TDX quote
+off chain before the Seams co-signer signs keeps the same Intel TDX root of
+trust with zero quote gas or chain bloat. On chain, `pm-notes` and
+`voice-multisig` check the ed25519 verdict signature instead. See
+[spec 9.1](voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
+
 **Not done.** The owner of the OutLayer project can deploy new code that signs
-with the same key, because the Wallet pins the key, not the code. Each
-verifier call already returns a TDX quote bound to its WASM. The next step is
-to make the Wallet check that quote against the pinned WASM hashes, so that
-trust rests on the build and not on the key. This step is not built.
+with the same key, because the verdict key names the project, not the build.
+Each verifier call returns a TDX quote that names its WASM. The Seams verify
+route checks that quote against the pinned WASM hash before it returns a
+verdict, so that trust rests on the build and not on the key (`seams-wallet`
+commit `0b297e976`). A verdict from a call that skips the route gets the key
+check only ([`trust-chain.md`](trust-chain.md)).
 
 ## 8. What is the hard part?
 
@@ -219,5 +227,7 @@ each used recording. The device seals each recording before it leaves the
 device. See [`docs/architecture.md`](architecture.md), "What is kept after a
 run".
 
-**Not done.** Testnet only. The speaker service (Phala) and NEAR AI see the
-opened recording. There is no mainnet date yet.
+**Not done.** Testnet only. The verifier sends the opened recording to the
+Phala speaker service, whose key it pins from its attestation, and to NEAR
+AI, whose report shows TDX VMs but which nothing here checks. There is no
+mainnet date yet.

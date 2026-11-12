@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { IconCheck, IconExternalLink, IconMicrophone } from '@tabler/icons-react';
 import { accountUrl, config, shortAccount, transactionUrl } from '../config';
 import { useDemo } from '../demoContext';
@@ -6,7 +7,7 @@ import { covers, retryFaucet, useFunds, type FaucetState, type Funds } from '../
 import { FloatingError, FloatingErrors } from './FloatingError';
 import { formatNear, formatUsdc, nearAmount, usdcAmount } from '../notes/nearAccount';
 import { NearMark } from '../showcase/nearMarks';
-import type { SetupOutcome, SignerSetup, SignerStatus } from '../signer/notesSigner';
+import type { SignerSetup, SignerStatus } from '../signer/notesSigner';
 import { setUpVoice, useEnrolled, type VoicePhase } from '../signer/voiceSetup';
 
 export { SETUP_CHANGED } from '../signer/voiceSetup';
@@ -95,7 +96,8 @@ export interface SetupStepsProps {
  */
 export function SetupSteps({ status, account, signer, walletConfigured, onSignIn, onChanged }: SetupStepsProps) {
   const [busy, setBusy] = useState<VoicePhase | null>(null);
-  const [outcome, setOutcome] = useState<SetupOutcome | null>(null);
+  /** Why the last voice setup failed. A success is a toast. */
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   /** The faucet failure that the visitor closed. A new failure shows again. */
   const [closedFaucet, setClosedFaucet] = useState<FaucetState | null>(null);
   const enrolled = useEnrolled(account);
@@ -103,16 +105,19 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
   const signedIn = !!status?.signedIn;
   const voiceSetUp = !!status?.voiceReady && enrolled;
   const fundsReady = covers(funds.balance, 'bet');
-  const voiceError = outcome?.kind === 'failed' ? outcome.message : null;
   const faucetError = signedIn && account && funds.faucet.kind === 'failed' && funds.faucet !== closedFaucet ? funds.faucet : null;
+
+  useFaucetToast(funds.faucet);
 
   const voiceStep = async () => {
     if (!account) return;
-    setOutcome(null);
+    setVoiceError(null);
     const result = await setUpVoice(signer, account, setBusy);
     setBusy(null);
     // A closed Wallet window needs no note: the step shows "Set up" again.
-    setOutcome(result.kind === 'cancelled' ? null : result);
+    if (result.kind === 'failed') setVoiceError(result.message);
+    // `action: undefined` drops the faucet toast's link if this toast takes its place.
+    if (result.kind === 'done') toast('Your voice is set up', { id: SETUP_TOAST, action: undefined });
     onChanged();
   };
 
@@ -150,15 +155,10 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
         </p>
       )}
       {signedIn && account && <FundsNote account={account} funds={funds} />}
-      {outcome?.kind === 'done' && (
-        <p className="side-note" role="status">
-          {outcome.message}
-        </p>
-      )}
       {/* The errors float at the bottom of the screen, not under the steps. */}
       {(voiceError || faucetError) && (
         <FloatingErrors>
-          {voiceError && <FloatingError onClose={() => setOutcome(null)}>{voiceError}</FloatingError>}
+          {voiceError && <FloatingError onClose={() => setVoiceError(null)}>{voiceError}</FloatingError>}
           {faucetError && account && (
             <FloatingError onClose={() => setClosedFaucet(faucetError)}>
               {faucetError.text} <FaucetLinks account={account} />
@@ -230,23 +230,32 @@ function UsdcToken() {
   );
 }
 
+/** The one toast of the setup steps: a new toast of theirs takes the place of the one before. */
+const SETUP_TOAST = 'setup';
+
+/** The faucet transfers that had their toast, so that a step that shows again does not repeat it. */
+const toastedFaucet = new Set<string>();
+
+/** A short toast when the faucet sends funds, with a link to its transaction. */
+function useFaucetToast(faucet: FaucetState) {
+  useEffect(() => {
+    if (faucet.kind !== 'sent' || toastedFaucet.has(faucet.hash)) return;
+    toastedFaucet.add(faucet.hash);
+    const { hash } = faucet;
+    toast(`Got ${formatNear(faucet.near)} and ${formatUsdc(faucet.usdc)}`, {
+      id: SETUP_TOAST,
+      action: { label: 'Transaction', onClick: () => window.open(transactionUrl(hash), '_blank', 'noopener,noreferrer') },
+    });
+  }, [faucet]);
+}
+
 /**
- * The faucet's result under the steps: the transaction, or where else to get testnet funds. A
- * failure floats at the bottom of the screen instead (SetupSteps).
+ * Under the steps: where else to get testnet funds, for an account that got the faucet before. A
+ * sent transfer is a toast (useFaucetToast), and a failure floats at the bottom of the screen
+ * (SetupSteps).
  */
 function FundsNote({ account, funds }: { account: string; funds: Funds }) {
   const { balance, faucet } = funds;
-  if (faucet.kind === 'sent') {
-    return (
-      <p className="side-note" role="status">
-        The faucet sent {formatNear(faucet.near)} and {formatUsdc(faucet.usdc)}.{' '}
-        <a className="lk" href={transactionUrl(faucet.hash)} target="_blank" rel="noopener noreferrer">
-          Transaction
-          <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
-        </a>
-      </p>
-    );
-  }
   if (faucet.kind !== 'claimed' || covers(balance, 'bet')) return null;
   return (
     <p className="side-note" role="status">

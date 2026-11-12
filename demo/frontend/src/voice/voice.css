@@ -223,15 +223,14 @@
 .notes-app:has(.voice-bar) .column {
   padding-bottom: 100px;
 }
-.notes-app:has(.voice-bar) .toast-region {
-  bottom: 104px;
+/* The toasts (sonner, on document.body) stay over the bar. */
+body:has(.notes-app .voice-bar) [data-sonner-toaster] {
+  --offset-bottom: 104px !important;
+  --mobile-offset-bottom: calc(53px + 96px + env(safe-area-inset-bottom)) !important;
 }
 @container notes (max-width: 500px) {
   .voice-bar {
     bottom: calc(53px + 12px + env(safe-area-inset-bottom));
-  }
-  .notes-app:has(.voice-bar) .toast-region {
-    bottom: calc(53px + 96px + env(safe-area-inset-bottom));
   }
 }
 @media (prefers-reduced-motion: reduce) {

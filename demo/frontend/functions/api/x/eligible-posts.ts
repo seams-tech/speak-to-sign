@@ -239,8 +239,10 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
  * the model gets the newest posts that have a template (MAX_DRAFTS_PER_REFRESH at most), until
  * it writes a note for the post or has answered MAX_MODEL_TRIES times with no valid note for it.
  * Only an answer counts as a try: a failed call (no key, no credit, a timeout) does not, so an
- * outage of NEAR AI does not make a template final. The limit per refresh keeps the NEAR AI
- * cost of a refresh at MAX_DRAFTS_PER_REFRESH / DRAFT_BATCH calls.
+ * outage of NEAR AI does not make a template final. A failed call gets one more try at once
+ * (draftNotes). The limit per refresh keeps the NEAR AI cost of a refresh at
+ * MAX_DRAFTS_PER_REFRESH / DRAFT_BATCH answered calls, and the time budget of draftNotes keeps
+ * the wait short.
  */
 async function draftPosts(posts: XPost[], old: Snapshot | null, settings: Settings, deps: Deps): Promise<void> {
   const oldDrafts = new Map((old?.posts ?? []).map((post) => [post.id, post.draft]));
@@ -249,7 +251,7 @@ async function draftPosts(posts: XPost[], old: Snapshot | null, settings: Settin
     ? posts.filter((post) => post.draft?.source !== 'model' && (post.draft?.modelTries ?? 0) < MAX_MODEL_TRIES).slice(0, MAX_DRAFTS_PER_REFRESH)
     : [];
   if (settings.drafter && asked.length > 0) {
-    const result = await draftNotes(asked, { ...settings.drafter, today: new Date(deps.now()).toISOString().slice(0, 10), fetch: deps.fetch });
+    const result = await draftNotes(asked, { ...settings.drafter, today: new Date(deps.now()).toISOString().slice(0, 10), fetch: deps.fetch, now: deps.now });
     for (const problem of result.problems) console.warn(`eligible-posts: note drafts: ${problem}`);
     for (const post of asked) {
       const draft = result.drafts[post.id];

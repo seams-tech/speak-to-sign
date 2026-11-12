@@ -564,7 +564,9 @@ The diffs:
 From verifier 0.12.0 the audio is sealed: the device seals each recording to
 a key that exists only inside the OutLayer TEE, and the servers between them
 carry ciphertext. The verifier then sends the opened recording to the
-speaker service and to NEAR AI, so those two services see it. The diagram is
+speaker service (a Phala TDX VM, its key pinned) and to NEAR AI, whose report
+shows its gateway and Whisper as TDX VMs. Nothing here checks NEAR AI's
+report. The diagram is
 [section 9 of `docs/architecture.md`](docs/architecture.md#9-confidential-audio).
 
 The specification is `docs/voice-intents-spec.md`. The diagrams are in
@@ -593,7 +595,8 @@ Each top-level folder says what its contents are for.
 | `demo/contracts/faucet/` | The faucet `seams-faucet.testnet`: 0.2 NEAR and 2 testnet USDC for a new account, once. See its README. |
 | `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
 | `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |
-| `docs/` | The voice intents specification (`voice-intents-spec.md`) and the architecture diagrams (`architecture.md`). |
+| `AGENTS.md` | A guide for AI agents: the read order and the facts that are easy to miss. |
+| `docs/` | The specs, with an index in `docs/README.md`: the voice intents specification, the architecture diagrams, the threat model, the chain of trust, the live state against the source, and the judge questions. |
 
 The code is under the Apache License 2.0 (`LICENSE`).
 
@@ -648,7 +651,7 @@ The deploy transactions and the way to build each contract again are in
 - **Project owner.** The owner of the OutLayer project can deploy a new version that signs with the same project-bound key. The Wallet pins the key, not the code.
 - **NEAR AI.** The gateway gives the transcript without a signature. A false transcript could pass the words check.
 - **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID. The Phala app owner can change the service code and keep the same key.
-- **Sealed audio after the verifier.** The verifier sends the opened recording to the speaker service (Phala) and to NEAR AI. Those two services see it.
+- **Sealed audio after the verifier.** The verifier sends the opened recording to the speaker service (a Phala TDX VM, its key pinned from its attestation) and to NEAR AI. NEAR AI's report shows its gateway and Whisper as TDX VMs, but nothing here checks that report, or that TLS ends inside the gateway ([why](docs/trust-chain.md#why-the-near-ai-check-is-not-shipped)).
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
 - **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.

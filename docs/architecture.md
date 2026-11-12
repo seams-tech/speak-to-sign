@@ -306,44 +306,28 @@ hash, the caller, the project and the time
 is in the output. So the chain is: verdict, output, task hash, quote, Intel;
 and WASM hash, reproducible build, source. The key is not in this chain.
 
-**The check of this chain exists:**
+**Rule: the party that acts on a verdict checks the quote of its call.** The
+party that calls the verifier gets the output and the attestation URL of the
+call. Before it acts on the verdict, it checks the quote against the WASM
+hashes that it accepts. Then a new version in the project cannot approve
+anything: its quote names another WASM hash. The key check stays as a second
+check.
+
+**The checks:**
 
 | Where | What it checks |
 | --- | --- |
 | `@seams/voice-verdict` (`packages/voice-verdict`) | `checkAttestationBinding`: the quote binds the output to an accepted WASM hash. `checkQuoteSignature` and `checkQuoteCollateral`: the quote chains to the Intel root, with Intel's collateral. `measurementsApproved`: `worker.outlayer.testnet` approves the worker image. |
-| `crates/voice-verdict` (Rust) | `check_attestation_binding`. The Intel chain is a test with `dcap-qvl`. |
+| `crates/voice-verdict` (Rust) | `check_attestation_binding`, for a server. The Intel chain is a test with `dcap-qvl`. The contracts use this crate for the key check only, not for the quote. |
 | `@seams/voice-sign` | The `attestation` setting runs `checkAttestationBinding` and `measurementsApproved` for each call. It does not check the signature chain of the quote to Intel, so there the quote is only a claim of the OutLayer API. |
-
-**The Wallet does not run the check yet** (`seams-wallet` at `f7ec88b`).
-Wallet core and the Seams co-signer each check a verdict with `checkVerdict`
-against the pinned key (`packages/shared-ts/src/speakToSign/voiceVerdict.ts`).
-The Seams verify route gives the Wallet the attestation URL of the call, and
-the result card links to it ("View TDX quote"). No code checks the quote
-before the Wallet signs.
-
-**Decision: the Seams server checks the quote.** The Wallet signs with a
-threshold of two parts: the Seams co-signer on Cloudflare, and a co-signer on
-the user's device in an origin-isolated iframe. A verdict replaces the
-confirm press, so the build of the verifier decides what the Wallet signs.
-
-- The Seams verify route checks the quote of each call that it makes,
-  against the WASM hash that it pins (`versionKey`), before it returns the
-  verdict. Then a new version in the project cannot approve a signature
-  through the Seams server: its quote names another WASM hash.
-- To pass around this check, an attacker needs two separate rights: the NEAR
-  key of the project owner (`seams-v1.testnet`) and the right to deploy the
-  Seams server.
-- This check does not remove the trust in the Seams team, which has both
-  rights. Only a check in the device co-signer would remove it. That check is
-  not planned.
 
 **The contracts do not need the quote.** Each voice action of
 `voice-multisig`, `jev-prediction-market` and `community-notes` is a
-transaction from the user's own account (the predecessor). To misuse the key
-on chain, an attacker needs a bad build and the account key. The account key
-alone already moves the funds. So the key check in the contracts is a second
-layer, and it stays. A signer that sends from a plain key, not through the
-Wallet, gets the key check only.
+transaction from the user's own account (the predecessor). The wallet that
+signs it is the party that checks the quote. To misuse the key on chain, an
+attacker needs a bad build and the account key. The account key alone
+already moves the funds. So the key check in the contracts is a second
+layer, and it stays.
 
 **On-chain DCAP is not used.** NEAR testnet has a DCAP verifier,
 `tee-verifier-2026-07-22.testnet` (`crates/tee-verifier` of `near/mpc`). One
@@ -365,24 +349,29 @@ contract is like that.
   --build`). The owner can lock the row to another build, with the same gap
   as the registry.
 
-**With the server check, the design still trusts:** the Seams team, Intel
-TDX and its collateral, and the OutLayer worker image that
-`worker.outlayer.testnet` approves. The speaker service key and the NEAR AI
-transcript are separate items of this section.
+**With the quote check, the design still trusts:** the party that runs the
+check, Intel TDX and its collateral, and the OutLayer worker image that
+`worker.outlayer.testnet` approves. A verdict from a call that skipped the
+check, for example a direct call with the payment key, gets the key check
+only. The speaker service key and the NEAR AI transcript are separate items
+of this section.
 
-**The server check** (in `seams-wallet`, `packages/wallet-server`, work in
-progress on 2026-11-12): after the OutLayer call, the verify route gets the
-attestation record and runs `checkAttestationBinding` with the pinned WASM
-hash, `checkQuoteCollateral` with the collateral of
-`GET <api>/public/collateral`, and `measurementsApproved`. If a check fails,
-the route does not return the verdict. OutLayer stores the record a short
-time after the call returns, so the route waits for it, up to 15 s. That
-wait adds to each spoken approval. It is not measured yet.
+**The record wait.** OutLayer stores the attestation record a short time
+after the call returns. A checker tries once each second, up to 15 s, and
+that wait adds to each spoken approval. It is not measured on testnet yet.
+
+**The wallet of the demo.** The demo signs with Seams Wallet, a threshold
+embedded wallet. Its server's verify route runs the four checks against the
+pinned WASM hash before it returns a verdict, and refuses with
+`attestation_<code>` (`seams-wallet` commit `0b297e976`,
+`speakToSignAttestation.ts`). Its co-signer checks only the key.
 
 ## 9. Confidential audio
 
-A recording is sealed on the owner's device and opened only inside a TEE.
-The servers between them carry ciphertext. Verifier 0.12.0 and later; the
+A recording is sealed on the owner's device and unsealed only inside the
+verifier's TEE. The servers between them carry ciphertext. After that, the
+verifier sends the opened recording to the two model services (see "Limits"
+below). Verifier 0.12.0 and later; the
 rules are in section 5.1 of the specification.
 
 ```mermaid
@@ -464,10 +453,12 @@ Who holds which key:
 
 Limits:
 
-- **The two model services see the recording.** The verifier pins the key of
-  the Phala service from its TDX attestation. NEAR AI Cloud states that its
-  inference runs in a TEE; the verifier does not check an attestation of
-  NEAR AI.
+- **Who opens the recording after the verifier.** The Phala speaker service
+  runs in a TDX VM, and the verifier pins its key from its TDX attestation.
+  NEAR AI's attestation report shows its gateway and Whisper as Intel TDX VMs
+  on dstack, with NVIDIA GPU evidence for Whisper. Nothing here checks that
+  report, or that TLS ends inside the gateway; see
+  [`trust-chain.md`](trust-chain.md#why-the-near-ai-check-is-not-shipped).
 - **The request is not secret.** The Wallet sends the request fields in plain
   text, and the verdict names the heard words.
 - **The project owner.** A new verifier version of the same OutLayer project

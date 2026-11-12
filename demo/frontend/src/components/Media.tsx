@@ -1,5 +1,3 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { IconPlayerPlayFilled } from '@tabler/icons-react';
 import type { MediaKind } from '../data/posts';
 
 const LABELS: Record<MediaKind, string> = {
@@ -7,57 +5,26 @@ const LABELS: Record<MediaKind, string> = {
     'Drawing of the claim: a terminal window that says it found 145,763 deleted photos in PhotoData/Thumbnails. It is not the original video.',
 };
 
-/** The time that the drawing plays: one terminal line after the other, then a pause, then again. */
-const LINE_STEP_S = 0.5;
-const LINE_COUNT = 6;
-const PLAY_S = LINE_STEP_S * LINE_COUNT + 0.6;
-const LOOP_MS = (PLAY_S + 2.4) * 1000;
-
-function subscribeMotion(onChange: () => void) {
-  const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeMotion, () => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-}
-
 /**
- * A drawn post video, in place of the original video. It plays by itself in a loop, as a muted
- * video does on the original site: the terminal lines come one after the other with a progress
- * bar, the last frame stays for a moment, then it starts again. No play button, so nothing asks
- * for a click. Still (the last frame) when the reader asks for less motion. 16:9 with rounded
- * corners. `compact`: a low banner with the whole drawing in its middle (the post page, so the
- * notes and the write button show without a scroll).
+ * A drawn post picture, in place of the original video. It is a still image: a video that plays
+ * in the timeline takes the eye from the note under it. 16:9 with rounded corners. `compact`: a
+ * low banner with the whole drawing in its middle (the timeline card, so the note and the bet
+ * show without a scroll).
  */
 export function Media({ kind, caption, compact = false }: { kind: MediaKind; caption?: string; compact?: boolean }) {
-  const still = useReducedMotion();
-  const [run, setRun] = useState(0);
-
-  useEffect(() => {
-    if (still) return;
-    const timer = window.setInterval(() => setRun((count) => count + 1), LOOP_MS);
-    return () => window.clearInterval(timer);
-  }, [still]);
-
   return (
-    <figure className={`media media-video ${compact ? 'media-compact' : ''} ${still ? '' : 'media-playing'}`}>
-      {kind === 'thumbnails' && <ThumbnailsScene key={`scene-${run}`} fit={compact ? 'meet' : 'slice'} label={LABELS[kind]} />}
-      {!still && <span key={`bar-${run}`} className="media-progress" style={{ animationDuration: `${PLAY_S}s` }} aria-hidden="true" />}
+    <figure className={`media ${compact ? 'media-compact' : ''}`}>
+      {kind === 'thumbnails' && <ThumbnailsScene fit={compact ? 'meet' : 'slice'} label={LABELS[kind]} />}
       {caption && <figcaption className="media-caption">{caption}</figcaption>}
     </figure>
   );
 }
 
-/** A small still of the drawn video, as in a quoted post. */
+/** A small copy of the drawn picture, as in a quoted post. */
 export function MediaThumb({ kind }: { kind: MediaKind }) {
   return (
     <span className="media-thumb" aria-hidden="true">
       {kind === 'thumbnails' && <ThumbnailsScene fit="slice" label={LABELS[kind]} />}
-      <span className="media-thumb-play">
-        <IconPlayerPlayFilled size={14} />
-      </span>
     </span>
   );
 }
@@ -85,16 +52,7 @@ function ThumbnailsScene({ fit, label }: { fit: 'meet' | 'slice'; label: string 
       <circle cx="90" cy="48" r="7" fill="#febc2e" />
       <circle cx="114" cy="48" r="7" fill="#28c840" />
       {lines.map(([color, text], index) => (
-        <text
-          key={text}
-          className="media-line"
-          style={{ animationDelay: `${0.3 + index * LINE_STEP_S}s` }}
-          x="68"
-          y={112 + index * 36}
-          fill={color}
-          fontFamily={MONO}
-          fontSize="22"
-        >
+        <text key={text} x="68" y={112 + index * 36} fill={color} fontFamily={MONO} fontSize="22">
           {text}
         </text>
       ))}

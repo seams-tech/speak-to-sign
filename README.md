@@ -646,9 +646,9 @@ The deploy transactions and the way to build each contract again are in
 
 - **OutLayer.** The TEE run of pinned code, its storage of the template and the used audio, its signing key, and the NEAR AI secret. If OutLayer's TEE or governance fails, the verdict means nothing.
 - **Project owner.** The owner of the OutLayer project can deploy a new version that signs with the same project-bound key. The Wallet pins the key, not the code.
-- **NEAR AI.** The gateway gives the transcript without a signature. A false transcript could pass the words check.
+- **NEAR AI.** The gateway gives the transcript without a signature. A false transcript of the gateway or of Whisper could pass the words check.
 - **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID. The Phala app owner can change the service code and keep the same key.
-- **Sealed audio after the verifier.** The verifier sends the opened recording to the speaker service (Phala) and to NEAR AI. Those two services see it.
+- **Sealed audio after the verifier.** Only TEEs open the recording after the verifier: the speaker service in a Phala dstack VM (Intel TDX), and NEAR AI's gateway and Whisper, each in an Intel TDX VM on dstack. The verifier pins the Phala key from its TDX attestation. It does not check NEAR AI's attestation; check 5 of [`JUDGES.md`](JUDGES.md#check-it-without-a-microphone) shows that the TLS of `cloud-api.near.ai` ends in the attested gateway. Not checked: the code that NEAR AI's VMs run, how the gateway reaches Whisper, and the NVIDIA GPU evidence.
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
 - **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.

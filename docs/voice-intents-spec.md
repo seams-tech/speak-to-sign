@@ -402,11 +402,14 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
   version also reads the audio key and can open sealed audio. The OutLayer
   access rule "One build only" on the secrets profile limits this to one
   WASM hash, until the owner moves the lock.
-- **Sealed audio after the verifier.** The verifier sends the opened WAV to
-  the speaker service (Phala) and to NEAR AI over HTTPS. Those two services
-  see the recording.
-- **NEAR AI.** The transcript has no signature. A false transcript can pass
-  the word check.
+- **Sealed audio after the verifier.** Only TEEs open the WAV after the
+  verifier: the speaker service in a Phala dstack VM (Intel TDX, its key
+  pinned from its attestation), and NEAR AI's gateway and Whisper, each in an
+  Intel TDX VM on dstack. The verifier sends it to NEAR AI over HTTPS and does
+  not check NEAR AI's attestation. Not checked: the code that NEAR AI's VMs
+  run, how the gateway reaches Whisper, and the NVIDIA GPU evidence.
+- **NEAR AI.** The transcript has no signature. A false transcript of the
+  NEAR AI gateway or of Whisper can pass the word check.
 - **Phala.** The owner of the Phala app can change the service code and keep
   the same key.
 - **NEAR RPC.** The verifier does not check a proof of the access-key view at

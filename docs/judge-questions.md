@@ -219,5 +219,10 @@ each used recording. The device seals each recording before it leaves the
 device. See [`docs/architecture.md`](architecture.md), "What is kept after a
 run".
 
-**Not done.** Testnet only. The speaker service (Phala) and NEAR AI see the
-opened recording. There is no mainnet date yet.
+**Not done.** Testnet only. There is no mainnet date yet. After the verifier,
+only TEEs open the recording: the speaker service (Phala, Intel TDX, its key
+pinned from its attestation) and NEAR AI's gateway and Whisper (Intel TDX VMs
+on dstack). The verifier does not check NEAR AI's attestation; check 5 of
+[`JUDGES.md`](../JUDGES.md#check-it-without-a-microphone) shows that the TLS of
+`cloud-api.near.ai` ends in the attested gateway. Nobody here checks the code
+that NEAR AI's VMs run.

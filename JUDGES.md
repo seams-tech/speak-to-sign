@@ -278,6 +278,27 @@ git clone https://github.com/seams-tech/speak-to-sign
    builds of `777b844` too, and the voice multisig runs the build of
    `99231f6`. SourceScan verified all of them (`demo/contracts/README.md`).
 
+5. NEAR AI's gateway runs in an Intel TDX VM, and the TLS of
+   `cloud-api.near.ai` ends inside that VM. The gateway's TDX quote names its
+   TLS key: the report data of the quote is SHA-256(gateway key || SHA-256 of
+   the TLS public key), then your nonce. No API key is necessary. You also
+   need `openssl` and `xxd`.
+
+   ```bash
+   N=$(openssl rand -hex 32); curl -s "https://cloud-api.near.ai/v1/attestation/report?model=openai/whisper-large-v3&signing_algo=ed25519&include_tls_fingerprint=true&nonce=$N" > nearai.json
+   # See: two equal lines of 128 hex characters. The last 64 are your nonce.
+   jq -r .gateway_attestation.intel_quote nearai.json | cut -c1137-1264
+   echo "$(jq -r '.gateway_attestation | .signing_address + .tls_cert_fingerprint' nearai.json | xxd -r -p | shasum -a 256 | cut -c1-64)$N"
+   # See: two equal lines (73862c25…a5ad on 2026-11-12): the key of the TLS
+   # connection that you open, and the key that the quote names.
+   echo | openssl s_client -connect cloud-api.near.ai:443 -servername cloud-api.near.ai 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform DER | shasum -a 256 | cut -c1-64
+   jq -r .gateway_attestation.tls_cert_fingerprint nearai.json
+   ```
+
+   These lines do not check the signature of the quote to Intel, and the
+   verifier does not check NEAR AI's attestation (see
+   [Not covered](#not-covered)).
+
 ## Claim -> where to check it
 
 "Spec" is [`docs/voice-intents-spec.md`](docs/voice-intents-spec.md).
@@ -297,6 +318,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |
 | A sealed recording opens only for its owner and operation. | `sealed_audio_opens_only_for_its_owner_and_operation` in `crates/voice-verifier/tests/ops/sealed.rs`; spec 5.1 |
 | The active verifier (0.12.0) and the verifier that the demo calls (0.13.0) come from this source. | Check 3 above; `crates/voice-verifier/README.md`, "Reproducible build" |
+| The TLS of `cloud-api.near.ai` ends in NEAR AI's gateway: the gateway's TDX quote names its TLS key and your nonce. The signature of that quote is not checked here. | Check 5 above |
 
 ## Not covered
 
@@ -312,14 +334,20 @@ boundaries", spec section 11, and the READMEs of the contracts:
   also needs a passkey.
 - A text-to-speech voice can enroll and pass. The verifier does not detect
   synthetic speech, and it does not refuse one voice on many accounts.
-- The NEAR AI transcript has no signature. A false transcript can pass the
-  word check.
+- NEAR AI does not sign the transcript. A false transcript of the NEAR AI
+  gateway or of Whisper can pass the word check.
 - The owner of the OutLayer project can deploy new code that signs with the
   same key. The Wallet pins the key, not the code.
 - The Phala app owner can change the speaker service and keep its key.
-- The device seals each recording, but the verifier opens it and sends it
-  to the speaker service (Phala) and to NEAR AI. Those two services see the
-  recording.
+- The device seals each recording. After that, only TEEs open it: the
+  OutLayer worker (Intel TDX), the speaker service in a Phala dstack VM
+  (Intel TDX), and NEAR AI's gateway and Whisper, each in an Intel TDX VM on
+  dstack. The report of the Whisper VM also has NVIDIA GPU evidence; nobody
+  here checks it. The verifier pins the key of the Phala service from its
+  TDX attestation. It does not check NEAR AI's attestation: it sends the
+  recording over HTTPS to `cloud-api.near.ai`, whose TLS key the gateway's
+  quote names (check 5), but it does not check that. Not checked: the code
+  that NEAR AI's VMs run, and how the gateway reaches Whisper.
 - The verifier does not check a proof of the NEAR RPC access-key view at
   enrollment.
 - Each of the four demo contract accounts still has a full-access key. Its

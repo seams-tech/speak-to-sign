@@ -1,6 +1,6 @@
 # Speak-to-Sign demo site
 
-The site has one page, `/` (`index.html`): Community Notes, live on NEAR
+This folder builds one page, `/` (`index.html`): Community Notes, live on NEAR
 testnet. A hero says what a spoken approval is and has the setup steps. The
 notes app is on a sheet under the hero. The page style follows the Seams
 Wallet site. Its code is in `src/showcase/` (`main.tsx`, `NotesPage.tsx`, and
@@ -36,8 +36,15 @@ a real case that got a Community Note on X: the viral claim of 24 Oct 2026 that
 Claude Code found 145,763 deleted iPhone photos. The posts from X can be about
 politics or health, but not about war, crime or adult content.
 
-- **Post a note.** You type the note. NEAR AI suggests a summary of 12 words
-  or fewer. You read the summary aloud in the Seams Wallet card. The attested
+- **Say a command.** In the voice bar, you say what to do, for example "bet
+  one dollar on no on the second note". JEV, an AI classifier
+  (`functions/api/voice-command.ts`), turns the words into a command: the
+  post, the side and the amount. The command opens the bet sheet, a note or
+  a rating. JEV never proposes or signs a payment. You approve the exact bet
+  when you say its sentence.
+- **Post a note.** NEAR AI drafts the note for each post, and you can change
+  it. The write dialog says "Drafted by NEAR AI" under a note that the model
+  wrote. NEAR AI suggests a summary of 12 words or fewer. You read the summary aloud in the Seams Wallet card. The attested
   verifier checks the speaker and the words. Then the Seams Wallet signs
   `add_note` on the notes contract from your own NEAR account, with no
   confirm tap.
@@ -65,7 +72,7 @@ one wallet works on both.
 | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
 | Notes contract           | `notes.seams-v1.testnet` (`../contracts/community-notes/`)             | Deployed.                                              |
 | Seams Wallet host        | `https://staging.sign.seams.sh`                              | Must be 0.69.2 (iframe protocol 25.0.0). Speak-to-Sign is a part of the Wallet. |
-| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.12.0 (version key `bfe81633…`): it opens sealed recordings. |
+| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.13.0 (version key `1b777154…`, not the active version): it opens sealed recordings, and JEV checks the summary of a note. |
 | Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`                            | This page pins 0.69.2. It has no plugin package.       |
 | Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin, `https://localhost:5443` and `https://localhost:8443`. |
 
@@ -166,7 +173,7 @@ and two raters.
 | `pnpm preview`   | Serves `dist/` and `functions/` with wrangler on port 8788.          |
 | `pnpm dev:https` | Caddy with local HTTPS: https://localhost:5443 and :8443.            |
 | `pnpm typecheck` | Type-checks the page, `vite.config.ts` and the Pages Function.       |
-| `pnpm test`      | Unit tests of the WAV, the resampling, the amount rules and the approve route (`node --test`). |
+| `pnpm test`      | Unit tests (`node --test tests/*.test.ts`): the WAV and the resampling, the voice routes and voice commands, the bet and note transactions, the faucet limit, and the X posts. |
 
 ## Settings
 
@@ -219,7 +226,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 28800 (8 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
 | `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment,politics,health`. `all` turns the filter off. The filter needs a JEV key: `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`. |
-| `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://api.outlayer.fastnear.com`. |
+| `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://testnet-api.outlayer.ai` (`*.outlayer.fastnear.com` is retired). |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
 | `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` (0.8.0 or later; 0.12.0 or later for sealed recordings). |
 | `VOICE_OUTLAYER_PAYMENT_KEY` | Secret. The OutLayer payment key of the Seams staging verify route. Another key finds no voice templates. |
@@ -237,7 +244,7 @@ the names of the missing variables, and the bet form shows that text.
   RP ID (the Wallet host) and the Router A/B signing worker from the Wallet origin.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
 - `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.69.2, `seams.near.spoken`):
-  - `requestNote` → `seams.near.spoken.note({ walletSession, contract, postId, text, summary })`
+  - `requestNote` → `seams.near.spoken.note({ walletSession, contract, postId, text })`
   - `requestRating` → `seams.near.spoken.rating({ walletSession, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.setAuthMethodEnabled` when the owner turned VoiceID off
   - `enroll` → `seams.near.spoken.enroll({ walletSession })`, which also turns on VoiceID for a new wallet
@@ -293,15 +300,26 @@ mode and never sends a note to X.
   route answers 503, unless `X_ELIGIBLE_TOPICS` is `all`. On the 13 posts of
   2026-11-12, JEV gave the subject of the earlier chat model to 12, in 1.1 s.
 - **Draft notes.** A NEAR AI chat model (`NEAR_AI_MODEL`) writes the draft of
-  a Community Note for each shown post, once (`functions/lib/noteDrafts.ts`).
+  a Community Note for each shown post (`functions/lib/noteDrafts.ts`).
   The Seams server writes the spoken summary from the note. The write dialog starts with the draft and
   types it in, so a visitor only presses the button and speaks. The model
   cannot check a fact, so the draft says what the post leaves out (a source,
-  a date, a fair comparison) and adds no fact of its own. A draft with a
-  link, a note over 280 characters or a sentence that the Wallet cannot take
-  is not used: the post then gets the careful draft of its subject
-  (`fallbackDraft` in `src/x/noteDrafts.ts`). The five example posts have
-  hand-written drafts.
+  a date, a fair comparison) and adds no fact of its own. The prompt gives
+  the date, so the model does not call an event of this year "future". A
+  draft with a link or a note over 280 characters is not used: the post then
+  gets the careful template of its subject (`fallbackDraft` in
+  `src/x/noteDrafts.ts`). Each draft has a mark, `source`: `model` or
+  `template`. A model draft is final. A template is not: each refresh sends
+  the newest 24 posts with a template to the model again (3 calls at most).
+  After 3 answers with no valid note for a post, its template is final. A
+  failed call (no key, no credit, a timeout) counts no try. The write dialog
+  says "Drafted by NEAR AI" only under a model draft, until the visitor
+  changes the note. The five example posts have hand-written drafts, with
+  no mark.
+  Before 2026-11-13 a template was final at once. The model then also wrote
+  a spoken sentence (`SAY n:`), and often left out its number. The parser then
+  found no sentence and dropped the whole draft, so 19 of the 22 live posts
+  kept a template.
 - **Collection.** About 1 post in 4 passes the default filter. The snapshot
   therefore keeps the passed posts of earlier calls, newest first, up to
   `X_ELIGIBLE_KEEP` (600). It grows by the new passed posts of each call. With
@@ -323,7 +341,8 @@ mode and never sends a note to X.
   field of X's answer, and keeps only image URLs on `twimg.com`.
 
 Each post is `{ id, text, createdAt, lang, url, author, media, metrics, topic, draft }`
-(`XPost` in the function file). The tests are in
+(`XPost` in `src/x/types.ts`), and `draft` is `{ text, source, modelTries }`
+(`modelTries` only for a template). The tests are in
 `tests/x-eligible-posts.test.ts`, with a fake X API. A local run against the
 real X API on 10 Nov 2026 gave 10 English posts, from 2 hours to 2 days old.
 X took the `tweet.fields` name. Of 20 posts, 5 passed the default filter (2
@@ -335,9 +354,11 @@ Gaza, vaccines, politicians and crime numbers in their own subjects.
 `src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
 
 - **The nav**, the one bar of the page, 44 pixels high: at the left one pill
-  with the name and the gradient picker; at the right "Built on NEAR" (NEAR's
-  wordmark, a link to near.org), Seams (the logo of wallet.seams.sh, a link
-  to it; the mark alone on a phone) and GitHub, in the same glass pills. Its
+  with the name and the gradient picker; at the right GitHub, one pill with
+  three links ("Built on NEAR", NEAR AI and OutLayer), and the Seams pill, in
+  the same glass pills. The Seams pill opens the sign-in (signed out) or the
+  Wallet's settings drawer (signed in); in a build with no Seams key, it is a
+  link to wallet.seams.sh. Its
   content is as wide as the notes app's layout (1220 pixels), so its two
   ends line up with the app's edges. It stays at the top and has no ground of its own: it lies over the
   top of the hero. When the sheet covers the hero, that strip of the hero
@@ -468,7 +489,7 @@ the git branch, and the page gets a preview origin that staging does not allow.
 
 The live origin is `https://speak-to-sign.pages.dev`. Seams staging must
 allow it (CORS and the project's allowed origins), and also
-`http://localhost:5173` for local runs. If Cloudflare gives the project another
+`https://localhost:5443` and `https://localhost:8443` for local runs. If Cloudflare gives the project another
 `pages.dev` name, staging must allow that name instead.
 
 Build with `demo/frontend/.env.production.local` (or the environment) set to the key of

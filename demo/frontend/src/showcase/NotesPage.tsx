@@ -198,7 +198,7 @@ export function NotesPage({ seams }: { seams: boolean }) {
                   makes from the call, or for a note the short summary that the Seams server writes of it. */}
               <ul className="ss-hero-sub ss-hero-why">
                 <li>
-                  Each transaction gets a short summary, and you approve by saying it. If the words or the voice do not match,
+                  Each action gets a short summary, and you approve by saying it. If the words or the voice do not match,
                   nothing is signed, so you never sign blind.
                 </li>
               </ul>

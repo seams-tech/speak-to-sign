@@ -45,7 +45,9 @@ function MarketRow({ entry, postId, currency, account }: { entry: MyMarket; post
   const author = postId === null ? null : findPost(postId)?.author.name;
   const body = (
     <>
-      <span className="trend-kicker">{stateText(market)}</span>
+      <span className="trend-kicker my-bet-state" data-status={market.status}>
+        {stateText(market)}
+      </span>
       <span className="trend-title">{market.question}</span>
       {author && <span className="trend-meta muted">On the post of {author}</span>}
       <span className="nm-pills my-bet-pills">
@@ -79,9 +81,9 @@ function MarketRow({ entry, postId, currency, account }: { entry: MyMarket; post
         <ul className="trend-tx my-bet-txs">
           {bets.slice(0, MAX_TX_ROWS).map((bet) => (
             <li key={`${bet.hash}-${bet.side}-${bet.amount}`}>
-              <span className="muted">
+              <span className="my-bet-tx-amount" data-side={bet.side}>
                 {amountText(bet.amount, currency)} {bet.side}
-              </span>{' '}
+              </span>
               <TxLink hash={bet.hash} />
             </li>
           ))}

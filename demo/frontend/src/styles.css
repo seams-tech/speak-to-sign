@@ -1136,6 +1136,11 @@ code {
   padding: 12px 16px 16px;
   background: var(--bg);
 }
+/* A box that ends with its list has no empty band under the last row. */
+.side-box:has(> .trend-list:last-child) {
+  padding-bottom: 0;
+  overflow: hidden;
+}
 .trend-list {
   list-style: none;
   margin: 8px -16px 0;
@@ -1165,13 +1170,51 @@ code {
 /* "Your bets" (src/x/MyBets.tsx): the position pills under the question, and one line for each
    bet with its transaction link. */
 .my-bet-pills {
-  margin-top: 6px;
+  margin-top: 8px;
 }
+/* The market's state has a dot in front: green while the market is open, grey after that. */
+.my-bet-state::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.my-bet-state[data-status='open']::before {
+  background: var(--green);
+}
+/* The bets are a small ledger under a hairline: the amount on the left, the link on the right. */
 .my-bet-txs {
   display: grid;
-  gap: 2px;
-  margin-bottom: 0;
+  gap: 4px;
+  margin: 0 16px;
+  padding: 8px 0 12px;
+  border-top: 1px solid var(--line);
   list-style: none;
+}
+.my-bet-txs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.my-bet-tx-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.my-bet-tx-amount::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--bet-yes);
+}
+.my-bet-tx-amount[data-side='no']::before {
+  background: var(--bet-no);
 }
 .trend-kicker {
   font-size: 13px;

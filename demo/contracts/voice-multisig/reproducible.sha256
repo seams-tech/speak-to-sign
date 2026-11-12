@@ -1,3 +1,3 @@
-# cargo near build reproducible-wasm of commit 777b84429096604e77e217480e9f89a398f5da13 (210878 bytes).
+# cargo near build reproducible-wasm of commit 99231f6660ce7fb8823a4796918bff10a8a8b323 (214166 bytes).
 # Check it with ../reproducible.sh check voice-multisig
-95208e2a2b5091c677ad0e521fea43f7bc74d5a661981553b8ed5d835110e644  res/voice_multisig.wasm
+ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb  res/voice_multisig.wasm

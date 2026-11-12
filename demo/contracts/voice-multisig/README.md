@@ -39,6 +39,15 @@ sequence diagram is in `docs/architecture.md`, section 7.
   from memory, and the verifier loads the proposal by the commitment. The
   contract checks the key, the outcome, the expiry, the owner (the caller)
   and the commitment, as `propose` does.
+- **How a signer knows the proposal.** The chain and the verifier never
+  show the proposal to another signer: the chain holds only the salted
+  hash, and the verifier keeps the proposal encrypted in its storage. So
+  the proposer tells the other signers the proposal off chain, for example
+  in a call or a team chat, as for each multisig. Each signer then says it
+  aloud. The verifier accepts only the words of the stored proposal, gives
+  no hint on a refusal, and stops after 3 wrong tries. So a signer approves
+  only the proposal that it said, and the words on a changed page do not
+  pass.
 - **One recording counts once.** The contract keeps the `audio_digest` of
   each verdict that counted. A verdict with an audio digest that counted
   before fails, in `propose` and in `approve`, for each proposal. So the
@@ -255,8 +264,8 @@ plain `approve` of 2.x (1.93 Tgas). A 2 of 3 proposal (`propose`, one
 
 One proposal with 3 voice approvals uses 388 bytes of contract storage, with
 the 3 recordings (`alice.test.near`-length accounts; 0.0039 NEAR at 10^19
-yoctoNEAR a byte). The local build of the code is 258,856 bytes, about 2.6
-NEAR. The contract balance pays for all storage and for the transfers.
+yoctoNEAR a byte). The reproducible build of the code is 214,166 bytes,
+about 2.15 NEAR. The contract balance pays for all storage and for the transfers.
 
 ## Build and test
 
@@ -271,10 +280,21 @@ git and cargo-near 0.22.0.
 ../reproducible.sh check voice-multisig   # builds the recorded commit again and compares
 ```
 
-No reproducible build of 3.0.0 exists yet. `reproducible.sha256` still
-records the build of version 2.x that is deployed (see "Deployed code").
-Make the 3.0.0 build from a commit on `dev`, after the merge, and commit the
-new `reproducible.sha256` with the deploy.
+The build of 12 Nov 2026 of version 3.0.0 is the WASM to deploy. It is not
+deployed yet. The code on `multisig.seams-v1.testnet` is the 2.x build of
+commit `777b844` (see "Deployed code").
+
+| Item               | Value |
+| ------------------ | ----- |
+| Commit             | `99231f6660ce7fb8823a4796918bff10a8a8b323` (on `dev`) |
+| Size               | 214,166 bytes |
+| SHA-256            | `ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb` |
+| Code hash (base58) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
+
+`reproducible.sha256` holds the same commit and SHA-256. Both sandbox tests
+pass with this WASM (`VOICE_MULTISIG_WASM=res/voice_multisig.wasm`).
+SourceScan can build the commit again only after `dev` with this commit is
+on GitHub.
 
 ### Local build
 
@@ -340,7 +360,7 @@ enrolled voice in the verifier (`enroll`). The proposed account name is
    ../reproducible.sh build voice-multisig
    ```
 
-2. Create the contract account. 3 NEAR covers the code (about 2.6 NEAR):
+2. Create the contract account. 3 NEAR covers the code (about 2.15 NEAR):
 
    ```bash
    near account create-account fund-myself voice-multisig.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send

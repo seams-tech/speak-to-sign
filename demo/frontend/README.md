@@ -201,7 +201,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet`. Default `https://test.rpc.fastnear.com`. |
 | `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |
 | `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` | Secret. The OAuth 1.0a Access Token and secret of the same account. Required. A Bearer Token does not work on this endpoint. |
-| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10.               |
+| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10; `wrangler.toml` sets 20. |
 | `X_ELIGIBLE_KEEP` | Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. |
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 28800 (8 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
@@ -290,9 +290,9 @@ mode and never sends a note to X.
 - **Collection.** About 1 post in 4 passes the default filter. The snapshot
   therefore keeps the passed posts of earlier calls, newest first, up to
   `X_ELIGIBLE_KEEP` (600). It grows by the new passed posts of each call. With
-  10 posts a call that is 2 or 3 posts, about 20 after two days; 10 new shown
-  posts a call (60 after two days) need about 40 posts a call
-  (`X_ELIGIBLE_MAX=40`), which costs about four times as much.
+  the 20 posts a call that `wrangler.toml` sets, that is about 5 posts, about 30
+  after two days; 10 new shown posts a call (60 after two days) need about 40
+  posts a call (`X_ELIGIBLE_MAX=40`), which costs about twice as much as 20.
 - **Schedule.** Pages Functions have no schedule: a visitor's request makes
   the call when the snapshot is old (at the TTL less 10 minutes, or less a
   tenth of a short TTL). The Worker `../x-refresh-worker` asks every 8 hours,

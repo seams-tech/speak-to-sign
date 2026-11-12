@@ -19,3 +19,8 @@ compatibility_date = "2026-11-01"
 [[kv_namespaces]]
 binding = "X_CACHE"
 id = "1a59a845916b4d119b037adeb871ab6c"
+
+[vars]
+# Posts for each call to X (the route's default is 10). X bills each post and author that it
+# returns; 20 grows the snapshot faster, since many posts of a call repeat the last call's.
+X_ELIGIBLE_MAX = "20"

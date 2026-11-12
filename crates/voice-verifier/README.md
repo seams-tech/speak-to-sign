@@ -17,6 +17,13 @@ There is no vault contract.
 The source on this branch is version 0.14.1 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
+On 2026-11-12 the owner removed every version from the OutLayer project,
+except these four: 0.12.0 (active), 0.13.0, 0.14.1 and 0.14.1+venice. So a
+row of another version below is history: where it says "Not active" or
+"Added", that version is no longer on OutLayer, and a call with its key
+fails. The file of each version is still on FastFS. The removals are in
+"Versions removed from OutLayer" below.
+
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
 | ------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0.3.0   | `09f4ce1b…` (330,322 bytes, commit `3dab63d`)                      | Replaced. Verdict v2, the policy step, the `AccountTransfer` request, NEP-413 enrollment and `template:v3:<owner>`. It removed the vault.             |
@@ -54,6 +61,37 @@ the version list (views `get_project` and `list_versions` of
 
 The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
 in the repository README.
+
+### Versions removed from OutLayer
+
+Each is a `remove_version` call of `seams-v1.testnet` on `outlayer.testnet`,
+on 2026-11-12. Three more removals of that day are in the rows of 0.14.0
+above.
+
+| Version key | Transaction |
+| --- | --- |
+| `ecc1c2c36a01e07e2431e8027496332c3ac8485b5226f71ae6edd57374387690` | `CvdXswbV4GxWVso1Zbp856SM7MvcnbMNAtkRBSn6LBwV` |
+| `01a96686eb2231d4099f799d3cd9d23817198b324a1f9ef0cba315b154ebaf4b` | `AeG5apW7iy7r8g2VLwRXv6UHNieekxpeT4wqVnrpBvnk` |
+| `0f3a6e1bb020a8d871032e88899f3ecf360c441adbe7595842ea96fc0cb579b1` | `GoGBFxxe5XUdARGUvWNLxC7W1p9dGESZCgWUg2BUXq8q` |
+| `1e79327b0afa2a0f026aee519bd0d1801272e21cb21205d31788e4d1452231f0` | `ehJ474W4mveFLAQPRWjbPddfohCfJRwYcJciRvKF6rm` |
+| `b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0` | `8Fh8qAgxxm3Mv4UbR9Aa7wF3MY7FzfmsshLZHPGnmwft` |
+| `09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294` | `fx9nHsyEj5EBiiJsrT7S82nzPwy9CJKZhAg2gNFjGuh` |
+| `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | `DVrEmKPZYYfLiUfWqYza1MU4Y1ppaap3cxWPSQWS4mGt` |
+| `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | `43bo2qfj5D9sAa9HAhSazLoZ6M8RFxbHcRGtGPL82v4R` |
+| `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c` | `DrfrUVF9yDgz69QmCu7qVfFvRYB1u4daeNWk4TH5CJcc` |
+| `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258` | `Ec9vQCbEUU9R1BvEo3445Mp7RP1FGLuNffhtTN7RGnD1` |
+| `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5` | `7Cz6EU3JUyrGhnSXvdTfZZ1xKbotUbYTpa2dbRSfH4LZ` |
+| `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | `HMGcJwPwzwdt4KFB3z6NJGLgP1ZhWuQ1MgtUoh1p2DGw` |
+| `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | `57ApreDGvT2eNSa1TTibgDKi2GrcNBKUWkyLqYbEkGAb` |
+| `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3` | `4QE5CsQ8EPQbrNkJBrc3EvYrxuS3z86ApPSuewqcHWkc` |
+| `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | `6cgoAhzcwapPAsm2BFSwXgGRAb6r3VSoy3arsAgjDBwY` |
+| `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | `D5C369RFHPQ4J2mAdRvygRE2arVSqiXTa3R9JSnTH2QY` |
+| `6725917bd01355f08bb402271dff6265c0d03650c1b1acf8d0992b2537d65ef1` | `4ZtHGEF1APPZandcgc4TNoa2K4XMPRYppDEbcC12QejU` |
+| `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb` | `6iwvjJ9pFPB6eCzBXci8j43dDrXPivELYUowtgEsVgqL` |
+| `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | `7vudJNtaMt39MU9Ym7LB4cAzdfdXb3ov52axs427LnA7` |
+| `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` | `CvJE8onw3jNYvZmpnYwQY1FJpjS58pDEYtZzYSgCWL2V` |
+| `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | `CuXTVDf8uGY74qzyXnZNcDh5mXhXjLHPY8wH4kWjumCP` |
+| `e322edae8c1497a4ecbc6f51ee67c9b25ef08cd48bcf2cd64fa7f5f6fba3af09` | `Hy8vPoAS7S2CLALpLqyXCbABLBqPfTAnmnFJCyuCkUd4` |
 
 ## Build and test
 

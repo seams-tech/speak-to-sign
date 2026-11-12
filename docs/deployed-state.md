@@ -36,8 +36,16 @@ last line of the contract's `reproducible.sha256`.
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -r .active_version
 ```
 
-The full list of versions is in README "Testnet facts" and in
-`crates/voice-verifier/README.md`.
+The project has four versions: 0.12.0, 0.13.0, 0.14.1 and 0.14.1+venice. On
+2026-11-12 the owner removed the 25 other versions, because no caller used
+them. A call with the key of a removed version fails. The history of each
+version and the transaction of each removal are in
+[`crates/voice-verifier/README.md`](../crates/voice-verifier/README.md#versions).
+
+```bash
+# See: 4
+view outlayer.testnet get_version_count '{"project_id":"seams-v1.testnet/voice-verifier"}'
+```
 
 ## The contracts
 

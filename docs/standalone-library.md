@@ -714,7 +714,8 @@ caller selects a build with `version_key`.
 | `local-speaker` (speaker model in the worker) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | 8,266,175 |
 
 Both are from commit `21ad633`, built with `build.sh --docker`. The
-transactions are in `crates/voice-verifier/README.md`, "Versions". The
+transactions are in `crates/voice-verifier/README.md`, "Versions". Both
+builds were removed from OutLayer on 2026-11-12; use verifier 0.14.1. The
 speaker model is on FastFS (section 4.4).
 
 ### 6.2 What ran, with a synthetic voice

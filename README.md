@@ -1,8 +1,8 @@
 # Speak to Sign
 
 Speak-to-Sign lets the owner of a NEAR account approve one exact call with
-their own voice. The hackathon demo is community notes on an X-style page.
-Testnet only.
+their own voice. The hackathon demo is community notes on an X-style page:
+you post a note, rate a note and bet on a note by voice. Testnet only.
 
 Judges: [`JUDGES.md`](JUDGES.md) is the short path to see it work and to
 check each claim.
@@ -23,6 +23,13 @@ check each claim.
   something, not what the person agreed to. Here the Wallet signs only when
   the spoken words match the request, so the words of a phishing request do
   not match.
+- **The loss that this stops.** On 21 February 2025, attackers took about
+  US$1.5 billion from Bybit. They changed the Safe{Wallet} web page, so the
+  multisig signers saw a normal transfer. Each signer then signed a
+  transaction that gave the attackers control of the wallet. Here the signer
+  reads the request aloud, and the verifier checks the heard words against
+  the request that is signed. If a changed page shows other words, the words
+  do not match, and the verifier refuses.
 - **One sentence is the approval.** The verifier signs a verdict that binds
   the voice, the heard words and the request. Wallet core signs only with
   that verdict, so one spoken sentence is both the check of the person and
@@ -35,8 +42,17 @@ check each claim.
 | Demo page   | `pnpm site` starts it on this machine. `demo/frontend/README.md` tells what must be live. |
 | Contracts   | [Testnet facts](#contracts): the four contract accounts, with NearBlocks links. |
 
-The same verifier also approves spoken NEAR transfers
-(`examples/speak-to-pay/`).
+The same verifier also approves other calls:
+
+- **Speak to pay** (`examples/speak-to-pay/`, at `/pay/` of the demo site):
+  you say "send 2 NEAR to alice.testnet", and the Wallet pays that exact
+  amount to that exact account.
+- **Voice multisig** (`demo/contracts/voice-multisig/`, on
+  `multisig.seams-v1.testnet`): a visitor proposes a transfer, or the hide of
+  a note, by voice. The contract checks the verdict on chain, and two admins
+  approve. The demo site has no page for it. Today the admins approve with a
+  plain signed call. The next step is that each admin also approves by voice,
+  which closes the gap of the Bybit loss above.
 
 ## Reproduce without a microphone
 

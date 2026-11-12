@@ -6,7 +6,7 @@ use ed25519_dalek::{Signature, SigningKey, Verifier};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use seams_voice_verifier::config::{AUDIO_KEY_ENV, NEAR_AI_TRANSCRIPTIONS_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{AUDIO_KEY_ENV, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex};
 use seams_voice_verifier::envelope::{audio_key_message, AudioKey};
 
@@ -35,7 +35,7 @@ fn verify_accepts_sealed_audio() {
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     // The digest and the services see the opened WAV, as for plain audio.
     assert_eq!(verdict.audio_digest, Some(b64u(&Sha256::digest(&wav))));
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
 }
 
 #[test]

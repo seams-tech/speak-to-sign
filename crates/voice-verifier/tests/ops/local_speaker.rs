@@ -2,7 +2,7 @@
 //! and no request goes to the speaker service.
 use serde_json::Value;
 
-use seams_voice_verifier::config::{template_key, NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL};
+use seams_voice_verifier::config::{template_key, NEAR_AI_OHTTP_URL, NEAR_RPC_URL};
 
 use crate::fake::{
     call, call_local, checked_verdict, clip, embedding, enroll_input, enrolled, outcome_name, verify_input, Fake, OWNER,
@@ -57,8 +57,8 @@ fn verify_accepts_a_template_of_the_service_variant() {
     let verdict = checked_verdict(&out);
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert!(verdict.speaker_score_milli.unwrap() >= 450);
-    assert_eq!(fake.posts, [NEAR_AI_TRANSCRIPTIONS_URL]);
-    assert_eq!(fake.events, ["start", "get", "poll", "marker_set", "embed_local", "wait"]);
+    assert_eq!(fake.posts, [NEAR_AI_OHTTP_URL]);
+    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "embed_local", "wait"]);
     for stage in ["model_fetch", "redimnet", "transcribe", "parallel", "sign", "total"] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
@@ -96,8 +96,17 @@ fn a_model_failure_is_speaker_unavailable() {
 fn a_build_with_no_model_refuses() {
     // A host with no model (the default `Host::embed_local`) in a local run.
     struct NoModel(Fake);
-    use seams_voice_verifier::host::{Host, PostRequest, Timed};
+    use seams_voice_verifier::host::{GetRequest, Host, PostRequest, Reply, Timed};
     impl Host for NoModel {
+        fn worker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String> {
+            self.0.worker_get(key)
+        }
+        fn worker_set(&mut self, key: &str, value: &[u8]) -> Result<(), String> {
+            self.0.worker_set(key, value)
+        }
+        fn get_all(&mut self, requests: Vec<GetRequest>) -> Vec<Result<Reply, String>> {
+            self.0.get_all(requests)
+        }
         fn secret(&self, name: &str) -> Option<String> {
             self.0.secret(name)
         }

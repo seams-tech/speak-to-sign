@@ -5,7 +5,7 @@ use ed25519_dalek::{Signature, SigningKey, Verifier};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use seams_voice_verifier::config::{NEAR_AI_TRANSCRIPTIONS_URL, SPEAKER_EMBED_URL, VERDICT_TTL_MS};
+use seams_voice_verifier::config::{NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL, VERDICT_TTL_MS};
 use seams_voice_verifier::digest::b64u;
 use seams_voice_verifier::output::{transcript_message, verdict_message, Transcript};
 
@@ -50,7 +50,7 @@ fn transcribe_signs_the_heard_words_of_the_owner() {
     assert_eq!(transcript.audio_digest, Some(b64u(&Sha256::digest(&wav))));
     assert_eq!(transcript.expires_at_ms, NOW_MS + VERDICT_TTL_MS);
     assert!(transcript.speaker_score_milli.unwrap() >= 450);
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
     // The transcript is not a verdict: it has no request digest and another kind.
     let value: Value = serde_json::from_str(out["transcript_json"].as_str().unwrap()).unwrap();
     assert_eq!(value.as_object().unwrap().len(), 9);
@@ -111,7 +111,7 @@ fn transcribe_cuts_a_long_text_and_runs_in_the_local_variant() {
     let text = transcript.text.unwrap();
     assert!(text.len() <= 200 && text.len() > 190, "{}", text.len());
     assert!(text.ends_with("word"));
-    assert_eq!(fake.posts, [NEAR_AI_TRANSCRIPTIONS_URL]);
+    assert_eq!(fake.posts, [NEAR_AI_OHTTP_URL]);
 
     // The longest owner and the longest text still fit the output limit
     // (`call` checks the size).

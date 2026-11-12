@@ -170,7 +170,7 @@ test('a bad key or signature text', async () => {
     const result = await checkVerdict({ ...input(accept), publicKey });
     assert.equal(!result.ok && result.refusal.code, 'bad_public_key', String(publicKey));
   }
-  for (const signatureB64 of ['', 'AAAA', '!!!!', accept.signature_b64.slice(4), accept.signature_b64.replace('+', '-')]) {
+  for (const signatureB64 of ['', 'AAAA', '!!!!', accept.signature_b64.slice(4), `-${accept.signature_b64.slice(1)}`]) {
     const result = await checkVerdict({ ...input(accept), signatureB64 });
     assert.equal(!result.ok && result.refusal.code, 'bad_signature_encoding', signatureB64);
   }

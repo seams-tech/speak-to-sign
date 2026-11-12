@@ -1,6 +1,6 @@
 [package]
 name = "seams-voice-verifier"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 publish = false
 description = "Speak-to-Sign OutLayer worker: enroll a voice and verify a spoken request, with a signed verdict"
@@ -19,12 +19,22 @@ spoken-intent = { path = "../spoken-intent" }
 sha2 = "=0.10.9"
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["raw_value"] }
 # Checks the speaker service signature over each embedding.
 ed25519-dalek = { version = "2", default-features = false }
 # Opens the sealed audio (see src/envelope.rs). No `getrandom`: the worker
 # only opens.
 hpke = { version = "=0.15.1", default-features = false, features = ["alloc", "x25519", "chacha"] }
+# Oblivious HTTP to the NEAR AI gateway (see src/ohttp.rs): the response
+# key of RFC 9458. The same versions as the dependencies of `hpke`.
+hkdf = { version = "=0.13.0", default-features = false }
+sha2_11 = { package = "sha2", version = "=0.11.1", default-features = false }
+chacha20poly1305 = { version = "=0.11.0", default-features = false }
+rand_core = { version = "=0.10.1", default-features = false }
+# Checks the TDX quotes of the NEAR AI gateway and of its Whisper model with
+# Intel's collateral (see src/nearai_attestation.rs). RustCrypto only: no
+# `ring`, no `reqwest`; the worker fetches the collateral itself.
+dcap-qvl = { version = "=0.7.1", default-features = false, features = ["std", "rustcrypto", "default-x509"] }
 
 # ReDimNet B1 inside the worker (the feature `local-speaker`).
 tract-onnx = { version = "=0.23.10", optional = true }

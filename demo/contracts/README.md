@@ -7,6 +7,15 @@
 | [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
 | [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 
+The first three contracts check the ed25519 voice verdict on chain (`seams-voice-verdict`
+and `spoken-intent`) and count each verdict once. A caller with a plain NEAR
+key outside Seams Wallet cannot post a note, rate a note, place a bet or
+approve a multisig action over RPC without a fresh spoken verdict. None of the
+contracts check the TDX quote on chain: the Seams verify route checks the quote
+off chain before the Wallet co-signs, with 0 quote gas and 0 bytes on chain
+(see [`docs/voice-intents-spec.md`](../../docs/voice-intents-spec.md#9-who-checks-the-verdict)
+sections 9 and 9.1).
+
 ## Reproducible build
 
 `./reproducible.sh` builds each contract byte for byte the same on any
@@ -58,17 +67,17 @@ rebase.
 ### The deployed code
 
 From 2026-11-11, the four older testnet contracts ran the builds of commit
-`777b844`, with no init call (the state stayed). One of them,
-`multisig.seams-v1.testnet`, was deleted on 2026-11-12; the other three
-still run these builds. SourceScan built each one
-again and got the same code hash, so NearBlocks shows each one as verified on
-its contract page. Since 2026-11-12, the new account
-`voice-multisig.seams-v1.testnet` runs the build of commit `99231f6`
-(version 3.0.0). SourceScan verified it in the same way.
+`777b844`, with no init call (the state stayed). On 2026-11-12,
+`multisig.seams-v1.testnet` was deleted, `voice-multisig.seams-v1.testnet` was
+deployed from commit `99231f6` (version 3.0.0), and `notes.seams-v1.testnet`
+was upgraded to commit `119ef0e` (version 1.1.0, with the voice rule). The
+note market and the faucet still run the builds of `777b844`. SourceScan built
+each contract again and got the same code hash, so NearBlocks shows each one
+as verified on its contract page.
 
 | Contract                    | Code hash (base58)                             | Redeploy transaction                           |
 | --------------------------- | ---------------------------------------------- | ---------------------------------------------- |
-| `notes.seams-v1.testnet`    | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` | `9d5SW81rQ2BQXrvqA5z78gYYxdEhP8JVVj4pu3tFFAEW` |
+| `notes.seams-v1.testnet` (commit `119ef0e`, 2026-11-12, no init call) | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` | `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse` |
 | `multisig.seams-v1.testnet` (deleted on 2026-11-12) | `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh` | `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t` |
 | `voice-multisig.seams-v1.testnet` (commit `99231f6`, 2026-11-12, deploy with `new`) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` | `FUAfW1AeZMMarjVThdDtmdXAhPw1ghZt2U6FSMF83rxs` |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` | `88qJEJPcSpay99MSV4ZVecp88XasDfD3zSv27Cgk6Zx6` |

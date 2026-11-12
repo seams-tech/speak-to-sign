@@ -65,8 +65,8 @@ listen to it. The sentence states the exact call in plain words.
 ## 3. A replay of an old recording or verdict
 
 **What stops it.** Each recording passes the verifier one time, also after a
-refusal. A verdict expires 120 s after the verifier signs it. The multisig and
-the market count each verdict once on chain.
+refusal. A verdict expires 120 s after the verifier signs it. The notes
+contract, the market and the multisig count each verdict once on chain.
 
 **Evidence.** `verify_refuses_other_words_and_uses_the_audio`;
 `the_same_verdict_twice_fails`; `VERDICT_TTL_MS` in
@@ -97,9 +97,12 @@ that the verifier picks at random) and no detection of synthetic speech.
 
 ## 6. A bot farm with text-to-speech voices
 
-**What stops it.** Each action needs new audio of its exact text, and each
-account needs an enrollment signed by its own full-access key. This adds a
-cost to each action. It is one layer against bots, not a complete defence.
+**What stops it.** `notes`, `pm-notes` and `voice-multisig` check the verdict
+on chain, so a bot with a plain NEAR key cannot skip Seams Wallet and call
+them directly over RPC without a fresh verdict. Each action needs new audio of
+its exact text, and each account needs an enrollment signed by its own
+full-access key. This adds a cost to each action. It is one layer against
+bots, not a complete defence.
 
 **What is left.** A text-to-speech voice can enroll and pass, and one voice can
 enroll on many accounts. Future steps: synthetic-speech detection, and a check
@@ -178,10 +181,11 @@ would remove it, and that check is not planned. Trusted.
 
 ## 12. A contract caller with a plain key
 
-A signer can call the multisig or the market from a plain NEAR key, not
-through the Seams Wallet. The contract still checks the verdict and its key,
-but nothing on that path checks the TDX quote. A quote check on chain costs
-about 176 Tgas. See [spec 9.1](voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
+A caller with a plain NEAR key outside Seams Wallet cannot skip the spoken
+verdict: `notes`, `pm-notes` and `voice-multisig` check the ed25519 verdict
+and its key on chain, and refuse a call without one. Nothing on that path
+checks the TDX quote of the verifier call. See
+[spec 9.1](voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
 
 ## 13. The holder of a full-access key of a demo contract
 

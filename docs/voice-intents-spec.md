@@ -336,12 +336,25 @@ Four checkers exist:
   bet only with the verdict of that bet: the key, the expiry, and the digest
   of the bettor, market, side and amount. Each verdict counts once. On
   testnet, `get_voice_config` gives `"required":true`.
-- **The notes contract** (`notes.seams-v1.testnet`). Its source checks the
-  verdict of each note and rating on chain (`check_spoken`: the key, the
-  outcome, the expiry and the digest; each verdict counts once). The
-  deployed build (commit `777b844`) does not have this check yet. So on
-  testnet, only Wallet core and the Seams co-signer check the verdict of a
-  note.
+- **The notes contract** (`notes.seams-v1.testnet`). It checks the verdict of
+  each note and rating on chain (`check_spoken`: the key, the outcome, the
+  expiry and the digest; each verdict counts once). On testnet,
+  `get_voice_config` gives `"required":true`.
+
+**Why both the Wallet and the contracts check the verdict.** Each layer does
+the job that only it can do:
+
+- **Off chain (the Seams verify route and threshold co-signer).** It checks the
+  TDX quote (`wasm_hash` binding) and the verdict before it co-signs, with 0 gas
+  and 0 bytes on chain (see section 9.1). It also guards actions that have no
+  contract code on the receiver, such as a native NEAR transfer (`examples/speak-to-pay`) or a
+  general transaction.
+- **On chain (`notes`, `pm-notes` and `voice-multisig`).** A wallet guards only
+  its own users. A bot with a plain NEAR key outside Seams Wallet can call a
+  public contract directly over RPC. Each application contract checks the
+  64-byte ed25519 verdict signature, the request digest and a single-use marker
+  on chain (`~1 Tgas`). A plain key cannot post a note, rate a note, place a bet
+  or approve a multisig proposal without a fresh spoken verdict.
 
 ### 9.1 The verdict key and the TDX quote
 
@@ -375,10 +388,10 @@ signs. This design beats an on-chain quote check in three ways:
   (`tee-verifier-2026-07-22.testnet`) burns about 176 Tgas (0.018 NEAR). It
   also puts about 30 KB of quote data in each call. The off-chain check adds
   0 gas and 0 bytes on chain, so transfers, bets and notes stay cheap.
-- **Small on-chain verdict check.** `pm-notes` and `voice-multisig` (and
-  `notes` in source) still check the 64-byte ed25519 verdict signature on
-  chain in about 1 Tgas (`ed25519_verify`). They verify the exact verdict
-  bytes. They do not rebuild JSON on chain.
+- **Small on-chain verdict check.** `notes`, `pm-notes` and `voice-multisig`
+  still check the 64-byte ed25519 verdict signature on chain in about 1 Tgas
+  (`ed25519_verify`). They verify the exact verdict bytes. They do not rebuild
+  JSON on chain.
 
 Each voice action comes from the user's own account through the Seams
 co-signer. Only a contract that pays any caller with no co-signer in front of

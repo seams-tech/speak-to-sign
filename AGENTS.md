@@ -10,7 +10,7 @@ The owner of a NEAR account approves one exact call by voice: they say one
 sentence, for example "Send 2 NEAR to alice.testnet". A verifier in a TEE
 (OutLayer, Intel TDX) checks the voice and the heard words, and signs a
 verdict bound to the digest of that call. Seams Wallet signs the call only
-with a verdict for it, and two contracts check the verdict again on chain.
+with a verdict for it, and three contracts check the verdict again on chain.
 Testnet only.
 
 All of this repository was made in the hackathon window. Seams Wallet existed
@@ -75,9 +75,14 @@ before, and it is the baseline, not hackathon work. See
    and check nothing about NEAR AI. Do not write that the check is live.
    ([trust chain](docs/trust-chain.md#the-near-ai-check),
    [deployed state](docs/deployed-state.md#checks-that-are-in-progress))
-9. **On chain, the market and the multisig check each verdict.** The live
-   notes contract does not: its source has the check, but that build is not
-   deployed. ([deployed state](docs/deployed-state.md#the-contracts))
+9. **On chain, the notes contract, the market and the multisig check each
+   verdict.** Each contract checks the ed25519 verdict signature and refuses a
+   used verdict, so a bot with a plain NEAR key outside Seams Wallet cannot
+   skip the voice rule over RPC. The Wallet guards actions that have no
+   receiver contract code, such as native NEAR transfers
+   (`examples/speak-to-pay`).
+   ([deployed state](docs/deployed-state.md#the-contracts),
+   [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict))
 10. **The demo calls verifier 0.13.0 by its `version_key`.** The active version
     on OutLayer is 0.12.0. ([deployed state](docs/deployed-state.md#the-verifier))
 11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.69.2 on npm, and

@@ -19,7 +19,7 @@ flowchart LR
   end
 
   subgraph Seams["Seams servers"]
-    Route["Verify route"]
+    Route["Verify route<br/>checks the TDX quote"]
     Cosigner["Co-signer<br/>checks the verdict again"]
   end
 
@@ -35,7 +35,7 @@ flowchart LR
 
   Whisper["NEAR AI Cloud<br/>Whisper large-v3"]
   Rpc["NEAR RPC<br/>access-key view"]
-  Chain["NEAR testnet<br/>notes, multisig, transfers"]
+  Chain["NEAR testnet<br/>notes, market, multisig, transfers"]
 
   App --> Plugin
   Plugin -->|scoped operations| Core
@@ -65,7 +65,8 @@ flowchart TB
   VV["crates/voice-verifier<br/>enroll, verify"]
   SS["crates/speaker-service<br/>signed embeddings"]
   MS["demo/contracts/voice-multisig<br/>checks the verdict on chain"]
-  CN["demo/contracts/community-notes"]
+  CN["demo/contracts/community-notes<br/>checks the verdict on chain"]
+  PM["demo/contracts/jev-prediction-market<br/>checks the verdict on chain"]
   WT["seams-wallet<br/>TypeScript port and verdict check"]
   PL["Speak-to-Sign flow<br/>in @seams/wallet (seams-wallet)"]
   FE["demo/frontend and examples/speak-to-pay"]
@@ -73,6 +74,8 @@ flowchart TB
   SI --> Vec
   SI -->|links| VV
   SI -->|links| MS
+  SI -->|links| CN
+  SI -->|links| PM
   Vec -->|tests read| WT
   VV -->|signed verdict vectors| WT
   VV -->|HTTPS| SS
@@ -217,7 +220,7 @@ flowchart LR
   V -->|"SHA-256 with domain, ed25519"| SIG["signature_b64"]
   SIG --> CHK{"Checker:<br/>pinned key, accept,<br/>not expired,<br/>same request_digest"}
   CHK -->|Wallet core and co-signer| TX["One signed transaction"]
-  CHK -->|Voice multisig contract| PR["Stored proposal"]
+  CHK -->|notes, market, multisig| PR["Accepted state change"]
 ```
 
 ## 7. Voice multisig demo
@@ -321,13 +324,15 @@ check.
 | `crates/voice-verdict` (Rust) | `check_attestation_binding`, for a server. The Intel chain is a test with `dcap-qvl`. The contracts use this crate for the key check only, not for the quote. |
 | `@seams/voice-sign` | The `attestation` setting runs `checkAttestationBinding` and `measurementsApproved` for each call. It does not check the signature chain of the quote to Intel, so there the quote is only a claim of the OutLayer API. |
 
-**The contracts do not need the quote.** Each voice action of
-`voice-multisig`, `jev-prediction-market` and `community-notes` is a
-transaction from the user's own account (the predecessor). The wallet that
-signs it is the party that checks the quote. To misuse the key on chain, an
-attacker needs a bad build and the account key. The account key alone
-already moves the funds. So the key check in the contracts is a second
-layer, and it stays.
+**The contracts check the verdict, not the quote.** A wallet guards only its
+own users. `voice-multisig`, `jev-prediction-market` and `community-notes`
+check the 64-byte ed25519 verdict on chain so that a bot with a plain NEAR key
+outside Seams Wallet cannot post a note, rate a note, place a bet or approve a
+proposal over RPC without a fresh spoken verdict. Each action still comes from
+the user's own account, and the Seams verify route checks the TDX quote off
+chain before the Wallet co-signs. See
+[`voice-intents-spec.md`](voice-intents-spec.md#9-who-checks-the-verdict)
+sections 9 and 9.1.
 
 **On-chain DCAP is not used.** NEAR testnet has a DCAP verifier,
 `tee-verifier-2026-07-22.testnet` (`crates/tee-verifier` of `near/mpc`). One

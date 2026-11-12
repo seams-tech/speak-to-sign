@@ -193,7 +193,7 @@ The Wallet attaches 30 Tgas. Each call uses less than 10 Tgas.
 
 | Item            | Storage        | Cost at 10^19 yoctoNEAR a byte |
 | --------------- | -------------- | ------------------------------ |
-| Contract code   | 146,408 bytes (the deployed build) | 1.46 NEAR    |
+| Contract code   | 204,970 bytes (the deployed build) | 2.05 NEAR    |
 | Largest note    | 1,919 bytes    | 0.019 NEAR                     |
 | One rating      | 97 bytes       | 0.001 NEAR                     |
 
@@ -217,20 +217,18 @@ git and cargo-near 0.22.0.
 ../reproducible.sh check community-notes   # builds the recorded commit again and compares
 ```
 
-The build of 11 Nov 2026 gave:
+The build of 12 Nov 2026 gave:
 
 | Item               | Value |
 | ------------------ | ----- |
-| Commit             | `777b84429096604e77e217480e9f89a398f5da13` |
-| Size               | 146,408 bytes |
-| SHA-256            | `0b821a5c459d31b7aed4b6459b3aa572189c927411878665d8eae633d51f7f80` |
-| Code hash (base58) | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` |
+| Commit             | `119ef0e6ceda8fedd131a8b4a7e6ce554b99751f` |
+| Size               | 204,970 bytes |
+| SHA-256            | `596beeb36aa2a43eccc211e9dcc557b992d19fcd72e3ef8fcfeb9d5aa237d9c3` |
+| Code hash (base58) | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` |
 
-Commit `e637240` holds the record of this build in `reproducible.sha256`.
-On `dev`, that file now records the later build of commit `119ef0e`
-(204,970 bytes, `596beeb3…d9c3`), which is not deployed.
+`reproducible.sha256` holds the record of this build.
 
-The deployed code is this build, since the redeploy of 2026-11-11 (see
+The deployed code is this build, since the redeploy of 2026-11-12 (see
 "Testnet deployment"). SourceScan built the commit again and got the same
 code hash, so NearBlocks shows the code as verified at
 <https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract>.
@@ -274,13 +272,14 @@ Deployed on 9 Nov 2026 from commit `7f0e014`.
 | Item                | Value                                                                  |
 | ------------------- | ---------------------------------------------------------------------- |
 | Contract account    | `notes.seams-v1.testnet` (created by `seams-v1.testnet` with 5 NEAR)   |
-| Code hash (base58)  | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` since the redeploy of 2026-11-11, the reproducible build of commit `777b844` (see "Reproducible build"). Earlier code: `GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP` (the upgrade of 2026-11-11), and first `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY`, the local build of 9 Nov 2026 (see "Local build") |
+| Code hash (base58)  | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` since the redeploy of 2026-11-12, the reproducible build of commit `119ef0e` (see "Reproducible build"). Earlier code: `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` (commit `777b844`, 2026-11-11), `GUxwJuESkn4FAZcW5oacs15zPzBfh1qSPHpVauyqkewP` (2026-11-11), and first `5nqrLnLpoZrtxbMQQKFB9CoowyEXJ9notqsHe51dBjPY` (9 Nov 2026) |
 | Create account      | transaction `GxZNoaKqZnoR9kmoFK2PVJqYqDaPUDBrScd1Eks7h9fa`             |
 | Deploy              | transaction `7eVv1CLTX5MTaanpJvJVHj2PXNv23aztqQHqmJyCc5a4`             |
 | Smoke test          | `add_note` from `seams-v1.testnet`, transaction `4QQh3AXaz64BhGqhCjd72qGYt2iFuNB8LGfn4HtdQowM`, 2.2 Tgas |
 | Upgrade (2026-11-11) | Code of `dev` 01dde86 with the moderator and `hide_note` (177,329 bytes, SHA-256 `e6093bb1…26be` in this build folder), no init call, the notes stay: transaction `EbvY3JzUmc4S6cDCfVr1bgbF55CLTexKGwAVqh2H9spr`. `set_moderator` to `multisig.seams-v1.testnet`: transaction `BKXvKf4YrNwhDA1uQZF6ez7p3H3fzw57ivQuH1Mxh3mr` |
-| Moderator (2026-11-12) | `set_moderator` to `voice-multisig.seams-v1.testnet`, the voice-only multisig 3.0.0, after the 2.x account was deleted: transaction `67yt21jDwFhcRXc6Ku8xeKutiyhPN8B2pnkL7iX1QM5D` |
 | Redeploy (2026-11-11) | The reproducible build of commit `777b844` (146,408 bytes, SHA-256 `0b821a5c…7f80`). Its contract source is the same as in `dev` 01dde86. No init call; note 1 and the moderator stay: transaction `9d5SW81rQ2BQXrvqA5z78gYYxdEhP8JVVj4pu3tFFAEW` |
+| Moderator (2026-11-12) | `set_moderator` to `voice-multisig.seams-v1.testnet`, the voice-only multisig 3.0.0, after the 2.x account was deleted: transaction `67yt21jDwFhcRXc6Ku8xeKutiyhPN8B2pnkL7iX1QM5D` |
+| Upgrade to 1.1.0 (2026-11-12) | The reproducible build of commit `119ef0e` (204,970 bytes, SHA-256 `596beeb3…d9c3`, with the voice rule). No init call; all notes, ratings and the moderator stay: transaction `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse` |
 
 The smoke test added note 1 on post 9999, which is not a demo post. The
 first demo note gets id 2. `get_notes({"post_id":9999})` returns note 1 with
@@ -288,18 +287,16 @@ all eleven `NoteView` fields (with `hidden`).
 
 ## Upgrade to the voice rule
 
-The deployed contract takes `add_note` and `rate_note` without a verdict.
-The steps, in this order (steps 1 and 2 are done: Wallet 0.69.2 sends the
-verdict in both calls, and the demo pins 0.69.2; step 3 is not done):
+All three steps are complete:
 
-1. Release a Wallet that puts `verdict_json` and `signature_b64` in the
-   arguments of `add_note` and `rate_note`, as it does in the `msg` of a bet
-   (`SPOKEN_KINDS` in `packages/shared-ts/src/speakToSign/spokenKinds.ts` of
-   the Wallet, and the co-signer's check of these calls). The deployed
-   contract ignores the two new arguments.
-2. Use that Wallet in the demo page.
-3. Deploy this code. No init call and no state migration are necessary. The
-   rule is on from the deploy.
+1. Wallet 0.69.0+ (0.69.2 in the demo) puts `verdict_json` and `signature_b64`
+   in the arguments of `add_note` and `rate_note`, as it does in the `msg` of a
+   bet (`SPOKEN_KINDS` in `packages/shared-ts/src/speakToSign/spokenKinds.ts`
+   of the Wallet, and the co-signer's check of these calls).
+2. The demo page pins `@seams/wallet` 0.69.2.
+3. Commit `119ef0e` was deployed on 2026-11-12 without an init call
+   (transaction `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse`).
+   `get_voice_config` returns `{"required":true,...}`.
 
 ## Deploy to testnet
 
@@ -338,6 +335,5 @@ with a new account name. They sign with the key in `~/.near-credentials/testnet/
 
 - Any account with an enrolled voice can add notes and rate notes. Each call uses the contract balance for storage, so many calls can use up the balance. This is acceptable for a demo on testnet.
 - The contract checks the verifier key, not the TDX quote of the verifier call. This is by design: the wallet that signs the transaction checks the quote. See [`docs/architecture.md`](../../../docs/architecture.md) section 8.1.
-- The code on `notes.seams-v1.testnet` is older than this source: it has no voice rule. See "Upgrade to the voice rule".
 - The contract has no owner, no delete, and no upgrade method. The full access key of the contract account can deploy new code.
 - `get_notes` reads at most the newest 50 notes of a post. It has no pages.

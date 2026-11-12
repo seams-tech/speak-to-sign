@@ -53,20 +53,19 @@ view outlayer.testnet get_version_count '{"project_id":"seams-v1.testnet/voice-v
 
 | Account | Live code hash | Source build | Voice check on chain |
 | --- | --- | --- | --- |
-| `notes.seams-v1.testnet` | `mvYopouU…9eUko` = SHA-256 `0b821a5c…7f80`, the build of commit `777b844` | `reproducible.sha256` now holds `596beeb3…`, the build of commit `119ef0e`, **not deployed** | **No.** The source checks the verdict of each note and rating (`check_spoken`), but the live build does not. Only Wallet core and the Seams co-signer check a note's verdict. |
+| `notes.seams-v1.testnet` | `724jz1XP…btU7c` = SHA-256 `596beeb3…d9c3`, the build of commit `119ef0e` | The same | **Yes.** `get_voice_config` returns `"required":true`. |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHg…nQ9Z` = `657c3b07…`, the build of commit `777b844` | The same | **Yes.** `get_voice_config` returns `"required":true`. |
 | `voice-multisig.seams-v1.testnet` | `CkYrt1XM…QTnA` = `ae988e20…`, the build of commit `99231f6` (version 3.0.0) | The same | **Yes.** Each `propose` and `approve` needs a verdict. No proposal has run on this account: its signers have no enrolled voices. The live run is on `voice-multisig-2.seams-v1.testnet`, which runs the same build: see [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 | `seams-faucet.testnet` | `6d8BGwTR…fR2z` = `538b7580…`, the build of commit `777b844` | The same | No voice step (it is the faucet). |
 
 ```bash
 for a in notes.seams-v1.testnet pm-notes.seams-v1.testnet voice-multisig.seams-v1.testnet seams-faucet.testnet; do echo "$a $(code_hash $a)"; done
+view notes.seams-v1.testnet get_voice_config '{}'
 view pm-notes.seams-v1.testnet get_voice_config '{}'
 view notes.seams-v1.testnet get_moderator '{}'
 ```
 
-`get_voice_config` on `notes.seams-v1.testnet` fails with `MethodNotFound`,
-because the live build is older than the voice rule. The moderator of the
-notes contract is `voice-multisig.seams-v1.testnet`.
+The moderator of the notes contract is `voice-multisig.seams-v1.testnet`.
 
 ## The Wallet and the site
 
@@ -85,7 +84,6 @@ as live until this table says so.
 | The Seams verify route checks the TDX quote of each verifier call against the pinned WASM hash | `seams-wallet`, `speakToSignAttestation.ts` | Built on `seams-wallet` `dev` at `0b297e976`. A deploy of the Seams staging server is not recorded here yet. See [trust-chain.md](trust-chain.md), link 2. |
 | The verifier checks the TDX quotes of NEAR AI's gateway and Whisper, and sends each recording to Whisper only sealed to the checked gateway | `crates/voice-verifier` on `dev` (`src/nearai_attestation.rs`, `src/tdx_quote.rs`, `src/ohttp.rs`) | **On OutLayer, not in the versions that users call.** The worker with the check (0.14.1, `1e7c6968…`) is on OutLayer, not active. On 2026-11-12 its 0.14.0 build (`b9a315b7…`, removed since) loaded 0.09 s faster than 0.13.0 (`time_ms` median 1,570 against 1,660, 10 calls each). In three `verify` calls it read the stored check (`tee_cached` 1) and got the speaker reply, and then NEAR AI Whisper gave no reply for 30 s. So no sealed transcription ran on OutLayer yet. The demo and the Seams staging server still call 0.13.0, which sends the audio over TLS and checks nothing about NEAR AI. See [trust-chain.md](trust-chain.md#the-near-ai-check). |
 | One live 2-of-2 voice multisig proposal | `voice-multisig-2.seams-v1.testnet` | **Done.** On 2026-11-12 two persons proposed and approved one transfer by voice, and the contract executed it (0.1 NEAR to `seams-faucet.testnet`). See [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
-| The voice check of the notes contract | `notes.seams-v1.testnet` | Built (commit `119ef0e`), not deployed. |
 
 When one of these ships, change its row here first, then the docs that link
 to this page.

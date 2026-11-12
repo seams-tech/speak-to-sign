@@ -150,10 +150,8 @@ with a voice profile, phone banks use voice ID, and hardware wallets show the
 transaction before you sign. What is new is the binding. The heard words are
 bound to the cryptographic digest of the exact call. An attested verifier
 checks the voice and the words. The Wallet checks the verdict before it signs,
-and the market and multisig contracts check it again on chain, so no other
-path can approve a bet or a multisig approval. The deployed notes contract
-does not check the verdict yet: its voice rule (commit `119ef0e`) is not
-deployed.
+and the notes, market and multisig contracts check it again on chain, so no
+other path can approve a note, a rating, a bet or a multisig approval.
 
 ## 7. Who controls the verifier?
 
@@ -165,10 +163,15 @@ through the Seams staging server, and check 3 builds that version too. The
 speaker key of the Phala service comes from its TDX attestation (`SPEAKER_PINNED_KEY_HEX` in
 `crates/voice-verifier/src/config.rs`).
 
-**Why the server checks the quote, not the contracts.** Checking the TDX quote
-off chain before the Seams co-signer signs keeps the same Intel TDX root of
-trust with zero quote gas or chain bloat. On chain, `pm-notes` and
-`voice-multisig` check the ed25519 verdict signature instead. See
+**Why the server checks the quote, and the contracts check the verdict.** Each
+layer does the job that only it can do. Off chain, the Seams verify route and
+threshold co-signer check the TDX quote with zero quote gas or chain bloat,
+and guard actions that have no receiver contract code (native NEAR transfers in
+`examples/speak-to-pay`). On chain, `notes`, `pm-notes` and `voice-multisig` check the 64-byte
+ed25519 verdict signature so that a bot with a plain NEAR key outside Seams
+Wallet cannot post a note, rate a note, place a bet or approve a proposal over
+RPC without speaking. See
+[spec 9](voice-intents-spec.md#9-who-checks-the-verdict) and
 [spec 9.1](voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
 
 **Not done.** The owner of the OutLayer project can deploy new code that signs

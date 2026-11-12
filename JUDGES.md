@@ -40,10 +40,10 @@ only that a device approved something, not what the person read. In
 Speak-to-Sign, the approval itself is the spoken exact call (a voice clone
 alone cannot sign: see [Questions a judge asks](#questions-a-judge-asks)). An
 attested verifier checks the voice and the heard words and binds both to
-the digest of the request, and the contracts `pm-notes.seams-v1.testnet` and
-`voice-multisig.seams-v1.testnet` check that verdict on chain. Where other
-entries confirm by voice, the confirmation is a spoken "yes": nothing checks
-who spoke, or binds the words to the call.
+the digest of the request, and the contracts `notes.seams-v1.testnet`,
+`pm-notes.seams-v1.testnet` and `voice-multisig.seams-v1.testnet` check that
+verdict on chain. Where other entries confirm by voice, the confirmation is a
+spoken "yes": nothing checks who spoke, or binds the words to the call.
 
 ## Questions a judge asks
 
@@ -59,11 +59,15 @@ with the evidence. In short:
   sheet. The person approves the exact call by voice.
 - **Spend guards** decide when a person must approve. Speak-to-Sign makes
   that approval show what the person meant.
-- **Who controls the verifier.** The verdict key names the OutLayer project,
-  not the build. The Seams verify route checks the TDX quote and WASM hash
-  off chain before it returns a verdict (`seams-wallet` `0b297e976`). The contracts then check
-  only the ed25519 verdict on chain. This keeps the Intel TDX root of trust
-  with zero quote gas or chain bloat; see
+- **Who controls the verifier, and why two layers check it.** The verdict key
+  names the OutLayer project, not the build. Off chain, the Seams verify route
+  and threshold co-signer check the TDX quote and WASM hash (`seams-wallet`
+  `0b297e976`) with zero quote gas or chain bloat, and guard native NEAR
+  transfers (`examples/speak-to-pay`) that have no contract code. On chain, `notes`,
+  `pm-notes` and `voice-multisig` check the ed25519 verdict so that a bot with
+  a plain NEAR key outside Seams Wallet cannot post a note, rate, bet or
+  approve over RPC without speaking; see
+  [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict) and
   [spec 9.1](docs/voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
 
 ## Scope of the hackathon work
@@ -129,9 +133,10 @@ not click through a prompt.
     Each verdict counts once.
   - **AI drafts the note, and the person approves it.** NEAR AI drafts a
     note for each post, and the Seams server writes a short summary of it.
-    The person approves the note when they read the summary aloud. The
-    write dialog says "Drafted by NEAR AI" under a note that the model
-    wrote.
+    The person approves the note when they read the summary aloud, and
+    `notes.seams-v1.testnet` checks the verdict of each note and rating on
+    chain. The write dialog says "Drafted by NEAR AI" under a note that the
+    model wrote.
 - **Today, speak to pay** (`examples/speak-to-pay/`, at `/pay/` of the demo
   site): the person says the payment, and the Wallet pays one exact amount
   to one exact account. Above 10 NEAR, the verifier asks for a passkey too
@@ -179,6 +184,15 @@ changed page do not match.
   The signers are fixed at `new`: a voice-approved change of the signers
   does not exist yet.
 
+### 3. Voice-gated contracts: a key alone cannot move state
+
+A smart contract normally sees only a key signature, not whether a person or a
+script sent it. Here `notes.seams-v1.testnet`, `pm-notes.seams-v1.testnet` and
+`voice-multisig.seams-v1.testnet` all verify the OutLayer TEE verdict receipt
+on chain (`seams-voice-verdict`) and count each verdict once, so even a plain
+NEAR key outside Seams Wallet cannot post a note, rate, bet or approve without
+speaking.
+
 ## See it in 2 minutes
 
 You need a browser with passkeys and a microphone.
@@ -193,8 +207,9 @@ You need a browser with passkeys and a microphone.
    and takes the USDC. If no market is open, say "open a market on the first
    note" first. Without the voice bar, press **Bet** on a post.
 4. On a post, press **Write a note**. NEAR AI has drafted the note: the
-   dialog says "Drafted by NEAR AI" under it. Read its summary aloud. The Wallet signs `add_note` on `notes.seams-v1.testnet`
-   from your account.
+   dialog says "Drafted by NEAR AI" under it. Read its summary aloud. The
+   Wallet signs `add_note` on `notes.seams-v1.testnet` from your account, and
+   the contract checks the verdict on chain.
 5. To see a refusal, read a different summary, or add or drop a "not". The
    card shows the reason and the words that the verifier heard. Nothing is
    signed.
@@ -268,25 +283,24 @@ git clone https://github.com/seams-tech/speak-to-sign
    (cd speak-to-sign && git checkout --quiet a4d6ce7 && crates/voice-verifier/build.sh --docker 2>&1 | tail -1; git checkout --quiet dev)
    ```
 
-4. The deployed notes contract is the reproducible build of commit `777b844`.
+4. The deployed notes contract is the reproducible build of commit `119ef0e`.
 
    ```bash
-   # See: mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko
+   # See: 724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c
    curl -s https://rpc.testnet.fastnear.com -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"notes.seams-v1.testnet"}}' | jq -r .result.code_hash
-   # See: git+https://github.com/seams-tech/speak-to-sign?rev=777b84429096604e77e217480e9f89a398f5da13
+   # See: git+https://github.com/seams-tech/speak-to-sign?rev=119ef0e6ceda8fedd131a8b4a7e6ce554b99751f
    curl -s https://rpc.testnet.fastnear.com -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"notes.seams-v1.testnet","method_name":"contract_source_metadata","args_base64":"e30="}}' | jq -r '.result.result | implode | fromjson | .build_info.source_code_snapshot'
    ```
 
-   The code hash is the base58 form of the SHA-256 `0b821a5c…7f80`, the
-   reproducible build of `777b844`. SourceScan built that commit again and
-   got the same code hash, so NearBlocks shows the code as verified
-   (<https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract>). To build
-   it yourself, see step 4 of `docs/terminal-checks.md` (Docker and cargo-near 0.22.0).
-   `demo/contracts/community-notes/reproducible.sha256` now holds
-   `596beeb3…d9c3`, the build of `119ef0e`. That build is not deployed yet.
-   Of the other three demo contracts, the note market and the faucet run
-   builds of `777b844` too, and the voice multisig runs the build of
-   `99231f6`. SourceScan verified all of them (`demo/contracts/README.md`).
+   The code hash is the base58 form of the SHA-256 `596beeb3…d9c3` in
+   `demo/contracts/community-notes/reproducible.sha256`, the reproducible
+   build of `119ef0e`. SourceScan built that commit again and got the same
+   code hash, so NearBlocks shows the code as verified
+   (<https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract>).
+   To build it yourself, see step 4 of `docs/terminal-checks.md` (Docker and cargo-near 0.22.0). Of
+   the other three demo contracts, the note market and the faucet run builds
+   of `777b844`, and the voice multisig runs the build of `99231f6`.
+   SourceScan verified all of them (`demo/contracts/README.md`).
 
 5. NEAR AI publishes an attestation report for its Whisper model: an Intel
    TDX quote of the Whisper VM, with NVIDIA GPU evidence, and a quote of its
@@ -319,6 +333,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | The verifier signs fixed verdict vectors that the Wallet tests also read. A verdict expires after 120 s. | `tests/signed_vector.rs` of the verifier (`testdata/signed_verdict_v2.json`); `VERDICT_TTL_MS` in `src/config.rs`; spec section 8 |
 | A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
 | With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.69.2: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L197) and its [test](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/tests/unit/speakToSignHost.unit.test.ts#L1118) |
+| The notes contract takes a note or a rating only with its own verdict: the key, the outcome, the expiry and the digest. Each verdict counts once. On testnet, `get_voice_config` of `notes.seams-v1.testnet` gives `"required":true`. | `check_spoken` in `demo/contracts/community-notes/src/lib.rs`; `src/tests.rs` and `spoken_notes_in_the_sandbox` in `sandbox/tests/sandbox.rs` |
 | The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig.seams-v1.testnet`; no proposal ran there yet. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |
 | In the verifier source (0.14.0, not live yet), a recording goes to Whisper only sealed to a NEAR AI gateway whose TDX quote passed the check. A failed check sends nothing to NEAR AI. | `the_recorded_report_passes`, `a_wrong_key_fails`, `a_wrong_measurement_fails` in `crates/voice-verifier/tests/nearai_attestation.rs`; `no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper`, `a_failed_check_refuses_even_within_the_grace_period` in `tests/ops/whisper.rs`; check 5 above |

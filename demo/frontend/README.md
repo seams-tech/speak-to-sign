@@ -141,11 +141,14 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
    stores this template in its TEE. The page remembers the enrollment in your
    browser only, because the verifier has no status call.
 3. **Testnet NEAR and USDC.** Each note or rating pays a little gas, and a bet
-   on the note market pays USDC (1 USDC or more). **Get** asks the demo's faucet
-   (`/api/faucet`): in one transaction it sends 0.2 NEAR and 2 USDC, once per
-   account. The faucet is a small contract on `seams-faucet.testnet`
-   (`../contracts/faucet/`). If it is empty, the step links to the public
-   NEAR and USDC (faucet.circle.com) faucets.
+   on the note market pays USDC (1 USDC or more). After sign-in the page asks
+   the demo's faucet (`/api/faucet`) by itself: in one transaction it sends
+   0.2 NEAR and 2 USDC, once per account. A new wallet is an implicit account,
+   and the faucet's NEAR puts it on testnet. Each network (IP address) gets the
+   faucet for 3 accounts. The faucet is a small contract on
+   `seams-faucet.testnet` (`../contracts/faucet/`). If the faucet refuses or is
+   empty, the step links to the public NEAR and USDC (faucet.circle.com)
+   faucets.
 
 A note shows on the post ("Readers added context …") when it has 2 or more
 `helpful` ratings and more `helpful` than `not_helpful` ratings. The author
@@ -206,7 +209,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `NEAR_AI_API_KEY` | Key for NEAR AI: the chat model of the draft notes, and JEV (`/v1/systemone`) for the subject filter and the voice commands without `TYPESAFE_API_KEY`. Required. |
 | `TYPESAFE_API_KEY` | Optional. Key for JEV at Typesafe: the subject filter and the voice commands use it in place of NEAR AI. |
 | `NEAR_AI_MODEL`   | Optional. The chat model of the draft notes. Default `Qwen/Qwen3.8-27B`, a small model that NEAR AI hosts. |
-| `FAUCET_PRIVATE_KEY` | The faucet's function-call key (`ed25519:…`). It can call `drip` on `seams-faucet.testnet` and nothing else, with a 1 NEAR gas allowance. Required for `/api/faucet`. |
+| `FAUCET_PRIVATE_KEY` | The faucet's function-call key (`ed25519:…`). It can call `drip` on `seams-faucet.testnet` and nothing else. Each drip uses about 0.008 NEAR of its gas allowance. Required for `/api/faucet`, with the KV binding `FAUCET_LIMITS` of `wrangler.toml`. |
 | `FAUCET_ACCOUNT`  | Optional. Default `seams-faucet.testnet`.                               |
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet`. Default `https://test.rpc.fastnear.com`. |
 | `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |

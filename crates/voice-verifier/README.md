@@ -305,6 +305,58 @@ model natively:
 SEAMS_REDIMNET_PATH=/path/to/redimnet-b1.onnx cargo test --release --features local-speaker --lib local_model
 ```
 
+## Speech-to-text service
+
+The build picks the service that hears the words (`src/transcriber.rs`,
+`PROVIDER`). One build has one service, and it is part of the code that the
+WASM hash names. `src/ops/whisper.rs` is the only step that knows which
+service it is.
+
+| | Default | `venice` |
+| --- | --- | --- |
+| Build | `./build.sh --docker` | `./build.sh --venice --docker` |
+| Service | NEAR AI Cloud, `openai/whisper-large-v3` | Venice AI, `fal-ai/wizper` (Whisper large-v3) |
+| Transport | Oblivious HTTP, sealed to the gateway that the worker checked (see "NEAR AI attestation") | Plain HTTPS |
+| Check of the service | The TDX quotes of the gateway and of the model. No checked gateway, no request. | None. Venice gives no TEE quote. |
+| Who can read the audio | The worker and the NEAR AI TDX VMs | The worker and Venice AI |
+| Version in each signed output | `0.14.0` | `0.14.0+venice` |
+| OutLayer secret | `NEAR_AI_API_KEY` | `VENICE_API_KEY`, and `NEAR_AI_API_KEY` for a note and for `detect` |
+| Manifest | `manifest/outlayer.json` | `manifest/outlayer-venice.json`: `api.venice.ai` in place of the two Intel hosts |
+| Worker (`--docker`, this commit) | 495,707 bytes | 400,206 bytes: the gateway check is not in it |
+
+The `venice` build is the fallback for an outage of NEAR AI Whisper. On
+2026-11-12 Whisper gave no reply for more than an hour, while the rest of
+NEAR AI answered, and each voice check failed with `transcriber_unavailable`.
+Venice AI answered the same 5 s clip in 1.5 s.
+
+Facts of the `venice` build:
+
+- **Venice is not attested.** Its terms say that it keeps no data, but
+  nothing here checks that. While a caller selects this build, a party
+  outside a TEE reads each recording. Do not say that only TEEs open the
+  audio for a verdict of `0.14.0+venice`.
+- **The verdict says so.** The field `verifier` of each verdict, transcript
+  and intent is `0.14.0+venice`, and the TDX quote of the call names the
+  WASM hash of this build. The verdict key is the same (it is bound to the
+  project), so a contract or a Wallet that pins only the key accepts it. A
+  checker that must refuse Venice reads `verifier`.
+- **The caller selects it** with the `version_key` of its WASM. To go back
+  to NEAR AI, the caller sets the `version_key` of the default build again.
+  No input field selects the service: a page cannot move the audio.
+- **Only Whisper moves.** The summary check of a note (JEV) and the chat
+  model of `detect` stay on NEAR AI. A note with no `NEAR_AI_API_KEY`
+  refuses with `summary_check_unavailable`.
+- The request has the same form: `model`, `language` and `file`, with no
+  prompt. Venice adds `duration` to its reply; the worker reads only `text`.
+- `local-speaker` and `venice` together do not compile.
+- The shared vectors are those of the default build. `cargo test --features
+  venice` skips them and the tests of the gateway check, and runs the others
+  against a fake Venice.
+
+To add another service: add its `Provider` constant in `src/transcriber.rs`,
+its constants in `src/config.rs`, a feature, a manifest, and one line in
+`build.sh`.
+
 ## Another speaker model
 
 `config::SPEAKER_MODEL` holds every value that changes with the model: the

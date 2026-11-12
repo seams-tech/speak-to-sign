@@ -14,7 +14,7 @@ use serde_json::Value;
 use super::request::Owner;
 use super::steps::{decode_clip, in_flight, local_embedding, reply, speaker_reply};
 use super::verify::verify_storage;
-use super::whisper::{api_key, words_reply, words_request};
+use super::whisper::{api_key, near_ai_key, words_reply, words_request};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
 use crate::config::{MAX_INTENT_TEXT_BYTES, MAX_SLOTS_JSON_BYTES, NEAR_AI_CHAT_MODEL, VERDICT_TTL_MS};
@@ -81,6 +81,9 @@ fn detect_steps(
 
     // The speaker and the words, as in `transcribe`.
     let api_key = api_key(host)?;
+    let Some(chat_key) = near_ai_key(host) else {
+        return Err(Refusal::new(Reason::DetectorUnavailable, "detector: no_api_key"));
+    };
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
     let mut requests = Vec::with_capacity(2);
     if !pins.local_speaker {
@@ -114,7 +117,7 @@ fn detect_steps(
     // The chat model, only after the speaker passed: a stranger gets no
     // model call.
     let asked = Instant::now();
-    host.post_start(vec![chat_request(&api_key, &input.intents, &text)]);
+    host.post_start(vec![chat_request(&chat_key, &input.intents, &text)]);
     let answers = host.post_wait();
     ms.since("detect", asked);
     let proposal = reply(answers.first(), "detector", Reason::DetectorUnavailable, |status, body| {

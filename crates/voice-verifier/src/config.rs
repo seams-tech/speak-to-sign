@@ -1,13 +1,20 @@
 //! Fixed values of this verifier version. A change to any of them is a new
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
-/// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.14.0";
+/// The verifier version that every output names. A build with the feature
+/// `venice` sends the audio to Venice AI in place of NEAR AI, and says so
+/// here (see `transcriber`).
+pub const VERIFIER_VERSION: &str = if cfg!(feature = "venice") { "0.14.0+venice" } else { "0.14.0" };
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.
 #[cfg(test)]
 const MANIFEST_JSON: &str = include_str!("../manifest/outlayer.json");
+
+/// The manifest of the `venice` build. `main.rs` links it in place of
+/// `manifest/outlayer.json`.
+#[cfg(test)]
+const VENICE_MANIFEST_JSON: &str = include_str!("../manifest/outlayer-venice.json");
 
 /// The declared signing key (manifest `signing_keys`, `bind: "project"`).
 /// The keystore derives it from the project and the caller: over HTTPS the
@@ -153,6 +160,18 @@ pub const NEAR_AI_LANGUAGE: &str = "en";
 pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
+
+/// Venice AI, the speech-to-text service of the `venice` build: Whisper
+/// large-v3 as `fal-ai/wizper`, with the same form and the same reply, over
+/// plain HTTPS. Venice gives no TEE quote, so the worker checks none.
+#[cfg(test)]
+const VENICE_HOST: &str = "api.venice.ai";
+pub const VENICE_TRANSCRIPTIONS_URL: &str = "https://api.venice.ai/api/v1/audio/transcriptions";
+pub const VENICE_MODEL: &str = "fal-ai/wizper";
+/// The OutLayer secret with the Venice API key, in the same profile as
+/// `NEAR_AI_API_KEY`.
+pub const VENICE_API_KEY_ENV: &str = "VENICE_API_KEY";
+pub const VENICE_TIMEOUT_SECS: u64 = 30;
 
 /// Oblivious HTTP on the same host: the worker seals each transcription
 /// request (the audio, the headers and the API key) to the OHTTP key of the
@@ -378,6 +397,20 @@ mod tests {
         manifest["capabilities"]["network"][0] = local["capabilities"]["network"][0].clone();
         manifest["display"] = local["display"].clone();
         assert_eq!(manifest, local);
+    }
+
+    /// The `venice` manifest is the default manifest with the Venice host in
+    /// place of the two Intel hosts: that build checks no TDX quote.
+    #[test]
+    fn venice_manifest_has_venice_in_place_of_the_intel_hosts() {
+        let mut manifest: Value = serde_json::from_str(MANIFEST_JSON).unwrap();
+        let venice: Value = serde_json::from_str(VENICE_MANIFEST_JSON).unwrap();
+        let network = manifest["capabilities"]["network"].as_array_mut().unwrap();
+        network.retain(|entry| ![INTEL_PCS_HOST, INTEL_CERTIFICATES_HOST].contains(&entry["host"].as_str().unwrap()));
+        network.push(json!({ "host": VENICE_HOST, "timeout_secs": VENICE_TIMEOUT_SECS }));
+        manifest["display"] = venice["display"].clone();
+        assert_eq!(manifest, venice);
+        assert!(VENICE_TRANSCRIPTIONS_URL.starts_with(&format!("https://{VENICE_HOST}/")));
     }
 
     #[test]

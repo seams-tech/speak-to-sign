@@ -4,7 +4,7 @@
 //! the used-audio mark.
 use std::time::Instant;
 
-use super::whisper::Early;
+use super::whisper::{near_ai_key, Early};
 use super::{Pins, Refusal};
 use crate::audio::{decode_wav, wav_bytes};
 use crate::config::{audio_used_key, AUDIO_KEY_ENV};
@@ -201,14 +201,24 @@ pub(super) fn speaker_reply(
 /// Adds the summary check of a community note to the batch, and gives its
 /// place in the batch. `None` for a request of another kind: only a note
 /// holds the text that its summary describes.
+///
+/// The check runs on NEAR AI in every build. A note with no NEAR AI key
+/// refuses and drops the requests that are in flight, so a note is never
+/// signed without the check.
 pub(super) fn push_summary_check(
+    host: &mut dyn Host,
     requests: &mut Vec<PostRequest>,
-    api_key: &str,
     request: &RequestInput,
-) -> Option<usize> {
-    let (note, summary) = request.note_summary()?;
-    requests.push(summary_request(api_key, note, summary));
-    Some(requests.len() - 1)
+) -> Result<Option<usize>, Refusal> {
+    let Some((note, summary)) = request.note_summary() else {
+        return Ok(None);
+    };
+    let Some(api_key) = near_ai_key(host) else {
+        host.post_cancel();
+        return Err(Refusal::new(Reason::SummaryCheckUnavailable, "summary: no_api_key"));
+    };
+    requests.push(summary_request(&api_key, note, summary));
+    Ok(Some(requests.len() - 1))
 }
 
 /// The summary check of a note, from the reply at `at` of the batch: the

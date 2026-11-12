@@ -4,11 +4,21 @@
 #[cfg(target_arch = "wasm32")]
 mod wasm_host;
 
-#[cfg(all(target_arch = "wasm32", not(feature = "local-speaker")))]
+#[cfg(all(feature = "local-speaker", feature = "venice"))]
+compile_error!("build `local-speaker` or `venice`, not both");
+
+#[cfg(all(target_arch = "wasm32", not(feature = "local-speaker"), not(feature = "venice")))]
 #[used]
 #[link_section = "outlayer.manifest"]
 static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest/outlayer.json").len()] =
     *include_bytes!("../manifest/outlayer.json");
+
+// The `venice` variant: the Venice AI host in place of the two Intel hosts.
+#[cfg(all(target_arch = "wasm32", feature = "venice"))]
+#[used]
+#[link_section = "outlayer.manifest"]
+static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest/outlayer-venice.json").len()] =
+    *include_bytes!("../manifest/outlayer-venice.json");
 
 // The `local-speaker` variant: the model host in place of the speaker service.
 #[cfg(all(target_arch = "wasm32", feature = "local-speaker"))]

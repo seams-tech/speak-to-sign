@@ -6,6 +6,9 @@
 //!
 //! To write the file again: delete it, or set `SEAMS_WRITE_VECTOR=1`, and
 //! run `cargo test --test signed_transcript_vector`.
+// The shared vectors are those of the default build. The `venice` build
+// writes `<version>+venice` in each output, so it has its own bytes.
+#![cfg(not(feature = "venice"))]
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};

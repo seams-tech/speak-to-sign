@@ -54,6 +54,10 @@ der = { version = "0.8", default-features = false, features = ["alloc"] }
 # feature, the embeddings come from the speaker service (Phala). See
 # README.md, "Two variants".
 local-speaker = ["dep:tract-onnx"]
+# The words go to Venice AI (`fal-ai/wizper`) in place of NEAR AI: the
+# fallback for a NEAR AI Whisper outage. The version is `<version>+venice`.
+# See README.md, "Speech-to-text service".
+venice = []
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 outlayer = { version = "=0.2.1", features = ["signing-keys"] }

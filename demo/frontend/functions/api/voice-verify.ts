@@ -45,15 +45,21 @@ const MAX_BODY_BYTES = 400 * 1024;
 /**
  * The verifier calls two remote models, and OutLayer can hold a job before a worker runs it.
  * On 2026-11-11 that wait swung from 1 s to more than 90 s within minutes, while the
- * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s.
+ * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s. This wait
+ * is longer than the run limit below, so that a run that uses all of its time still answers.
  */
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 60_000;
 /**
  * The spoken bet of the note market, and the two kinds of the spoken multisig: a new transfer
  * (the verifier keeps it and its salt) and a confirmation of a stored proposal from memory.
  */
 const REQUEST_KINDS: readonly string[] = ['market_bet', 'multisig_propose', 'multisig_confirm'];
-const RESOURCE_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };
+/**
+ * The run limit is above the verifier's own 30 s waits for NEAR AI Whisper and the speaker
+ * service. Then a slow model ends in a signed refusal (`transcriber_unavailable`), not in a run
+ * that OutLayer stops with no output. On 2026-11-12 a 15 s limit stopped runs of 17 s.
+ */
+const RESOURCE_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 40 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const refused = refuseOtherOrigin(request);

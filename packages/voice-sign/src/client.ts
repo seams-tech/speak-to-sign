@@ -18,9 +18,12 @@ export interface VerifierConfig {
   versionKey?: string;
   /** The OutLayer secrets profile that holds `NEAR_AI_API_KEY`. */
   secretsRef: { profile: string; account_id: string };
-  /** Default: 20,000 ms. The `local-speaker` variant needs more: use 40,000. */
+  /** Default: 60,000 ms, longer than the run limit and the time that OutLayer holds a job. */
   timeoutMs?: number;
-  /** Default: 10 billion instructions, 128 MB, 15 s. The `local-speaker` variant needs more. */
+  /**
+   * Default: 10 billion instructions, 128 MB, 40 s. 40 s is above the verifier's own 30 s waits
+   * for its models, so a slow model gives a signed refusal. The `local-speaker` variant needs more.
+   */
   resourceLimits?: { max_instructions: number; max_memory_mb: number; max_execution_seconds: number };
   /**
    * The most that one call can cost, in the units of OutLayer's `compute_cost` (the header
@@ -129,7 +132,7 @@ export class VerifierCallError extends Error {
   }
 }
 
-const DEFAULT_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 15 };
+const DEFAULT_LIMITS = { max_instructions: 10_000_000_000, max_memory_mb: 128, max_execution_seconds: 40 };
 
 /** One call: the output, and where OutLayer serves the TDX attestation of the call. */
 export interface VerifierCall<Output> {
@@ -226,7 +229,7 @@ async function runVerifier(config: VerifierConfig, input: object): Promise<Verif
         secrets_ref: config.secretsRef,
         resource_limits: config.resourceLimits ?? DEFAULT_LIMITS,
       }),
-      signal: AbortSignal.timeout(config.timeoutMs ?? 20_000),
+      signal: AbortSignal.timeout(config.timeoutMs ?? 60_000),
     });
   } catch (cause) {
     const timedOut = cause instanceof DOMException && cause.name === 'TimeoutError';

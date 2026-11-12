@@ -24,12 +24,13 @@ last line of the contract's `reproducible.sha256`.
 
 | Item | Live | Source | Differs? |
 | --- | --- | --- | --- |
-| Active version on OutLayer (a call with no `version_key`) | 0.12.0, `bfe81633…c946` | Commit `a816798`; JUDGES.md check 3 builds it | No |
+| Active version on OutLayer (a call with no `version_key`) | 0.14.1+venice, `344b8b47…d3c8`, since 2026-11-12 (`set_active_version` tx `HTQ5QvR187yiKCA9KUYeFh1PHmZUQWJggaenCkxoCYX7`), because NEAR AI Whisper gave no reply. It gets the words from Venice AI, with no TEE check. Before it, 0.14.1 was active for some minutes (tx `36PVmBFDWUncFwWV7tzUwdjR6svtohDgpsRp1LVjduH9`), and 0.12.0 from 2026-11-11. | Commit `62cd438`, `./build.sh --venice --docker` | No |
+| 0.12.0 | `bfe81633…c946`, on OutLayer, not active since 2026-11-12 | Commit `a816798` | No |
 | Version that the demo calls | 0.13.0, `1b777154…f930`, not active. The Seams staging server selects it by `version_key`. | Commit `a4d6ce7` | No |
 | Verdict key | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`, bound to the project, so every version signs with it | `crates/voice-verifier/manifest/outlayer.json` | No |
 | Worker with the NEAR AI check | 0.14.1, `1e7c6968…8a5c` (495,774 bytes), added on 2026-11-12, **not active**. No caller selects it yet. | Commit `a519647` | No |
-| Worker for a NEAR AI Whisper outage (the `venice` build) | 0.14.1+venice, `344b8b47…d3c8` (400,267 bytes), added on 2026-11-12, **not active**. It sends the recording to Venice AI over TLS, with no TEE check. On 2026-11-12 two real recordings passed through it: [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). | Commit `62cd438`, `./build.sh --venice --docker` | No |
-| The verifier source on `dev` | 0.14.1: both of its builds are on OutLayer, not active | Commit `a519647` | No, but no caller selects them yet |
+| Worker for a NEAR AI Whisper outage (the `venice` build) | 0.14.1+venice, `344b8b47…d3c8` (400,267 bytes), added on 2026-11-12, **active** (see the first row). It sends the recording to Venice AI over TLS, with no TEE check. On 2026-11-12 two real recordings passed through it: [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). | Commit `62cd438`, `./build.sh --venice --docker` | No |
+| The verifier source on `dev` | 0.14.1: both of its builds are on OutLayer. The `venice` build is active. | Commit `a519647` | No, but no caller selects them yet |
 | Builds that were removed | 0.14.0+venice, `59ee371c…fa66` (Venice AI answered 422 to each request), 0.14.0 with `dcap-qvl`, `2f8e75a3…7ffb5` (it loaded about 1 s slower), and 0.14.0, `b9a315b7…9293` (the same worker as 0.14.1, before the `venice` fix). Removed from the project on 2026-11-12 (`remove_version` txs `8qEVS3jc68r8WAaVGGoP7NpWp2etexeiwsw8GBMTBxX`, `Akuxz76BL6H9CRZWEsR525dfYv3Um2SoFTcPtYUBGV9E` and `GCQXS8oMUiastKAv6u4cyrMBiK1w9huVpTvRtJZgGku9`). A call with one of these keys fails. | Commits `454c76e` and `6f0d43f` | |
 
 ```bash

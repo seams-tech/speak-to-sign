@@ -196,7 +196,4 @@ holder can deploy new code, or name another moderator of the notes contract.
 
 - The verifier does not check a proof of the NEAR RPC access-key view at
   enrollment.
-- The OutLayer worker of the note market
-  (`demo/contracts/jev-prediction-market/resolver`) has no reproducible
-  build.
 - Testnet only.

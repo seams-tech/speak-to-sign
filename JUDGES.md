@@ -373,9 +373,6 @@ boundaries", spec section 11, and the READMEs of the contracts:
 - Each of the four demo contract accounts still has a full-access key. Its
   holder can deploy new code, or name another moderator of the notes
   contract.
-- The OutLayer worker of the note market (`demo/contracts/jev-prediction-market/resolver`)
-  has no reproducible build. The four demo contracts and the verifier have
-  one.
 - Testnet only.
 
 ## Future improvements

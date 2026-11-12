@@ -3,10 +3,18 @@
 //!
 //! Run `./build.sh` first, or set `COMMUNITY_NOTES_WASM` to a WASM path.
 
+use base64::Engine;
+use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
+use ed25519_dalek::{Signer, SigningKey};
+use near_workspaces::network::Sandbox;
 use near_workspaces::result::ExecutionFinalResult;
 use near_workspaces::types::{Gas, NearToken};
-use near_workspaces::{Account, Contract};
+use near_workspaces::{Account, AccountId, Contract, Worker};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+use spoken_intent::{
+    NearAccount, Network, NoteRatingV1, SpokenRequestV1, SpokenSummary, request_digest,
+};
 
 /// The gas that the Seams Wallet attaches to each call.
 const WALLET_GAS: Gas = Gas::from_tgas(30);
@@ -19,6 +27,19 @@ fn wasm() -> anyhow::Result<Vec<u8>> {
     });
     std::fs::read(&path)
         .map_err(|e| anyhow::anyhow!("cannot read {path}: {e}. Run ./build.sh first."))
+}
+
+/// Deploys the contract and turns the voice rule off, so a note and a rating
+/// need no verdict. `spoken_notes_in_the_sandbox` tests the rule.
+async fn deploy_without_voice(worker: &Worker<Sandbox>) -> anyhow::Result<Contract> {
+    let contract = worker.dev_deploy(&wasm()?).await?;
+    contract
+        .call("set_voice_required")
+        .args_json(json!({ "required": false }))
+        .transact()
+        .await?
+        .into_result()?;
+    Ok(contract)
 }
 
 async fn add_note(
@@ -94,7 +115,7 @@ async fn storage_usage(contract: &Contract) -> anyhow::Result<u64> {
 #[tokio::test]
 async fn community_notes_in_the_sandbox() -> anyhow::Result<()> {
     let worker = near_workspaces::sandbox().await?;
-    let contract = worker.dev_deploy(&wasm()?).await?;
+    let contract = deploy_without_voice(&worker).await?;
     let alice = worker.dev_create_account().await?;
     let bob = worker.dev_create_account().await?;
     let carol = worker.dev_create_account().await?;
@@ -305,7 +326,7 @@ async fn community_notes_in_the_sandbox() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_notes_with_50_of_the_largest_notes() -> anyhow::Result<()> {
     let worker = near_workspaces::sandbox().await?;
-    let contract = worker.dev_deploy(&wasm()?).await?;
+    let contract = deploy_without_voice(&worker).await?;
     let author = worker.dev_create_account().await?;
     let text = "🗳".repeat(280);
     let summary = "🗳".repeat(120);
@@ -331,7 +352,7 @@ async fn get_notes_with_50_of_the_largest_notes() -> anyhow::Result<()> {
 #[tokio::test]
 async fn the_moderator_hides_a_note() -> anyhow::Result<()> {
     let worker = near_workspaces::sandbox().await?;
-    let contract = worker.dev_deploy(&wasm()?).await?;
+    let contract = deploy_without_voice(&worker).await?;
     let alice = worker.dev_create_account().await?;
     let bob = worker.dev_create_account().await?;
     let moderator = worker.dev_create_account().await?;
@@ -379,5 +400,127 @@ async fn the_moderator_hides_a_note() -> anyhow::Result<()> {
     assert_eq!((&note["text"], &note["summary"], &note["hidden"]), (&json!(""), &json!(""), &json!(true)));
     check_failure("hide_note twice", &hide(&moderator).await?, "this note is already hidden");
     check_failure("rate a hidden note", &rate_note(&bob, &contract, 1, "helpful").await?, "this note is hidden");
+    Ok(())
+}
+
+/// The test key of the voice verifier.
+fn verifier() -> SigningKey {
+    SigningKey::from_bytes(&[0x2a; 32])
+}
+
+fn near_account(id: &AccountId) -> NearAccount {
+    NearAccount::new(id.as_str()).unwrap()
+}
+
+/// A verdict as the verifier serializes it, with its signature, as the two
+/// arguments of a call.
+fn verdict(digest: &[u8; 32], expires_at_ms: u64, audio: u8) -> Value {
+    let verdict_json = format!(
+        r#"{{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.8.0","request_digest":"{}","spoken_text_digest":"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys","audio_digest":"{}","outcome":"accept","reason":null,"policy_rule":null,"expires_at_ms":{expires_at_ms},"speaker_score_milli":655,"word_margin_milli":142,"heard":"the photo is old"}}"#,
+        URL_SAFE_NO_PAD.encode(digest),
+        URL_SAFE_NO_PAD.encode([audio; 32]),
+    );
+    let mut preimage = b"seams:outlayer:voice-verdict:v2".to_vec();
+    preimage.extend_from_slice(verdict_json.as_bytes());
+    let signature = verifier().sign(&Sha256::digest(&preimage));
+    json!({ "verdict_json": verdict_json, "signature_b64": STANDARD.encode(signature.to_bytes()) })
+}
+
+/// The arguments of a call with the two arguments of its verdict.
+fn with_verdict(mut args: Value, verdict: &Value) -> Value {
+    args.as_object_mut().unwrap().extend(verdict.as_object().unwrap().clone());
+    args
+}
+
+/// The voice rule: the contract takes a note and a rating only with the
+/// verdict of the voice verifier for that note or rating, and takes a verdict
+/// once. The check must fit in the gas budget.
+#[tokio::test]
+async fn spoken_notes_in_the_sandbox() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let contract = worker.dev_deploy(&wasm()?).await?;
+    let alice = worker.dev_create_account().await?;
+    let bob = worker.dev_create_account().await?;
+
+    // Only the contract account sets the verifier key.
+    let key = format!("ed25519:{}", bs58::encode(verifier().verifying_key().as_bytes()).into_string());
+    let set_key = |caller: &Account| {
+        caller
+            .call(contract.id(), "set_voice_verifier_key")
+            .args_json(json!({ "verifier_public_key": key }))
+            .transact()
+    };
+    check_failure("set_voice_verifier_key by another account", &set_key(&alice).await?, "Method set_voice_verifier_key is private");
+    set_key(contract.as_account()).await?.into_result()?;
+    assert_eq!(
+        view(&contract, "get_voice_config", json!({})).await?,
+        json!({ "required": true, "verifier_public_key": key })
+    );
+
+    let call = |who: &Account, method: &str, args: Value| {
+        who.call(contract.id(), method).args_json(args).gas(WALLET_GAS).transact()
+    };
+    let expires_at_ms = worker.view_block().await?.timestamp() / 1_000_000 + 600_000;
+
+    // A note: the longest text, and a summary of twelve words.
+    let text = "🗳".repeat(280);
+    let summary = "The photo in this post is old and it shows another city.";
+    let note = json!({ "post_id": 42, "text": text, "summary": summary });
+    let note_verdict = verdict(
+        &request_digest(&SpokenRequestV1::CommunityNote {
+            network: Network::Testnet,
+            owner: near_account(alice.id()),
+            contract: near_account(contract.id()),
+            post_id: 42,
+            note_sha256: Sha256::digest(text.as_bytes()).into(),
+            summary: SpokenSummary::new(summary).unwrap(),
+        }),
+        expires_at_ms,
+        1,
+    );
+    check_failure(
+        "add_note without a verdict",
+        &call(&alice, "add_note", note.clone()).await?,
+        "say the note: it needs verdict_json and signature_b64 from the voice verifier",
+    );
+    check_failure(
+        "add_note from another account",
+        &call(&bob, "add_note", with_verdict(note.clone(), &note_verdict)).await?,
+        "the verdict is for another request",
+    );
+    let result = call(&alice, "add_note", with_verdict(note.clone(), &note_verdict)).await?;
+    check_success("add_note with a verdict (280 characters of 4 bytes)", &result);
+    assert_eq!(result.json::<u64>()?, 1);
+    check_failure(
+        "add_note with a used verdict",
+        &call(&alice, "add_note", with_verdict(note, &note_verdict)).await?,
+        "this verdict was used before",
+    );
+
+    // A rating.
+    let rating = json!({ "note_id": 1, "rating": "helpful" });
+    let rating_verdict = verdict(
+        &request_digest(&SpokenRequestV1::NoteRating {
+            network: Network::Testnet,
+            owner: near_account(bob.id()),
+            contract: near_account(contract.id()),
+            note_id: 1,
+            rating: NoteRatingV1::Helpful,
+        }),
+        expires_at_ms,
+        2,
+    );
+    check_failure(
+        "rate_note without a verdict",
+        &call(&bob, "rate_note", rating.clone()).await?,
+        "say the rating: it needs verdict_json and signature_b64 from the voice verifier",
+    );
+    check_failure(
+        "rate_note with the verdict of another rating",
+        &call(&bob, "rate_note", with_verdict(json!({ "note_id": 1, "rating": "not_helpful" }), &rating_verdict)).await?,
+        "the verdict is for another request",
+    );
+    check_success("rate_note with a verdict", &call(&bob, "rate_note", with_verdict(rating, &rating_verdict)).await?);
+    assert_eq!(view(&contract, "get_note", json!({ "note_id": 1 })).await?["helpful"], json!(1));
     Ok(())
 }

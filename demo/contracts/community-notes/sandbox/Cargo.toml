@@ -11,3 +11,9 @@ near-workspaces = "=0.24.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 anyhow = "1"
+# The request digest and the test verdicts of `spoken_notes_in_the_sandbox`.
+spoken-intent = { path = "../../../../crates/spoken-intent" }
+ed25519-dalek = { version = "=2.2.0", default-features = false }
+sha2 = "=0.10.9"
+base64 = "0.22"
+bs58 = "0.5"

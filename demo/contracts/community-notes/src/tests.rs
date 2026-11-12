@@ -22,15 +22,24 @@ fn set_caller_at(name: &str, timestamp_ms: u64) {
     );
 }
 
+/// A contract without the voice rule: a note and a rating need no verdict.
+fn notes_without_voice() -> CommunityNotes {
+    let mut contract = CommunityNotes::default();
+    contract.set_voice_required(false);
+    contract
+}
+
 /// A contract with one note (id 1) by alice on post 7.
 fn contract_with_note() -> CommunityNotes {
     set_caller("alice");
-    let mut contract = CommunityNotes::default();
+    let mut contract = notes_without_voice();
     assert_eq!(
         contract.add_note(
             7,
             "The photo is from 2019.".into(),
-            "Photo is from 2019".into()
+            "Photo is from 2019".into(),
+            None,
+            None
         ),
         1
     );
@@ -39,7 +48,7 @@ fn contract_with_note() -> CommunityNotes {
 
 fn rate(contract: &mut CommunityNotes, rater: &str, note_id: u64, rating: Rating) {
     set_caller(rater);
-    contract.rate_note(note_id, rating);
+    contract.rate_note(note_id, rating, None, None);
 }
 
 fn note(contract: &CommunityNotes, note_id: u64) -> NoteView {
@@ -56,8 +65,14 @@ fn event(log: &str) -> Value {
 #[test]
 fn add_note_stores_the_note_and_counts_ids_from_1() {
     set_caller_at("alice", 1_731_000_000_123);
-    let mut contract = CommunityNotes::default();
-    let id = contract.add_note(7, "Context for the post.".into(), "Context".into());
+    let mut contract = notes_without_voice();
+    let id = contract.add_note(
+        7,
+        "Context for the post.".into(),
+        "Context".into(),
+        None,
+        None,
+    );
     assert_eq!(id, 1);
     assert_eq!(
         note(&contract, 1),
@@ -77,8 +92,14 @@ fn add_note_stores_the_note_and_counts_ids_from_1() {
     );
 
     set_caller("bob");
-    assert_eq!(contract.add_note(8, "Second.".into(), "Second".into()), 2);
-    assert_eq!(contract.add_note(7, "Third.".into(), "Third".into()), 3);
+    assert_eq!(
+        contract.add_note(8, "Second.".into(), "Second".into(), None, None),
+        2
+    );
+    assert_eq!(
+        contract.add_note(7, "Third.".into(), "Third".into(), None, None),
+        3
+    );
     assert_eq!(note(&contract, 2).author, account("bob"));
     assert_eq!(note(&contract, 3).post_id, 7);
 }
@@ -97,58 +118,58 @@ fn add_note_logs_note_added() {
 #[test]
 fn text_and_summary_accept_the_maximum_length_in_characters_not_bytes() {
     set_caller("alice");
-    let mut contract = CommunityNotes::default();
+    let mut contract = notes_without_voice();
     // Each "é" is 2 bytes and each "🗳" is 4 bytes in UTF-8.
     let text = "é".repeat(MAX_TEXT_CHARS);
     let summary = "🗳".repeat(MAX_SUMMARY_CHARS);
-    let id = contract.add_note(1, text.clone(), summary.clone());
+    let id = contract.add_note(1, text.clone(), summary.clone(), None, None);
     let view = note(&contract, id);
     assert_eq!(view.text, text);
     assert_eq!(view.summary, summary);
     // One character is the minimum.
-    assert_eq!(contract.add_note(1, "a".into(), "b".into()), 2);
+    assert_eq!(contract.add_note(1, "a".into(), "b".into(), None, None), 2);
 }
 
 #[test]
 #[should_panic(expected = "text has 281 characters; the maximum is 280")]
 fn text_longer_than_280_characters_fails() {
     set_caller("alice");
-    CommunityNotes::default().add_note(1, "é".repeat(281), "Summary".into());
+    notes_without_voice().add_note(1, "é".repeat(281), "Summary".into(), None, None);
 }
 
 #[test]
 #[should_panic(expected = "summary has 121 characters; the maximum is 120")]
 fn summary_longer_than_120_characters_fails() {
     set_caller("alice");
-    CommunityNotes::default().add_note(1, "Text".into(), "🗳".repeat(121));
+    notes_without_voice().add_note(1, "Text".into(), "🗳".repeat(121), None, None);
 }
 
 #[test]
 #[should_panic(expected = "text must not be empty")]
 fn empty_text_fails() {
     set_caller("alice");
-    CommunityNotes::default().add_note(1, String::new(), "Summary".into());
+    notes_without_voice().add_note(1, String::new(), "Summary".into(), None, None);
 }
 
 #[test]
 #[should_panic(expected = "text must not be empty")]
 fn text_of_only_white_space_fails() {
     set_caller("alice");
-    CommunityNotes::default().add_note(1, " \n\t ".into(), "Summary".into());
+    notes_without_voice().add_note(1, " \n\t ".into(), "Summary".into(), None, None);
 }
 
 #[test]
 #[should_panic(expected = "summary must not be empty")]
 fn empty_summary_fails() {
     set_caller("alice");
-    CommunityNotes::default().add_note(1, "Text".into(), String::new());
+    notes_without_voice().add_note(1, "Text".into(), String::new(), None, None);
 }
 
 #[test]
 #[should_panic(expected = "summary must not be empty")]
 fn summary_of_only_white_space_fails() {
     set_caller("alice");
-    CommunityNotes::default().add_note(1, "Text".into(), "   ".into());
+    notes_without_voice().add_note(1, "Text".into(), "   ".into(), None, None);
 }
 
 // --- rate_note ---
@@ -235,7 +256,7 @@ fn the_same_rating_twice_counts_once() {
 fn a_rating_is_per_note() {
     let mut contract = contract_with_note();
     set_caller("dave");
-    let second = contract.add_note(7, "Another note.".into(), "Another".into());
+    let second = contract.add_note(7, "Another note.".into(), "Another".into(), None, None);
     rate(&mut contract, "bob", 1, Rating::Helpful);
     rate(&mut contract, "bob", second, Rating::NotHelpful);
     assert_eq!(
@@ -334,10 +355,16 @@ fn somewhat_helpful_does_not_change_the_status() {
 #[test]
 fn get_notes_returns_the_newest_50_of_the_post() {
     set_caller("alice");
-    let mut contract = CommunityNotes::default();
+    let mut contract = notes_without_voice();
     for n in 1..=55u64 {
         let post_id = if n % 10 == 0 { 2 } else { 1 };
-        contract.add_note(post_id, format!("Note {n}"), format!("Summary {n}"));
+        contract.add_note(
+            post_id,
+            format!("Note {n}"),
+            format!("Summary {n}"),
+            None,
+            None,
+        );
     }
     // Post 1 has the 50 notes that are not multiples of 10. Post 2 has 5.
     let post_1 = contract.get_notes(1);
@@ -351,8 +378,8 @@ fn get_notes_returns_the_newest_50_of_the_post() {
     assert_eq!(post_2, vec![50, 40, 30, 20, 10]);
 
     // Two more notes on post 1 push the two oldest out of the view.
-    contract.add_note(1, "Note 56".into(), "Summary 56".into());
-    contract.add_note(1, "Note 57".into(), "Summary 57".into());
+    contract.add_note(1, "Note 56".into(), "Summary 56".into(), None, None);
+    contract.add_note(1, "Note 57".into(), "Summary 57".into(), None, None);
     let ids: Vec<u64> = contract.get_notes(1).iter().map(|n| n.id).collect();
     assert_eq!(ids.len(), 50);
     assert_eq!(&ids[..3], &[57, 56, 55]);
@@ -540,4 +567,294 @@ fn a_new_moderator_replaces_the_old_one() {
     set_caller("notes");
     contract.set_moderator(account("council"));
     assert_eq!(contract.get_moderator(), Some(account("council")));
+}
+
+// --- the voice verdict of a note and of a rating ---
+
+use ed25519_dalek::{Signer, SigningKey};
+use near_sdk::base64::Engine;
+use near_sdk::base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
+
+const T0: u64 = 1_700_000_000_000;
+const NOTE_TEXT: &str = "The photo is from 2019.";
+const NOTE_SUMMARY: &str = "The photo is old";
+
+/// The test key of the voice verifier.
+fn verifier() -> SigningKey {
+    SigningKey::from_bytes(&[0x2a; 32])
+}
+
+fn public_key(key: &SigningKey) -> String {
+    format!(
+        "ed25519:{}",
+        near_sdk::bs58::encode(key.verifying_key().to_bytes()).into_string()
+    )
+}
+
+/// A contract with the voice rule on and the test verifier key.
+fn notes_with_voice() -> CommunityNotes {
+    set_caller("notes");
+    let mut contract = CommunityNotes::default();
+    contract.set_voice_verifier_key(public_key(&verifier()));
+    contract
+}
+
+fn near_account_of(name: &str) -> NearAccount {
+    NearAccount::new(account(name).as_str()).unwrap()
+}
+
+/// The request digest of a spoken note, as the verifier computes it.
+fn note_digest(who: &str, post_id: u64, text: &str, summary: &str) -> [u8; 32] {
+    request_digest(&SpokenRequestV1::CommunityNote {
+        network: Network::Testnet,
+        owner: near_account_of(who),
+        contract: near_account_of("notes"),
+        post_id,
+        note_sha256: env::sha256_array(text.as_bytes()),
+        summary: SpokenSummary::new(summary).unwrap(),
+    })
+}
+
+/// The request digest of a spoken rating, as the verifier computes it.
+fn rating_digest(who: &str, note_id: u64, rating: NoteRatingV1) -> [u8; 32] {
+    request_digest(&SpokenRequestV1::NoteRating {
+        network: Network::Testnet,
+        owner: near_account_of(who),
+        contract: near_account_of("notes"),
+        note_id,
+        rating,
+    })
+}
+
+/// A verdict as the verifier serializes it, with its signature. `audio`
+/// makes two verdicts of one request differ, as two recordings do.
+fn signed(
+    key: &SigningKey,
+    digest: &[u8; 32],
+    outcome: &str,
+    expires_at_ms: u64,
+    audio: u8,
+) -> (Option<String>, Option<String>) {
+    let json = format!(
+        r#"{{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.8.0","request_digest":"{}","spoken_text_digest":"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys","audio_digest":"{}","outcome":"{outcome}","reason":null,"policy_rule":null,"expires_at_ms":{expires_at_ms},"speaker_score_milli":655,"word_margin_milli":142,"heard":"the photo is old"}}"#,
+        URL_SAFE_NO_PAD.encode(digest),
+        URL_SAFE_NO_PAD.encode([audio; 32]),
+    );
+    let mut preimage = verdict::VERDICT_DOMAIN.to_vec();
+    preimage.extend_from_slice(json.as_bytes());
+    let signature = STANDARD.encode(key.sign(&env::sha256_array(&preimage)).to_bytes());
+    (Some(json), Some(signature))
+}
+
+/// An accepted verdict of the test verifier that expires 120 s after `T0`.
+fn accepted(digest: &[u8; 32], audio: u8) -> (Option<String>, Option<String>) {
+    signed(&verifier(), digest, "accept", T0 + 120_000, audio)
+}
+
+/// Alice says the summary of her note on post 7 and the verifier accepts it.
+fn alice_note(audio: u8) -> (Option<String>, Option<String>) {
+    accepted(&note_digest("alice", 7, NOTE_TEXT, NOTE_SUMMARY), audio)
+}
+
+fn add_spoken(
+    contract: &mut CommunityNotes,
+    who: &str,
+    at_ms: u64,
+    text: &str,
+    verdict: (Option<String>, Option<String>),
+) -> u64 {
+    set_caller_at(who, at_ms);
+    contract.add_note(7, text.into(), NOTE_SUMMARY.into(), verdict.0, verdict.1)
+}
+
+/// A contract with the voice rule and Alice's spoken note (id 1) on post 7.
+fn voice_contract_with_note() -> CommunityNotes {
+    let mut contract = notes_with_voice();
+    assert_eq!(
+        add_spoken(&mut contract, "alice", T0, NOTE_TEXT, alice_note(1)),
+        1
+    );
+    contract
+}
+
+fn rate_spoken(
+    contract: &mut CommunityNotes,
+    who: &str,
+    rating: Rating,
+    verdict: (Option<String>, Option<String>),
+) {
+    set_caller_at(who, T0 + 1);
+    contract.rate_note(1, rating, verdict.0, verdict.1);
+}
+
+#[test]
+fn the_voice_rule_is_on_by_default_with_the_testnet_key() {
+    set_caller("notes");
+    let mut contract = CommunityNotes::default();
+    assert_eq!(
+        contract.get_voice_config(),
+        VoiceConfigView {
+            required: true,
+            verifier_public_key: DEFAULT_VOICE_VERIFIER_KEY.into(),
+        }
+    );
+    contract.set_voice_required(false);
+    assert!(!contract.get_voice_config().required);
+    contract.set_voice_required(true);
+    contract.set_voice_verifier_key(public_key(&verifier()));
+    assert_eq!(
+        contract.get_voice_config(),
+        VoiceConfigView {
+            required: true,
+            verifier_public_key: public_key(&verifier()),
+        }
+    );
+}
+
+#[test]
+#[should_panic(expected = "verifier_public_key must be ed25519:<base58 of 32 bytes>")]
+fn a_verifier_key_of_another_form_fails() {
+    notes_with_voice().set_voice_verifier_key("secp256k1:abc".into());
+}
+
+#[test]
+fn a_spoken_note_with_its_verdict_is_added() {
+    let mut contract = voice_contract_with_note();
+    assert_eq!(note(&contract, 1).summary, NOTE_SUMMARY);
+    // A second recording of the same summary is a new verdict, and a new note.
+    assert_eq!(
+        add_spoken(&mut contract, "alice", T0 + 1, NOTE_TEXT, alice_note(2)),
+        2
+    );
+}
+
+#[test]
+#[should_panic(
+    expected = "say the note: it needs verdict_json and signature_b64 from the voice verifier"
+)]
+fn a_note_without_a_verdict_fails() {
+    add_spoken(
+        &mut notes_with_voice(),
+        "alice",
+        T0,
+        NOTE_TEXT,
+        (None, None),
+    );
+}
+
+#[test]
+#[should_panic(expected = "this verdict was used before")]
+fn a_verdict_passes_only_once() {
+    let mut contract = voice_contract_with_note();
+    add_spoken(&mut contract, "alice", T0 + 1, NOTE_TEXT, alice_note(1));
+}
+
+#[test]
+#[should_panic(expected = "the verdict is for another request")]
+fn a_verdict_for_another_text_fails() {
+    add_spoken(
+        &mut notes_with_voice(),
+        "alice",
+        T0,
+        "The photo is from 2021.",
+        alice_note(1),
+    );
+}
+
+#[test]
+#[should_panic(expected = "the verdict is for another request")]
+fn a_verdict_of_another_account_fails() {
+    add_spoken(&mut notes_with_voice(), "bob", T0, NOTE_TEXT, alice_note(1));
+}
+
+#[test]
+#[should_panic(expected = "the verdict signature does not match the verifier key")]
+fn a_verdict_of_another_key_fails() {
+    let digest = note_digest("alice", 7, NOTE_TEXT, NOTE_SUMMARY);
+    let verdict = signed(
+        &SigningKey::from_bytes(&[0x07; 32]),
+        &digest,
+        "accept",
+        T0 + 120_000,
+        1,
+    );
+    add_spoken(&mut notes_with_voice(), "alice", T0, NOTE_TEXT, verdict);
+}
+
+#[test]
+#[should_panic(expected = "the verdict has expired")]
+fn an_expired_verdict_fails() {
+    add_spoken(
+        &mut notes_with_voice(),
+        "alice",
+        T0 + 120_001,
+        NOTE_TEXT,
+        alice_note(1),
+    );
+}
+
+#[test]
+#[should_panic(expected = "the verdict outcome must be accept")]
+fn a_step_up_verdict_is_not_a_note() {
+    let digest = note_digest("alice", 7, NOTE_TEXT, NOTE_SUMMARY);
+    let verdict = signed(&verifier(), &digest, "step_up", T0 + 120_000, 1);
+    add_spoken(&mut notes_with_voice(), "alice", T0, NOTE_TEXT, verdict);
+}
+
+#[test]
+#[should_panic(expected = "the summary is not a summary that a person can say")]
+fn a_summary_that_a_person_cannot_say_fails_with_the_voice_rule() {
+    set_caller_at("alice", T0);
+    let (json, signature) = alice_note(1);
+    notes_with_voice().add_note(
+        7,
+        NOTE_TEXT.into(),
+        "Photo is from 2019".into(),
+        json,
+        signature,
+    );
+}
+
+#[test]
+fn a_spoken_rating_with_its_verdict_counts() {
+    let mut contract = voice_contract_with_note();
+    let verdict = accepted(&rating_digest("bob", 1, NoteRatingV1::Helpful), 3);
+    rate_spoken(&mut contract, "bob", Rating::Helpful, verdict);
+    assert_eq!(note(&contract, 1).helpful, 1);
+}
+
+#[test]
+#[should_panic(
+    expected = "say the rating: it needs verdict_json and signature_b64 from the voice verifier"
+)]
+fn a_rating_without_a_verdict_fails() {
+    rate_spoken(
+        &mut voice_contract_with_note(),
+        "bob",
+        Rating::Helpful,
+        (None, None),
+    );
+}
+
+#[test]
+#[should_panic(expected = "the verdict is for another request")]
+fn a_verdict_for_another_rating_fails() {
+    let verdict = accepted(&rating_digest("bob", 1, NoteRatingV1::Helpful), 3);
+    rate_spoken(
+        &mut voice_contract_with_note(),
+        "bob",
+        Rating::NotHelpful,
+        verdict,
+    );
+}
+
+#[test]
+#[should_panic(expected = "the verdict is for another request")]
+fn the_verdict_of_a_note_is_not_a_rating() {
+    rate_spoken(
+        &mut voice_contract_with_note(),
+        "bob",
+        Rating::Helpful,
+        alice_note(4),
+    );
 }

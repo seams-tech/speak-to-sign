@@ -40,6 +40,8 @@ async fn ui_demo_sandbox() -> anyhow::Result<()> {
     };
     let worker = near_workspaces::sandbox().await?;
     let notes = worker.dev_deploy(&read("NOTES_WASM", "../../community-notes/res/community_notes.wasm")?).await?;
+    // The notes are only the subject of the markets here, so a note needs no voice verdict.
+    notes.call("set_voice_required").args_json(json!({ "required": false })).transact().await?.into_result()?;
     let outlayer = worker.dev_deploy(&read("FAKE_OUTLAYER_WASM", "../res/fake_outlayer.wasm")?).await?;
     let market = worker.dev_deploy(&read("PM_NOTES_WASM", "../res/jev_prediction_market.wasm")?).await?;
     let usdc = worker.dev_deploy(&read("FAKE_USDC_WASM", "../res/fake_usdc.wasm")?).await?;

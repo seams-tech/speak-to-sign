@@ -640,6 +640,12 @@ async fn hide_a_note_in_the_sandbox() -> anyhow::Result<()> {
         .await?;
     check_success("new", &init, GAS_BUDGET);
 
+    // This test is about the multisig, so a note needs no voice verdict. The old notes
+    // contract has no voice rule.
+    if old_notes.is_none() {
+        notes.call("set_voice_required").args_json(json!({ "required": false })).transact().await?.into_result()?;
+    }
+
     // State before the upgrade: an open transfer proposal and a note.
     let open = opening(&multisig, 1, visitor.id().as_str(), 1, SALT);
     check_success("propose a transfer", &propose(&visitor, &multisig, 1, &open).await?, GAS_BUDGET);

@@ -9,6 +9,11 @@ One moderator account, the voice multisig (`../voice-multisig/`), can hide a
 harmful note. The contract then removes the note's text and summary, and the
 note takes no more ratings.
 
+A note and a rating are spoken requests. The contract takes one only with the
+signed verdict of the voice verifier for exactly this note or this rating,
+from this account. So a key of the account alone cannot add or rate a note.
+See "The voice rule".
+
 The method names and JSON shapes are fixed. Seams Wallet core and the demo
 page in `demo/frontend/` use them.
 
@@ -34,14 +39,17 @@ The change methods do not accept a deposit: a call with a deposit fails.
 
 | Method       | Kind   | Arguments                                                   | Returns            |
 | ------------ | ------ | ----------------------------------------------------------- | ------------------ |
-| `add_note`   | change | `{"post_id": u64, "text": String, "summary": String}`        | `u64`, the note id |
-| `rate_note`  | change | `{"note_id": u64, "rating": "helpful" \| "somewhat_helpful" \| "not_helpful"}` | nothing |
+| `add_note`   | change | `{"post_id": u64, "text": String, "summary": String, "verdict_json"?: String, "signature_b64"?: String}` | `u64`, the note id |
+| `rate_note`  | change | `{"note_id": u64, "rating": "helpful" \| "somewhat_helpful" \| "not_helpful", "verdict_json"?: String, "signature_b64"?: String}` | nothing |
 | `get_notes`  | view   | `{"post_id": u64}`                                           | `NoteView[]`, newest first, at most 50 |
 | `get_note`   | view   | `{"note_id": u64}`                                           | `NoteView` or `null` |
 | `get_rating` | view   | `{"note_id": u64, "account_id": AccountId}`                  | a rating or `null` |
 | `hide_note`  | change | `{"note_id": u64, "proposal_id"?: u64}`                      | nothing |
 | `set_moderator` | change, private | `{"account_id": AccountId}`                       | nothing |
 | `get_moderator` | view | `{}`                                                        | `AccountId` or `null` |
+| `set_voice_verifier_key` | change, private | `{"verifier_public_key": "ed25519:<base58>"}` | nothing |
+| `set_voice_required` | change, private | `{"required": bool}`                          | nothing |
+| `get_voice_config` | view | `{}`                                                     | `{"required": bool, "verifier_public_key": String}` |
 
 Rules:
 
@@ -60,6 +68,42 @@ Rules:
   multisig proposal that decided it; it goes only into the event.
 - The moderator is kept outside the contract state (its own storage key), so
   an upgrade of a deployed contract needs no state migration.
+
+### The voice rule
+
+`add_note` and `rate_note` need `verdict_json` and `signature_b64`: the
+verdict of the spoken summary or the spoken rating, as the voice verifier
+gave it, byte for byte, and the standard base64 of its signature. The check
+is the same as in the market contract for a spoken bet
+(`../jev-prediction-market/`): `seams-voice-verdict` with the ed25519 check
+of the host.
+
+The contract computes the request digest of the call itself
+(`spoken-intent`, `SpokenRequestV1::CommunityNote` or `NoteRating`) and
+refuses a verdict for another digest.
+
+| Call        | The digest names                                                  |
+| ----------- | ----------------------------------------------------------------- |
+| `add_note`  | testnet, the author, this contract, `post_id`, the SHA-256 of `text`, `summary` |
+| `rate_note` | testnet, the rater, this contract, `note_id`, `rating`             |
+
+- The verifier key must have signed the verdict. The default key is the
+  testnet verifier, `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
+  The contract account can set another key (`set_voice_verifier_key`).
+- The outcome must be `accept`, and the verdict must not have expired (the
+  verifier gives it 120 s).
+- A verdict passes once. The contract keeps the SHA-256 of each used verdict
+  (one small storage entry for each call).
+- With the rule, `summary` must be a summary that a person can say
+  (`SpokenSummary`): 1 to 12 words of ASCII letters. The Wallet has the same
+  rule.
+- The contract account can turn the rule off and on (`set_voice_required`).
+  This keeps the notes open if the voice verifier is down. The rule is on by
+  default.
+- `hide_note` needs no verdict here: the voice multisig checks the verdicts
+  of its members.
+- The key and the switch are kept outside the contract state, as the
+  moderator is.
 
 `NoteView`:
 
@@ -111,13 +155,19 @@ is the status of the note after the call.
 | `add_note`  | `text must not be empty`, `summary must not be empty` |
 | `add_note`  | `text has 281 characters; the maximum is 280`        |
 | `add_note`  | `summary has 121 characters; the maximum is 120`     |
+| `add_note`  | `say the note: it needs verdict_json and signature_b64 from the voice verifier` |
+| `add_note`  | `the summary is not a summary that a person can say` (with the voice rule) |
+| `rate_note` | `say the rating: it needs verdict_json and signature_b64 from the voice verifier` |
+| both        | a refusal of the verdict: `the verdict is for another request`, `the verdict signature does not match the verifier key`, `the verdict has expired`, `the verdict outcome must be accept` |
+| both        | `this verdict was used before`                       |
 | `rate_note` | `the author cannot rate their own note`              |
 | `rate_note` | `note 99 does not exist`                             |
 | `rate_note` | an unknown rating fails in argument parsing (`unknown variant`) |
 | `rate_note` | `this note is hidden`                                |
 | `hide_note` | `only the moderator can hide a note`                 |
 | `hide_note` | `this note is already hidden`, `note 99 does not exist` |
-| `set_moderator` | `Method set_moderator is private`                |
+| `set_moderator` | `Method set_moderator is private`, and the same for `set_voice_verifier_key` and `set_voice_required` |
+| `set_voice_verifier_key` | `verifier_public_key must be ed25519:<base58 of 32 bytes>` |
 | both        | a deposit fails (`Method add_note doesn't accept deposit`, and the same for `rate_note`) |
 
 ## Gas and storage
@@ -129,6 +179,11 @@ Measured in the nearcore 2.14.0 sandbox (`sandbox/tests/sandbox.rs`):
 | `add_note`, largest note (400 characters of 4 bytes) | 2.26 Tgas |
 | `add_note`, short note                        | 2.15 Tgas  |
 | `rate_note`, first rating or a replacement    | 2.04 to 2.22 Tgas |
+| `add_note` with its verdict, text of 280 characters of 4 bytes | 3.09 Tgas |
+| `rate_note` with its verdict                  | 2.92 Tgas  |
+
+The first three rows are from the code without the voice rule. The same
+calls with the rule off now burn 2.2 to 2.5 Tgas.
 
 The Wallet attaches 30 Tgas. Each call uses less than 10 Tgas.
 
@@ -224,6 +279,20 @@ The smoke test added note 1 on post 9999, which is not a demo post. The
 first demo note gets id 2. `get_notes({"post_id":9999})` returns note 1 with
 all ten `NoteView` fields.
 
+## Upgrade to the voice rule
+
+The deployed contract takes `add_note` and `rate_note` without a verdict.
+Wallet 0.68 sends no verdict in these calls, so do the steps in this order:
+
+1. Release a Wallet that puts `verdict_json` and `signature_b64` in the
+   arguments of `add_note` and `rate_note`, as it does in the `msg` of a bet
+   (`SPOKEN_KINDS` in `packages/shared-ts/src/speakToSign/spokenKinds.ts` of
+   the Wallet, and the co-signer's check of these calls). The deployed
+   contract ignores the two new arguments.
+2. Use that Wallet in the demo page.
+3. Deploy this code. No init call and no state migration are necessary. The
+   rule is on from the deploy.
+
 ## Deploy to testnet
 
 The commands use `notes.seams-v1.testnet`. For a new deployment, replace it
@@ -248,7 +317,10 @@ with a new account name. They sign with the key in `~/.near-credentials/testnet/
    near contract call-function as-read-only notes.seams-v1.testnet get_notes json-args '{"post_id":1}' network-config testnet now
    ```
 
-4. Add a note from the CLI, for a test without the Wallet.
+4. Add a note from the CLI, for a test without the Wallet. With the voice
+   rule, this call fails: it has no verdict. To test it, turn the rule off
+   first (`set_voice_required` with `{"required":false}`, signed as the
+   contract account), and turn it on again after the test.
 
    ```bash
    near contract call-function as-transaction notes.seams-v1.testnet add_note json-args '{"post_id":1,"text":"The photo is from 2019.","summary":"Photo is from 2019"}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as YOUR_ACCOUNT.testnet network-config testnet sign-with-legacy-keychain send
@@ -256,6 +328,8 @@ with a new account name. They sign with the key in `~/.near-credentials/testnet/
 
 ## Limits
 
-- Any account can add notes and rate notes. Each call uses the contract balance for storage, so many calls can use up the balance. This is acceptable for a demo on testnet.
+- Any account with an enrolled voice can add notes and rate notes. Each call uses the contract balance for storage, so many calls can use up the balance. This is acceptable for a demo on testnet.
+- The contract trusts one verifier key. It does not check the TEE attestation of the verifier.
+- The code on `notes.seams-v1.testnet` is older than this source: it has no voice rule. See "Upgrade to the voice rule".
 - The contract has no owner, no delete, and no upgrade method. The full access key of the contract account can deploy new code.
 - `get_notes` reads at most the newest 50 notes of a post. It has no pages.

@@ -9,7 +9,7 @@ Checked on 2026-11-12. Each check below is a read-only view.
 
 ## The helpers
 
-These are the same helpers as README step 5 (FastNear RPC, because
+These are the same helpers as step 5 of [`terminal-checks.md`](terminal-checks.md) (FastNear RPC, because
 `rpc.testnet.near.org` answers HTTP 429 after a few dozen calls):
 
 ```bash

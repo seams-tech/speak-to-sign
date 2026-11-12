@@ -92,9 +92,8 @@ The hackathon project is Speak-to-Sign. Seams Wallet is not a part of it.
   we added the Speak-to-Sign paths to `seams-wallet`: Wallet core checks the
   verdict and signs only the matching call. These paths are new files only.
 
-README [Baseline and hackathon work](README.md#baseline-and-hackathon-work)
-gives the first commit of each part, and the diff of the Wallet in the
-window.
+[`docs/hackathon-scope.md`](docs/hackathon-scope.md) gives the first commit
+of each part, and the diff of the Wallet in the window.
 
 ## Why it is useful
 
@@ -224,7 +223,7 @@ git clone https://github.com/seams-tech/speak-to-sign
    (cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep 'test result')
    # See: 9 "ok" lines, 140 passed.
    (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep 'test result')
-   # See: 7 notes:: tests ok, the summary rules of README step 2.
+   # See: 7 notes:: tests ok, the summary rules of docs/terminal-checks.md step 2.
    (cd speak-to-sign/crates/voice-verifier && cargo test --test ops notes:: 2>&1 | grep '^test')
    # See: 47 passed.
    (cd speak-to-sign/demo/contracts/community-notes && cargo test -p community-notes 2>&1 | grep 'test result')
@@ -282,7 +281,7 @@ git clone https://github.com/seams-tech/speak-to-sign
    reproducible build of `777b844`. SourceScan built that commit again and
    got the same code hash, so NearBlocks shows the code as verified
    (<https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract>). To build
-   it yourself, see README step 4 (Docker and cargo-near 0.22.0).
+   it yourself, see step 4 of `docs/terminal-checks.md` (Docker and cargo-near 0.22.0).
    `demo/contracts/community-notes/reproducible.sha256` now holds
    `596beeb3…d9c3`, the build of `119ef0e`. That build is not deployed yet.
    Of the other three demo contracts, the note market and the faucet run

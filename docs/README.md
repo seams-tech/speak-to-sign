@@ -10,6 +10,9 @@ link to it.
 | [`threat-model.md`](threat-model.md) | Each attacker, what stops it, the evidence, and what is left. |
 | [`trust-chain.md`](trust-chain.md) | Each link from the microphone to the signed call: what proves it, who checks it, and its state. |
 | [`deployed-state.md`](deployed-state.md) | What is live on testnet, where it differs from the source, and the command that checks each part. |
+| [`testnet-facts.md`](testnet-facts.md) | Each verifier version that the project used, with its hash and its transactions, and the history of the demo accounts. |
+| [`terminal-checks.md`](terminal-checks.md) | The checks that run in a terminal, with the whole output of each command. |
+| [`hackathon-scope.md`](hackathon-scope.md) | The first commit of each part, and the diff of the Wallet in the hackathon window. |
 | [`voice-intents-spec.md`](voice-intents-spec.md) | The formats and the rules: requests, sentences, digests, sealed audio, enrollment, verification, the verdict, who checks it, and the multisig. |
 | [`architecture.md`](architecture.md) | Diagrams of the parts and the flows. Section 8.1 records the decision about the verdict key and the TDX quote. Section 9 follows the audio. |
 | [`standalone-library.md`](standalone-library.md) | What a third party can check and use without Seams Wallet, and the plan for the libraries (2026-11-10). |

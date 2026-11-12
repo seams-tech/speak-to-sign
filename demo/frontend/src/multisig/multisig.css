@@ -310,6 +310,11 @@
   font-size: 14px;
 }
 
+.ms-rec-now {
+  color: var(--red);
+  font-size: 15px;
+}
+
 .ms-rec-bar {
   width: 120px;
   height: 6px;

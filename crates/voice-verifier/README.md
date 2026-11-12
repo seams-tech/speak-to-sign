@@ -563,7 +563,8 @@ check passes only if:
 
 1. The gateway's TDX quote chains to Intel's SGX root CA with that
    collateral at the worker's time (`dcap-qvl` 0.7.1), the TCB status is
-   `UpToDate`, and the TD is not a debug TD.
+   `UpToDate` or `SWHardeningNeeded`, and the TD is not a debug TD. Both
+   quotes were `UpToDate` on 2026-11-12.
 2. The report data of the quote is the gateway's ed25519 key, then the nonce
    of this check. The key is the pinned `config::NEAR_AI_GATEWAY_KEY_HEX`
    (`40599fb2…4acb`). The gateway derives it from its dstack KMS key, so

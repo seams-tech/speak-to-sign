@@ -297,8 +297,9 @@ git clone https://github.com/seams-tech/speak-to-sign
 
    These lines do not check the signature of the quote. The check of this
    repository does: the quote chains to Intel with Intel's current
-   collateral (`dcap-qvl`), the TCB is up to date, the quote binds the
-   pinned gateway key and a fresh nonce, the gateway key signs its OHTTP key,
+   collateral (`dcap-qvl`), the TCB status is `UpToDate` or
+   `SWHardeningNeeded`, the quote binds the pinned gateway key and a fresh
+   nonce, the gateway key signs its OHTTP key,
    and the Whisper model has its own TDX quote with the same nonce
    (`crates/voice-verifier/src/nearai_attestation.rs`).
 

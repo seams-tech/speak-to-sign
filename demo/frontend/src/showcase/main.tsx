@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client';
 import type { SeamsConfigsInput } from '@seams/wallet';
 import { buildSeamsConfig } from '../seams/seamsConfig';
 import { ThemedSeamsProvider } from '../seams/walletTheme';
+import { Toasts } from '../components/Toasts';
 import { NotesPage } from './NotesPage';
 import { useTheme } from './theme';
 // The notes app and its dialogs, then the page.
@@ -31,5 +32,8 @@ function WithWallet({ config }: { config: SeamsConfigsInput }) {
 }
 
 createRoot(root).render(
-  <StrictMode>{seamsConfig ? <WithWallet config={seamsConfig} /> : <NotesPage seams={false} />}</StrictMode>,
+  <StrictMode>
+    {seamsConfig ? <WithWallet config={seamsConfig} /> : <NotesPage seams={false} />}
+    <Toasts />
+  </StrictMode>,
 );

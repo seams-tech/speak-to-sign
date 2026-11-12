@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { RateNoteModal } from './components/RateNoteModal';
 import { BottomBar, Rail } from './components/Rail';
 import { SetupPanel } from './components/SetupPanel';
@@ -49,7 +50,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   const [writeFor, setWriteFor] = useState<{ postId: number; autoSign: boolean } | null>(null);
   const [rateFor, setRateFor] = useState<{ noteId: number; rating?: Rating; autoSign: boolean } | null>(null);
   const [signingIn, setSigningIn] = useState(false);
-  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [preparing, setPreparing] = useState<PrepareStep | null>(null);
   const [freshNoteId, setFreshNoteId] = useState<number | null>(null);
 
@@ -213,14 +213,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   }, [account, notesByPost, store]);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const showToast = (text: string) => setToast({ id: Date.now(), text });
-
-  useEffect(() => {
     if (freshNoteId === null) return;
     const timer = window.setTimeout(() => setFreshNoteId(null), FRESH_NOTE_MS);
     return () => window.clearTimeout(timer);
@@ -234,7 +226,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
         return;
       }
       reload();
-      setToast({ id: Date.now(), text: 'You are signed in to Seams Wallet' });
+      toast('You are signed in to Seams Wallet');
       // The account shows when the app has the new signer; the effect on `account` answers the
       // waiters. If it does not show, they stop waiting.
       window.setTimeout(() => settleSignIn(accountRef.current ?? null), SIGN_IN_SETTLE_MS);
@@ -259,7 +251,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   const openSignIn = useCallback((): Promise<string | null> => {
     if (!walletConfigured) {
-      setToast({ id: Date.now(), text: 'This build has no Seams publishable key, so it cannot sign in' });
+      toast('This build has no Seams publishable key, so it cannot sign in');
       return Promise.resolve(null);
     }
     if (accountRef.current) return Promise.resolve(accountRef.current);
@@ -415,7 +407,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             onSent={(text, hash) => void onNoteSent(writePost.id, text, hash)}
             onDone={() => {
               setWriteFor(null);
-              showToast('Your note was signed and submitted');
+              toast('Your note was signed and submitted');
             }}
           />
         )}
@@ -433,7 +425,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             onSent={(rating, hash) => void onRatingSent(rateNote, rating, hash)}
             onDone={() => {
               setRateFor(null);
-              showToast('Your rating was signed by voice');
+              toast('Your rating was signed by voice');
             }}
           />
         )}
@@ -441,13 +433,6 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
           <SignInModal onClose={() => endSignIn(false)} onSignedIn={() => endSignIn(true)} />
         )}
         <BottomBar />
-        <div className="toast-region" role="status" aria-live="polite">
-          {toast && (
-            <div key={toast.id} className="toast">
-              {toast.text}
-            </div>
-          )}
-        </div>
       </div>
     </DemoContext.Provider>
   );

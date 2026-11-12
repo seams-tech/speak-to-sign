@@ -144,7 +144,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* The fixed parts of the live app (the notes tab bar and toasts) stay inside it: contain makes
+/* The fixed parts of the live app (the notes tab bar) stay inside it: contain makes
    it their containing block. */
 .ss-live-slot,
 .ss-live-node {
@@ -1200,21 +1200,11 @@ button.ss-seams {
 }
 
 /* The app's width container is the containing block of its fixed parts, and it is as long as
-   the feed. So the phone's bottom bar and the toast stick to the bottom of the screen. */
+   the feed. So the phone's bottom bar sticks to the bottom of the screen. */
 .ss-sheet .bottom-bar {
   position: sticky;
 }
 
-.ss-sheet .toast-region {
-  position: sticky;
-  left: auto;
-  bottom: 24px;
-  height: 0;
-  transform: none;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-}
 
 @media (max-width: 860px) {
   /* One column: the text is across the whole width, so the rose stays in the lower right corner. */

@@ -21,7 +21,8 @@
     "@seams/wallet": "0.69.2",
     "@tabler/icons-react": "^3.51.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "sonner": "2.0.8"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261109.1",

@@ -286,6 +286,105 @@ flowchart TB
   PO -.-> VK
 ```
 
+### 8.1 The verdict key, the build and the TDX quote
+
+Decided on 2026-11-12. Read this section before you plan a change to how a
+verdict is trusted.
+
+**The key does not name the build.** The verdict key is a keystore signing
+key with `bind: "project"` (`signing_keys` in
+`crates/voice-verifier/manifest/outlayer.json`). The keystore gives it to
+every version of the project. On 2026-11-12 the project
+`seams-v1.testnet/voice-verifier` had 24 versions (`list_versions` of
+`outlayer.testnet`). So a valid signature means "a version of this project
+signed". The project owner can add a version that signs any verdict.
+
+**The TDX quote of the call names the build.** The first 32 bytes of the
+report data are the task hash over the WASM hash, the input hash, the output
+hash, the caller, the project and the time
+([standalone-library.md](standalone-library.md), section 4.3). The verdict
+is in the output. So the chain is: verdict, output, task hash, quote, Intel;
+and WASM hash, reproducible build, source. The key is not in this chain.
+
+**The check of this chain exists:**
+
+| Where | What it checks |
+| --- | --- |
+| `@seams/voice-verdict` (`packages/voice-verdict`) | `checkAttestationBinding`: the quote binds the output to an accepted WASM hash. `checkQuoteSignature` and `checkQuoteCollateral`: the quote chains to the Intel root, with Intel's collateral. `measurementsApproved`: `worker.outlayer.testnet` approves the worker image. |
+| `crates/voice-verdict` (Rust) | `check_attestation_binding`. The Intel chain is a test with `dcap-qvl`. |
+| `@seams/voice-sign` | The `attestation` setting runs `checkAttestationBinding` and `measurementsApproved` for each call. It does not check the signature chain of the quote to Intel, so there the quote is only a claim of the OutLayer API. |
+
+**The Wallet does not run the check yet** (`seams-wallet` at `f7ec88b`).
+Wallet core and the Seams co-signer each check a verdict with `checkVerdict`
+against the pinned key (`packages/shared-ts/src/speakToSign/voiceVerdict.ts`).
+The Seams verify route gives the Wallet the attestation URL of the call, and
+the result card links to it ("View TDX quote"). No code checks the quote
+before the Wallet signs.
+
+**Where the check belongs: the device co-signer.** The Wallet signs with a
+threshold of two parts: the Seams co-signer on Cloudflare, and a co-signer on
+the user's device in an origin-isolated iframe. A verdict replaces the
+confirm press, so the build of the verifier decides what the Wallet signs.
+
+- The device co-signer runs the quote check before it adds its part, against
+  WASM hashes that the Wallet pins next to the key. Then a new version of the
+  project cannot approve a signature: its quote names a WASM hash that the
+  Wallet does not pin.
+- The Seams co-signer and the OutLayer project have the same owner. A check
+  only in the Seams co-signer removes no trust. It can run the same check as
+  a second layer.
+
+**The contracts do not need the quote.** Each voice action of
+`voice-multisig`, `jev-prediction-market` and `community-notes` is a
+transaction from the user's own account (the predecessor). To misuse the key
+on chain, an attacker needs a bad build and the account key. The account key
+alone already moves the funds. So the key check in the contracts is a second
+layer, and it stays. A signer that sends from a plain key, not through the
+Wallet, gets the key check only.
+
+**On-chain DCAP is not used.** NEAR testnet has a DCAP verifier,
+`tee-verifier-2026-07-22.testnet` (`crates/tee-verifier` of `near/mpc`). One
+check uses about 176 Tgas (0.018 NEAR) and about 30 KB of arguments. It
+proves the build to the chain with no trusted party off chain. That is
+necessary only if no trusted signer is in front of the contract, for example
+a contract that pays any account that submits a proof. No Speak-to-Sign
+contract is like that.
+
+**These options do not work. Do not try them again:**
+
+- A registry that checks the quote of the key once. A `bind: "project"` key
+  signs for every version, and the owner can add a version, use it and
+  remove it between two checks.
+- A key for each build with `bind: "wasm"`. OutLayer gives it only to a
+  direct run of a WASM URL. That run has no HTTPS route ("HTTPS API only
+  works for Project source") and no project storage.
+- A `PROTECTED_` secret locked to one build (`outlayer secrets set
+  --build`). The owner can lock the row to another build, with the same gap
+  as the registry.
+
+**After the device check, the design still trusts:** Intel TDX and its
+collateral, the OutLayer worker image that `worker.outlayer.testnet`
+approves, and the Wallet code that the device runs. The speaker service key
+and the NEAR AI transcript are separate items of this section.
+
+**Work that is not done** (all in `seams-wallet`):
+
+1. Pin the accepted WASM hashes in `SPEAK_TO_SIGN_VERIFIERS`, next to
+   `publicKey`.
+2. In Wallet core, before the device co-signer adds its part: get the
+   attestation record, then run `checkAttestationBinding` on the verify
+   output, `checkQuoteCollateral` with the collateral of
+   `GET <api>/public/collateral` (keep it until its next update) and
+   `measurementsApproved`. Refuse with a new reason if one check fails.
+3. Measure the time from the end of the call until the attestation record is
+   available. OutLayer stores the record a short time after the call
+   returns, and `@seams/voice-sign` waits up to 15 s for it. The device check
+   adds this time to each spoken approval.
+4. Optional: the Seams co-signer runs the same check.
+
+In this repository, `@seams/voice-sign` also needs `checkQuoteCollateral` in
+its `attestation` setting, so that its check is complete.
+
 ## 9. Confidential audio
 
 A recording is sealed on the owner's device and opened only inside a TEE.

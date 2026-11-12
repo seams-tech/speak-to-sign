@@ -18,17 +18,18 @@
 // timeline reads the posts in pages: `limit` posts (1 to 50) from `offset` (0 is the newest).
 // Without `limit`, the answer has all the posts.
 //
-// The posts are about what people on X dispute, so most are about politics or war. A NEAR AI
-// model sorts each new post by subject once (functions/lib/topicFilter.ts), and the route gives
-// only the posts with an allowed subject. The snapshot collects them over time. The same model
-// writes the draft of a note for each post (functions/lib/noteDrafts.ts), for the write dialog.
+// The posts are about what people on X dispute, so most are about politics or war. JEV sorts each
+// new post by subject once (functions/lib/topicFilter.ts), and the route gives only the posts
+// with an allowed subject. The snapshot collects them over time. A NEAR AI chat model writes the
+// draft of a note for each post (functions/lib/noteDrafts.ts), for the write dialog.
 
 import { json, refuseOtherOrigin } from '../../lib/http.ts';
 import { oauth1Header, queryString, type OAuth1Keys } from '../../lib/oauth1.ts';
 import type { XAuthor, XMedia, XPost } from '../../../src/x/types.ts';
 import { fallbackDraft, validDraft } from '../../../src/x/noteDrafts.ts';
-import { draftNotes } from '../../lib/noteDrafts.ts';
-import { classifyPosts, DEFAULT_ALLOWED_TOPICS, DEFAULT_TOPIC_MODEL, isTopic, type Topic } from '../../lib/topicFilter.ts';
+import { DEFAULT_DRAFT_MODEL, draftNotes } from '../../lib/noteDrafts.ts';
+import { jevRoute, type KeyedJevRoute } from '../../lib/jev.ts';
+import { classifyPosts, DEFAULT_ALLOWED_TOPICS, isTopic, type Topic } from '../../lib/topicFilter.ts';
 
 export interface Env {
   /** OAuth 1.0a "Consumer Key" and secret of the AI Note Writer's X app. */
@@ -51,9 +52,14 @@ export interface Env {
    * the filter off.
    */
   X_ELIGIBLE_TOPICS?: string;
-  /** The key of the subject filter. Required unless X_ELIGIBLE_TOPICS is "all". */
+  /**
+   * The key of the subject filter (JEV at Typesafe), and NEAR_AI_API_KEY without it (JEV on NEAR
+   * AI). One of them is required unless X_ELIGIBLE_TOPICS is "all".
+   */
+  TYPESAFE_API_KEY?: string;
+  /** The key of the drafts of notes, and of the subject filter without TYPESAFE_API_KEY. */
   NEAR_AI_API_KEY?: string;
-  /** Optional. A chat model that NEAR AI lists at /v1/models. */
+  /** Optional. The chat model of the drafts, one that NEAR AI lists at /v1/models. */
   NEAR_AI_MODEL?: string;
   /** Optional. A KV namespace: one snapshot for all Cloudflare locations. */
   X_CACHE?: KVNamespace;
@@ -85,7 +91,9 @@ export interface Settings {
   ttlMs: number;
   lang: string | null;
   /** Null when the filter is off. */
-  filter: { apiKey: string; model: string; allowed: ReadonlySet<Topic> } | null;
+  filter: { route: KeyedJevRoute; allowed: ReadonlySet<Topic> } | null;
+  /** The model that writes the drafts of notes; null without the NEAR AI key. */
+  drafter: { apiKey: string; model: string } | null;
 }
 
 export interface Deps {
@@ -127,7 +135,7 @@ export const MAX_PAGE = 50;
 const MAX_KEPT_TOPICS = 1_000;
 
 export const NO_KEYS = 'The posts service has no X API keys.';
-export const NO_FILTER_KEY = 'The posts service has no NEAR AI key for its subject filter.';
+export const NO_FILTER_KEY = 'The posts service has no JEV key (TYPESAFE_API_KEY or NEAR_AI_API_KEY) for its subject filter.';
 const X_FAILED = 'X did not give the posts. Try again in a minute.';
 
 export const onRequestGet: PagesFunction<Env> = ({ request, env }) => {
@@ -193,10 +201,10 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
   const topics: Record<string, Topic> = { ...old?.topics };
   let shown = fetched.posts;
   if (settings.filter) {
-    const { allowed, apiKey, model } = settings.filter;
+    const { allowed, route } = settings.filter;
     const unsorted = fetched.posts.filter((post) => topics[post.id] === undefined);
     if (unsorted.length > 0) {
-      const sorted = await classifyPosts(unsorted, { apiKey, model, fetch: deps.fetch });
+      const sorted = await classifyPosts(unsorted, { route, fetch: deps.fetch });
       if (!sorted.ok) return sorted;
       Object.assign(topics, sorted.topics);
     }
@@ -221,9 +229,7 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
   for (const post of posts) post.draft ??= oldDrafts.get(post.id) ?? null;
   const undrafted = posts.filter((post) => !validDraft(post.draft));
   if (undrafted.length > 0) {
-    const drafts = settings.filter
-      ? await draftNotes(undrafted, { apiKey: settings.filter.apiKey, model: settings.filter.model, fetch: deps.fetch })
-      : {};
+    const drafts = settings.drafter ? await draftNotes(undrafted, { ...settings.drafter, fetch: deps.fetch }) : {};
     for (const post of undrafted) post.draft = drafts[post.id] ?? fallbackDraft(post.topic);
   }
   const entries = Object.entries(topics);
@@ -249,8 +255,9 @@ export function readSettings(env: Env): Settings | 'no-keys' | 'no-filter-key' {
   const tokenSecret = env.X_ACCESS_TOKEN_SECRET?.trim();
   if (!consumerKey || !consumerSecret || !token || !tokenSecret) return 'no-keys';
   const allowed = readAllowedTopics(env.X_ELIGIBLE_TOPICS);
+  const route = jevRoute(env);
+  if (allowed && !route) return 'no-filter-key';
   const apiKey = env.NEAR_AI_API_KEY?.trim();
-  if (allowed && !apiKey) return 'no-filter-key';
   const lang = env.X_ELIGIBLE_LANG?.trim().toLowerCase() ?? '';
   return {
     keys: { consumerKey, consumerSecret, token, tokenSecret },
@@ -258,7 +265,8 @@ export function readSettings(env: Env): Settings | 'no-keys' | 'no-filter-key' {
     maxKept: clampInteger(env.X_ELIGIBLE_KEEP, MAX_KEPT_POSTS, 10, MAX_KEEP_SETTING),
     ttlMs: clampInteger(env.X_ELIGIBLE_TTL_SECONDS, DEFAULT_TTL_SECONDS, MIN_TTL_SECONDS, KEEP_SECONDS) * 1_000,
     lang: /^[a-z]{2,3}$/.test(lang) ? lang : null,
-    filter: allowed && apiKey ? { apiKey, model: env.NEAR_AI_MODEL?.trim() || DEFAULT_TOPIC_MODEL, allowed } : null,
+    filter: allowed && route ? { route, allowed } : null,
+    drafter: apiKey ? { apiKey, model: env.NEAR_AI_MODEL?.trim() || DEFAULT_DRAFT_MODEL } : null,
   };
 }
 

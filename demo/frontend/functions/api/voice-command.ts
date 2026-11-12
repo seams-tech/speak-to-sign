@@ -8,7 +8,8 @@
 
 import { MAX_SCREEN_POSTS, type CommandRequest } from '../../src/voice/command.ts';
 import { json, refuseOtherOrigin } from '../lib/http.ts';
-import { jevCommandRequest, NEAR_AI_JEV, readJevCommand, TYPESAFE_JEV } from '../lib/jevCommand.ts';
+import { jevRoute } from '../lib/jev.ts';
+import { jevCommandRequest, readJevCommand } from '../lib/jevCommand.ts';
 
 interface Env {
   TYPESAFE_API_KEY?: string;
@@ -22,7 +23,7 @@ const MAX_TEXT_CHARS = 400;
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const refused = refuseOtherOrigin(request);
   if (refused) return refused;
-  const route = env.TYPESAFE_API_KEY ? { ...TYPESAFE_JEV, key: env.TYPESAFE_API_KEY } : env.NEAR_AI_API_KEY ? { ...NEAR_AI_JEV, key: env.NEAR_AI_API_KEY } : null;
+  const route = jevRoute(env);
   if (!route) return json({ error: 'The command service has no JEV key.' }, 503);
 
   const command = readRequest(await request.json().catch(() => null));

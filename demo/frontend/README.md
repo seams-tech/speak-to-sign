@@ -194,8 +194,9 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 
 | Variable          | Meaning                                                                 |
 | ----------------- | ----------------------------------------------------------------------- |
-| `NEAR_AI_API_KEY` | Key for `https://cloud-api.near.ai/v1/chat/completions`. Required.      |
-| `NEAR_AI_MODEL`   | Optional. Default `Qwen/Qwen3.8-27B`, a small model that NEAR AI hosts. |
+| `NEAR_AI_API_KEY` | Key for NEAR AI: the chat model of the draft notes, and JEV (`/v1/systemone`) for the subject filter and the voice commands without `TYPESAFE_API_KEY`. Required. |
+| `TYPESAFE_API_KEY` | Optional. Key for JEV at Typesafe: the subject filter and the voice commands use it in place of NEAR AI. |
+| `NEAR_AI_MODEL`   | Optional. The chat model of the draft notes. Default `Qwen/Qwen3.8-27B`, a small model that NEAR AI hosts. |
 | `FAUCET_PRIVATE_KEY` | The faucet's function-call key (`ed25519:…`). It can call `drip` on `seams-faucet.testnet` and nothing else, with a 1 NEAR gas allowance. Required for `/api/faucet`. |
 | `FAUCET_ACCOUNT`  | Optional. Default `seams-faucet.testnet`.                               |
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet`. Default `https://test.rpc.fastnear.com`. |
@@ -205,7 +206,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_ELIGIBLE_KEEP` | Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. |
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 28800 (8 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
-| `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment`. `all` turns the filter off. The filter needs `NEAR_AI_API_KEY`. |
+| `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment,politics,health`. `all` turns the filter off. The filter needs a JEV key: `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://api.outlayer.fastnear.com`. |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
 | `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` (0.8.0 or later; 0.12.0 or later for sealed recordings). |
@@ -269,17 +270,19 @@ mode and never sends a note to X.
   `stale: true` and waits 60 s before the next call. Without a snapshot it
   answers 502. Without keys it answers 503.
 - **Subject filter.** The posts are about what people on X dispute, so most
-  are about politics or war. A NEAR AI model sorts each new post once into
-  one of `sport`, `science`, `technology`, `business`, `entertainment`,
-  `health`, `politics`, `war`, `crime`, `adult` and `other`
-  (`functions/lib/topicFilter.ts`). The route gives only the posts with a
-  subject in `X_ELIGIBLE_TOPICS`, each with its `topic`. A post that the model
-  does not answer for is `other`. If the model fails, the refresh fails: no
-  post shows without a subject. Without `NEAR_AI_API_KEY` the route answers
-  503, unless `X_ELIGIBLE_TOPICS` is `all`.
-- **Draft notes.** The same model writes the draft of a Community Note for
-  each shown post, once: the note and the short sentence to read aloud
-  (`functions/lib/noteDrafts.ts`). The write dialog starts with the draft and
+  are about politics or war. JEV sorts each new post once into one of
+  `sport`, `science`, `technology`, `business`, `entertainment`, `health`,
+  `politics`, `war`, `crime`, `adult` and `other`: one choice question for
+  each post, 20 posts in one call (`functions/lib/topicFilter.ts`). The route
+  gives only the posts with a subject in `X_ELIGIBLE_TOPICS`, each with its
+  `topic`. A post that JEV gives no answer for, or a subject with a probability
+  under 0.5, is `other`. If JEV fails, the refresh fails: no post shows without
+  a subject. Without a JEV key (`TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`) the
+  route answers 503, unless `X_ELIGIBLE_TOPICS` is `all`. On the 13 posts of
+  2026-11-12, JEV gave the subject of the earlier chat model to 12, in 1.1 s.
+- **Draft notes.** A NEAR AI chat model (`NEAR_AI_MODEL`) writes the draft of
+  a Community Note for each shown post, once (`functions/lib/noteDrafts.ts`).
+  The Seams server writes the spoken summary from the note. The write dialog starts with the draft and
   types it in, so a visitor only presses the button and speaks. The model
   cannot check a fact, so the draft says what the post leaves out (a source,
   a date, a fair comparison) and adds no fact of its own. A draft with a

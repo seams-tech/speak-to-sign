@@ -1,5 +1,6 @@
 # Cloudflare Pages project for the Community Notes demo.
-# functions/api/voice-command.ts and functions/api/x/eligible-posts.ts use the secret NEAR_AI_API_KEY.
+# functions/api/voice-command.ts and functions/api/x/eligible-posts.ts use the secret NEAR_AI_API_KEY
+# (NEAR AI's JEV and chat model), or TYPESAFE_API_KEY for JEV at Typesafe.
 # functions/api/voice-verify.ts needs the OutLayer settings of the Seams staging verify route:
 # VOICE_OUTLAYER_BASE_URL, VOICE_OUTLAYER_PROJECT, VOICE_OUTLAYER_VERSION_KEY (a verifier with
 # market_bet), VOICE_OUTLAYER_PAYMENT_KEY (secret), VOICE_OUTLAYER_SECRETS_PROFILE and
@@ -7,7 +8,7 @@
 # Optional: NEAR_RPC_URL. See README.md.
 # functions/api/x/eligible-posts.ts needs the secrets X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN and
 # X_ACCESS_TOKEN_SECRET (the OAuth 1.0a keys of a Community Notes AI Note Writer account).
-# Its subject filter needs NEAR_AI_API_KEY, unless X_ELIGIBLE_TOPICS is "all".
+# Its subject filter (JEV) needs TYPESAFE_API_KEY or NEAR_AI_API_KEY, unless X_ELIGIBLE_TOPICS is "all".
 # Optional: X_ELIGIBLE_MAX, X_ELIGIBLE_TTL_SECONDS, X_ELIGIBLE_LANG, X_ELIGIBLE_TOPICS and a KV
 # binding X_CACHE.
 name = "speak-to-sign"

@@ -11,6 +11,8 @@
 import { fallbackDraft, MAX_DRAFT_NOTE_CHARS, validDraft, type NoteDraftText } from '../../src/x/noteDrafts.ts';
 
 const NEAR_AI_URL = 'https://cloud-api.near.ai/v1/chat/completions';
+/** A small model that NEAR AI hosts itself: the one that the Seams server uses for a note's summary. */
+export const DEFAULT_DRAFT_MODEL = 'Qwen/Qwen3.8-27B';
 const BATCH = 8;
 const MAX_POST_CHARS = 700;
 const TIMEOUT_MS = 25_000;

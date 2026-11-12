@@ -1,0 +1,91 @@
+/* The NEAR AI warning in the nav (NearAiWarning.tsx). It has its own ground, so it reads on the
+   hero field of the notes page and on the plain nav of /multisig/. The tokens are at the top of
+   src/styles.css. */
+
+.nearai-warning {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.nearai-warning-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--warn-line);
+  border-radius: 9999px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: default;
+}
+
+.nearai-warning-pill svg {
+  flex: none;
+}
+
+.nearai-warning-long,
+.nearai-warning-short {
+  white-space: nowrap;
+}
+
+.nearai-warning-short,
+.nearai-warning-pop {
+  display: none;
+}
+
+/* A middle nav: the short words. The sentence stays for a screen reader. */
+@media (max-width: 1100px) {
+  .nearai-warning-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .nearai-warning-short {
+    display: inline;
+  }
+}
+
+/* A phone or a small tablet: the icon only. The notes nav has no room for words below about
+   800px. A tap opens the sentence under the nav, from gutter to gutter: the
+   pill is static, so the nav (positioned) holds the sentence. The notes nav hides its GitHub
+   link for the room. */
+@media (max-width: 820px) {
+  .nearai-warning {
+    position: static;
+  }
+  .nearai-warning-short {
+    display: none;
+  }
+  .nearai-warning-pill {
+    padding: 6px;
+    cursor: pointer;
+  }
+  .nearai-warning[data-open] .nearai-warning-pop {
+    display: block;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 16px;
+    right: 16px;
+    z-index: 30;
+    padding: 8px 12px;
+    border: 1px solid var(--warn-line);
+    border-radius: 12px;
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: normal;
+  }
+  .ss-nav-inner:has(.nearai-warning) .ss-nav-source {
+    display: none;
+  }
+}

@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IconCheck, IconCircleDashed, IconExternalLink, IconSend } from '@tabler/icons-react';
 import { useSeams } from '@seams/wallet/react';
 import { BrandMark } from '../components/BrandMark';
+import { NearAiWarning } from '../components/NearAiWarning';
 import { SignInModal } from '../components/SignInModal';
 import { accountUrl, config, shortAccount, shortHash, transactionUrl } from '../config';
 import { KeylessOnboarding, SeamsOnboarding } from '../showcase/Onboarding';
@@ -49,6 +50,7 @@ export function MultisigPage({ seams }: { seams: boolean }) {
           Speak-to-Sign
         </a>
         <span className="ms-nav-gap" />
+        <NearAiWarning />
         {seams && <SeamsSettingsPill onSignIn={() => setSignIn(true)} />}
       </header>
       <main className="ms-main">

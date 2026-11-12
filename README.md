@@ -164,11 +164,6 @@ The numbers in the diagram are these steps:
    from your own account. The contract checks the verdict again on chain, so
    a bot with a plain NEAR key cannot skip the voice step over RPC.
 
-It is fast. The two models run at the same time. On testnet, one voice check
-took 2.6 to 2.9 s at the client, and 0.36 to 0.48 s of that was the
-verifier's own work
-([the measurements](crates/voice-verifier/README.md#two-variants), 2026-11-11).
-
 The audio is sealed. The device seals each recording to a key that exists
 only inside the OutLayer TEE, and the servers between them carry ciphertext.
 The verifier opens it and sends it to two services. The speaker service is a
@@ -212,11 +207,6 @@ multisig, the trust boundaries and the path of the audio.
   ([who checks the verdict](docs/voice-intents-spec.md#9-who-checks-the-verdict)).
   A check of the verifier's TDX quote in the Seams verify route is built, and
   its deploy is in progress ([state](docs/deployed-state.md#checks-that-are-in-progress)).
-- **It ships, and others can use it.** Seams Wallet has Speak-to-Sign in
-  `@seams/wallet` on npm. For an application with no wallet, three libraries
-  are on npm too: `@seams/voice-capture`, `@seams/voice-verdict` and
-  `@seams/voice-sign`. [`examples/voice-confirm/`](examples/voice-confirm/)
-  is a Web2 page that confirms an action by voice with them.
 - **A voice clone alone signs nothing.** It works only on the person's own
   device, with the Wallet unlocked (see [Trust limits](#trust-limits)).
 

@@ -37,6 +37,27 @@ The voice check and the contract's predecessor check still bind each verdict to
 the owner's voice and key. Each call spends OutLayer credit, so add a
 Cloudflare rate-limiting rule on `/api/voice-verify` for a public link.
 
+### The speech-to-text service
+
+The verifier has two builds (`crates/voice-verifier/README.md`,
+"Speech-to-text service"). The default build sends the words to NEAR AI
+Whisper, sealed to a gateway whose TDX quote it checked. The `venice` build
+sends them to Venice AI, which has no TEE: Venice can read the audio. Each
+build has its own WASM hash, and the route selects one for each call with
+the `version_key`:
+
+- A request can name the service: `{ "input": { ... }, "transcriber":
+  "nearai" }` or `"venice"`.
+- With no name, NEAR AI serves the call. Venice serves it only while NEAR AI
+  or its Whisper is down. The route uses the check of `/api/near-ai-status`
+  and waits at most 3 s for it; no answer in that time counts as down.
+- Venice needs `VOICE_OUTLAYER_VENICE_VERSION_KEY`. Without it, each call
+  goes to NEAR AI, and a request that names Venice gets a 503.
+- The answer names the service in the header `X-Speech-To-Text`. The verdict
+  of a Venice call has a `verifier` that ends in `+venice`.
+
+The page does not select the service: only this server holds the two hashes.
+
 ## The NEAR AI warning (`/api/near-ai-status`)
 
 The verifier sends each recording to NEAR AI's Whisper
@@ -255,6 +276,7 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://testnet-api.outlayer.ai` (`*.outlayer.fastnear.com` is retired). |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
 | `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` and the multisig kinds (0.8.0 or later; 0.12.0 or later for sealed recordings). |
+| `VOICE_OUTLAYER_VENICE_VERSION_KEY` | Optional. The WASM hash of the `venice` build of the same verifier. See "The speech-to-text service" above. |
 | `VOICE_OUTLAYER_PAYMENT_KEY` | Secret. The OutLayer payment key of the Seams staging verify route. Another key finds no voice templates. |
 | `VOICE_OUTLAYER_SECRETS_PROFILE` | The secrets profile of the Seams staging verify route. |
 | `VOICE_OUTLAYER_SECRETS_ACCOUNT_ID` | The secrets account of the Seams staging verify route. |

@@ -10,10 +10,12 @@ import {
   SLOW_MS,
   WHISPER_MODEL,
   checkNearAi,
+  chooseTranscriber,
   silentWav,
   stateOf,
   statusCache,
 } from '../functions/lib/nearAiStatus.ts';
+import { parseBody } from '../functions/api/voice-verify.ts';
 import { readNearAiStatus, warningOf, type NearAiStatus } from '../src/nearAiStatus.ts';
 
 const T0 = 1_794_500_000_000;
@@ -82,4 +84,36 @@ test('the page reads the status and warns for NEAR AI down, Whisper down or Whis
   assert.equal(warningOf(status('down', 'down'))?.short, 'NEAR AI is down');
   assert.equal(warningOf(status('up', 'down'))?.short, 'Speech-to-text is down');
   assert.equal(warningOf(status('up', 'slow'))?.level, 'slow');
+});
+
+test('a verify call goes to NEAR AI, and to Venice only by name or while Whisper is down', () => {
+  const status = (nearAi: 'up' | 'down', whisper: 'up' | 'slow' | 'down' | 'unknown'): NearAiStatus => ({ nearAi, whisper, checkedAtMs: T0 });
+  const choose = (requested: 'nearai' | 'venice' | undefined, hasVeniceBuild: boolean, now: NearAiStatus | null) =>
+    chooseTranscriber({ requested, hasVeniceBuild, status: now });
+  // No name: NEAR AI while it answers (slow and unknown are not an outage).
+  assert.equal(choose(undefined, true, status('up', 'up')), 'nearai');
+  assert.equal(choose(undefined, true, status('up', 'slow')), 'nearai');
+  assert.equal(choose(undefined, true, status('up', 'unknown')), 'nearai');
+  assert.equal(choose(undefined, true, status('up', 'down')), 'venice');
+  assert.equal(choose(undefined, true, status('down', 'up')), 'venice');
+  // The check gave no answer in time.
+  assert.equal(choose(undefined, true, null), 'venice');
+  // No Venice build: NEAR AI in each state.
+  assert.equal(choose(undefined, false, status('up', 'down')), 'nearai');
+  assert.equal(choose(undefined, false, null), 'nearai');
+  // A name wins over the state.
+  assert.equal(choose('nearai', true, status('up', 'down')), 'nearai');
+  assert.equal(choose('venice', true, status('up', 'up')), 'venice');
+  assert.equal(choose('venice', false, status('up', 'up')), 'no_venice_build');
+});
+
+test('the verify body takes an input and an optional service name, and nothing else', () => {
+  const input = { op: 'verify', request: { kind: 'multisig_confirm' } };
+  assert.deepEqual(parseBody(JSON.stringify({ input })), { input, transcriber: undefined });
+  assert.deepEqual(parseBody(JSON.stringify({ input, transcriber: 'venice' })), { input, transcriber: 'venice' });
+  assert.deepEqual(parseBody(JSON.stringify({ input, transcriber: 'nearai' })), { input, transcriber: 'nearai' });
+  assert.equal(typeof parseBody(JSON.stringify({ input, transcriber: 'whisper' })), 'string');
+  assert.equal(typeof parseBody(JSON.stringify({ input, version_key: 'abc' })), 'string');
+  assert.equal(typeof parseBody(JSON.stringify({ input: { ...input, op: 'enroll' } })), 'string');
+  assert.equal(typeof parseBody('not json'), 'string');
 });

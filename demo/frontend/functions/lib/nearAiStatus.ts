@@ -104,3 +104,41 @@ export function statusCache(now: () => number): (check: () => Promise<NearAiStat
     return running;
   };
 }
+
+/** The one cache of a worker: the status route and the verify route share its result. */
+const shared = statusCache(Date.now);
+
+/** The status of NEAR AI now: the cached result, or a new check. */
+export function nearAiStatus(apiKey: string | undefined): Promise<NearAiStatus> {
+  return shared(() => checkNearAi({ apiKey, fetch: (input, init) => fetch(input, init), now: Date.now }));
+}
+
+/** The speech-to-text services of the verifier: one worker build for each (crates/voice-verifier, "Speech-to-text service"). */
+export type Transcriber = 'nearai' | 'venice';
+
+/** A usual check takes about 1 s. A verify call waits this long for it, then takes Whisper as down. */
+export const CHOICE_WAIT_MS = 3_000;
+
+/**
+ * The service for one verify call. A request can name one. With no name, NEAR AI serves the
+ * call, and Venice serves it only while NEAR AI or its Whisper is down (`whisper` null: the
+ * check gave no answer in time). Venice needs its own worker build; without one, NEAR AI serves.
+ */
+export function chooseTranscriber(options: {
+  requested: Transcriber | undefined;
+  hasVeniceBuild: boolean;
+  status: NearAiStatus | null;
+}): Transcriber | 'no_venice_build' {
+  if (options.requested === 'venice') return options.hasVeniceBuild ? 'venice' : 'no_venice_build';
+  if (options.requested === 'nearai' || !options.hasVeniceBuild) return 'nearai';
+  const down = options.status === null || options.status.nearAi === 'down' || options.status.whisper === 'down';
+  return down ? 'venice' : 'nearai';
+}
+
+/** The status for a choice: the result when it comes within CHOICE_WAIT_MS, else null. */
+export function statusForChoice(apiKey: string | undefined, waitMs = CHOICE_WAIT_MS): Promise<NearAiStatus | null> {
+  return Promise.race([
+    nearAiStatus(apiKey).catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), waitMs)),
+  ]);
+}

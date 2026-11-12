@@ -331,7 +331,7 @@ with a new account name. They sign with the key in `~/.near-credentials/testnet/
 ## Limits
 
 - Any account with an enrolled voice can add notes and rate notes. Each call uses the contract balance for storage, so many calls can use up the balance. This is acceptable for a demo on testnet.
-- The contract trusts one verifier key. It does not check the TEE attestation of the verifier.
+- The contract checks the verifier key, not the TDX quote of the verifier call. This is by design: the wallet that signs the transaction checks the quote. See [`docs/architecture.md`](../../../docs/architecture.md) section 8.1.
 - The code on `notes.seams-v1.testnet` is older than this source: it has no voice rule. See "Upgrade to the voice rule".
 - The contract has no owner, no delete, and no upgrade method. The full access key of the contract account can deploy new code.
 - `get_notes` reads at most the newest 50 notes of a post. It has no pages.

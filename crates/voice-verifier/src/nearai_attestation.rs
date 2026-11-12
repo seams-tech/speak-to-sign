@@ -7,8 +7,8 @@
 //! (`GET /v1/attestation/report`, with a fresh nonce):
 //!
 //! 1. The gateway's TDX quote chains to Intel, with Intel's current
-//!    collateral (`dcap-qvl`), the TCB status is one that the verifier
-//!    accepts, and the TD is not a debug TD.
+//!    collateral (`dcap-qvl`), the TCB status is one of
+//!    [`ACCEPTED_TCB_STATUSES`], and the TD is not a debug TD.
 //! 2. The quote's report data is the gateway's ed25519 key and the nonce
 //!    of this check: `report_data = key (32) || nonce (32)`. The key is the
 //!    pinned [`NEAR_AI_GATEWAY_KEY_HEX`].
@@ -43,9 +43,12 @@ use crate::digest::{from_hex, from_hex_bytes, hex, sha256};
 use crate::host::{GetRequest, Reply};
 use crate::ohttp::KeyConfig;
 
-/// The TCB statuses of Intel's TCB info that the verifier accepts. Any
-/// other status (`OutOfDate`, `Revoked`, ...) fails the check.
-pub const ACCEPTED_TCB_STATUSES: [&str; 1] = ["UpToDate"];
+/// The TCB statuses of Intel's TCB info that the verifier accepts:
+/// `UpToDate`, and `SWHardeningNeeded` (the platform is up to date; the
+/// software in the TD must apply the mitigations of the advisories). Any
+/// other status (`OutOfDate`, `ConfigurationNeeded`, `Revoked`, ...) fails the
+/// check.
+pub const ACCEPTED_TCB_STATUSES: [&str; 2] = ["UpToDate", "SWHardeningNeeded"];
 
 /// Why a check gives no checked gateway.
 #[derive(Clone, Debug, PartialEq, Eq)]

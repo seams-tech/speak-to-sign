@@ -971,11 +971,10 @@ button.ss-seams {
   min-height: calc(100dvh - var(--nav-h));
   margin-top: calc(-1 * var(--sheet-r));
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
-  /* The theme's plain ground (src/styles.css), also in the space at the sides of the app. */
+  /* The theme's plain ground (src/styles.css), also in the space at the sides of the app. A
+     1 px edge in the same colour smooths the round corners on the hero; there is no shadow. */
   background: var(--bg);
-  box-shadow:
-    0 -1px 0 color-mix(in srgb, var(--bg) 60%, transparent),
-    0 -22px 50px -14px rgba(8, 48, 66, 0.5);
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--bg) 60%, transparent);
   /* clip, not hidden: hidden makes a scroll box, and the app's sticky parts would stick to the
      sheet and not to the page. */
   overflow: clip;

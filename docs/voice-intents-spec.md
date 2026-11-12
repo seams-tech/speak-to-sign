@@ -327,9 +327,10 @@ Two checkers exist:
   owner's account. The co-signer does the same check before it signs. This
   path serves `transfer`, `community_note`, `note_rating` and
   `merge_approval`.
-- **The voice multisig contract.** `propose` takes `verdict_json` and
-  `signature_b64`. The contract checks them on chain, with the caller as the
-  owner. This path needs no Wallet release for a new request kind.
+- **The voice multisig contract.** `propose` and `approve` take
+  `verdict_json` and `signature_b64`. The contract checks them on chain,
+  with the caller as the owner. It also refuses an `audio_digest` that
+  counted before. This path needs no Wallet release for a new request kind.
 
 The plugin gets no signing context, key or session. It can only call the
 scoped core operations `openPrompt`, `receiverExists`, `verify` and
@@ -365,11 +366,24 @@ Storage of a proposal, in the verifier's OutLayer storage:
 | `msig1:<multisig>:<commitment b64u>:voices` | The owners whose verdict was an accept |
 | `msig1:<multisig>:<commitment b64u>:tries:<owner>` | The count of `words` refusals |
 
-The demo contract (`demo/contracts/voice-multisig`) uses only the propose
-kinds. A visitor proposes by voice. Two admin accounts approve with plain
-signed calls. `execute` gets the opening (the proposal and the salt), checks
-it against the commitment, and sends the NEAR or hides the note. Its README
-has the interface.
+The contract (`demo/contracts/voice-multisig`, version 3.0.0) is voice
+only. It has a fixed set of signers and a threshold M of N, and no admin.
+
+1. A signer proposes with a verdict of a propose kind. That verdict is the
+   first approval.
+2. Each other signer approves with a verdict of `multisig_confirm` for the
+   stored commitment. The request digest is the same
+   `multisig_approval_digest`, with the signer as the owner.
+3. The contract refuses a second approval of one signer, and a verdict
+   whose `audio_digest` counted before. So one recording counts once.
+4. When M signers approved, a signer calls `execute` with the opening (the
+   proposal and the salt). The contract checks it against the commitment,
+   and sends the NEAR or hides the note.
+
+No call without a verdict approves, and no call changes the signers. Its
+README has the interface. The account `multisig.seams-v1.testnet` still
+runs version 2.x, where two admin accounts approve with plain signed calls.
+Version 3.0.0 is not deployed yet.
 
 ## 11. Trust limits
 

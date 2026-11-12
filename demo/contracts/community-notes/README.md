@@ -101,7 +101,9 @@ refuses a verdict for another digest.
   This keeps the notes open if the voice verifier is down. The rule is on by
   default.
 - `hide_note` needs no verdict here: the voice multisig checks the verdicts
-  of its members.
+  of its signers. In version 3.0.0 of the multisig, each approval is a
+  verdict too; `multisig.seams-v1.testnet` still runs 2.x, where two admins
+  approve by key.
 - The key and the switch are kept outside the contract state, as the
   moderator is.
 

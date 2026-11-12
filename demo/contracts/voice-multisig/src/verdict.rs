@@ -5,29 +5,37 @@
 //! that the contract receives, so the contract never serializes the verdict
 //! again. Only an `accept` verdict passes: a `step_up` verdict does not.
 
+use near_sdk::base64::Engine;
+use near_sdk::base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use near_sdk::env;
 pub use voice_verdict::{parse_ed25519_key, VERDICT_DOMAIN, VERDICT_KIND};
 use voice_verdict::Check;
 
-/// Panics unless the verdict is signed by `verifier_key`, accepts, has not
-/// expired and is for `request_digest`. The panic text is the text of the
-/// refusal (`voice_verdict::Refusal`).
+/// Checks the verdict and returns the digest of its recording. Panics
+/// unless the verdict is signed by `verifier_key`, accepts, has not expired
+/// and is for `request_digest`; the panic text is the text of the refusal
+/// (`voice_verdict::Refusal`). An accept always has an audio digest, so a
+/// verdict without one panics too.
 pub fn check_verdict(
     verifier_key: &[u8; 32],
     request_digest: &[u8; 32],
     verdict_json: &str,
     signature_b64: &str,
-) {
+) -> [u8; 32] {
     let check = Check::at(env::block_timestamp_ms()).request(request_digest);
-    if let Err(refusal) = voice_verdict::check_verdict_with(
+    let verdict = voice_verdict::check_verdict_with(
         verdict_json,
         signature_b64,
         verifier_key,
         &check,
         |signature, message, key| env::ed25519_verify(signature, message, key),
-    ) {
-        env::panic_str(&refusal.to_string());
-    }
+    )
+    .unwrap_or_else(|refusal| env::panic_str(&refusal.to_string()));
+    verdict
+        .audio_digest
+        .and_then(|text| URL_SAFE_NO_PAD.decode(text).ok())
+        .and_then(|bytes| <[u8; 32]>::try_from(bytes).ok())
+        .unwrap_or_else(|| env::panic_str("the verdict has no audio digest of 32 bytes"))
 }
 
 /// `ed25519:<base58>`.

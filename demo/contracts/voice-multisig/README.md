@@ -473,8 +473,8 @@ Signer B proposed the same transfer by voice:
 [`6WcVLmKtVT5JRK1ECAQCfMNVstAB6yRnPxx48HN9W2cB`](https://testnet.nearblocks.io/txns/6WcVLmKtVT5JRK1ECAQCfMNVstAB6yRnPxx48HN9W2cB)
 (`accept`, verifier 0.12.0, speaker score 748).
 
-Then the same person tried to approve as signer A, with another tone of
-voice. The verifier refused the recording as `same_speaker`: it matched the
+Then the same person tried to approve as signer A, with a higher and a lower
+tone of the same voice. The verifier refused the recording as `same_speaker`: it matched the
 voice that had said the proposal. So no approval of signer A exists, and the
 proposal stays open with 1 of 2. This refusal was an answer of the verifier
 to the page. It is not on chain, so this file has no link for it.
@@ -484,6 +484,26 @@ refuse that voice as `same_speaker`. It refused the words, because the
 speech-to-text model heard the account name wrong ("scenes fawcett" for
 "seams dash faucet"). An approval needs the exact words. This refusal is not
 on chain either.
+
+### Proposal 1: two persons, and a speech-to-text error (2026-11-12)
+
+Signer A proposed the transfer by voice:
+[`4ZnfvisXw1TaakV9ASkJBviReao7sUYa4XfckvhmJNMn`](https://testnet.nearblocks.io/txns/4ZnfvisXw1TaakV9ASkJBviReao7sUYa4XfckvhmJNMn)
+(`accept`, verifier 0.12.0, speaker score 627).
+
+Another person said the proposal as signer B. The voice passed (speaker
+score 773), and the verifier did not refuse it as `same_speaker`. But NEAR AI
+Whisper heard "zero point one nil to seamsfaucet dot testnet" for "zero
+point one NEAR to seams dash faucet dot testnet", so the verifier refused
+the words. The page sent that signed refusal to the contract as a record:
+[`13UoZ4hXS6nmeBqrPAL6mjbWfBsbuL7GqkRGoKfMwPSL`](https://testnet.nearblocks.io/txns/13UoZ4hXS6nmeBqrPAL6mjbWfBsbuL7GqkRGoKfMwPSL).
+The contract refused it with "the verdict outcome must be accept": only an
+`accept` verdict counts as an approval.
+
+After three recordings with wrong heard words, signer B has no tries left
+for this proposal (`attempts_exhausted`). The proposal stays open with 1 of
+2. This is a limit: a made-up account name such as `seams-faucet` is hard
+for a speech-to-text model, and an approval needs the exact words.
 
 ## Deployed code
 

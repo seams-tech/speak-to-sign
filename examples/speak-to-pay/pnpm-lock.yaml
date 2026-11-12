@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@seams/voiceid':
-        specifier: 0.69.0
-        version: 0.69.0(@seams/wallet@0.69.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 0.69.2
+        version: 0.69.2(@seams/wallet@0.69.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@seams/wallet':
-        specifier: 0.69.0
-        version: 0.69.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 0.69.2
+        version: 0.69.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -591,19 +591,19 @@ packages:
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
 
-  '@seams/voice-capture@0.69.1':
-    resolution: {integrity: sha512-KCV8HXryaA31lGNuibrzil6QGNEC1I45opXkhCGXNbiMcW4iDcgjqzB8lsBI9X5tef90Z0k8UEOhz1v95+sf1A==}
+  '@seams/voice-capture@0.69.2':
+    resolution: {integrity: sha512-ML4e0AmCIC67NwJ440BeWcccIykOrjebNj/CBP1y1oOEKsflwAJJGzIMi8dvszc23x9aZt4Rjd2tTx4Ojyy3Fg==}
     engines: {node: '>=24'}
 
-  '@seams/voice-verdict@0.69.1':
-    resolution: {integrity: sha512-BXwWNKJinix/YrKv6lxgPIlltvx4xY0NJjc4I6k4SeR2/2TCAcRFaK5w2xAzBlOpASCHm85Bob3OQFnrfQlOmA==}
+  '@seams/voice-verdict@0.69.2':
+    resolution: {integrity: sha512-d2Ayc5dTgMRn4/l6LLCelvkiP5Lhc3QULtCT3Ym55to/9DKrXlG4kSZbB8h8lwX/QsW1thl48cEMkfA3prvEGQ==}
     engines: {node: '>=20'}
 
-  '@seams/voiceid@0.69.0':
-    resolution: {integrity: sha512-cLr+X74nNxcsVCrD2lontYW7fs1zEHvTtqldDlDXC90kJuCW7m3BJs1SJXsKV9f/ihDHwxmtcGERqYapKL+Tfw==}
+  '@seams/voiceid@0.69.2':
+    resolution: {integrity: sha512-UaHBh/DveSdpgYoUkUCyU3gCXAME3h0Nay/45dXPCspeolP+ICmNF6Oo892Tv/Z6XakJRPiW6rbmgj6UIlwbTA==}
     hasBin: true
     peerDependencies:
-      '@seams/wallet': 0.69.0
+      '@seams/wallet': 0.69.2
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
     peerDependenciesMeta:
@@ -612,8 +612,8 @@ packages:
       react-dom:
         optional: true
 
-  '@seams/wallet@0.69.0':
-    resolution: {integrity: sha512-uWZCBHtE8Q6IomolEW+ncA8pIYyRfyOSRjmTHmRmfWCk9janJyjEBXSDSa6lZwyqIg79NAV2b0TKZFmPTRVV2w==}
+  '@seams/wallet@0.69.2':
+    resolution: {integrity: sha512-l7zktz9tCSYMwG+A+iZeqxE3jsA4BIc2insyWzPK1YTXt76KV35yqLDwX15r+GmSLEi+gsJnG/8LsnW0Yh8BpA==}
     peerDependencies:
       jsqr: 1.4.0
       react: '>=19.0.0'
@@ -1596,21 +1596,21 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
-  '@seams/voice-capture@0.69.1':
+  '@seams/voice-capture@0.69.2':
     dependencies:
       onnxruntime-web: 1.30.0
       preact: 10.29.8
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@seams/voice-verdict@0.69.1':
+  '@seams/voice-verdict@0.69.2':
     dependencies:
       '@noble/ciphers': 1.3.0
 
-  '@seams/voiceid@0.69.0(@seams/wallet@0.69.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@seams/voiceid@0.69.2(@seams/wallet@0.69.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@seams/voice-capture': 0.69.1
-      '@seams/wallet': 0.69.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+      '@seams/voice-capture': 0.69.2
+      '@seams/wallet': 0.69.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       preact: 10.29.8
       voice-glow: 0.2.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
     optionalDependencies:
@@ -1619,11 +1619,11 @@ snapshots:
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@seams/wallet@0.69.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)':
+  '@seams/wallet@0.69.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)':
     dependencies:
       '@levischuck/tiny-cbor': 0.2.11
       '@near-js/types': 2.4.0
-      '@seams/voice-verdict': 0.69.1
+      '@seams/voice-verdict': 0.69.2
       borsh: 1.0.0
       bs58: 6.0.0
       idb: 8.0.3

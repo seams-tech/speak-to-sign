@@ -168,7 +168,7 @@ local sandbox with seeded markets for a check before the deploy.
 
 ### Spoken bets
 
-A bet is a spoken request of the Seams Wallet (0.69.0):
+A bet is a spoken request of the Seams Wallet (0.69.2):
 `seams.near.spoken.bet` in `marketSigner.ts`. The Wallet card shows
 the sentence ("bet zero point five usdc yes on market nine") and records it.
 The verifier checks the voice and the words. The Wallet then sends the token's

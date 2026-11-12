@@ -23,8 +23,7 @@ words. So a wrong command cannot sign.
    and the authors on the screen as `phrases`, so that it prefers them over
    words that sound the same. Chrome takes `phrases` only on the device. Without
    the model, the bar offers to install it (one download), and it uses the
-   browser's speech service until then. The bar shows "On device" with the
-   time when the words come from the device.
+   browser's speech service until then.
 2. `VoiceBar.tsx` shows the words on one line (`Transcript.tsx`): the newest
    words bright at the right, the sentences before them grey, fading out at
    the left. It sends each new piece of the sentence to `classify.ts`.
@@ -37,8 +36,9 @@ words. So a wrong command cannot sign.
    (`spokenSide`), when the words name only one side.
 5. The timeline runs the command (`runCommand` in `src/x/Timeline.tsx`). The
    bar shows a line only when the command cannot run, or when the sentence
-   has no command. At its right end, it shows who classified the sentence
-   and how long it took ("JEV · 359 ms").
+   has no command. At its right end, it shows how long the sentence took to
+   classify ("359 ms"). Its tooltip names the classifier (JEV or the word
+   rules) and where the words came from (the device or the speech service).
 
 A command that only shows posts runs on an unfinished sentence. A command
 that opens a signing step waits for the end of the sentence.

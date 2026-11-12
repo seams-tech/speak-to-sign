@@ -58,7 +58,9 @@ const COMMAND_PHRASES = [
   'controversial',
   'open markets',
   'decided',
+  'settled',
   'fresh',
+  'for you',
 ];
 /** A name that Chrome can take as a phrase. */
 const SAYABLE_NAME = /^[\p{L}\p{N}' .-]{2,40}$/u;
@@ -114,8 +116,8 @@ export function VoiceBar({
   const [said, setSaid] = useState<SaidSentence[]>([]);
   const [live, setLive] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
-  /** Who classified the last sentence, and how long it took: "JEV · 359 ms". */
-  const [timing, setTiming] = useState<string | null>(null);
+  /** How long the last sentence took to classify, and who classified it (shown on hover). */
+  const [timing, setTiming] = useState<{ ms: number; by: string } | null>(null);
   /** Where the words come from now, and the state of Chrome's on-device model. */
   const [mode, setMode] = useState<ListenMode | null>(null);
   const [device, setDevice] = useState<DeviceSpeech | null>(null);
@@ -167,7 +169,7 @@ export function VoiceBar({
       const { command } = result;
       // For a look at what the speech service wrote, and what the page made of it.
       if (final) console.debug('[voice]', JSON.stringify(text), command);
-      const timed = `${result.by === 'jev' ? 'JEV' : 'word rules'} · ${result.ms} ms`;
+      const timed = { ms: result.ms, by: result.by === 'jev' ? 'JEV' : 'word rules' };
       if (command.kind === 'none') {
         // The words stay in the line, so the visitor sees what the speech service wrote.
         if (final) {
@@ -323,8 +325,11 @@ export function VoiceBar({
         </span>
       )}
       {on && timing && (
-        <span className="voice-timing" title={mode === 'device' ? 'Speech on this device, with the command words' : "The browser's speech service"}>
-          {mode === 'device' ? `On device · ${timing}` : timing}
+        <span
+          className="voice-timing"
+          title={`${timing.by}, ${mode === 'device' ? 'speech on this device, with the command words' : "the browser's speech service"}`}
+        >
+          {timing.ms} ms
         </span>
       )}
     </div>

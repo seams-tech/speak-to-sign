@@ -18,7 +18,15 @@
 }
 .voice-bar-on {
   width: min(560px, calc(100vw - 32px));
-  border-radius: 28px;
+  /* Room for the words and the status line, centred one over the other; the microphone keeps
+     the same gap to the bar's top, left and bottom. */
+  min-height: 60px;
+  padding: 8px 18px 8px 8px;
+  border-radius: 30px;
+}
+.voice-bar-on .voice-mic {
+  width: 44px;
+  height: 44px;
 }
 .voice-mic {
   flex: none;
@@ -120,6 +128,7 @@
   opacity: 0.65;
 }
 .voice-status {
+  margin-top: 3px;
   font-size: 13px;
   color: color-mix(in srgb, var(--on-ink) 80%, transparent);
 }

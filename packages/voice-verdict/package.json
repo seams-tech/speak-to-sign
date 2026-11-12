@@ -1,6 +1,6 @@
 {
   "name": "@seams/voice-verdict",
-  "version": "0.69.1",
+  "version": "0.69.2",
   "type": "module",
   "description": "Checks what the Speak-to-Sign verifier signed (a verdict, a transcript and the TDX quote of a call) and seals a recording to the verifier. One dependency, the cipher @noble/ciphers.",
   "license": "Apache-2.0",

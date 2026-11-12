@@ -225,8 +225,8 @@ flowchart LR
 The contract (`demo/contracts/voice-multisig`, version 3.0.0) is voice only:
 M of N signers, no admin. It checks each verdict on chain, for `propose` and
 for each `approve`. The chain holds only the commitment until `execute`.
-Version 3.0.0 is not deployed yet, and no demo page drives it. The diagram
-shows 2 of N signers.
+Version 3.0.0 is on `voice-multisig.seams-v1.testnet` (2 of 2 signers), and
+no demo page drives it yet. The diagram shows 2 of N signers.
 
 ```mermaid
 sequenceDiagram

@@ -3,7 +3,7 @@
 | Folder | Contract | Testnet account |
 | ------ | -------- | --------------- |
 | [`community-notes/`](community-notes/) | community notes and ratings, with 0 deposit | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) |
-| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (M of N signers; version 3.0.0 is not deployed, the account runs 2.x with admins) | [`multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract) |
+| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (version 3.0.0, 2 of 2 signers); the older account runs 2.x, where admins approve by key | [`voice-multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract) (3.0.0), [`multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract) (2.x) |
 | [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
 | [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 
@@ -57,15 +57,18 @@ rebase.
 
 ### The deployed code
 
-Since 2026-11-11, the four testnet contracts run the builds of commit
+Since 2026-11-11, the four older testnet contracts run the builds of commit
 `777b844`, with no init call (the state stayed). SourceScan built each one
 again and got the same code hash, so NearBlocks shows each one as verified on
-its contract page.
+its contract page. Since 2026-11-12, the new account
+`voice-multisig.seams-v1.testnet` runs the build of commit `99231f6`
+(version 3.0.0). SourceScan verified it in the same way.
 
 | Contract                    | Code hash (base58)                             | Redeploy transaction                           |
 | --------------------------- | ---------------------------------------------- | ---------------------------------------------- |
 | `notes.seams-v1.testnet`    | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` | `9d5SW81rQ2BQXrvqA5z78gYYxdEhP8JVVj4pu3tFFAEW` |
 | `multisig.seams-v1.testnet` | `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh` | `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t` |
+| `voice-multisig.seams-v1.testnet` (commit `99231f6`, 2026-11-12, deploy with `new`) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` | `FUAfW1AeZMMarjVThdDtmdXAhPw1ghZt2U6FSMF83rxs` |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` | `88qJEJPcSpay99MSV4ZVecp88XasDfD3zSv27Cgk6Zx6` |
 | `seams-faucet.testnet`      | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` | `7uczvTN3tAhD4sw3G7VwFWL1xJXH1gkaLMjXjyrwVq4k` |
 

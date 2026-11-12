@@ -381,9 +381,10 @@ only. It has a fixed set of signers and a threshold M of N, and no admin.
    and sends the NEAR or hides the note.
 
 No call without a verdict approves, and no call changes the signers. Its
-README has the interface. The account `multisig.seams-v1.testnet` still
-runs version 2.x, where two admin accounts approve with plain signed calls.
-Version 3.0.0 is not deployed yet.
+README has the interface. Version 3.0.0 is on
+`voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2 signers. The
+older account `multisig.seams-v1.testnet` still runs version 2.x, where two
+admin accounts approve with plain signed calls.
 
 ## 11. Trust limits
 

@@ -1,5 +1,9 @@
 //! The Whisper request of every operation with words (`verify`, `select`,
-//! `transcribe`, `detect`): sealed to the NEAR AI gateway that the worker
+//! `transcribe`, `detect`), to the service of this build
+//! ([`PROVIDER`]). This module is the one place that knows which service it
+//! is.
+//!
+//! NEAR AI (the default): sealed to the NEAR AI gateway that the worker
 //! checked, with the checked gateway kept in the worker storage.
 //!
 //! A normal call reads one record of the worker storage and seals to the
@@ -13,6 +17,10 @@
 //! [`NEAR_AI_ATTESTATION_GRACE_MS`]; after that the call refuses with
 //! `transcriber_unavailable`. A check that fails refuses with
 //! `transcriber_not_attested`, and so does a reply that does not open.
+//!
+//! Venice AI (the feature `venice`): one plain HTTPS request, with no
+//! gateway record and no check. The request order stays the same: the
+//! speaker request first, then the Whisper request.
 use std::time::Instant;
 
 use super::steps::reply_of;
@@ -26,19 +34,38 @@ use crate::nearai_attestation::{
 };
 use crate::ohttp::ResponseOpener;
 use crate::output::{short, Reason, Stages};
-use crate::transcriber::{open_reply, transcription_request, ReplyFault};
+use crate::transcriber::{open_reply, parse_reply, plain_request, transcription_request, ReplyFault, PROVIDER};
 
-/// The NEAR AI API key, or a refusal.
+/// An API key from its OutLayer secret, trimmed; `None` when it is missing
+/// or empty.
+fn secret_key(host: &dyn Host, name: &str) -> Option<String> {
+    host.secret(name).map(|key| key.trim().to_string()).filter(|key| !key.is_empty())
+}
+
+/// The API key of the speech-to-text service of this build, or a refusal.
 pub(super) fn api_key(host: &dyn Host) -> Result<String, Refusal> {
-    host.secret(NEAR_AI_API_KEY_ENV)
-        .map(|key| key.trim().to_string())
-        .filter(|key| !key.is_empty())
+    secret_key(host, PROVIDER.api_key_env)
         .ok_or_else(|| Refusal::new(Reason::TranscriberUnavailable, "transcriber: no_api_key"))
+}
+
+/// The NEAR AI API key, for the summary check of a note and the chat model
+/// of `detect`: they stay on NEAR AI in every build. In the default build
+/// it is also the key of [`api_key`].
+pub(super) fn near_ai_key(host: &dyn Host) -> Option<String> {
+    secret_key(host, NEAR_AI_API_KEY_ENV)
+}
+
+/// How the reply of one Whisper request is read.
+enum Reader {
+    /// Sealed for this request by the checked NEAR AI gateway.
+    Sealed(ResponseOpener),
+    /// A plain HTTPS reply (Venice AI).
+    Plain,
 }
 
 /// What reads the reply of one Whisper request.
 pub(super) struct Words {
-    opener: ResponseOpener,
+    reader: Reader,
     /// The requests that went out before the Whisper request, for
     /// [`in_flight`](super::steps::in_flight).
     pub(super) early: Early,
@@ -54,7 +81,8 @@ pub(super) struct Early {
 }
 
 /// Starts the requests of `requests` (the speaker request), then adds the
-/// Whisper request of `wav`, sealed to the checked gateway, to the list.
+/// Whisper request of `wav` to the list: sealed to the checked gateway, or
+/// plain for a service with no gateway.
 ///
 /// The read of the gateway record is a blocking storage call. The speaker
 /// request needs no checked gateway, so it goes out first, and the read
@@ -75,10 +103,15 @@ pub(super) fn words_request(
     if !requests.is_empty() {
         host.post_start(requests.clone());
     }
-    match sealed_request(host, ms, api_key, wav) {
-        Ok((request, opener)) => {
+    let request = if PROVIDER.attested {
+        sealed_request(host, ms, api_key, wav).map(|(request, opener)| (request, Reader::Sealed(opener)))
+    } else {
+        Ok((plain_request(PROVIDER, api_key, wav), Reader::Plain))
+    };
+    match request {
+        Ok((request, reader)) => {
             requests.push(request);
-            Ok(Words { opener, early })
+            Ok(Words { reader, early })
         }
         Err(refusal) => {
             host.post_cancel();
@@ -104,9 +137,10 @@ fn sealed_request(
 /// The transcript of the reply. A reply that does not open drops the
 /// stored gateway, so the next call checks the gateway again.
 pub(super) fn words_reply(host: &mut dyn Host, timed: Option<&Timed>, words: &Words) -> Result<String, Refusal> {
-    let opened = match reply_of(timed) {
-        Ok((status, body)) => open_reply(status, body, &words.opener),
-        Err(error) => Err(ReplyFault::Unavailable(error)),
+    let opened = match (reply_of(timed), &words.reader) {
+        (Ok((status, body)), Reader::Sealed(opener)) => open_reply(status, body, opener),
+        (Ok((status, body)), Reader::Plain) => parse_reply(status, body).map_err(ReplyFault::Unavailable),
+        (Err(error), _) => Err(ReplyFault::Unavailable(error)),
     };
     match opened {
         Ok(text) => Ok(text),

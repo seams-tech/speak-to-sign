@@ -5,6 +5,10 @@
 #
 #   ./build.sh           build with the local toolchain
 #   ./build.sh --docker  build in the pinned x86_64 Linux image (needs Docker)
+#   ./build.sh --venice [--docker]
+#                        the variant that sends the audio to Venice AI
+#                        (fal-ai/wizper) in place of NEAR AI (the feature
+#                        `venice`). It writes seams-voice-verifier-venice.wasm.
 #   ./build.sh --local-speaker [--docker]
 #                        the variant with ReDimNet inside the worker (the
 #                        feature `local-speaker`, with `tract`). It writes
@@ -40,14 +44,16 @@ for ARG in "$@"; do
   case "$ARG" in
     --docker) DOCKER=1 ;;
     --local-speaker) VARIANT=local-speaker ;;
+    --venice) VARIANT=venice ;;
     *) echo "error: unknown argument $ARG" >&2; exit 2 ;;
   esac
 done
-# The default variant shares no target folder with the other one, so one
-# build does not replace the WASM of the other.
+# Each variant has its own target folder, so one build does not replace the
+# WASM of another.
 if [ -n "$VARIANT" ]; then
   NAME=seams-voice-verifier-$VARIANT
-  LIMIT=10000000
+  LIMIT=1000000
+  [ "$VARIANT" != local-speaker ] || LIMIT=10000000
   SUBDIR=/$VARIANT
 else
   NAME=seams-voice-verifier

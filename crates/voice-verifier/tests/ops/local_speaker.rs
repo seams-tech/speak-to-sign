@@ -2,10 +2,11 @@
 //! and no request goes to the speaker service.
 use serde_json::Value;
 
-use seams_voice_verifier::config::{template_key, NEAR_AI_OHTTP_URL, NEAR_RPC_URL};
+use seams_voice_verifier::config::{template_key, NEAR_RPC_URL};
 
 use crate::fake::{
-    call, call_local, checked_verdict, clip, embedding, enroll_input, enrolled, outcome_name, verify_input, Fake, OWNER,
+    call, call_local, checked_verdict, clip, embedding, enroll_input, enrolled, events_of, outcome_name, verify_input,
+    Fake, OWNER, WORDS_URL,
 };
 
 fn three_clips(fake: &mut Fake) -> [Vec<u8>; 3] {
@@ -57,8 +58,8 @@ fn verify_accepts_a_template_of_the_service_variant() {
     let verdict = checked_verdict(&out);
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert!(verdict.speaker_score_milli.unwrap() >= 450);
-    assert_eq!(fake.posts, [NEAR_AI_OHTTP_URL]);
-    assert_eq!(fake.events, ["worker_get", "add", "get", "poll", "marker_set", "embed_local", "wait"]);
+    assert_eq!(fake.posts, [WORDS_URL]);
+    assert_eq!(fake.events, events_of(&["worker_get", "add", "get", "poll", "marker_set", "embed_local", "wait"]));
     for stage in ["model_fetch", "redimnet", "transcribe", "parallel", "sign", "total"] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
@@ -158,6 +159,7 @@ fn a_build_with_no_model_refuses() {
     let mut host = NoModel(fake);
     let pins = seams_voice_verifier::Pins { speaker_key: [0; 32], local_speaker: true };
     let input = verify_input(&clip(0.03)).to_string();
-    let out: Value = serde_json::from_slice(&seams_voice_verifier::run_with(input.as_bytes(), &mut host, &pins)).unwrap();
+    let out: Value =
+        serde_json::from_slice(&seams_voice_verifier::run_with(input.as_bytes(), &mut host, &pins)).unwrap();
     assert_eq!(out["detail"], "speaker: no_local_model");
 }

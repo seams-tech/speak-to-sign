@@ -5,14 +5,14 @@ use base64::Engine;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use seams_voice_verifier::config::{audio_used_key, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL, VERDICT_TTL_MS};
+use seams_voice_verifier::config::{audio_used_key, SPEAKER_EMBED_URL, VERDICT_TTL_MS};
 use seams_voice_verifier::digest::b64u;
 use seams_voice_verifier::ops::transfer_request;
 use seams_voice_verifier::policy::STUB_AMOUNT_RULE;
 
 use crate::fake::{
-    call, checked_verdict, clip, embedding, enrolled, outcome_name, verify_input, verify_input_for, Fake, NOW_MS,
-    ONE_NEAR, OWNER,
+    call, checked_verdict, clip, embedding, enrolled, events_of, outcome_name, verify_input, verify_input_for, Fake,
+    NOW_MS, ONE_NEAR, OWNER, WORDS_URL,
 };
 
 #[test]
@@ -58,15 +58,15 @@ fn verify_accepts_and_signs_the_verdict() {
     // batch after the read of the gateway record, before the storage calls
     // of the owner. The audio is marked used during the requests, before the
     // decision.
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
-    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
+    assert_eq!(fake.events, events_of(&["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]));
 
     // The same audio again: refused by the mark; the batch is dropped
     // without a wait.
     fake.events.clear();
     let again = call(&mut fake, verify_input(&wav));
     assert_eq!(outcome_name(&checked_verdict(&again)), "audio_reused");
-    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "cancel"]);
+    assert_eq!(fake.events, events_of(&["start", "worker_get", "add", "get", "poll", "marker_set", "cancel"]));
 }
 
 #[test]

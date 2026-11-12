@@ -11,10 +11,13 @@ mod local_speaker;
 mod merges;
 mod multisig;
 mod notes;
+mod providers;
 mod sealed;
 mod transcribe;
 mod verify;
 mod web2;
+// The gateway check of the NEAR AI path. The `venice` build has none.
+#[cfg(not(feature = "venice"))]
 mod whisper;
 
 use serde_json::json;

@@ -100,8 +100,8 @@ fn verify_steps(
     }
     ms.since("decode", started);
 
-    // 3. The speaker service and NEAR AI, at the same time: the transcript,
-    //    and for a note the summary check. The bodies go out now; the
+    // 3. The speaker service, the speech-to-text service and (for a note)
+    //    NEAR AI, at the same time: the transcript and the summary check. The bodies go out now; the
     //    responses are read after the storage calls.
     let api_key = api_key(host)?;
     // The `local-speaker` build sends only the NEAR AI request, and runs the
@@ -113,7 +113,7 @@ fn verify_steps(
     }
     let words_at = requests.len();
     let words = words_request(host, ms, &api_key, &clip.wav, &mut requests)?;
-    let summary_at = push_summary_check(&mut requests, &api_key, &input.request);
+    let summary_at = push_summary_check(host, &mut requests, &input.request)?;
 
     // 4. The template and the used-audio mark, while the requests are in
     //    flight. A refusal here drops them.

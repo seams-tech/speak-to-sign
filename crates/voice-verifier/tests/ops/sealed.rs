@@ -6,13 +6,13 @@ use ed25519_dalek::{Signature, SigningKey, Verifier};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use seams_voice_verifier::config::{AUDIO_KEY_ENV, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{AUDIO_KEY_ENV, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex};
 use seams_voice_verifier::envelope::{audio_key_message, AudioKey};
 
 use crate::fake::{
     audio_public_key, call, checked_verdict, clip, embedding, enroll_input, enrolled, outcome_name, seal_to, sealed,
-    verify_input, with_sealed_audio, Fake, AUDIO_KEY_HEX, OWNER, VERDICT_SEED,
+    verify_input, with_sealed_audio, Fake, AUDIO_KEY_HEX, OWNER, VERDICT_SEED, WORDS_URL,
 };
 
 const TRANSCRIPT: &str = "Send 2 NEAR to alice.testnet.";
@@ -35,7 +35,7 @@ fn verify_accepts_sealed_audio() {
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     // The digest and the services see the opened WAV, as for plain audio.
     assert_eq!(verdict.audio_digest, Some(b64u(&Sha256::digest(&wav))));
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
 }
 
 #[test]
@@ -153,7 +153,8 @@ fn audio_key_names_the_key_with_the_verdict_key() {
     let out = call(&mut Fake::new(), json!({ "op": "audio_key" }));
     assert_eq!(out["kind"], "seams_voice_audio_key_v1");
     assert_eq!(out["outcome"], "accept", "{out}");
-    let audio_key: [u8; 32] = STANDARD.decode(out["audio_public_key_b64"].as_str().unwrap()).unwrap().try_into().unwrap();
+    let audio_key: [u8; 32] =
+        STANDARD.decode(out["audio_public_key_b64"].as_str().unwrap()).unwrap().try_into().unwrap();
     assert_eq!(audio_key, audio_public_key());
     let verdict_key = SigningKey::from_bytes(&VERDICT_SEED).verifying_key();
     assert_eq!(out["public_key"], format!("ed25519:{}", base58(&verdict_key.to_bytes())));
@@ -166,7 +167,10 @@ fn audio_key_refuses_without_the_secret() {
     let mut fake = Fake::new();
     fake.secrets.remove(AUDIO_KEY_ENV);
     let out = call(&mut fake, json!({ "op": "audio_key" }));
-    assert_eq!((&out["outcome"], &out["reason"], &out["detail"]), (&json!("refuse"), &json!("unsupported"), &json!("audio_key: missing")));
+    assert_eq!(
+        (&out["outcome"], &out["reason"], &out["detail"]),
+        (&json!("refuse"), &json!("unsupported"), &json!("audio_key: missing"))
+    );
     assert_eq!(out["audio_public_key_b64"], Value::Null);
 }
 

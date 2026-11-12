@@ -3,10 +3,10 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde_json::{json, Value};
 
-use seams_voice_verifier::config::{NEAR_AI_SYSTEMONE_URL, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{NEAR_AI_SYSTEMONE_URL, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::{b64u, sha256};
 
-use crate::fake::{call, checked_verdict, clip, enrolled, outcome_name, spoken, OWNER};
+use crate::fake::{call, checked_verdict, clip, enrolled, events_of, outcome_name, spoken, OWNER, WORDS_URL};
 
 const NOTES_CONTRACT: &str = "community-notes.testnet";
 const NOTE: &str = "The bridge is not closed. One lane closes for two weeks in March, says the city.";
@@ -134,8 +134,8 @@ fn a_note_is_signed_only_if_its_summary_gives_its_main_point() {
     let (outcome, out, fake) = note_with_fit(Some(0.9));
     assert_eq!(outcome, "accept", "{out}");
     // JEV got the note and the said summary, in the batch of the transcript.
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL, NEAR_AI_SYSTEMONE_URL]);
-    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL, NEAR_AI_SYSTEMONE_URL]);
+    assert_eq!(fake.events, events_of(&["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]));
     assert_eq!(fake.summary_checks.len(), 1);
     assert_eq!(fake.summary_checks[0]["state"], json!({ "note": NOTE, "summary": "The bridge stays open" }));
     assert!(out["ms"]["summary"].is_u64(), "{out}");
@@ -149,6 +149,30 @@ fn a_note_is_signed_only_if_its_summary_gives_its_main_point() {
     let verdict = checked_verdict(&out);
     assert_eq!(verdict.heard.as_deref(), Some("the bridge stays open"));
     assert!(verdict.spoken_text_digest.is_some());
+}
+
+/// The summary check runs on NEAR AI in every build. With no NEAR AI key the
+/// `venice` build still hears the words, but it does not sign a note: it
+/// refuses and drops the requests that are in flight.
+#[test]
+fn a_note_is_not_signed_without_the_near_ai_key() {
+    let mut fake = enrolled();
+    let wav = clip(0.03);
+    fake.voice(&wav, crate::fake::embedding(0, 0.3));
+    fake.transcript = Some("The bridge stays open.".into());
+    fake.summary_fit = Some(0.9);
+    fake.secrets.remove(seams_voice_verifier::config::NEAR_AI_API_KEY_ENV);
+    fake.events.clear();
+    let out = call(&mut fake, note_input(&wav, "The bridge stays open"));
+    let outcome = outcome_name(&checked_verdict(&out));
+    if cfg!(feature = "venice") {
+        assert_eq!(outcome, "summary_check_unavailable");
+        assert_eq!(out["detail"], "summary: no_api_key");
+        assert_eq!(fake.events.last(), Some(&"cancel"));
+    } else {
+        assert_eq!(outcome, "transcriber_unavailable");
+    }
+    assert!(fake.summary_checks.is_empty());
 }
 
 #[test]
@@ -179,5 +203,5 @@ fn a_rating_has_no_summary_check() {
     fake.summary_fit = None;
     let out = call(&mut fake, rating_input(&wav, "helpful"));
     assert_eq!(outcome_name(&checked_verdict(&out)), "accept", "{out}");
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
 }

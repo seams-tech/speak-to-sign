@@ -108,8 +108,11 @@ fn select_steps(
     let words_at = requests.len();
     let words = words_request(host, ms, &api_key, &clip.wav, &mut requests)?;
     // A note among the candidates gets its summary check in the same batch.
-    let summary_at: Vec<Option<usize>> =
-        input.requests.iter().map(|request| push_summary_check(&mut requests, &api_key, request)).collect();
+    let summary_at: Vec<Option<usize>> = input
+        .requests
+        .iter()
+        .map(|request| push_summary_check(host, &mut requests, request))
+        .collect::<Result<_, _>>()?;
     let local = [&clip];
     let flight =
         in_flight(host, ms, requests, Some(words.early), pins.local_speaker.then_some(&local[..]), |host, ms| {

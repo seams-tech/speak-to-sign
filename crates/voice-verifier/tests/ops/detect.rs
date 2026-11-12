@@ -4,12 +4,12 @@ use base64::Engine;
 use ed25519_dalek::{Signature, SigningKey, Verifier};
 use serde_json::{json, Value};
 
-use seams_voice_verifier::config::{NEAR_AI_CHAT_MODEL, NEAR_AI_CHAT_URL, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{NEAR_AI_CHAT_MODEL, NEAR_AI_CHAT_URL, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::b64u;
 use seams_voice_verifier::intent::{intents_digest, IntentSpec};
 use seams_voice_verifier::output::{intent_message, transcript_message, verdict_message, IntentResult};
 
-use crate::fake::{call, call_local, clip, embedding, enrolled, Fake, OWNER, VERDICT_SEED};
+use crate::fake::{call, call_local, clip, embedding, enrolled, events_of, Fake, OWNER, VERDICT_SEED, WORDS_URL};
 
 fn intents() -> Value {
     json!([
@@ -66,8 +66,11 @@ fn detect_signs_the_intent_that_the_model_names() {
     assert_eq!(result.intents_digest, Some(b64u(&intents_digest(&specs))));
     assert!(result.speaker_score_milli.unwrap() >= 450);
     // The chat model is called after the speaker and the words, alone.
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL, NEAR_AI_CHAT_URL]);
-    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait", "start", "wait"]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL, NEAR_AI_CHAT_URL]);
+    assert_eq!(
+        fake.events,
+        events_of(&["start", "worker_get", "add", "get", "poll", "marker_set", "wait", "start", "wait"])
+    );
     assert_eq!(out["intent_json"].as_str().unwrap().matches("request_digest").count(), 0);
     assert!(out["ms"]["detect"].is_u64() && out["ms"]["total"].is_u64());
 
@@ -77,7 +80,7 @@ fn detect_signs_the_intent_that_the_model_names() {
     let result = checked(&call_local(&mut local, input(&wav)));
     assert_eq!(result.intent.as_deref(), Some("cancel_booking"));
     assert_eq!(serde_json::to_value(&result.slots).unwrap(), json!({}));
-    assert_eq!(local.posts, [NEAR_AI_OHTTP_URL, NEAR_AI_CHAT_URL]);
+    assert_eq!(local.posts, [WORDS_URL, NEAR_AI_CHAT_URL]);
 }
 
 #[test]
@@ -108,7 +111,7 @@ fn detect_refuses_a_stranger_before_the_chat_model() {
     assert_eq!(reason(&result), "speaker");
     assert_eq!(result.text, None);
     assert_eq!(result.intent, None);
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
 }
 
 #[test]
@@ -177,13 +180,15 @@ fn the_longest_detect_output_fits() {
     assert_eq!(result.text.unwrap().len(), 79);
     assert_eq!(result.slots.unwrap()["a"], json!(value.trim()));
     // Slots that do not fit are a refusal, not a cut value.
-    let chat = json!({ "intent": long_name, "slots": { "a": value.trim(), "b": value.trim(), "c": value.trim() } }).to_string();
+    let chat = json!({ "intent": long_name, "slots": { "a": value.trim(), "b": value.trim(), "c": value.trim() } })
+        .to_string();
     let wav2 = clip(0.031);
     fake.voice(&wav2, embedding(0, 0.3));
     fake.chat = Some(chat);
     let mut long = input(&wav2);
     long["owner"] = json!(owner);
-    long["intents"] = json!([{ "name": long_name, "description": "d", "slots": { "a": "text", "b": "text", "c": "text" } }]);
+    long["intents"] =
+        json!([{ "name": long_name, "description": "d", "slots": { "a": "text", "b": "text", "c": "text" } }]);
     let out = call(&mut fake, long);
     assert_eq!(out["detail"], "detector: slots_too_long");
 }

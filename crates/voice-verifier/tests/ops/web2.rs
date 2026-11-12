@@ -5,12 +5,13 @@ use base64::Engine;
 use serde_json::{json, Value};
 use spoken_intent::{request_digest, AppOwner, ConfirmationContext, SpokenRequestV1, SpokenSummary};
 
-use seams_voice_verifier::config::{template_key, NEAR_AI_OHTTP_URL, SPEAKER_EMBED_URL};
+use seams_voice_verifier::config::{template_key, SPEAKER_EMBED_URL};
 use seams_voice_verifier::digest::{b64u, from_hex};
 use seams_voice_verifier::ops::transfer_request;
 
 use crate::fake::{
-    call, call_local, checked_verdict, clip, embedding, enroll_input, enrolled, outcome_name, Fake, ONE_NEAR, OWNER,
+    call, call_local, checked_verdict, clip, embedding, enroll_input, enrolled, events_of, outcome_name, Fake,
+    ONE_NEAR, OWNER, WORDS_URL,
 };
 
 const USER: &str = "app:user-42";
@@ -126,7 +127,8 @@ fn the_authorization_goes_with_the_kind_of_owner() {
 fn a_confirmation_binds_the_context_and_the_payload() {
     let mut fake = app_enrolled();
     let wav = said(&mut fake, "Log in to the example shop.");
-    let out = call(&mut fake, verify_input(USER, confirmation("shop.example/login", "Log in to the example shop"), &wav));
+    let out =
+        call(&mut fake, verify_input(USER, confirmation("shop.example/login", "Log in to the example shop"), &wav));
     let verdict = checked_verdict(&out);
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert_eq!(verdict.heard.as_deref(), Some("log in to the example shop"));
@@ -134,10 +136,11 @@ fn a_confirmation_binds_the_context_and_the_payload() {
     // The same digest as the golden vector of `spoken-intent`.
     let vectors: Value =
         serde_json::from_str(include_str!("../../../spoken-intent/fixtures/spoken_intent_vectors_v1.json")).unwrap();
-    let vector = vectors["requests"].as_array().unwrap().iter().find(|case| case["name"] == "confirmation_login").unwrap();
+    let vector =
+        vectors["requests"].as_array().unwrap().iter().find(|case| case["name"] == "confirmation_login").unwrap();
     let digest = from_hex::<32>(vector["request_digest_hex"].as_str().unwrap()).unwrap();
     assert_eq!(verdict.request_digest, Some(b64u(&digest)));
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
     // Another context or another payload is another digest.
     assert_ne!(
         confirmation_digest("shop.example/login", "Log in to the example shop"),
@@ -149,9 +152,10 @@ fn a_confirmation_binds_the_context_and_the_payload() {
 /// OutLayer testnet for this summary was "Pay $40 for two books."
 #[test]
 fn a_summary_with_an_amount_matches_the_models_numerals() {
-    for (index, transcript) in ["Pay $40 for two books.", "Pay 40 dollars for 2 books", "pay forty dollars for two books"]
-        .into_iter()
-        .enumerate()
+    for (index, transcript) in
+        ["Pay $40 for two books.", "Pay 40 dollars for 2 books", "pay forty dollars for two books"]
+            .into_iter()
+            .enumerate()
     {
         let mut fake = app_enrolled();
         fake.transcript = Some(transcript.into());
@@ -188,7 +192,8 @@ fn a_summary_with_an_amount_matches_the_models_numerals() {
 fn a_confirmation_refuses_other_words() {
     let mut fake = app_enrolled();
     let wav = said(&mut fake, "Do not log in to the example shop.");
-    let out = call(&mut fake, verify_input(USER, confirmation("shop.example/login", "Log in to the example shop"), &wav));
+    let out =
+        call(&mut fake, verify_input(USER, confirmation("shop.example/login", "Log in to the example shop"), &wav));
     assert_eq!(outcome_name(&checked_verdict(&out)), "words");
 }
 
@@ -197,7 +202,8 @@ fn the_kind_goes_with_the_kind_of_owner() {
     let mut fake = app_enrolled();
     let wav = said(&mut fake, "Send 2 NEAR to alice.testnet.");
     // A NEAR kind for an application owner.
-    let transfer = json!({ "kind": "transfer", "receiver": "alice.testnet", "amount_yocto": (2 * ONE_NEAR).to_string() });
+    let transfer =
+        json!({ "kind": "transfer", "receiver": "alice.testnet", "amount_yocto": (2 * ONE_NEAR).to_string() });
     let out = call(&mut fake, verify_input(USER, transfer, &wav));
     assert_eq!(outcome_name(&checked_verdict(&out)), "unsupported");
     // A confirmation for a NEAR owner.
@@ -235,15 +241,15 @@ fn select_signs_the_request_that_the_owner_said() {
     assert_eq!(verdict.request_digest, Some(confirmation_digest("shop.example/order", "Cancel my order")));
     assert_eq!(verdict.heard.as_deref(), Some("cancel my order"));
     assert!(verdict.spoken_text_digest.is_some());
-    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
-    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
+    assert_eq!(fake.events, events_of(&["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]));
 
     // The `local-speaker` variant.
     let mut local = app_enrolled();
     let wav = said(&mut local, "Deliver it to my office");
     let out = call_local(&mut local, select_input(USER, shop_actions(), &wav));
     assert_eq!(out["selected"], 2, "{out}");
-    assert_eq!(local.posts, [NEAR_AI_OHTTP_URL]);
+    assert_eq!(local.posts, [WORDS_URL]);
 }
 
 #[test]

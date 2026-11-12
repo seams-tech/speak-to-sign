@@ -12,10 +12,11 @@ use seams_voice_verifier::authorization::{authorization_message, enrollment_dige
 use seams_voice_verifier::config::{
     AUDIO_INFO, AUDIO_KEY_ENV, EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV,
     NEAR_AI_ATTESTATION_URL, NEAR_AI_CHAT_URL, NEAR_AI_GATEWAY_KEY_HEX, NEAR_AI_GATEWAY_RECORD_KEY, NEAR_AI_OHTTP_URL,
-    NEAR_AI_SYSTEMONE_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
+    NEAR_AI_SYSTEMONE_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL, VENICE_API_KEY_ENV,
+    VENICE_TRANSCRIPTIONS_URL,
 };
-use seams_voice_verifier::envelope::{audio_aad, AudioKey};
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
+use seams_voice_verifier::envelope::{audio_aad, AudioKey};
 use seams_voice_verifier::host::{GetRequest, Host, LocalEmbeddings, PostRequest, Reply, Timed};
 use seams_voice_verifier::nearai_attestation::Gateway;
 use seams_voice_verifier::ohttp::gateway::{bhttp_response_bytes, GatewayKey};
@@ -56,6 +57,16 @@ const INTEL_COLLATERAL: &str = include_str!("../../testdata/nearai_collateral_v1
 /// The OHTTP key of the fake NEAR AI gateway.
 pub(crate) fn fake_gateway() -> GatewayKey {
     GatewayKey::derive(b"the fake NEAR AI gateway", 1)
+}
+
+/// Where the Whisper request of this build goes: the OHTTP route of NEAR AI,
+/// or Venice AI with the feature `venice`.
+pub(crate) const WORDS_URL: &str = if cfg!(feature = "venice") { VENICE_TRANSCRIPTIONS_URL } else { NEAR_AI_OHTTP_URL };
+
+/// The host events of a call in this build. The `venice` build has no
+/// gateway record, so it does not read the worker storage for one.
+pub(crate) fn events_of(default_build: &[&'static str]) -> Vec<&'static str> {
+    default_build.iter().copied().filter(|event| !cfg!(feature = "venice") || *event != "worker_get").collect()
 }
 
 /// A checked gateway record of the fake gateway's key, checked at `at_ms`.
@@ -152,6 +163,7 @@ impl Fake {
     pub(crate) fn new() -> Self {
         let mut fake = Fake::default();
         fake.secrets.insert(NEAR_AI_API_KEY_ENV.into(), "sk-test".into());
+        fake.secrets.insert(VENICE_API_KEY_ENV.into(), "vk-test".into());
         fake.secrets.insert(AUDIO_KEY_ENV.into(), AUDIO_KEY_HEX.into());
         fake.accounts.push(OWNER.into());
         fake.now = NOW_MS;
@@ -171,10 +183,17 @@ impl Fake {
                     self.speaker_reply(request)
                 } else if request.url == NEAR_AI_OHTTP_URL {
                     self.gateway_reply(request)
+                } else if request.url == VENICE_TRANSCRIPTIONS_URL {
+                    assert_eq!(request.headers[0], ("Authorization".to_string(), "Bearer vk-test".to_string()));
+                    match &self.transcript {
+                        Some(text) => Ok((200, json!({ "text": text, "duration": 1.5 }).to_string().into_bytes())),
+                        None => Ok((503, b"{}".to_vec())),
+                    }
                 } else if request.url == NEAR_AI_CHAT_URL {
                     match &self.chat {
                         Some(content) => {
-                            let reply = json!({ "choices": [{ "message": { "role": "assistant", "content": content } }] });
+                            let reply =
+                                json!({ "choices": [{ "message": { "role": "assistant", "content": content } }] });
                             Ok((200, reply.to_string().into_bytes()))
                         }
                         None => Ok((503, b"{}".to_vec())),
@@ -251,6 +270,7 @@ impl Fake {
 
     /// The time of Intel's recorded collateral: a check of the recorded
     /// report passes at this time.
+    #[cfg_attr(feature = "venice", allow(dead_code))]
     pub(crate) fn recorded_at() -> u64 {
         let recorded: Value = serde_json::from_str(INTEL_COLLATERAL).unwrap();
         recorded["checked_at_ms"].as_u64().unwrap()

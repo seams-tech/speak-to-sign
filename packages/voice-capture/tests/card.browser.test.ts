@@ -219,6 +219,129 @@ test('Back and Close each end the card and report which one the person pressed',
   expect(escaped).toEqual({ pressed: [], result: { kind: 'cancelled' } });
 });
 
+type MinimizeState = {
+  surface: import('../src/card').PhraseSurface;
+  minimized: boolean[];
+  progress: unknown[];
+  pressed: string[];
+  result: Promise<unknown>;
+};
+
+/** Opens a card with Back, Close and Minimize, which records with no press. */
+async function openWithMinimize(page: import('@playwright/test').Page): Promise<void> {
+  await page.goto(`${origin}/example/`);
+  await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const state = window as unknown as MinimizeState;
+    state.minimized = [];
+    state.progress = [];
+    state.pressed = [];
+    state.surface = openPhraseCard({
+      sentence: 'Send two NEAR to alice.testnet',
+      signal: new AbortController().signal,
+      detector: 'level',
+      frame: {
+        controls: 'back_and_close',
+        pressed: (control: string) => state.pressed.push(control),
+        minimized: (minimized: boolean) => state.minimized.push(minimized),
+        progressed: (progress: unknown) => state.progress.push(progress),
+      },
+    });
+    state.result = state.surface.record();
+  });
+}
+
+const CHECK = {
+  kind: 'check',
+  label: 'Checking your voice',
+  caption: 'Checking',
+  details: ['Matching the sentence'],
+  segments: ['done', 'run', 'idle'],
+} as const;
+
+test('Minimize sits beside Close, and stays in the check where Back and Close go', async ({ page }) => {
+  await openWithMinimize(page);
+  const corners = () =>
+    page.evaluate(() => {
+      const card = document.querySelector('.seams-voiceid-prompt')!.getBoundingClientRect();
+      return [...document.querySelectorAll('.seams-voiceid-prompt > .seams-voiceid-close')].map((control) => ({
+        label: control.getAttribute('aria-label'),
+        path: control.querySelector('path')?.getAttribute('d') ?? null,
+        right: Math.round(card.right - control.getBoundingClientRect().right),
+        shown: getComputedStyle(control).visibility === 'visible',
+      }));
+    });
+  const [back, minimize, close, ...noMore] = await corners();
+  expect(noMore).toEqual([]);
+  expect(back).toMatchObject({ label: 'Back', shown: true });
+  expect(close).toMatchObject({ label: 'Close', shown: true });
+  // A line, one button width (40 px) and a gap of 2 px in from Close.
+  expect(minimize).toMatchObject({ label: 'Minimize', path: 'M6 12h12', right: close.right + 42, shown: true });
+
+  await page.evaluate((check) => void (window as unknown as MinimizeState).surface.show(check), CHECK);
+  await expect
+    .poll(async () => (await corners()).map(({ label, shown }) => ({ label, shown })))
+    .toEqual([
+      { label: 'Back', shown: false },
+      { label: 'Minimize', shown: true },
+      { label: 'Close', shown: false },
+    ]);
+  const card = page.getByRole('dialog', { name: 'Say this with your voice' });
+  await expect(card.getByRole('button', { name: 'Minimize' })).toBeVisible();
+});
+
+test('Minimize tells the host and the card goes on; a result asks the host to show it again', async ({
+  page,
+}) => {
+  await openWithMinimize(page);
+  const card = page.getByRole('dialog', { name: 'Say this with your voice' });
+  const state = () =>
+    page.evaluate(async () => {
+      const state = window as unknown as MinimizeState;
+      const settled = await Promise.race([state.result, new Promise((resolve) => setTimeout(() => resolve('open'), 50))]);
+      return { minimized: state.minimized, progress: state.progress, pressed: state.pressed, settled };
+    });
+
+  // While it records: the press is not Back or Close, and the recording does not end.
+  await card.getByRole('button', { name: 'Minimize' }).click();
+  expect(await state()).toMatchObject({ minimized: [true], pressed: [], settled: 'open' });
+
+  // The host showed the card again, and the person hides it in the check.
+  await page.evaluate((check) => void (window as unknown as MinimizeState).surface.show(check), CHECK);
+  await card.getByRole('button', { name: 'Minimize' }).click();
+  await page.evaluate(
+    (check) => void (window as unknown as MinimizeState).surface.show({ ...check, segments: ['done', 'done', 'run'] }),
+    CHECK,
+  );
+  expect((await state()).minimized).toEqual([true, true]);
+
+  // The result needs the person: the card asks to show again, once.
+  await page.evaluate(() => {
+    const result = {
+      kind: 'result',
+      label: '',
+      headline: 'Signed',
+      caption: 'Your voice matched.',
+      detail: '',
+      action: { label: 'Done' },
+      line: 'seal',
+    } as const;
+    void (window as unknown as MinimizeState).surface.show(result);
+    void (window as unknown as MinimizeState).surface.show(result);
+  });
+  const end = await state();
+  expect(end.minimized).toEqual([true, true, false]);
+  expect(end.pressed).toEqual([]);
+  // Each new stage once, with the parts of the check that are over.
+  expect(end.progress).toEqual([
+    { stage: 'checking', done: 1, total: 3 },
+    { stage: 'checking', done: 2, total: 3 },
+    { stage: 'result', done: 0, total: 0 },
+  ]);
+  await expect(card.getByRole('button', { name: 'Minimize' })).toBeVisible();
+});
+
 test('Record has the theme button colours, and the ink colours without them', async ({ page }) => {
   // Opens a card on a page with these CSS variables, and reads the colours of Record.
   const recordColours = async (variables: Record<string, string>) => {

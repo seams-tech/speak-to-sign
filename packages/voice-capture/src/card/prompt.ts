@@ -347,6 +347,8 @@ const CSS = `
   right: auto;
   left: 0.75rem;
 }
+/* Minimize sits beside Close, in the trailing corner: one button width and a small gap in. */
+.seams-voiceid-prompt .seams-voiceid-close.seams-voiceid-minimize { right: 3.375rem; }
 .seams-voiceid-prompt .seams-voiceid-record-slot {
   grid-row: action;
   grid-column: 1;
@@ -518,7 +520,8 @@ const CSS = `
 .seams-voiceid-prompt[data-auto-start] > .seams-voiceid-record-slot { display: none; }
 .seams-voiceid-prompt[data-phrase-view] .seams-voiceid-microphone { display: none; }
 .seams-voiceid-prompt .seams-voiceid-close { transition: opacity 150ms ease, visibility 0s linear 0s; }
-.seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-close {
+/* The check hides Back and Close, as the caller works; Minimize stays. */
+.seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-close:not(.seams-voiceid-minimize) {
   opacity: 0;
   visibility: hidden;
   transition: opacity 150ms ease, visibility 0s linear 150ms;
@@ -717,6 +720,17 @@ export class VoicePrompt {
     this.cancel.setAttribute('aria-label', 'Back');
     this.cancel.querySelector('path')?.setAttribute('d', BACK_PATH);
     return this.cancel;
+  }
+
+  /**
+   * Minimize in the trailing corner, beside Close. It stays in the check, where Close is hidden,
+   * so the person can hide the card while the check goes on. The result is the control.
+   */
+  showMinimize(): HTMLButtonElement {
+    const minimize = cornerButton(this.element.ownerDocument, 'Minimize', MINIMIZE_PATH);
+    minimize.classList.add('seams-voiceid-minimize');
+    this.cancel.before(minimize);
+    return minimize;
   }
 
   /**
@@ -1217,6 +1231,7 @@ export function leaveSurface(element: HTMLElement): void {
 
 const CLOSE_PATH = 'M6 6l12 12M18 6L6 18';
 const BACK_PATH = 'm15 18-6-6 6-6';
+const MINIMIZE_PATH = 'M6 12h12';
 
 /** A control in a corner of the card, with an icon and no text. */
 function cornerButton(document: Document, label: string, path: string): HTMLButtonElement {

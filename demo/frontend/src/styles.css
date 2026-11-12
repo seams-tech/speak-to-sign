@@ -38,7 +38,7 @@
    sheet, but not to the
    hero and the nav: those keep the light colours on the hero's field, also where they use the
    app's classes (the setup steps). */
-:root[data-theme='dark'] :is(.notes-app, .overlay, .ss-sheet, .float-region) {
+:root[data-theme='dark'] :is(.notes-app, .overlay, .ss-sheet, .float-region, .card-pill-region) {
   --bg: #000;
   --ink: #e7e9ea;
   --on-ink: #0f1419;
@@ -1430,6 +1430,13 @@ code {
   pointer-events: none;
   transition-duration: 140ms;
 }
+/* A dialog whose Wallet card is minimized (Modal `minimized`): out of sight, but in its place,
+   so the card's anchor does not move. It fades as the card does. */
+.overlay-minimized {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: 150ms;
+}
 .overlay-leaving .dialog:not(.dialog-bare) {
   opacity: 0;
   transition-duration: 140ms;
@@ -2356,4 +2363,125 @@ fieldset:disabled .choice {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* The pill of a minimized Wallet voice card (CardPill.tsx), at the bottom right of the screen:
+   the card's stage, a bar for the parts of the check that are over, and a click brings the
+   card back. The page's own surface, as the floating errors. */
+.card-pill-region {
+  position: fixed;
+  right: calc(20px + env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 60;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.3;
+}
+.card-pill {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'icon text' 'bar bar';
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 8px;
+  width: min(260px, calc(100vw - 40px));
+  padding: 12px 16px 12px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  box-shadow: rgba(101, 119, 134, 0.2) 0 0 15px, rgba(101, 119, 134, 0.15) 0 0 3px 1px;
+  animation: toast-in 0.2s ease-out;
+}
+.card-pill:hover {
+  background: var(--panel);
+}
+.card-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Three bars that move as a voice line does. */
+.card-pill-icon {
+  grid-area: icon;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--accent-bg);
+}
+.card-pill-icon > span {
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: card-pill-voice 0.9s ease-in-out infinite;
+}
+.card-pill-icon > span:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.card-pill-icon > span:nth-child(3) {
+  animation-delay: -0.6s;
+}
+/* On a result the voice is over: the bars stand still. */
+.card-pill[data-stage='result'] .card-pill-icon > span {
+  animation: none;
+  transform: scaleY(0.6);
+}
+.card-pill-text {
+  grid-area: text;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.card-pill-bar {
+  grid-area: bar;
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--line);
+}
+.card-pill-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 300ms ease-out;
+}
+.card-pill-bar[data-indeterminate] > span {
+  width: 30%;
+  animation: card-pill-sweep 1.4s ease-in-out infinite;
+}
+@keyframes card-pill-voice {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes card-pill-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-pill,
+  .card-pill-icon > span,
+  .card-pill-bar[data-indeterminate] > span {
+    animation: none;
+  }
 }

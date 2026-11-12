@@ -146,6 +146,12 @@ try {
   Close) or `'back_and_close'`. Back is in the leading corner, Close in the trailing corner.
   Each one ends the card. `frame.pressed(control)` tells you which one the person
   pressed, before the card ends. Escape also ends the card, with no `pressed` call.
+- `frame.minimized(minimized)` adds Minimize beside Close. It stays in the check, where Back
+  and Close are hidden. A press calls `minimized(true)` and does not end the card: you hide
+  the card, and the recording and the check go on. The card calls `minimized(false)` when it
+  needs the person again: on a result, and when a recording needs another try.
+  `frame.progressed({ stage, done, total })` tells you each new stage (`recording`,
+  `checking`, `result`), so you can show the progress of a hidden card.
 - `VoicePrompt`, `PhraseCard`, `VoiceRibbon` and `VoiceVisual` are exported for a host that
   makes its own surfaces.
 

@@ -154,7 +154,8 @@ const X_SHAPE: Record<string, string> = {
 
 type AppearanceTheme = NonNullable<NonNullable<SeamsConfigsInput['appearance']>['theme']>;
 
-const WALLET_THEMES: Record<ThemeName, AppearanceTheme> = {
+/** The Wallet's theme for each page theme. The dev card preview reads it too. */
+export const WALLET_THEMES: Record<ThemeName, AppearanceTheme> = {
   dark: { id: 'lights-out', mode: 'dark', colors: walletColors(DARK_TOKENS.colors, LIGHTS_OUT), shape: X_SHAPE },
   light: { id: 'x-light', mode: 'light', colors: walletColors(LIGHT_TOKENS.colors, X_LIGHT), shape: X_SHAPE },
 };

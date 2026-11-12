@@ -4,9 +4,13 @@ import { useHoldVoice } from '../voice/hold';
 
 /** How long the close fade runs (the CSS `.overlay-leaving`). */
 const EXIT_MS = 140;
-/** How long the dialog takes to change size when its content changes. */
-const RESIZE_MS = 280;
-const RESIZE_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+/**
+ * How long the dialog takes to change size when its content changes, and its easing. They are the
+ * Seams Wallet card's own (WALLET_CARD_RESIZE_MS and WALLET_CARD_RESIZE_EASING in the SDK), so a
+ * dialog and a Wallet card in it change size as one.
+ */
+export const RESIZE_MS = 180;
+const RESIZE_EASING = 'cubic-bezier(0.2, 0.7, 0.2, 1)';
 
 /** Closes the dialog with its close animation, then calls `after` (default: `onClose`). */
 export interface ModalHandle {
@@ -50,6 +54,8 @@ export function Modal({
   bare = false,
   handle,
   onOutside,
+  pinned,
+  minimized = false,
   children,
 }: {
   labelledBy: string;
@@ -59,6 +65,18 @@ export function Modal({
   handle?: Ref<ModalHandle>;
   /** For Escape and a click outside, in place of closing: for example, back to the step before. */
   onOutside?: () => void;
+  /**
+   * The size that the dialog takes now, in place of its content's size: the size of a Wallet card
+   * that is about to show over it. The dialog moves to it at once, also while the step before
+   * the card fades out.
+   */
+  pinned?: Size | null;
+  /**
+   * The dialog is out of sight while its Wallet card is minimized: it keeps its place and size,
+   * so the card's anchor stays where it is, but it shows nothing, takes no input, and gives the
+   * page its scroll and its keys back.
+   */
+  minimized?: boolean;
   children: ReactNode;
 }) {
   // The words that the visitor says to a dialog (a sentence that signs) are not a command.
@@ -67,10 +85,12 @@ export function Modal({
   const lockedRef = useRef(locked);
   const onCloseRef = useRef(onClose);
   const onOutsideRef = useRef(onOutside);
+  const minimizedRef = useRef(minimized);
   useEffect(() => {
     lockedRef.current = locked;
     onCloseRef.current = onClose;
     onOutsideRef.current = onOutside;
+    minimizedRef.current = minimized;
   });
 
   const [leaving, setLeaving] = useState(false);
@@ -94,7 +114,7 @@ export function Modal({
     scrollLocks += 1;
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
-      if (openDialogs[openDialogs.length - 1] !== token) return;
+      if (openDialogs[openDialogs.length - 1] !== token || minimizedRef.current) return;
       if (event.key === 'Escape' && !lockedRef.current) (onOutsideRef.current ?? close)();
       if (event.key === 'Tab') keepFocusInside(event, dialogRef.current);
     };
@@ -108,6 +128,15 @@ export function Modal({
     };
   }, [close]);
 
+  // The page scrolls while the dialog is minimized. The scroll lock comes back with the dialog.
+  useEffect(() => {
+    if (!minimized) return;
+    document.body.style.overflow = bodyOverflow;
+    return () => {
+      document.body.style.overflow = 'hidden';
+    };
+  }, [minimized]);
+
   const closeOutside = () => {
     if (!lockedRef.current) (onOutsideRef.current ?? close)();
   };
@@ -119,6 +148,7 @@ export function Modal({
       aria-modal="true"
       aria-labelledby={labelledBy}
       tabIndex={-1}
+      style={pinned ? { width: pinned.width, height: pinned.height, maxWidth: 'none', overflow: 'hidden' } : undefined}
     >
       <DialogPanel value={dialogRef}>{children}</DialogPanel>
     </div>
@@ -134,7 +164,9 @@ export function Modal({
       </>
     ) : (
       <div
-        className={`overlay ${leaving ? 'overlay-leaving' : ''}`}
+        className={['overlay', leaving && 'overlay-leaving', minimized && 'overlay-minimized'].filter(Boolean).join(' ')}
+        inert={minimized}
+        aria-hidden={minimized || undefined}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeOutside();
         }}

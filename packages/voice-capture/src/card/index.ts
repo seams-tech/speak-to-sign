@@ -8,6 +8,7 @@ export {
   type PhraseCardControls,
   type PhraseCardFrame,
   type PhraseCardInput,
+  type PhraseCardProgress,
 } from './surface';
 export type {
   PhraseCheckView,

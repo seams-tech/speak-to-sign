@@ -33,6 +33,16 @@ export type PhraseCardFrame = Readonly<{
   controls?: PhraseCardControls;
   /** Runs when the person presses Back or Close, before the card ends. Escape is not a press. */
   pressed?(control: PhraseCardControl): void;
+  /**
+   * With it, the card draws Minimize in the trailing corner, beside Close, also in the check.
+   * A press runs `minimized(true)`. The card does not hide itself: the host hides it, and the
+   * recording, the check and the caller's work go on. The card runs `minimized(false)` when it
+   * needs the person again: on a result, and when a recording needs another try. The host can
+   * show the card again before that.
+   */
+  minimized?(minimized: boolean): void;
+  /** Runs on each new stage of the card, so the host can show the progress of a hidden card. */
+  progressed?(progress: PhraseCardProgress): void;
   /** The host sizes its frame to the surface, so the card follows the frame. */
   hugged?: boolean;
   /** Runs when the surface is in the document. Its return value runs when the surface closes. */
@@ -44,6 +54,17 @@ export type PhraseCardControls = 'close' | 'back' | 'back_and_close';
 
 /** One corner control of a phrase card. */
 export type PhraseCardControl = 'back' | 'close';
+
+/**
+ * The stage of a phrase card: it records the sentence (or waits for Record), it checks the
+ * recording, or it shows a result.
+ */
+export type PhraseCardProgress = Readonly<{
+  stage: 'recording' | 'checking' | 'result';
+  /** The parts of the check that are over, of `total`. Both are 0 outside a check. */
+  done: number;
+  total: number;
+}>;
 
 export type PhraseCardInput = Readonly<{
   sentence: string;
@@ -87,6 +108,14 @@ class CardSurface implements PhraseSurface {
   private readonly pressed: PhraseCardFrame['pressed'];
   /** Back, when the card shows it apart from Close. */
   private readonly back: HTMLButtonElement | null;
+  /** Minimize, when the host can hide the card. */
+  private readonly minimize: HTMLButtonElement | null;
+  private readonly minimizedHook: PhraseCardFrame['minimized'];
+  private readonly progressedHook: PhraseCardFrame['progressed'];
+  /** The person pressed Minimize, and the card has not asked to show again since. */
+  private minimized = false;
+  /** The last stage that the host heard, as a key. */
+  private progress = '';
   private recorder: AbortController | null = null;
   private recording: Deferred<PhraseRecording> | null = null;
   private choice: ((choice: PhraseChoice) => void) | null = null;
@@ -136,6 +165,9 @@ class CardSurface implements PhraseSurface {
     const back = controls === 'close' ? null : this.prompt.showBack(controls === 'back_and_close');
     if (input.context) this.prompt.showContext(input.context.label, input.context.text);
     this.back = back === this.prompt.cancel ? null : back;
+    this.minimizedHook = frame.minimized;
+    this.progressedHook = frame.progressed;
+    this.minimize = frame.minimized ? this.prompt.showMinimize() : null;
     const handedOverPrompt = handedOver?.querySelector(':scope > .seams-voiceid-prompt') ?? null;
     const rows = handedOverPrompt ? handedOverRows(handedOverPrompt) : null;
     if (handedOverPrompt) {
@@ -161,6 +193,7 @@ class CardSurface implements PhraseSurface {
     const corner = controls === 'back' ? this.pressBack : this.pressClose;
     this.prompt.cancel.addEventListener('click', corner);
     this.back?.addEventListener('click', this.pressBack);
+    this.minimize?.addEventListener('click', this.pressMinimize);
     this.element.addEventListener('cancel', this.cancel);
     outer.addEventListener('abort', this.cancel);
     if (handedOver) handedOver.replaceWith(this.element);
@@ -181,6 +214,7 @@ class CardSurface implements PhraseSurface {
     this.recording = recording;
     if (this.view) {
       this.view = null;
+      this.report({ stage: 'recording', done: 0, total: 0 });
       void this.card.showPrompt();
     } else if (this.autoStart) {
       this.begin(recording);
@@ -195,6 +229,13 @@ class CardSurface implements PhraseSurface {
     if (this.closed) return Promise.resolve('closed');
     this.settleChoice('replaced');
     this.view = view;
+    if (view.kind === 'check') {
+      const done = view.segments.filter((state) => state === 'done' || state === 'skip').length;
+      this.report({ stage: 'checking', done, total: view.segments.length });
+    } else {
+      this.report({ stage: 'result', done: 0, total: 0 });
+      this.needPerson();
+    }
     void this.card.show(view);
     return new Promise((resolve) => {
       this.choice = resolve;
@@ -214,6 +255,7 @@ class CardSurface implements PhraseSurface {
     this.prompt.cancel.removeEventListener('click', this.pressBack);
     this.prompt.cancel.removeEventListener('click', this.pressClose);
     this.back?.removeEventListener('click', this.pressBack);
+    this.minimize?.removeEventListener('click', this.pressMinimize);
     this.card.dispose();
     this.prompt.dispose();
     leaveSurface(this.element);
@@ -231,6 +273,7 @@ class CardSurface implements PhraseSurface {
 
   private begin(recording: Deferred<PhraseRecording>): void {
     this.started = true;
+    this.report({ stage: 'recording', done: 0, total: 0 });
     this.prompt.record.disabled = true;
     this.prompt.status.textContent = this.speechDetectorReady
       ? 'Opening microphone…'
@@ -282,8 +325,10 @@ class CardSurface implements PhraseSurface {
 
   /** The end of speech starts the check in place; every other capture event is the prompt's. */
   private readonly capture = (event: VoiceCaptureEvent): void => {
-    if (event.kind === 'processing') this.card.beginCheck();
-    else this.prompt.capture(event);
+    if (event.kind === 'processing') {
+      this.report({ stage: 'checking', done: 0, total: 0 });
+      this.card.beginCheck();
+    } else this.prompt.capture(event);
   };
 
   private retry(message: string, action = 'Try again'): void {
@@ -292,7 +337,32 @@ class CardSurface implements PhraseSurface {
     this.prompt.record.textContent = action;
     this.prompt.ready(message);
     this.prompt.record.focus();
+    this.report({ stage: 'recording', done: 0, total: 0 });
+    this.needPerson();
   }
+
+  /** Tells the host each new stage of the card. */
+  private report(progress: PhraseCardProgress): void {
+    const key = `${progress.stage}:${progress.done}:${progress.total}`;
+    if (key === this.progress || this.closed) return;
+    this.progress = key;
+    this.progressedHook?.(progress);
+  }
+
+  /** The person asks the host to hide the card. A host that showed it again can hide it again. */
+  private readonly pressMinimize = (): void => {
+    if (this.closed) return;
+    this.minimized = true;
+    this.minimizedHook?.(true);
+  };
+
+  /** The card needs the person: the host shows the card that it hid. */
+  private needPerson(): void {
+    if (!this.minimized) return;
+    this.minimized = false;
+    this.minimizedHook?.(false);
+  }
+
 
   private settleChoice(choice: PhraseChoice): void {
     const settle = this.choice;

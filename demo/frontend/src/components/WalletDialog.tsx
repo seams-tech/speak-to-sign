@@ -6,14 +6,20 @@
 // the dialog (the anchor). The dialog shows one surface at each moment:
 // - Its own surface is opaque until the card is fully painted, so the page never shows through
 //   the two of them. It is opaque again in the frame in which the card starts to leave.
-// - It has the card's size before the card shows.
+// - It has the card's size before the card shows: it moves to the card's size from the moment
+//   the card has one (`pinned`), and the card waits for that move (`enterDelayMs`).
 // - Its own step returns when the card is gone.
+//
+// The voice card has Minimize. While the card is minimized, the dialog is out of sight too (it
+// keeps its place, so the card's anchor does not move), and a pill on the page shows the card's
+// progress. A click on the pill, or the card's result, brings both back.
 
-import { useContext, useEffect, useId, useState, type ReactNode, type Ref } from 'react';
-import { WalletStep } from '@seams/wallet/react';
+import { useContext, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
+import { WalletStep, type WalletStepProgress } from '@seams/wallet/react';
 import { DemoContext } from '../demoContext';
 import { hostVoiceCard, type VoiceCard } from '../signer/voiceCard';
-import { Modal, useDialogHeight, type ModalHandle } from './Modal';
+import { CardPill } from './CardPill';
+import { Modal, RESIZE_MS, useDialogHeight, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
 import { SignInStep } from './SignInModal';
 import { useWalletCard } from './useWalletCard';
@@ -38,6 +44,12 @@ export function WalletDialog({
   const signInCard = useWalletCard();
   const call = useVoiceCardHost();
   const voiceCard = useWalletCard();
+  // The voice card has Back and Close. Back ends the card and the dialog's own step returns.
+  // Close ends the card, then the whole dialog when the card is gone.
+  const closeAfterCard = useRef(false);
+  // The minimized card: the Wallet's function that shows it again, and its stage.
+  const [minimized, setMinimized] = useState<{ restore: () => void } | null>(null);
+  const [progress, setProgress] = useState<WalletStepProgress | null>(null);
   const stepTitleId = useId();
   const view = signingIn ? 'signin' : call ? 'voice' : 'main';
 
@@ -62,10 +74,12 @@ export function WalletDialog({
     <Modal
       labelledBy={view === 'main' ? titleId : stepTitleId}
       onClose={onClose}
-      // The voice card ends with its own Close. The sign-in goes back with Escape.
+      // The voice card ends with its own Back or Close. The sign-in goes back with Escape.
       locked={(locked || call !== null) && !signingIn}
       handle={handle}
       onOutside={signingIn ? () => leaveSignIn(false) : undefined}
+      pinned={call ? voiceCard.size : null}
+      minimized={minimized !== null}
     >
       <Morph view={view} flex>
         <MorphView name="main" keep>
@@ -93,15 +107,43 @@ export function WalletDialog({
                 call
                   .send(card)
                   .catch(() => undefined)
-                  .finally(() => voiceCard.afterCard(call.end)),
+                  .finally(() =>
+                    voiceCard.afterCard(() => {
+                      // A card that ends while it is minimized (an error) brings the dialog back.
+                      setMinimized(null);
+                      setProgress(null);
+                      call.end();
+                      if (closeAfterCard.current) {
+                        closeAfterCard.current = false;
+                        onClose();
+                      }
+                    }),
+                  ),
             }}
+            chrome="back_and_close"
+            minimize
+            transition={VOICE_CARD_TRANSITION}
             {...voiceCard.events}
+            onClose={() => {
+              closeAfterCard.current = true;
+            }}
+            onMinimize={(restore) => setMinimized({ restore })}
+            onRestore={() => setMinimized(null)}
+            onProgress={setProgress}
           />
         </div>
       )}
+      {call && minimized && <CardPill progress={progress} onOpen={minimized.restore} />}
     </Modal>
   );
 }
+
+/**
+ * The voice card's times. The dialog moves to the card's size when the card has one (`onEnter`),
+ * and the card fades in only when that move is over. So the card never shows over a dialog
+ * that is still larger than the card.
+ */
+const VOICE_CARD_TRANSITION = { enterDelayMs: RESIZE_MS, fadeInMs: 120, fadeOutMs: 120 } as const;
 
 /** The page's hosted sign-in, when the page has one (the market preview has none). */
 function useHostedSignIn(): { signingIn: boolean; end: (signedIn: boolean) => void } {

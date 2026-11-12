@@ -142,6 +142,17 @@ jobs:
       - name: Check
         run: demo/contracts/reproducible.sh check ${{ matrix.contract }}
 
+  # The OutLayer worker of the pm-notes market must build byte for byte as its
+  # reproducible.sha256 records (resolver/build.sh, the pinned Rust image).
+  reproducible-resolver:
+    name: reproducible build (pm-notes-resolver)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check
+        run: demo/contracts/jev-prediction-market/resolver/build.sh --check
+
   # The three libraries for an application with no Seams Wallet. voice-sign links the other two
   # from their folders, so they are built first, as in release-standalone.yml.
   standalone:

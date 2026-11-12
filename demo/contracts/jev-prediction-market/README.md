@@ -404,8 +404,40 @@ The build of 11 Nov 2026 gave:
 The deployed code is this build, since the redeploy of 2026-11-11 (see
 "Testnet deployment"). SourceScan built the commit again and got the same
 code hash, so NearBlocks shows the code as verified at
-<https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract>. The
-OutLayer worker in `resolver/` has no reproducible build.
+<https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract>.
+
+### Reproducible build of the worker
+
+The OutLayer worker in `resolver/` has its own reproducible build, because it
+is not a contract: cargo-near does not build it. The OutLayer version key is
+the SHA-256 of the WASM. So you can check that a version comes from this
+source: build it and compare the hash.
+
+```bash
+resolver/build.sh --docker
+```
+
+The script builds the worker in a Rust image that it pins by digest (x86_64
+Linux; on a Mac with Apple silicon, Docker runs it under emulation). One
+source gives the same bytes in any folder and on any machine. Expected, on
+2026-11-13:
+
+```text
+host   x86_64-unknown-linux-gnu
+bytes  429103
+sha256 f50c5c9deb100891c42b28007116314f9068a77779dd9774e894680326b79c51
+```
+
+`resolver/reproducible.sha256` holds this SHA-256. `resolver/build.sh --check`
+builds the worker again and compares, and CI runs it on each push.
+`resolver/build.sh --record` writes a new record after a change to
+`resolver/`. The comment at the top of `resolver/build.sh` says what makes the
+bytes the same.
+
+The active version on OutLayer (`360beda4…223a`, see "Testnet deployment") is
+not this build. It is a build of the same source on macOS, and the host
+platform changes the bytes. The next version to deploy is the WASM of
+`resolver/build.sh --docker`.
 
 ### Local build
 
@@ -438,10 +470,12 @@ To use a binary that you have, set `NEAR_SANDBOX_BIN_PATH`.
 cd resolver && cargo test && ./build.sh
 ```
 
-The worker build of 10 Nov 2026 gave `resolver/res/pm-notes-resolver.wasm`,
-429,160 bytes, SHA-256
+`./build.sh` uses the local toolchain, so its bytes depend on the host
+platform. The worker build of 10 Nov 2026 on macOS gave
+`resolver/res/pm-notes-resolver.wasm`, 429,160 bytes, SHA-256
 `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`. The
-SHA-256 is the OutLayer version key. `resolver/manifest/outlayer.json` is
+SHA-256 is the OutLayer version key. For a deploy, use `./build.sh --docker`
+(see "Reproducible build of the worker"). `resolver/manifest/outlayer.json` is
 linked into the WASM as the `outlayer.manifest` custom section; without it,
 OutLayer gives the worker no network access.
 

@@ -1,0 +1,3 @@
+# ./build.sh --docker (429103 bytes, host x86_64-unknown-linux-gnu).
+# Check it with ./build.sh --check
+f50c5c9deb100891c42b28007116314f9068a77779dd9774e894680326b79c51  res/pm-notes-resolver.wasm

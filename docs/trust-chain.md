@@ -70,7 +70,8 @@ to the gateway that it checked. The details are in the
   and check nothing about NEAR AI.
 - The worker with the check is on OutLayer as version 0.14.1 (`1e7c6968…`),
   not active, and no caller selects it yet. On 2026-11-12 its 0.14.0 build
-  (`b9a315b7…`, the same worker before the `venice` fix) loaded 0.09 s
+  (`b9a315b7…`, the same worker before the `venice` fix, removed since)
+  loaded 0.09 s
   faster than 0.13.0. In three `verify` calls it read the stored check and
   got the speaker reply. NEAR AI Whisper then gave no reply, so no sealed
   transcription ran on OutLayer yet. From a laptop, the sealed transcription

@@ -58,7 +58,7 @@ section 9.1 (each checker). The live state is in
 
 ## The NEAR AI check
 
-The verifier source on `dev` (version 0.14.0) checks NEAR AI's attestation
+The verifier source on `dev` (from version 0.14.0) checks NEAR AI's attestation
 inside the OutLayer worker, and sends each recording to Whisper only sealed
 to the gateway that it checked. The details are in the
 [verifier README](../crates/voice-verifier/README.md#near-ai-attestation).
@@ -68,15 +68,16 @@ to the gateway that it checked. The details are in the
   users do not have it: 0.12.0 is the active version, and the demo and the
   Seams staging server call 0.13.0. Both send the audio to NEAR AI over TLS
   and check nothing about NEAR AI.
-- A first build of 0.14.0 (`2f8e75a3…`, with `dcap-qvl`) is on OutLayer, not
-  active, and no caller selects it. On 2026-11-12 it checked the two quotes
-  inside OutLayer and kept the result, and two later calls read that result.
-  NEAR AI Whisper gave no reply during that test, so no sealed transcription
-  ran on OutLayer. From a laptop, the sealed transcription and the full check
-  passed against NEAR AI and Intel (the live tests of the crate).
-- The build of `dev` has the worker's own quote check in place of `dcap-qvl`.
-  It is not on OutLayer. The live state is in
-  [`deployed-state.md`](deployed-state.md).
+- The worker with the check is on OutLayer as version 0.14.0 (`b9a315b7…`),
+  not active, and no caller selects it yet. On 2026-11-12 it loaded 0.09 s
+  faster than 0.13.0. In three `verify` calls it read the stored check and
+  got the speaker reply. NEAR AI Whisper then gave no reply, so no sealed
+  transcription ran on OutLayer yet. From a laptop, the sealed transcription
+  and the full check passed against NEAR AI and Intel (the live tests of the
+  crate).
+- An earlier build of the check, with `dcap-qvl`, ran the full check inside
+  OutLayer on 2026-11-12 and kept the result.
+- The live state is in [`deployed-state.md`](deployed-state.md).
 
 **The design.**
 - The verifier seals each transcription request with Oblivious HTTP (HPKE) to
@@ -106,6 +107,10 @@ to the gateway that it checked. The details are in the
 - A correct transcript. The transcript has no signature of the model.
 - The stored result is one record for all versions of the OutLayer project.
   A new version of the project can write it.
+- The `venice` build. It is a second worker for a NEAR AI Whisper outage
+  (0.14.1+venice on OutLayer, not active). It sends the recording to Venice
+  AI over TLS and checks no TEE on that path. A caller selects it by its
+  version key. A verdict of that build names it: `"verifier":"0.14.1+venice"`.
 
 **The cost.** OutLayer loads the WASM on each call, and the load time grows
 with its size: about 2.3 ms for each KB on 2026-11-12. The first build with
@@ -117,11 +122,11 @@ that are read without `serde` types. The build of `dev` is 494,721 bytes,
 which is smaller than 0.13.0. The numbers are in the
 [verifier README](../crates/voice-verifier/README.md#size-and-load-time).
 
-**What is left before it is live.** The build of `dev` must go to OutLayer as
-a version that is not active, and its time must be measured against 0.13.0.
-Then the Seams staging server and the demo must select the new version, and
-the Wallet must know the refusal `transcriber_not_attested`. Until then, NEAR
-AI stays trusted for the live versions, as listed above.
+**What is left before it is live.** The Seams staging server and the demo
+must select the version with the check, and the Wallet must know the refusal
+`transcriber_not_attested`. One sealed transcription must pass on OutLayer;
+that needs a reply of NEAR AI Whisper. Until then, NEAR AI stays trusted for
+the live versions, as listed above.
 
 The attacks that these gaps allow, and what stops each one, are in
 [`threat-model.md`](threat-model.md).

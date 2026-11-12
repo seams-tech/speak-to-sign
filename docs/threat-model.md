@@ -160,6 +160,11 @@ the gateway to Whisper, or the NVIDIA GPU evidence. Without the check (the
 live versions): also the claim that only a TEE sees the audio rests on NEAR
 AI.
 
+**The `venice` build.** A second worker (0.14.1+venice) is for a NEAR AI
+Whisper outage. It sends the recording to Venice AI over TLS and checks no
+TEE there, so Venice AI is trusted for the audio and for the transcript. A
+caller selects it by its version key, and its verdict names the build.
+
 ## 10. The owner of the Phala app
 
 The owner can change the speaker service and keep its key. The verifier pins

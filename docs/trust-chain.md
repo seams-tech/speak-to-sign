@@ -64,21 +64,20 @@ to the gateway that it checked. The details are in the
 [verifier README](../crates/voice-verifier/README.md#near-ai-attestation).
 
 **The state.**
-- The check is in the source and its tests pass. The versions that run for
-  users do not have it: 0.12.0 is the active version, and the demo and the
-  Seams staging server call 0.13.0. Both send the audio to NEAR AI over TLS
-  and check nothing about NEAR AI.
-- The worker with the check is on OutLayer as version 0.14.1 (`1e7c6968…`),
-  not active, and no caller selects it yet. On 2026-11-12 its 0.14.0 build
-  (`b9a315b7…`, the same worker before the `venice` fix, removed since)
-  loaded 0.09 s
-  faster than 0.13.0. In three `verify` calls it read the stored check and
-  got the speaker reply. NEAR AI Whisper then gave no reply, so no sealed
-  transcription ran on OutLayer yet. From a laptop, the sealed transcription
-  and the full check passed against NEAR AI and Intel (the live tests of the
-  crate).
-- An earlier build of the check, with `dcap-qvl`, ran the full check inside
-  OutLayer on 2026-11-12 and kept the result. That build is removed now.
+- The worker with the check is on OutLayer as version 0.14.1 (`1e7c6968…`).
+  The demo route `/api/voice-verify` (a spoken bet, the multisig page)
+  selects it while NEAR AI Whisper answers.
+- On 2026-11-12, 6 of 6 `verify` calls on it gave `accept` on OutLayer. Each
+  recording went sealed to the checked gateway, and the sealed reply gave the
+  heard words. In the same run it was not slower than 0.13.0.
+- The Seams staging server (a transfer, a note, a rating) still calls
+  0.13.0. That version sends the audio to NEAR AI over TLS and checks nothing
+  about NEAR AI.
+- The stored result of the check on OutLayer is from an earlier build of the
+  check, with `dcap-qvl`, which ran the full check there on 2026-11-12. The
+  worker's own quote check runs on OutLayer when that result is 6 hours old.
+  From a laptop, it passed against NEAR AI and Intel (the live tests of the
+  crate), and the tests compare it with `dcap-qvl`.
 - The live state is in [`deployed-state.md`](deployed-state.md).
 
 **The design.**
@@ -127,11 +126,10 @@ that are read without `serde` types. The build of `dev` is 494,721 bytes,
 which is smaller than 0.13.0. The numbers are in the
 [verifier README](../crates/voice-verifier/README.md#size-and-load-time).
 
-**What is left before it is live.** The Seams staging server and the demo
-must select the version with the check, and the Wallet must know the refusal
-`transcriber_not_attested`. One sealed transcription must pass on OutLayer;
-that needs a reply of NEAR AI Whisper. Until then, NEAR AI stays trusted for
-the live versions, as listed above.
+**What is left.** The Seams staging server must select the version with the
+check, and the Wallet must know the refusal `transcriber_not_attested`. Until
+then, NEAR AI stays trusted for the requests that go through that server, as
+listed above.
 
 The attacks that these gaps allow, and what stops each one, are in
 [`threat-model.md`](threat-model.md).

@@ -1,7 +1,7 @@
 // The changes of the pm-notes contract, signed by the Seams Wallet. The money is USDC: a bet or
 // a seed is the token's `ft_transfer_call` to the market, and a claim makes the market call the
 // token's `ft_transfer`. A bet and a new market are spoken requests (`seams.near.spoken` and
-// `approval` on `seams.near.signAndSendTransaction`, Wallet 0.68.0): the owner says the sentence, and the Wallet sends the transaction with no
+// `approval` on `seams.near.signAndSendTransaction`, Wallet 0.68.1): the owner says the sentence, and the Wallet sends the transaction with no
 // confirm. A bet is the typed request `bet`, whose verdict goes with the bet. A new market is a
 // spoken transaction with a summary. The other changes use the Wallet's normal confirm step
 // (passkey).

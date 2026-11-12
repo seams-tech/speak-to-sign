@@ -2,6 +2,8 @@
 // Seams server runs the Speak-to-Sign verifier. The same Seams project and key serve the
 // Speak to pay page at /pay/ (examples/speak-to-pay), so one wallet works on both.
 
+import { isImplicitAccount } from './guards';
+
 function env(value: string | undefined, fallback = ''): string {
   const trimmed = (value ?? '').trim();
   return trimmed === '' ? fallback : trimmed;
@@ -49,5 +51,5 @@ export function shortHash(hash: string): string {
 
 /** Shortens an implicit (64-hex) account for display. Named accounts stay as they are. */
 export function shortAccount(accountId: string): string {
-  return /^[0-9a-f]{64}$/.test(accountId) ? `${accountId.slice(0, 6)}…${accountId.slice(-4)}` : accountId;
+  return isImplicitAccount(accountId) ?`${accountId.slice(0, 6)}…${accountId.slice(-4)}` : accountId;
 }

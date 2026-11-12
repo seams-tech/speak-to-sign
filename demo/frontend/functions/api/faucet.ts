@@ -4,7 +4,12 @@
 // its own contract (demo/contracts/faucet), which registers the account with testnet USDC,
 // sends it 2 USDC, then sends it 0.2 NEAR. Each account gets it once; the contract keeps the
 // list. The key here is a function-call key that can call `drip` and nothing else.
+//
+// A new Seams wallet is an implicit account, which is not on the chain until its first NEAR.
+// The drip's NEAR transfer creates it, so the faucet takes such an account as it is. A named
+// account must exist first: its USDC would go to an account that nobody holds.
 
+import { isImplicitAccount } from '../../src/guards.ts';
 import { accountExists, signAndSendCall, viewCall } from '../../src/faucet/nearTx.ts';
 import { DEFAULT_RPC_URL, isAccountId, json, refuseOtherOrigin } from '../lib/http.ts';
 
@@ -50,7 +55,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if (await viewCall<boolean>(rpcUrl, faucet, 'has_claimed', { account_id: accountId })) {
       return json({ error: 'This account already got testnet NEAR and USDC from the faucet.' }, 409);
     }
-    if (!(await accountExists(rpcUrl, accountId))) {
+    if (!isImplicitAccount(accountId) && !(await accountExists(rpcUrl, accountId))) {
       return json({ error: 'This account is not on NEAR testnet yet.' }, 400);
     }
     const config = await viewCall<FaucetConfig>(rpcUrl, faucet, 'get_config', {});

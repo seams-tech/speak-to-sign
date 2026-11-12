@@ -6,6 +6,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { config } from '../config';
+import { isImplicitAccount } from '../guards';
 import { NOTE_GAS_NEED_YOCTO, readFreeBalance, readTokenBalance, USDC_NEED } from '../notes/nearAccount';
 import { requestFaucet } from './client';
 
@@ -98,8 +99,10 @@ export function ensureFunds(account: string, need: FundsNeed = 'bet'): Promise<b
 
 async function fill(account: string): Promise<boolean> {
   let balance = await readFunds(account);
-  // A new wallet can take a few seconds to show on testnet.
-  for (let poll = 0; balance && balance.free === null && poll < ARRIVAL_POLLS; poll += 1) {
+  // A new named wallet can take a few seconds to show on testnet. A new implicit wallet shows
+  // only after its first NEAR, which the faucet sends: no wait for it.
+  const appears = !isImplicitAccount(account);
+  for (let poll = 0; appears && balance && balance.free === null && poll < ARRIVAL_POLLS; poll += 1) {
     await sleep(ARRIVAL_POLL_MS);
     balance = await readFunds(account);
   }

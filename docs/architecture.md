@@ -321,18 +321,21 @@ The Seams verify route gives the Wallet the attestation URL of the call, and
 the result card links to it ("View TDX quote"). No code checks the quote
 before the Wallet signs.
 
-**Where the check belongs: the device co-signer.** The Wallet signs with a
+**Decision: the Seams server checks the quote.** The Wallet signs with a
 threshold of two parts: the Seams co-signer on Cloudflare, and a co-signer on
 the user's device in an origin-isolated iframe. A verdict replaces the
 confirm press, so the build of the verifier decides what the Wallet signs.
 
-- The device co-signer runs the quote check before it adds its part, against
-  WASM hashes that the Wallet pins next to the key. Then a new version of the
-  project cannot approve a signature: its quote names a WASM hash that the
-  Wallet does not pin.
-- The Seams co-signer and the OutLayer project have the same owner. A check
-  only in the Seams co-signer removes no trust. It can run the same check as
-  a second layer.
+- The Seams verify route checks the quote of each call that it makes,
+  against the WASM hash that it pins (`versionKey`), before it returns the
+  verdict. Then a new version in the project cannot approve a signature
+  through the Seams server: its quote names another WASM hash.
+- To pass around this check, an attacker needs two separate rights: the NEAR
+  key of the project owner (`seams-v1.testnet`) and the right to deploy the
+  Seams server.
+- This check does not remove the trust in the Seams team, which has both
+  rights. Only a check in the device co-signer would remove it. That check is
+  not planned.
 
 **The contracts do not need the quote.** Each voice action of
 `voice-multisig`, `jev-prediction-market` and `community-notes` is a
@@ -362,28 +365,19 @@ contract is like that.
   --build`). The owner can lock the row to another build, with the same gap
   as the registry.
 
-**After the device check, the design still trusts:** Intel TDX and its
-collateral, the OutLayer worker image that `worker.outlayer.testnet`
-approves, and the Wallet code that the device runs. The speaker service key
-and the NEAR AI transcript are separate items of this section.
+**With the server check, the design still trusts:** the Seams team, Intel
+TDX and its collateral, and the OutLayer worker image that
+`worker.outlayer.testnet` approves. The speaker service key and the NEAR AI
+transcript are separate items of this section.
 
-**Work that is not done** (all in `seams-wallet`):
-
-1. Pin the accepted WASM hashes in `SPEAK_TO_SIGN_VERIFIERS`, next to
-   `publicKey`.
-2. In Wallet core, before the device co-signer adds its part: get the
-   attestation record, then run `checkAttestationBinding` on the verify
-   output, `checkQuoteCollateral` with the collateral of
-   `GET <api>/public/collateral` (keep it until its next update) and
-   `measurementsApproved`. Refuse with a new reason if one check fails.
-3. Measure the time from the end of the call until the attestation record is
-   available. OutLayer stores the record a short time after the call
-   returns, and `@seams/voice-sign` waits up to 15 s for it. The device check
-   adds this time to each spoken approval.
-4. Optional: the Seams co-signer runs the same check.
-
-In this repository, `@seams/voice-sign` also needs `checkQuoteCollateral` in
-its `attestation` setting, so that its check is complete.
+**The server check** (in `seams-wallet`, `packages/wallet-server`, work in
+progress on 2026-11-12): after the OutLayer call, the verify route gets the
+attestation record and runs `checkAttestationBinding` with the pinned WASM
+hash, `checkQuoteCollateral` with the collateral of
+`GET <api>/public/collateral`, and `measurementsApproved`. If a check fails,
+the route does not return the verdict. OutLayer stores the record a short
+time after the call returns, so the route waits for it, up to 15 s. That
+wait adds to each spoken approval. It is not measured yet.
 
 ## 9. Confidential audio
 

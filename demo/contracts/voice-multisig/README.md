@@ -17,10 +17,11 @@ calls its `hide_note`. The contract has no cap: a transfer is any amount
 that the grammar can speak (0.01 to 1,000,000 NEAR), and the balance of the
 multisig limits it. Testnet only.
 
-This README is for version 3.0.0, the source in `src/`. The contract on
-`multisig.seams-v1.testnet` is still version 2.x, with two admins that
-approve by plain calls (see "Deployed code"). Version 3.0.0 is not deployed
-yet, and no demo page uses it.
+This README is for version 3.0.0, the source in `src/`. Version 3.0.0 is on
+`voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2 signers
+(see "Deployed code"). No demo page uses it yet. The older account
+`multisig.seams-v1.testnet` still runs version 2.x, with two admins that
+approve by plain calls.
 
 The specification is in `docs/voice-intents-spec.md`, section 10. The
 sequence diagram is in `docs/architecture.md`, section 7.
@@ -280,9 +281,9 @@ git and cargo-near 0.22.0.
 ../reproducible.sh check voice-multisig   # builds the recorded commit again and compares
 ```
 
-The build of 12 Nov 2026 of version 3.0.0 is the WASM to deploy. It is not
-deployed yet. The code on `multisig.seams-v1.testnet` is the 2.x build of
-commit `777b844` (see "Deployed code").
+The build of 12 Nov 2026 of version 3.0.0 is the code on
+`voice-multisig.seams-v1.testnet`. The code on `multisig.seams-v1.testnet`
+is the 2.x build of commit `777b844` (see "Deployed code").
 
 | Item               | Value |
 | ------------------ | ----- |
@@ -293,8 +294,9 @@ commit `777b844` (see "Deployed code").
 
 `reproducible.sha256` holds the same commit and SHA-256. Both sandbox tests
 pass with this WASM (`VOICE_MULTISIG_WASM=res/voice_multisig.wasm`).
-SourceScan can build the commit again only after `dev` with this commit is
-on GitHub.
+SourceScan built the commit again and got the same code hash, so NearBlocks
+shows the code as verified at
+<https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract>.
 
 ### Local build
 
@@ -343,53 +345,73 @@ community-notes contract with 2 of 2 voice approvals.
 
 ## Deploy to testnet
 
-Version 3.0.0 needs a new contract account. Its state (signers, threshold,
+Version 3.0.0 has its own contract account. Its state (signers, threshold,
 recordings) is not the state of 2.x (admins), and the open 2.x proposals
 have admin approvals that are not voices. So a migration in place on
 `multisig.seams-v1.testnet` would carry approvals that no voice gave. That
-account stays on 2.x as a record.
+account stays on 2.x as a record, with its proposals and its NEAR.
 
-Each step waits for the owner's go-ahead. The signer accounts must have an
-enrolled voice in the verifier (`enroll`). The proposed account name is
-`voice-multisig.seams-v1.testnet`.
+The steps below are the record of the deploy of 2026-11-12 and the way to
+deploy again. Each step waits for the owner's go-ahead. Each signer must
+have an enrolled voice in the verifier (`enroll`) before it proposes or
+approves, and two signers need two different voices (`same_speaker`).
 
 1. Make the reproducible build from a commit on `dev` (cargo-near 0.22.0,
-   Docker), and commit `reproducible.sha256`:
+   Docker), commit `reproducible.sha256`, and push `dev`, so SourceScan can
+   build the commit again:
 
    ```bash
    ../reproducible.sh build voice-multisig
    ```
 
-2. Create the contract account. 3 NEAR covers the code (about 2.15 NEAR):
+2. Create the contract account. 3 NEAR covers the code (about 2.15 NEAR).
+   Tx `5PWHCXLPb6aKyZGRkevkoMhfPVhfqH3Fn5uQ12DV6R9x`:
 
    ```bash
    near account create-account fund-myself voice-multisig.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
 3. Deploy the WASM with the signers, the threshold and the verifier key.
-   Replace the signers with the accounts that the owner names:
+   Tx `FUAfW1AeZMMarjVThdDtmdXAhPw1ghZt2U6FSMF83rxs` (17.4 Tgas):
 
    ```bash
-   near contract deploy voice-multisig.seams-v1.testnet use-file res/voice_multisig.wasm with-init-call new json-args '{"signers":["<signer-1>.testnet","<signer-2>.testnet","<signer-3>.testnet"],"threshold":2,"verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
+   near contract deploy voice-multisig.seams-v1.testnet use-file res/voice_multisig.wasm with-init-call new json-args '{"signers":["cyan-loong.testnet","seams-v1.testnet"],"threshold":2,"verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
    ```
 
-4. For a hide, name the notes contract, and make the notes contract name
-   this multisig as its moderator (`set_moderator` of `../community-notes/`).
+4. Name the notes contract. Tx
+   `9xESGGc9s7kkfs8W7pHEcWhjx1mnZpBaKkdTQXZVv2y7`:
 
    ```bash
    near contract call-function as-transaction voice-multisig.seams-v1.testnet set_notes_contract json-args '{"account_id":"notes.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as voice-multisig.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-5. Fund the multisig with a plain transfer:
+   A hide works only when the notes contract names this multisig as its
+   moderator. The notes contract has one moderator, and it is still
+   `multisig.seams-v1.testnet` (2.x). The switch ends the hides of 2.x, so
+   it waits for the owner:
 
    ```bash
-   near tokens seams-v1.testnet send-near voice-multisig.seams-v1.testnet '7 NEAR' network-config testnet sign-with-legacy-keychain send
+   near contract call-function as-transaction notes.seams-v1.testnet set_moderator json-args '{"account_id":"voice-multisig.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as notes.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-6. Check the deployed code through the SourceScan API, and read the config:
+5. Fund the multisig with a plain transfer. Tx
+   `HWAFhCd7zWWM3ZrPK1tRQFhfD9Agc9NFNbdvB66uqW7o` (2 NEAR, 5.00 NEAR in
+   all, of which about 2.15 NEAR holds the code):
+
+   ```bash
+   near tokens seams-v1.testnet send-near voice-multisig.seams-v1.testnet '2 NEAR' network-config testnet sign-with-legacy-keychain send
+   ```
+
+6. Read the config, and ask SourceScan to verify the code (see
+   [`../README.md`](../README.md#the-deployed-code)). It answered
+   `{"message":"Contract verified successfully","checksum":"CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA"}`:
 
    ```bash
    near contract call-function as-read-only voice-multisig.seams-v1.testnet get_config json-args '{}' network-config testnet now
+   ```
+
+   ```bash
+   curl -s -X POST https://api-v2.sourcescan.dev/api/verify/rust -H 'Content-Type: application/json' -d '{"accountId":"voice-multisig.seams-v1.testnet","networkId":"testnet"}'
    ```
 
 The verifier key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
@@ -400,6 +422,20 @@ for, and it stays the same across versions. The verifier has
 (the hide since 0.7.0), so 3.0.0 needs no new verifier version.
 
 ## Deployed code
+
+`voice-multisig.seams-v1.testnet` runs version 3.0.0 since 2026-11-12: the
+reproducible build of commit `99231f6` (214,166 bytes, SHA-256
+`ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb`, code
+hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`, verified by
+SourceScan). The signers are `cyan-loong.testnet` and `seams-v1.testnet`,
+and the threshold is 2. The notes contract is `notes.seams-v1.testnet`, but
+the notes contract does not name this multisig as its moderator yet. The
+transactions are in "Deploy to testnet". No proposal exists yet.
+
+Not done for a live use: no demo route takes the multisig request kinds
+(`/api/voice-verify` takes only `market_bet`), so a signer gets a verdict
+only by a direct call of the OutLayer verifier, paid by the Seams payment
+key. The voice enrollment of the two signers is not checked here.
 
 `multisig.seams-v1.testnet` runs version 2.x: any account that is not an
 admin proposes by voice, and the admins `admin-a.seams-v1.testnet` and

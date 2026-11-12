@@ -47,7 +47,7 @@ hackathon. It is the baseline, not hackathon work. See
 | Demo video  | TODO: the owner adds the link to the demo video.        |
 | X post      | TODO: the owner adds the link to the X post.            |
 | Demo page   | `pnpm site` starts it on this machine. `demo/frontend/README.md` tells what must be live. |
-| Contracts   | [Testnet facts](#contracts): the four contract accounts, with NearBlocks links. |
+| Contracts   | [Testnet facts](#contracts): the five contract accounts, with NearBlocks links. |
 
 The same verifier also approves other calls:
 
@@ -60,8 +60,10 @@ The same verifier also approves other calls:
   proposal from memory and approves with a verdict of its own. The contract
   checks each verdict on chain, and one recording counts once. No call
   without a verdict can approve. This closes the gap of the Bybit loss
-  above. Not done: 3.0.0 is not deployed, and the demo site has no page for
-  it. `multisig.seams-v1.testnet` still runs version 2.x, where two admins
+  above. It is on `voice-multisig.seams-v1.testnet` since 2026-11-12, with
+  2 of 2 signers, and SourceScan verified its code. Not done: no proposal
+  ran on testnet yet, and the demo site has no page or route for it. The
+  older `multisig.seams-v1.testnet` still runs version 2.x, where two admins
   approve with plain signed calls.
 
 ## Reproduce without a microphone
@@ -527,7 +529,7 @@ Each top-level folder says what its contents are for.
 | `demo/frontend/` | The Spoken Notes demo page: post and rate community notes by voice. See its README. |
 | `demo/contracts/community-notes/` | The NEAR contract `notes.seams-v1.testnet` for the demo: `add_note`, `rate_note` and the views. See its README. |
 | `demo/contracts/jev-prediction-market/` | The note market `pm-notes.seams-v1.testnet`: parimutuel bets in testnet USDC on a community note, resolved by JEV through OutLayer (`resolver/`), with a JEV-weighted payout. See its README. |
-| `demo/contracts/voice-multisig/` | The voice-only multisig, version 3.0.0: M of N signers propose and approve a NEAR transfer or the hide of a note, each by voice. Not deployed yet; `multisig.seams-v1.testnet` runs version 2.x, with two admins that approve by key. The demo site has no page for it. See its README. |
+| `demo/contracts/voice-multisig/` | The voice-only multisig, version 3.0.0, on `voice-multisig.seams-v1.testnet`: M of N signers propose and approve a NEAR transfer or the hide of a note, each by voice. The older `multisig.seams-v1.testnet` runs version 2.x, with two admins that approve by key. The demo site has no page for it. See its README. |
 | `demo/contracts/faucet/` | The faucet `seams-faucet.testnet`: 0.2 NEAR and 2 testnet USDC for a new account, once. See its README. |
 | `examples/speak-to-pay/` | Speak to pay: a web page that pays a NEAR testnet account by voice, served at `/pay/` of the demo site. See its README. |
 | `research/gate0/` | The Gate 0 feasibility probes and the HTTPS latency probe (`voice-probe/`). Evidence, not product. |
@@ -554,6 +556,7 @@ as verified.
 | Contract | Testnet account | Source | Code hash (base58) |
 | -------- | --------------- | ------ | ------------------ |
 | Community notes | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) | [`demo/contracts/community-notes/`](demo/contracts/community-notes/) | `mvYopouU7PP9ZVbwzTJ6qUH8kDjEiMeP7TDENF9eUko` |
+| Voice multisig (version 3.0.0, voice only, 2 of 2 signers) | [`voice-multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig/`](demo/contracts/voice-multisig/) at commit `99231f6` | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
 | Voice multisig (version 2.x, admins approve by key) | [`multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig/`](demo/contracts/voice-multisig/) at commit `777b844` | `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh` |
 | Note market | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) | [`demo/contracts/jev-prediction-market/`](demo/contracts/jev-prediction-market/) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` |
 | Faucet | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) | [`demo/contracts/faucet/`](demo/contracts/faucet/) | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` |
@@ -573,7 +576,7 @@ The deploy transactions and the way to build each contract again are in
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |
 | Note market         | `pm-notes.seams-v1.testnet` (see "Contracts"). Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 9 (note 0) was the market of the old demo post's context box. The page no longer shows it. |
-| Voice multisig      | `multisig.seams-v1.testnet` (see "Contracts"), deployed 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). Version 2.x: a visitor proposes by voice (verifier 0.6.1); `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` approve by key. No cap. The voice-only version 3.0.0 in the source is not deployed. It replaces `team.seams-v1.testnet`, which had a cap of 0.05 NEAR. |
+| Voice multisig      | `multisig.seams-v1.testnet` (see "Contracts"), deployed 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). Version 2.x: a visitor proposes by voice (verifier 0.6.1); `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` approve by key. No cap. The voice-only version 3.0.0 is on `voice-multisig.seams-v1.testnet` (deploy and `new` 2026-11-12, tx `FUAfW1AeZMMarjVThdDtmdXAhPw1ghZt2U6FSMF83rxs`; signers `cyan-loong.testnet` and `seams-v1.testnet`, threshold 2). The 2.x account replaces `team.seams-v1.testnet`, which had a cap of 0.05 NEAR. |
 | Market resolver     | OutLayer project `seams-v1.testnet/pm-notes-resolver`, version `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`: JEV (`typesafe/jev-1.13`) on NEAR AI, then a NEAR AI chat model. |
 
 ## Trust limits

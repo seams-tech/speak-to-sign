@@ -1,4 +1,9 @@
-// POST /api/voice-verify  { input }  ->  the verifier output, unchanged  or  { error }
+// POST /api/voice-verify  { input, transcriber? }  ->  the verifier output, unchanged  or  { error }
+//
+// `transcriber` ("nearai" or "venice") names the speech-to-text service. Without it, NEAR AI
+// serves the call, and Venice AI serves it only while NEAR AI Whisper is down (see
+// chooseTranscriber). The answer names the service in the header X-Speech-To-Text, and the
+// verdict of a Venice call has a `verifier` that ends in "+venice".
 //
 // Runs the OutLayer voice verifier for the spoken bet of the note market and for the spoken
 // multisig page (/multisig/), with the demo's own OutLayer payment key, the way the Seams verify
@@ -17,6 +22,7 @@
 
 import { isObject } from '../../src/guards.ts';
 import { json, readBoundedText, refuseOtherOrigin } from '../lib/http.ts';
+import { chooseTranscriber, statusForChoice, type Transcriber } from '../lib/nearAiStatus.ts';
 
 interface Env {
   /** For example https://testnet-api.outlayer.ai (*.outlayer.fastnear.com is retired: 410). */
@@ -25,6 +31,14 @@ interface Env {
   VOICE_OUTLAYER_PROJECT?: string;
   /** The WASM hash of a verifier version that has the `market_bet` and multisig kinds (0.8.0 or later). */
   VOICE_OUTLAYER_VERSION_KEY?: string;
+  /**
+   * Optional. The WASM hash of the `venice` build of the same verifier (`build.sh --venice`):
+   * it sends the words to Venice AI, which has no TEE. With it, a request can name Venice, and
+   * a call with no name goes to Venice while NEAR AI Whisper is down.
+   */
+  VOICE_OUTLAYER_VENICE_VERSION_KEY?: string;
+  /** For the check of NEAR AI Whisper before a call with no named service. */
+  NEAR_AI_API_KEY?: string;
   /** The OutLayer payment key of the Seams staging verify route. It goes only into the X-Payment-Key header. */
   VOICE_OUTLAYER_PAYMENT_KEY?: string;
   VOICE_OUTLAYER_SECRETS_PROFILE?: string;
@@ -69,8 +83,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const text = await readBoundedText(request, MAX_BODY_BYTES);
   if (text === null) return json({ error: 'The recording is too long. Record 8 seconds or less.' }, 413);
-  const input = parseInput(text);
-  if (typeof input === 'string') return json({ error: input }, 400);
+  const parsed = parseBody(text);
+  if (typeof parsed === 'string') return json({ error: parsed }, 400);
+  const { input, transcriber: requested } = parsed;
+
+  const veniceKey = env.VOICE_OUTLAYER_VENICE_VERSION_KEY?.trim() ?? '';
+  const hasVeniceBuild = veniceKey !== '';
+  // The check of NEAR AI runs only when its answer can change the choice.
+  const status = requested === undefined && hasVeniceBuild ? await statusForChoice(env.NEAR_AI_API_KEY) : null;
+  const transcriber = chooseTranscriber({ requested, hasVeniceBuild, status });
+  if (transcriber === 'no_venice_build') {
+    return json({ error: 'This server has no verifier build for Venice AI (VOICE_OUTLAYER_VENICE_VERSION_KEY).' }, 503);
+  }
 
   let response: Response;
   try {
@@ -80,7 +104,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       body: JSON.stringify({
         input,
         async: false,
-        version_key: outlayer.versionKey,
+        version_key: transcriber === 'venice' ? veniceKey : outlayer.versionKey,
         secrets_ref: outlayer.secretsRef,
         resource_limits: RESOURCE_LIMITS,
       }),
@@ -96,7 +120,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!response.ok) return json({ error: outlayerFailure(response.status) }, 502);
   const output = readOutlayerOutput(await response.text());
   if (output === null) return json({ error: 'The verifier run did not complete. Try again.' }, 502);
-  return json(output);
+  return json(output, 200, { 'X-Speech-To-Text': transcriber });
 };
 
 export const onRequestGet: PagesFunction<Env> = async () => json({ error: 'Use POST with { "input": { ... } }.' }, 405, { Allow: 'POST' });
@@ -132,23 +156,28 @@ function readConfig(env: Env): OutlayerConfig | string {
   };
 }
 
-/** The verifier input of `{ input }`, or the reason for a 400. The verifier checks the rest. */
-function parseInput(text: string): Record<string, unknown> | string {
+const BODY_FORM = 'Send JSON in the form { "input": { ... } }, with an optional "transcriber": "nearai" or "venice".';
+
+/**
+ * The verifier input and the named service of `{ input, transcriber? }`, or the reason for a
+ * 400. The verifier checks the rest of the input.
+ */
+export function parseBody(text: string): { input: Record<string, unknown>; transcriber: Transcriber | undefined } | string {
   let body: unknown;
   try {
     body = JSON.parse(text);
   } catch {
-    return 'Send JSON in the form { "input": { ... } }.';
+    return BODY_FORM;
   }
-  if (!isObject(body) || Object.keys(body).length !== 1 || !isObject(body.input)) {
-    return 'Send JSON in the form { "input": { ... } }.';
-  }
-  const { input } = body;
+  if (!isObject(body) || !isObject(body.input)) return BODY_FORM;
+  const { input, transcriber, ...rest } = body;
+  if (Object.keys(rest).length > 0) return BODY_FORM;
+  if (transcriber !== undefined && transcriber !== 'nearai' && transcriber !== 'venice') return BODY_FORM;
   if (input.op !== 'verify') return 'This route runs only the verify op.';
   if (!isObject(input.request) || !REQUEST_KINDS.includes(String(input.request.kind))) {
     return 'This route takes only the request kinds market_bet, multisig_propose and multisig_confirm.';
   }
-  return input;
+  return { input, transcriber };
 }
 
 /** The verifier's own output, or null when the run did not complete. */

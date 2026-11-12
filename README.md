@@ -252,10 +252,8 @@ The key is bound to the project, and the Wallet and the contracts pin it.
 
 | Version | State |
 | --- | --- |
-| 0.12.0 | Active: a call with no `version_key` runs it. |
-| 0.13.0 | The version that the demo calls, through the Seams staging server. It adds the check that the spoken summary of a note gives its main point. |
 | 0.14.1 | On OutLayer, not active. It checks the TDX quotes of NEAR AI before it sends audio there. No caller selects it yet. |
-| 0.14.1+venice | On OutLayer, not active. For an outage of NEAR AI Whisper: it gets the words from Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. |
+| 0.14.1+venice | Active since 2026-11-12, because NEAR AI Whisper gave no reply: a call with no `version_key` runs it. It gets the words from Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. |
 
 [`docs/deployed-state.md`](docs/deployed-state.md) says what is live now, where
 it differs from the source, and the command that checks each part.

@@ -61,7 +61,7 @@ other part links it or ports it.
 ```mermaid
 flowchart TB
   SI["crates/spoken-intent<br/>render, digests, transcript rules"]
-  Vec["fixtures/spoken_intent_vectors_v1.json<br/>golden vectors"]
+  Vec["crates/spoken-intent/fixtures/<br/>spoken_intent_vectors_v1.json<br/>golden vectors"]
   VV["crates/voice-verifier<br/>enroll, verify"]
   SS["crates/speaker-service<br/>signed embeddings"]
   MS["demo/contracts/voice-multisig<br/>checks the verdict on chain"]
@@ -366,7 +366,8 @@ Who holds which key:
 - **The seal.** HPKE base mode with X25519, HKDF-SHA256 and
   ChaCha20-Poly1305. Each recording has a new ephemeral key. The operation
   and the owner are in the `aad`, so a sealed recording opens only for that
-  owner's `verify` or `enroll`.
+  owner and that operation (`verify`, `enroll`, `select`, `transcribe` or
+  `detect`).
 
 Limits:
 
@@ -379,5 +380,6 @@ Limits:
 - **The project owner.** A new verifier version of the same OutLayer project
   gets the audio key. The OutLayer access rule "One build only" limits the
   key to one WASM hash; it is not set.
-- **The released Wallet.** Wallet core seals on `dev` of `seams-wallet`.
-  `@seams/wallet` 0.66.0 on npm sends a plain WAV.
+- **Older Wallets.** `@seams/wallet` 0.66.0 on npm sends a plain WAV.
+  `@seams/wallet` 0.69.2, which the demo pins, has the seal
+  (`audio_sealed_b64`).

@@ -1,6 +1,6 @@
 # pm-notes: a JEV prediction market for community notes
 
-A mini parimutuel prediction market for the Spoken Notes demo, in NEAR testnet
+A mini parimutuel prediction market for the community notes demo, in NEAR testnet
 USDC. Anyone opens a yes-or-no market about a community note ("Will this note
 hold up?"), and anyone bets USDC on YES or NO. After the close, an OutLayer AI
 call to JEV (Typesafe) gives the probability that the answer is YES. That
@@ -11,7 +11,7 @@ Demo only, testnet only. The plan is in `PLAN.md`.
 | ---- | ------ | ---------- |
 | Contract | `src/` | The market: create, bet, close, resolve, claim |
 | Sandbox test | `sandbox/` | The release WASM in a local nearcore sandbox, with a fake USDC (`sandbox/fake-usdc/`) and a fake OutLayer (`sandbox/fake-outlayer/`) |
-| Resolver worker | `resolver/` | The OutLayer worker (`wasm32-wasip2`): JEV first, NEAR AI second |
+| Resolver worker | `resolver/` | The OutLayer worker (`wasm32-wasip2`): JEV at Typesafe first, then JEV on NEAR AI, then a NEAR AI chat model |
 
 ## Toolchain
 
@@ -53,7 +53,7 @@ default key is the Seams testnet verifier's,
 `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. These settings are
 under raw storage keys (`voice:*`), so the upgrade needs no state migration.
 
-Tests: 10 unit tests in `src/tests.rs`, and `sandbox/tests/spoken_bet.rs`
+Tests: 69 unit tests in `src/tests.rs` (7 of them for the spoken bet), and `sandbox/tests/spoken_bet.rs`
 against the release WASM in the nearcore sandbox (a spoken bet burns about
 2.9 Tgas in this contract). On testnet since 2026-11-11 (see "Testnet deployment").
 
@@ -294,7 +294,10 @@ NEAR_AI_API_KEY"}` and exits with 0, so that the contract shows the reason.
    YES) and `false` (the answer is NO). The answer
    `{"type": "noul", "noul": 0.73}` becomes 7,300 bps. JEV gives no text, so
    the rationale names the model and the probability.
-2. **NEAR AI** (if JEV fails or has no key, and `NEAR_AI_API_KEY` is set):
+2. **JEV on NEAR AI** (if JEV at Typesafe fails or has no key, and
+   `NEAR_AI_API_KEY` is set): the same System One request at
+   `POST https://cloud-api.near.ai/v1/systemone`, model `typesafe/jev-1.13`.
+3. **A NEAR AI chat model** (if both JEV calls fail):
    `POST https://cloud-api.near.ai/v1/chat/completions` with
    `Qwen/Qwen3.8-27B`, temperature 0, thinking off. The reply is one JSON
    object `{"yes_probability": 0.62, "rationale": "..."}`.
@@ -312,7 +315,8 @@ The strip is `<NoteMarketStrip>` in `demo/frontend/src/market/` (its README
 has the details). It codes against `MarketSource`. `contractSource.ts` fills
 that interface from this contract: views over NEAR RPC, and changes signed by
 the Seams Wallet with its normal confirm step. Bets and seeds are the USDC
-token's `ft_transfer_call`. `NoteCard` mounts the strip on the post page:
+token's `ft_transfer_call`. The timeline (`src/x/Timeline.tsx`) mounts the
+strip as the last row of a note card:
 
 - No market: "Will this note hold up?" and **Open a market**, which opens one
   at once with a 1 USDC seed and 3 minutes of betting. **Change** gives a
@@ -329,13 +333,11 @@ token's `ft_transfer_call`. `NoteCard` mounts the strip on the post page:
   split of the pool, the account's payout with **Claim**, and "How JEV
   decided".
 
-Spoken bets need a new spoken request kind in the Wallet, so the source has
-`signsByVoice: false`.
+Bets are spoken, so the source has `signsByVoice: true`.
 
 Settings: `VITE_MARKET_CONTRACT` (default `pm-notes.seams-v1.testnet`),
 `VITE_MARKET_TOKEN` (default: testnet USDC) and `VITE_MARKET_RPC_URL`
-(default: the notes RPC). Until the contract is on testnet, the strip stays
-hidden.
+(default: the notes RPC).
 
 To see all states before the deploy, run a local stand-in for testnet. It
 deploys the notes contract, a fake USDC and this contract to a sandbox, writes
@@ -521,19 +523,20 @@ NEAR AI) gave a YES probability of N%."
 
 ## Demo script
 
-What a judge can do on the demo page (`#/notes/post/1`):
+What a judge can do on the demo page (<https://speak-to-sign.pages.dev/>):
 
 1. **Get money.** The setup card's faucet gives a new account 0.2 NEAR and 2
    USDC in one transaction (`seams-faucet.testnet`, from the demo page
    session).
-2. **Bet.** Under the post, the X-style "Readers added context" box asks "Do
-   you bet this is true or false?". **Bet** opens the Note dialog with market 9
-   (note 0). One tap on **Bet yes** or **Bet no** sends USDC with the token's
-   `ft_transfer_call`; the Seams Wallet asks for a confirm. The bar, the odds
-   and the pool move after the transaction.
+2. **Bet.** On a note with an open market, press **Bet**. The bet sheet
+   shows the sentence of the bet, and you say it. The Seams Wallet sends the
+   USDC with the token's `ft_transfer_call`, with the verdict, and the
+   contract checks the verdict (`get_voice_config` gives `"required":true`).
+   The bar, the odds and the pool move after the transaction.
 3. **Open a market.** After someone writes a note on the post, its card shows
-   "Will this note hold up?" and **Open a market**: one tap and one confirm
-   open a 3-minute market with a 1 USDC seed.
+   "Will this note hold up?" and **Open a market**. You say "Open a
+   prediction market on this note", and a 3-minute market with a 1 USDC
+   seed opens.
 4. **Ask JEV.** The creator taps **Close betting and ask JEV now** (one
    transaction). Anyone else taps **Ask JEV now** after the close (0.01 NEAR,
    300 Tgas). OutLayer runs the resolver: JEV on NEAR AI gives the

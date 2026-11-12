@@ -27,11 +27,11 @@ This document is the specification. The diagrams are in
 | Part | Where | Job |
 | --- | --- | --- |
 | `spoken-intent` | `crates/spoken-intent/` | Renders a request to its sentence, computes the digests, and reads transcripts. `no_std`, with no floats, clock or randomness. |
-| Verifier | `crates/voice-verifier/` | The operations `enroll` and `verify`. It keeps the templates and signs the verdicts. |
+| Verifier | `crates/voice-verifier/` | The operations `enroll` and `verify` (also `select`, `transcribe`, `detect` and `audio_key`). It keeps the templates and signs the verdicts. |
 | Speaker service | `crates/speaker-service/` | ReDimNet B1 in a Phala dstack CVM. It returns a signed speaker embedding. It gives no verdict. |
-| Plugin | `packages/wallet-voice-sign/` | `@seams/wallet-voice-sign` (until 0.66.0: `@seams/speak-to-sign`), the Wallet host plugin. It runs the prompts and the cards. It holds no key. |
+| Plugin | `seams-wallet`: `packages/wallet/src/core/transactionFeatures/approver/` | The approver, a part of `@seams/wallet` that loads on first use (before refactor 232: `@seams/wallet-voice-sign`; until 0.66.0: `@seams/speak-to-sign`). It runs the prompts and the cards. It holds no key. |
 | Wallet core | `seams-wallet` | Records the audio, checks the verdict against a pinned key, and signs the one transaction. |
-| Contracts | `demo/contracts/` | The targets of the requests. The voice multisig also checks the verdict on chain. |
+| Contracts | `demo/contracts/` | The targets of the requests. The voice multisig and the note market also check the verdict on chain. |
 
 ## 3. Requests
 
@@ -319,7 +319,7 @@ A verdict lets a request pass only if all of these are true:
 6. In the Wallet, `audio_digest` equals the digest of the clip that core
    recorded.
 
-Two checkers exist:
+Three checkers exist:
 
 - **Wallet core and the Seams co-signer.** Core builds the request from the
   transaction that it will sign. It refuses a verdict for another request
@@ -331,10 +331,16 @@ Two checkers exist:
   `verdict_json` and `signature_b64`. The contract checks them on chain,
   with the caller as the owner. It also refuses an `audio_digest` that
   counted before. This path needs no Wallet release for a new request kind.
+- **The note market contract** (`pm-notes.seams-v1.testnet`). It takes a
+  bet only with the verdict of that bet: the key, the expiry, and the digest
+  of the bettor, market, side and amount. Each verdict counts once. On
+  testnet, `get_voice_config` gives `"required":true`.
 
 The plugin gets no signing context, key or session. It can only call the
-scoped core operations `openPrompt`, `receiverExists`, `verify` and
-`payWithVerdict`.
+scoped core operations `openPrompt`, `receiverExists`, `verify`,
+`summarizeNote`, `payWithVerdict`, `signNoteWithVerdict`,
+`signMessageWithVerdict` and `authorizeEnrollment`
+(`SpeakToSignHostOperations` in `hostPlugin.ts`, Wallet 0.69.2).
 
 ## 10. Multisig requests
 
@@ -383,8 +389,8 @@ only. It has a fixed set of signers and a threshold M of N, and no admin.
 No call without a verdict approves, and no call changes the signers. Its
 README has the interface. Version 3.0.0 is on
 `voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2 signers. The
-older account `multisig.seams-v1.testnet` still runs version 2.x, where two
-admin accounts approve with plain signed calls.
+older account `multisig.seams-v1.testnet` (version 2.x, where two admin
+accounts approved with plain signed calls) was deleted on 2026-11-12.
 
 ## 11. Trust limits
 
@@ -405,8 +411,13 @@ admin accounts approve with plain signed calls.
   the same key.
 - **NEAR RPC.** The verifier does not check a proof of the access-key view at
   enrollment.
-- **Voice clones.** A good clone that a compromised device plays can pass.
-  This build has no liveness check and no fresh words.
+- **Voice clones.** A good voice clone can pass on the person's own device,
+  if malware feeds the audio to the browser or someone holds the unlocked
+  device. Only a NEAR transfer above 10 NEAR also needs a passkey (section
+  7.3): a smaller transfer, a bet of any size and the other calls have no
+  passkey step. This build has no liveness check and no fresh words. On
+  another device, a clone alone cannot unlock the Wallet (see
+  [`judge-questions.md`](judge-questions.md), question 2).
 
 ## 12. Where the details are
 
@@ -416,6 +427,6 @@ admin accounts approve with plain signed calls.
 | Grammar types and digests | `crates/spoken-intent/src/lib.rs`, `request.rs` |
 | Near misses | `crates/spoken-intent/src/confusion.rs` |
 | Word decision | `crates/voice-verifier/src/words.rs` |
-| Plugin files | `packages/wallet-voice-sign/src/README.md` |
+| Plugin files | `seams-wallet`: `packages/wallet/src/core/transactionFeatures/` |
 | Voice multisig contract | `demo/contracts/voice-multisig/README.md` |
 | Deployed accounts and versions | The "Testnet facts" table of the root `README.md` |

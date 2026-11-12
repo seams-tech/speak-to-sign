@@ -54,6 +54,9 @@ hackathon. It is the baseline, not hackathon work. See
   the voice, the heard words and the request. Wallet core signs only with
   that verdict, so one spoken sentence is both the check of the person and
   the approval of the call.
+- **Questions a judge asks.** [`docs/judge-questions.md`](docs/judge-questions.md)
+  answers the doubts of a strict review: voice clones, a compromised page or
+  agent, JEV, spend guards and who controls the verifier.
 
 | Item        | Link                                                    |
 | ----------- | ------------------------------------------------------- |
@@ -648,7 +651,7 @@ The deploy transactions and the way to build each contract again are in
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
 - **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.
-- **Voice clones.** A good clone that a compromised device plays can pass. This build has no liveness check and no fresh words.
+- **Voice clones.** A good voice clone can pass on the person's own device, if malware feeds the audio to the browser or someone holds the unlocked device. Only a NEAR transfer above 10 NEAR also needs a passkey: a smaller transfer, a bet of any size and the other calls have no passkey step. This build has no liveness check and no fresh words. On another device, a clone alone cannot unlock the Wallet (see [`docs/judge-questions.md`](docs/judge-questions.md), question 2).
 - **Synthetic voices.** A text-to-speech voice can enroll and pass. The verifier does not detect synthetic speech, and it does not refuse one voice on many accounts.
 
 ## Evidence

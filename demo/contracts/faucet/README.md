@@ -87,7 +87,7 @@ About 8.38 NEAR was free after the contract's storage: about 40 drips at
 0.2 NEAR. Then NEAR runs out before USDC does (500 USDC is 250 drips): top up
 the account's NEAR to serve more accounts.
 
-To top up NEAR or change the amounts:
+To change the amounts:
 
 ```bash
 near contract call-function as-transaction seams-faucet.testnet set_amounts json-args '{"near_amount":"200000000000000000000000","token_amount":"2000000"}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as seams-faucet.testnet network-config testnet sign-with-legacy-keychain send

@@ -34,13 +34,31 @@ Every command below needs only this repo.
 Many entries guard agent spending with caps, allowlists, policy contracts or
 an AI judge. A large payment then waits for a person's tap, and a tap shows
 only that a device approved something, not what the person read. In
-Speak-to-Sign, the approval itself is the spoken exact call (a good voice
-clone can still pass this build: see [Not covered](#not-covered)). An
+Speak-to-Sign, the approval itself is the spoken exact call (a voice clone
+alone cannot sign: see [Questions a judge asks](#questions-a-judge-asks)). An
 attested verifier checks the voice and the heard words and binds both to
 the digest of the request, and the contracts `pm-notes.seams-v1.testnet` and
 `voice-multisig.seams-v1.testnet` check that verdict on chain. Where other
 entries confirm by voice, the confirmation is a spoken "yes": nothing checks
 who spoke, or binds the words to the call.
+
+## Questions a judge asks
+
+[`docs/judge-questions.md`](docs/judge-questions.md) answers each question
+with the evidence. In short:
+
+- **Voice can be cloned.** A clone alone gets nothing. The keys stay on the
+  person's device, and voice unlock is bound to that device. A NEAR transfer
+  above 10 NEAR also needs a passkey.
+- **A changed page or an injected agent** needs no clone, and it fails. The
+  person must say the exact call aloud, and the verifier refuses other words.
+- **JEV approves nothing.** It classifies the spoken command and opens the
+  sheet. The person approves the exact call by voice.
+- **Spend guards** decide when a person must approve. Speak-to-Sign makes
+  that approval show what the person meant.
+- **Who controls the verifier.** Today the Wallet pins the verdict key. The
+  next step, which is not built, checks the TDX quote of each call against
+  pinned WASM hashes.
 
 ## Scope of the hackathon work
 
@@ -285,8 +303,11 @@ git clone https://github.com/seams-tech/speak-to-sign
 From [`docs/architecture.md`](docs/architecture.md) section 8, "Trust
 boundaries", spec section 11, and the READMEs of the contracts:
 
-- A good voice clone that a compromised device plays can pass. This build has
-  no liveness check and no fresh words.
+- A good voice clone can pass on the person's own device, if malware feeds
+  the audio to the browser or someone holds the unlocked device. Only a NEAR
+  transfer above 10 NEAR also needs a passkey: a smaller transfer, a bet of
+  any size and the other calls have no passkey step. This build has no
+  liveness check and no fresh words.
 - A text-to-speech voice can enroll and pass. The verifier does not detect
   synthetic speech, and it does not refuse one voice on many accounts.
 - The NEAR AI transcript has no signature. A false transcript can pass the

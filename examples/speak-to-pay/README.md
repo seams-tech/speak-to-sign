@@ -1,4 +1,4 @@
-# Seams Voice Intents
+# Speak to pay
 
 An example web page for Seams Speak-to-Sign. Pay a named NEAR testnet account
 with your voice. You read one sentence, for example "Send 1 NEAR to
@@ -27,7 +27,7 @@ The Seams Wallet accepts sign-in only from the origins of your project.
 3. Copy the publishable key of the environment. A publishable key is public,
    but it works only from the origins of step 2.
 
-A wallet belongs to one project. If you used Speak to Sign in another project,
+A wallet belongs to one project. If you used Speak-to-Sign in another project,
 create a new wallet here and enroll your voice again.
 
 ## 2. Run it locally
@@ -50,12 +50,14 @@ The `VITE_*` settings are read at build time.
 1. Copy `.env.example` to `.env.production.local` and set the publishable key
    of the project that allows your Pages origin.
 2. Log in once with `pnpm exec wrangler login`.
-3. Run `pnpm run deploy`. It builds `dist/` and uploads it to the Pages project
-   `speak-to-sign` (`wrangler.toml`). Wrangler asks to create the project if it
-   does not exist.
-
-If you use another project name, change `name` in `wrangler.toml`, and add the
-new origin to the Seams project.
+3. Change `name` in `wrangler.toml` to your own Pages project, and add its
+   origin to the Seams project. The name in this repository,
+   `speak-to-sign`, is the live demo site, which ships this page at `/pay/`
+   from `demo/frontend`. A deploy from here to that project would replace the
+   whole site with this page.
+4. Run `pnpm run deploy`. It builds `dist/` and uploads it to the Pages project
+   of `wrangler.toml`. Wrangler asks to create the project if it does not
+   exist.
 
 ## Settings
 
@@ -88,8 +90,8 @@ Wallet origin, so `src/config.ts` sets neither.
 The two calls that matter:
 
 ```ts
-await seams.near.spoken.enroll();
-await seams.near.spoken.transfer({ receiver: 'seams-v1.testnet', amount: '1' });
+await seams.near.spoken.enroll({ walletSession });
+await seams.near.spoken.transfer({ walletSession, receiver: 'seams-v1.testnet', amount: '1' });
 ```
 
 `transfer` returns `approved`, `refused`, `cancelled` or `unavailable`.

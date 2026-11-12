@@ -1,4 +1,4 @@
-/* Seams Voice Intents: one column of filled, rounded step cards in the SDK's paper
+/* Speak to pay: one column of filled, rounded step cards in the SDK's paper
    theme. State shows as a filled pill; nothing animates when a step ends.
    The --site-* tokens map to the Seams theme variables of the SDK. */
 :root {

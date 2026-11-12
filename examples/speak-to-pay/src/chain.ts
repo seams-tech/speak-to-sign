@@ -1,4 +1,4 @@
-/* NEAR testnet reads and amounts for the Seams Voice Intents example. The page reads the
+/* NEAR testnet reads and amounts for the Speak to pay example. The page reads the
    owner's balance straight from NEAR RPC. Spoken payments go from the owner's
    own account through the Wallet. */
 

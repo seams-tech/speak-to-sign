@@ -12,7 +12,7 @@ function VoiceIntentsPage({ settings }: { settings: Settings }): React.JSX.Eleme
       <main className="svi-page">
         <header className="svi-intro">
           <p className="svi-eyebrow">NEAR testnet only</p>
-          <h1>Seams Voice Intents</h1>
+          <h1>Speak to pay</h1>
           <p>
             Pay any named NEAR account with your voice. An attested verifier checks your voice and
             your words, and your Wallet then pays from your own account with no confirm. Do not
@@ -37,7 +37,7 @@ function VoiceIntentsPage({ settings }: { settings: Settings }): React.JSX.Eleme
 }
 
 const root = document.getElementById('root');
-if (!root) throw new Error('Seams Voice Intents requires a root element.');
+if (!root) throw new Error('Speak to pay requires a root element.');
 createRoot(root).render(
   <React.StrictMode>
     <VoiceIntentsPage settings={readSettings()} />

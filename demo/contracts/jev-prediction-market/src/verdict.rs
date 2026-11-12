@@ -1,5 +1,5 @@
 //! The on-chain check of a signed voice verdict. The same check as in the voice multisig
-//! contract (`../voice-multisig/src/verdict.rs`).
+//! contract (`../voice-multisig/src/verdict.rs`), which also returns the audio digest.
 //!
 //! The check is `seams-voice-verdict` (`crates/voice-verdict`) with the
 //! ed25519 check of the host. It checks the signature over the exact bytes

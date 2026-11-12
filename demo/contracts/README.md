@@ -3,7 +3,7 @@
 | Folder | Contract | Testnet account |
 | ------ | -------- | --------------- |
 | [`community-notes/`](community-notes/) | community notes and ratings, with 0 deposit | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) |
-| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed by voice | [`multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract) |
+| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (M of N signers; version 3.0.0 is not deployed, the account runs 2.x with admins) | [`multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract) |
 | [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
 | [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 

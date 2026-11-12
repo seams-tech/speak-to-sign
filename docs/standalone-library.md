@@ -25,7 +25,7 @@ Each fact has a mark:
 | 4 | The verdict and the `verify` output hold no TDX quote, no code hash and no key id. The output holds only the public key. | M | `output.rs:198-216` |
 | 5 | The verdict names the verifier version (`"verifier":"0.8.0"`). The worker writes this text itself. Nothing proves it. | M | `output.rs:131`, `config.rs:5` |
 | 6 | Each recording passes one time (`audio:v2:<digest>`, set-if-absent). | M | `config.rs:139`, `docs/voice-intents-spec.md` section 5 |
-| 7 | Two contracts check a verdict on chain: signature, kind, `accept`, expiry, request digest. The two files are the same. | M | `demo/contracts/voice-multisig/src/verdict.rs`, `demo/contracts/jev-prediction-market/src/verdict.rs` |
+| 7 | Two contracts check a verdict on chain: signature, kind, `accept`, expiry, request digest. The two files were the same until voice-multisig 3.0.0 (2026-11-12); the multisig file now also returns the audio digest, so one recording counts once. | M | `demo/contracts/voice-multisig/src/verdict.rs`, `demo/contracts/jev-prediction-market/src/verdict.rs` |
 | 8 | No library outside the Wallet and the contracts checks a verdict. | M | The file list of `crates/` and `packages/` before this branch |
 
 So a third party with a verdict, its signature and the public key can check

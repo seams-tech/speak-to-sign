@@ -47,12 +47,17 @@ the request aloud, the signer hears what they approve. The verifier checks
 the heard words against the request that is signed, so the words on a
 changed page do not match.
 
-- **Today:** `multisig.seams-v1.testnet` (`demo/contracts/voice-multisig/`).
-  A visitor proposes a transfer, or the hide of a note, by voice. The contract
-  checks the verdict on chain, and two admins approve.
-- **Not done:** the admins approve with a plain signed call, not by voice.
-  Voice approval by each admin is the next step. The demo site has no page
-  for the multisig.
+- **Today:** `demo/contracts/voice-multisig/` (version 3.0.0) is voice only:
+  M of N signers and no admin. A signer proposes a transfer, or the hide of a
+  note, by voice. Each other signer says the same proposal from memory, and
+  approves with a verdict of its own (the verifier's `multisig_confirm`). The
+  contract checks each verdict on chain: key, expiry, owner, commitment. One
+  recording counts once, and no call without a verdict can approve. The unit
+  tests and a local nearcore sandbox test show this.
+- **Not done:** version 3.0.0 is not deployed, and the demo site has no page
+  for the multisig. `multisig.seams-v1.testnet` still runs version 2.x, where
+  two admins approve with a plain signed call. The signers are fixed at
+  `new`: a voice-approved change of the signers does not exist yet.
 
 ### 3. Social sites and marketplaces: actions that are easy for people and costly for bots
 
@@ -115,8 +120,10 @@ git clone https://github.com/seams-tech/speak-to-sign
    (cd speak-to-sign/demo/contracts/community-notes && cargo test -p community-notes 2>&1 | grep 'test result')
    # See: 3 tests ok in a local nearcore sandbox, after build.sh makes the WASM.
    (cd speak-to-sign/demo/contracts/community-notes && ./build.sh > /dev/null 2>&1 && cargo test -p community-notes-sandbox 2>&1 | grep '^test ')
-   # See: 15 passed. The multisig contract refuses each bad verdict on chain.
+   # See: 19 passed. The multisig contract refuses each bad verdict on chain.
    (cd speak-to-sign/demo/contracts/voice-multisig && cargo test verdict 2>&1 | grep 'test result')
+   # See: 14 passed. Each approval is a verdict of its own signer, from a new recording.
+   (cd speak-to-sign/demo/contracts/voice-multisig && cargo test approv 2>&1 | grep 'test result')
    ```
 
 2. The verdict check. `@seams/voice-verdict` (`packages/voice-verdict/`)
@@ -172,7 +179,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | The verifier signs fixed verdict vectors that the Wallet tests also read. A verdict expires after 120 s. | `tests/signed_vector.rs` of the verifier (`testdata/signed_verdict_v2.json`); `VERDICT_TTL_MS` in `src/config.rs`; spec section 8 |
 | A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
 | With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/6373a68a726c28c8d835a9e91359955353dc811b/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L273) and its [test](https://github.com/seams-tech/seams-wallet/blob/6373a68a726c28c8d835a9e91359955353dc811b/tests/unit/speakToSignHost.unit.test.ts#L978) |
-| The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
+| The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is not deployed yet. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | A sealed recording opens only for its owner and operation. | `sealed_audio_opens_only_for_its_owner_and_operation` in `crates/voice-verifier/tests/ops/sealed.rs`; spec 5.1 |
 | The active verifier comes from this source. | Check 3 above; `crates/voice-verifier/README.md`, "Reproducible build" |
 

@@ -222,35 +222,38 @@ flowchart LR
 
 ## 7. Voice multisig demo
 
-The contract checks the verdict on chain. The chain holds only the
-commitment until `execute`.
+The contract (`demo/contracts/voice-multisig`, version 3.0.0) is voice only:
+M of N signers, no admin. It checks each verdict on chain, for `propose` and
+for each `approve`. The chain holds only the commitment until `execute`.
+Version 3.0.0 is not deployed yet, and no demo page drives it. The diagram
+shows 2 of N signers.
 
 ```mermaid
 sequenceDiagram
-  actor Visitor
-  participant Page as Demo page
-  participant Api as Pages functions
+  actor Alice as Signer A
+  actor Bob as Signer B
   participant Verifier as Verifier (OutLayer TEE)
-  participant Wallet as Seams Wallet
   participant Multisig as Voice multisig contract
   participant Target as Receiver or notes contract
 
-  Visitor->>Page: Say "approve proposal 1, hide note 42"
-  Page->>Api: /api/voice-verify with the request and the WAV
-  Api->>Verifier: HTTPS call
+  Alice->>Verifier: Say "approve proposal 1, hide note 42" (multisig_hide_note)
   Verifier->>Verifier: Draw the salt, check the voice and the words
   Verifier->>Verifier: Store the proposal and the salt
-  Verifier-->>Page: Verdict, commitment and salt
-  Page->>Wallet: Sign propose
-  Wallet->>Multisig: propose with the commitment and the verdict
-  Multisig->>Multisig: Check the signature, the expiry and the request digest
-  Page->>Api: /api/multisig/approve with the opening
-  Api->>Multisig: approve from admin A
-  Api->>Multisig: approve from admin B
-  Api->>Multisig: execute with the opening
+  Verifier-->>Alice: Verdict, commitment and salt
+  Alice->>Multisig: propose with the commitment and the verdict
+  Multisig->>Multisig: Check key, expiry, owner, commitment, new recording
+  Note over Multisig: 1 approval: the proposer
+  Alice-->>Bob: Tell the proposal, off chain
+  Bob->>Verifier: Say the proposal from memory (multisig_confirm)
+  Verifier->>Verifier: Load the proposal by the commitment
+  Verifier->>Verifier: Check the voice, the words, and not the same speaker
+  Verifier-->>Bob: Verdict for Bob and the commitment
+  Bob->>Multisig: approve with the verdict
+  Multisig->>Multisig: Check key, expiry, owner, commitment, new recording
+  Note over Multisig: 2 approvals: the threshold
+  Alice->>Multisig: execute with the opening
   Multisig->>Multisig: Check the opening against the commitment
   Multisig->>Target: Transfer the NEAR, or call hide_note
-  Page->>Visitor: Show the three approvals and the receipt
 ```
 
 ## 8. Trust boundaries

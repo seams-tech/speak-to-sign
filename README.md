@@ -160,14 +160,15 @@ The numbers in the diagram are these steps:
    from your own account. The contract checks the verdict again on chain, so
    a bot with a plain NEAR key cannot skip the voice step over RPC.
 
-The audio is sealed. From verifier 0.12.0, the device seals each recording to
-a key that exists only inside the OutLayer TEE, and the servers between them
-carry ciphertext. The verifier then sends the opened recording to the speaker
-service (a Phala TDX VM, its key pinned) and to NEAR AI Whisper. The verifier
-source (from 0.14.0) checks the TDX quotes of NEAR AI's gateway and of
-Whisper inside the worker, and sends the recording only sealed to the checked
-gateway. The live versions that the demo uses (0.12.0 and 0.13.0) do not have
-this check yet ([state](docs/trust-chain.md#the-near-ai-check)).
+The audio is sealed. The device seals each recording to a key that exists
+only inside the OutLayer TEE, and the servers between them carry ciphertext.
+The verifier opens it and sends it to two services. The speaker service is a
+Phala TDX VM with a pinned key. For NEAR AI Whisper, the verifier (0.14.1)
+checks the TDX quotes of NEAR AI's gateway and of Whisper inside the worker,
+and it sends the recording only sealed to the checked gateway
+([details](docs/trust-chain.md#the-near-ai-check)). While NEAR AI's Whisper
+is down, the verifier uses Whisper on Venice AI, which has no TEE
+([state](docs/deployed-state.md#the-verifier)).
 
 The formats and the rules are in
 [`docs/voice-intents-spec.md`](docs/voice-intents-spec.md).
@@ -287,14 +288,13 @@ is not done.
 
 - **OutLayer.** The TEE run of pinned code, its storage of the template and the used audio, its signing key, and the NEAR AI secret. If OutLayer's TEE or governance fails, the verdict means nothing.
 - **Project owner.** The owner of the OutLayer project can deploy a new version that signs with the same project-bound key. The Wallet pins the key, not the code.
-- **NEAR AI.** The transcript has no signature of the model. A false transcript could pass the words check. The verifier source (0.14.0) checks that the transcript comes from NEAR AI's attested gateway; the live versions do not.
-- **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID. The Phala app owner can change the service code and keep the same key.
-- **Sealed audio after the verifier.** The verifier sends the opened recording to the speaker service (a Phala TDX VM, its key pinned from its attestation) and to NEAR AI. The live versions (0.12.0 and 0.13.0) send it to NEAR AI over TLS and do not check NEAR AI's attestation. The verifier source (0.14.0) checks the TDX quotes of NEAR AI's gateway and of Whisper, and sends the recording only sealed to the checked gateway. That build is not live yet, and it still trusts the code of NEAR AI's VMs and the link from the gateway to Whisper ([details](docs/trust-chain.md#the-near-ai-check)).
+- **NEAR AI.** Whisper does not sign a transcript, and a false transcript could pass the words check. The verifier (0.14.1) checks the Intel TDX quotes of NEAR AI's gateway and of Whisper, and it accepts only a reply that the checked gateway sealed for that request. It still trusts the code of NEAR AI's VMs and the link from the gateway to Whisper ([details](docs/trust-chain.md#the-near-ai-check)).
+- **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID.
+- **Sealed audio after the verifier.** The verifier sends the opened recording to two services: the speaker service (a Phala TDX VM, its key pinned from its attestation), and NEAR AI Whisper, sealed to the gateway whose TDX quote the verifier checked. While NEAR AI's Whisper is down, the `venice` build of the verifier sends the recording to Whisper on Venice AI over TLS. Venice has no TEE, so Venice can read that audio. Each verdict of that build says `+venice` in its `verifier` field.
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
-- **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
-- **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.
+- **Seams Wallet.** Seams Wallet is an embedded wallet with threshold signing. It existed before the hackathon, and Speak-to-Sign uses it as a dependency. The device and the Seams co-signer sign each call jointly, so neither can sign alone. A native NEAR payment has no contract that checks the verdict: the Wallet and the co-signer guard it, and above 10 NEAR the verifier asks for a passkey too.
 - **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/judge-questions.md`](docs/judge-questions.md), question 2). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check and no fresh words, and only a NEAR transfer above 10 NEAR also needs a passkey.
-- **Synthetic voices.** A text-to-speech voice can enroll and pass. The verifier does not detect synthetic speech, and it does not refuse one voice on many accounts.
+- **Synthetic voices (future work).** The verifier does not detect synthetic speech yet, so a text-to-speech voice can enroll and pass. It also does not refuse one voice on many accounts. The detection of synthetic speech is planned as future work.
 
 ## Baseline and hackathon work
 

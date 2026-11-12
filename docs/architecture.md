@@ -314,12 +314,11 @@ and WASM hash, reproducible build, source. The key is not in this chain.
 | `crates/voice-verdict` (Rust) | `check_attestation_binding`. The Intel chain is a test with `dcap-qvl`. |
 | `@seams/voice-sign` | The `attestation` setting runs `checkAttestationBinding` and `measurementsApproved` for each call. It does not check the signature chain of the quote to Intel, so there the quote is only a claim of the OutLayer API. |
 
-**The Wallet does not run the check yet** (`seams-wallet` at `f7ec88b`).
-Wallet core and the Seams co-signer each check a verdict with `checkVerdict`
-against the pinned key (`packages/shared-ts/src/speakToSign/voiceVerdict.ts`).
-The Seams verify route gives the Wallet the attestation URL of the call, and
-the result card links to it ("View TDX quote"). No code checks the quote
-before the Wallet signs.
+**The Seams verify route runs the check** (`seams-wallet` commit
+`0b297e976`, 2026-11-12). Before that commit, no code checked the quote: the
+result card only linked to it ("View TDX quote"). Wallet core and the Seams
+co-signer still check a verdict with `checkVerdict` against the pinned key
+(`packages/shared-ts/src/speakToSign/voiceVerdict.ts`).
 
 **Decision: the Seams server checks the quote.** The Wallet signs with a
 threshold of two parts: the Seams co-signer on Cloudflare, and a co-signer on
@@ -370,14 +369,24 @@ TDX and its collateral, and the OutLayer worker image that
 `worker.outlayer.testnet` approves. The speaker service key and the NEAR AI
 transcript are separate items of this section.
 
-**The server check** (in `seams-wallet`, `packages/wallet-server`, work in
-progress on 2026-11-12): after the OutLayer call, the verify route gets the
-attestation record and runs `checkAttestationBinding` with the pinned WASM
-hash, `checkQuoteCollateral` with the collateral of
-`GET <api>/public/collateral`, and `measurementsApproved`. If a check fails,
-the route does not return the verdict. OutLayer stores the record a short
-time after the call returns, so the route waits for it, up to 15 s. That
-wait adds to each spoken approval. It is not measured yet.
+**The server check** (`seams-wallet`,
+`packages/wallet-server/src/router/domains/speakToSign/speakToSignAttestation.ts`):
+after the OutLayer call, the verify route gets the attestation record and
+runs `checkAttestationBinding` with the pinned WASM hash (`versionKey`),
+`checkQuoteSignature` and `checkQuoteCollateral` with OutLayer's collateral
+at the time of the call, and `measurementsApproved` on
+`worker.outlayer.testnet`. If a check fails, the route does not return the
+verdict, and it refuses with `attestation_<code>`. The isolate keeps the
+collateral of each FMSPC until its next update, and an approval for 10
+minutes.
+
+- OutLayer stores the record a short time after the call returns, so the
+  route tries once each second, up to 15 s. That wait adds to each spoken
+  approval. The route logs it (`recordMs`, `attestationMs`). It is not
+  measured on testnet yet.
+- The co-signer does not know if a verdict passed the verify route. A
+  verdict from a call that did not pass the route, for example a call made
+  directly with the Seams payment key, gets the key check only.
 
 ## 9. Confidential audio
 

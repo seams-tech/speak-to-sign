@@ -165,8 +165,12 @@ changed page do not match.
   tests and a local nearcore sandbox test show this.
   It is on `voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2
   signers, and SourceScan verified its code.
-- **Not done:** no proposal ran on testnet yet, and the demo site has no
-  page or route for the multisig. The older account
+- **Live run:** on 2026-11-12 two persons proposed and approved one transfer
+  by voice on `voice-multisig-2.seams-v1.testnet`, which runs the same build.
+  Each transaction holds the signed verdict. `execute` is not done yet. The
+  transactions are in
+  [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
+  The older account
   `multisig.seams-v1.testnet` (version 2.x, where two admins approved with a
   plain signed call) was deleted on 2026-11-12. The notes contract now
   names the voice-only multisig as its moderator, so the hide of a note

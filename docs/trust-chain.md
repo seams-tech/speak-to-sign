@@ -77,7 +77,7 @@ to the gateway that it checked. The details are in the
   and the full check passed against NEAR AI and Intel (the live tests of the
   crate).
 - An earlier build of the check, with `dcap-qvl`, ran the full check inside
-  OutLayer on 2026-11-12 and kept the result.
+  OutLayer on 2026-11-12 and kept the result. That build is removed now.
 - The live state is in [`deployed-state.md`](deployed-state.md).
 
 **The design.**
@@ -112,6 +112,9 @@ to the gateway that it checked. The details are in the
   (0.14.1+venice on OutLayer, not active). It sends the recording to Venice
   AI over TLS and checks no TEE on that path. A caller selects it by its
   version key. A verdict of that build names it: `"verifier":"0.14.1+venice"`.
+  On 2026-11-12 the two verdicts of
+  [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet)
+  came from it.
 
 **The cost.** OutLayer loads the WASM on each call, and the load time grows
 with its size: about 2.3 ms for each KB on 2026-11-12. The first build with

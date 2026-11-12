@@ -78,8 +78,10 @@ The same verifier also approves other calls:
   checks each verdict on chain, and one recording counts once. No call
   without a verdict can approve. This closes the gap of the Bybit loss
   above. It is on `voice-multisig.seams-v1.testnet` since 2026-11-12, with
-  2 of 2 signers, and SourceScan verified its code. Not done: no proposal
-  ran on testnet yet, and the demo site has no page or route for it. The
+  2 of 2 signers, and SourceScan verified its code. On 2026-11-12 two persons
+  proposed and approved one transfer by voice on
+  `voice-multisig-2.seams-v1.testnet`, which runs the same build; `execute`
+  is not done yet ([the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet)). The
   older account `multisig.seams-v1.testnet` (version 2.x, where two admins
   approved with plain signed calls) was deleted on 2026-11-12.
 

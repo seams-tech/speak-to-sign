@@ -85,10 +85,12 @@ The same verifier also approves other calls:
   older account `multisig.seams-v1.testnet` (version 2.x, where two admins
   approved with plain signed calls) was deleted on 2026-11-12.
 
-## Reproduce without a microphone
+## Check it from a terminal
 
-These steps need no microphone, no NEAR account and no keys. They run the
-tests that hold the binding rules, and they read the live testnet state. Each
+To try the voice flow, open the demo site on a laptop with a microphone.
+These steps check the rest from a terminal, with no NEAR account and no keys.
+They run the tests that hold the binding rules, and they read the live
+testnet state. Each
 expected output below comes from a run on 2026-11-12 on macOS 15.7.1 (arm64)
 with rustc 1.97.1, Node 24.18.0, pnpm 11.11.0 and jq 1.7.1, in a fresh clone
 of `dev`. Times, the order of test lines, and the hashes in

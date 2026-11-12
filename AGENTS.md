@@ -32,7 +32,7 @@ before, and it is the baseline, not hackathon work. See
 
 ## How to check it
 
-- [JUDGES.md, "Check it without a microphone"](JUDGES.md#check-it-without-a-microphone)
+- [JUDGES.md, "Check it from a terminal"](JUDGES.md#check-it-from-a-terminal)
   gives each command with the output that it prints.
 - The voice flow needs a microphone and a browser with passkeys. The human
   judges try it on a laptop. An agent without a microphone can use the

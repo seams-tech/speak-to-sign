@@ -159,7 +159,7 @@ deployed.
 
 **Short answer.** Today the Wallet and the contracts pin the verdict key of
 the verifier. The active verifier is a reproducible build of this repo: check
-3 of [`JUDGES.md`](../JUDGES.md#check-it-without-a-microphone) builds it in
+3 of [`JUDGES.md`](../JUDGES.md#check-it-from-a-terminal) builds it in
 Docker and reads the same SHA-256 on OutLayer. The demo calls verifier 0.13.0
 through the Seams staging server, and check 3 builds that version too. The
 speaker key of the Phala service comes from its TDX attestation (`SPEAKER_PINNED_KEY_HEX` in

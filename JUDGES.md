@@ -205,7 +205,7 @@ You need a browser with passkeys and a microphone.
 | Demo video | TODO: the owner adds the link to the demo video. |
 | X post     | TODO: the owner adds the link to the X post.     |
 
-## Check it without a microphone
+## Check it from a terminal
 
 You need `git`, `curl`, `jq`, Rust from rustup (it installs the pinned
 toolchains), Node 24 with pnpm (`corepack enable`) for check 2, and Docker for

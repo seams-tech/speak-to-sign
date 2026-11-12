@@ -424,6 +424,67 @@ for, and it stays the same across versions. The verifier has
 `multisig_propose`, `multisig_hide_note` and `multisig_confirm` since 0.6.0
 (the hide since 0.7.0), so 3.0.0 needs no new verifier version.
 
+## Live run on testnet
+
+A second account, `voice-multisig-2.seams-v1.testnet`, runs the same verified
+build of commit `99231f6` (code hash
+`CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`), with 2 of 2 signers. Each
+signer is a Seams Wallet account with an enrolled voice. The page is
+`/multisig/` of the demo (`demo/frontend/src/multisig/`).
+
+| Signer | Account |
+| --- | --- |
+| A | `67f83c69190537f2432abd961be298ac44f5e161e152dc310a1d29a88a284577` |
+| B | `c3abe0951c8d0659e4d3514c2625afc47bad082c821ef76726dac3e766ef4632` |
+
+Each transaction below has the signed verdict of the verifier in its
+arguments (`verdict_json` and `signature_b64`). The contract checked the
+signature, the owner and the commitment before it changed its state. To read
+a verdict, open the transaction and look at the arguments of the call.
+
+### Proposal 3: two persons, two voices (2026-11-12)
+
+Before this proposal, each signer enrolled a voice again: signer A is one
+person, and signer B is another person. Each said the same sentence:
+"Approve proposal three: send zero point one NEAR to seams dash faucet dot
+testnet".
+
+| Step | Transaction | What the verdict says |
+| --- | --- | --- |
+| Signer A proposes | [`9VhY5XVYFaT5jXpYGVvpnz3GFnNVkUnX8CH4AY5Yd9kb`](https://testnet.nearblocks.io/txns/9VhY5XVYFaT5jXpYGVvpnz3GFnNVkUnX8CH4AY5Yd9kb) | `accept`, speaker score 746 (the cutoff is 450), heard "approve proposal three send zero point one near to seams dash faucet dot testnet" |
+| Signer B approves | [`7sBTQskwjpmZMgiUa5bTD4WTJB45HKtvjpU2H4E82mKP`](https://testnet.nearblocks.io/txns/7sBTQskwjpmZMgiUa5bTD4WTJB45HKtvjpU2H4E82mKP) | `accept`, speaker score 790. The verifier did not refuse it as `same_speaker`: the voice of signer B is not the voice of signer A. |
+
+The contract logged `proposed` for the first transaction and `approved` with
+`"approvals":2` for the second. The chain holds only the salted hash of the
+transfer (`89fe7771…20df`) until `execute`.
+
+Facts of this proposal:
+
+- Both verdicts name the verifier `0.14.1+venice`. NEAR AI Whisper gave no
+  reply on that day, so the `venice` build heard the words: Venice AI, which
+  has no TEE (`crates/voice-verifier/README.md`, "Speech-to-text service").
+  The speaker check and the signature are the same as in the default build.
+- Not done: `execute`. The proposal is open with 2 of 2 approvals, and the
+  0.1 NEAR did not move yet.
+
+### Proposal 2: one person cannot approve two times (2026-11-12)
+
+Signer B proposed the same transfer by voice:
+[`6WcVLmKtVT5JRK1ECAQCfMNVstAB6yRnPxx48HN9W2cB`](https://testnet.nearblocks.io/txns/6WcVLmKtVT5JRK1ECAQCfMNVstAB6yRnPxx48HN9W2cB)
+(`accept`, verifier 0.12.0, speaker score 748).
+
+Then the same person tried to approve as signer A, with another tone of
+voice. The verifier refused the recording as `same_speaker`: it matched the
+voice that had said the proposal. So no approval of signer A exists, and the
+proposal stays open with 1 of 2. This refusal was an answer of the verifier
+to the page. It is not on chain, so this file has no link for it.
+
+Later, a different person said the proposal as signer A. The verifier did not
+refuse that voice as `same_speaker`. It refused the words, because the
+speech-to-text model heard the account name wrong ("scenes fawcett" for
+"seams dash faucet"). An approval needs the exact words. This refusal is not
+on chain either.
+
 ## Deployed code
 
 `voice-multisig.seams-v1.testnet` runs version 3.0.0 since 2026-11-12: the
@@ -433,12 +494,9 @@ hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`, verified by
 SourceScan). The signers are `cyan-loong.testnet` and `seams-v1.testnet`,
 and the threshold is 2. The notes contract is `notes.seams-v1.testnet`, and
 the notes contract names this multisig as its moderator since 2026-11-12.
-The transactions are in "Deploy to testnet". No proposal exists yet.
-
-Not done for a live use: no demo route takes the multisig request kinds
-(`/api/voice-verify` takes only `market_bet`), so a signer gets a verdict
-only by a direct call of the OutLayer verifier, paid by the Seams payment
-key. The voice enrollment of the two signers is not checked here.
+The transactions are in "Deploy to testnet". No proposal exists on this
+account: its two signers have no enrolled voices. The proposals by voice ran
+on `voice-multisig-2.seams-v1.testnet`; see "Live run on testnet" above.
 
 `multisig.seams-v1.testnet` ran version 2.x until 2026-11-12, when the
 account was deleted. In 2.x, any account that was not an admin proposed by

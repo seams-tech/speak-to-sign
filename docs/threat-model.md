@@ -18,7 +18,7 @@ is in [`trust-chain.md`](trust-chain.md), and the live state is in
 | 6 | A bot farm with text-to-speech voices | Partly: a cost for each action |
 | 7 | One multisig signer who approves for another | **Yes** |
 | 8 | The owner of the OutLayer project | Partly: through the Seams verify route |
-| 9 | NEAR AI | Partly: the verifier source checks its TDX quotes; the live versions do not |
+| 9 | NEAR AI | Partly: verifier 0.14.1 checks its TDX quotes; 0.13.0 and the `venice` build do not |
 | 10 | The owner of the Phala app | No: trusted |
 | 11 | The Seams team | No: trusted |
 | 12 | A contract caller with a plain key | Key check only |
@@ -138,13 +138,13 @@ key check only, for example a caller that does not use the Seams Wallet (see
 
 ## 9. NEAR AI
 
-**What stops it.** In the verifier source on `dev` (version 0.14.0): the
+**What stops it.** In verifier 0.14.1, the active version: the
 verifier checks the Intel TDX quotes of NEAR AI's gateway and of its Whisper
 VM, with Intel's collateral and a fresh nonce. It sends each recording to
 Whisper only sealed to the key of the checked gateway, so only that TDX VM
 opens it. A failed check refuses with `transcriber_not_attested`, and no
-recording goes to NEAR AI. In the live versions (0.12.0 and 0.13.0): nothing.
-They send the audio over TLS and do not check NEAR AI. See
+recording goes to NEAR AI. In verifier 0.13.0, which the Seams staging server
+still calls: nothing. It sends the audio over TLS and does not check NEAR AI. See
 [trust-chain.md](trust-chain.md#the-near-ai-check) and
 [deployed-state.md](deployed-state.md).
 
@@ -159,8 +159,8 @@ with `dcap-qvl`.
 model, so a false transcript from NEAR AI's VMs can pass the word check. The
 verifier records the compose hash of the gateway and does not pin it, so the
 code of NEAR AI's VMs is trusted. The verifier does not check the link from
-the gateway to Whisper, or the NVIDIA GPU evidence. Without the check (the
-live versions): also the claim that only a TEE sees the audio rests on NEAR
+the gateway to Whisper, or the NVIDIA GPU evidence. Without the check
+(verifier 0.13.0): also the claim that only a TEE sees the audio rests on NEAR
 AI.
 
 **The `venice` build.** A second worker (0.14.1+venice) is for a NEAR AI

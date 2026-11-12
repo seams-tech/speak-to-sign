@@ -432,7 +432,7 @@ recording. Grey boxes hold no audio.
 | 4. OutLayer coordinator | OutLayer's API and its call record | Sealed |
 | 5. Verifier | The OutLayer worker, inside its TEE | Plain, only for this run |
 | 6a. Speaker service | A Phala dstack confidential VM (Intel TDX) | Plain, sent over TLS |
-| 6b. NEAR AI Whisper | NEAR AI Cloud | 0.12.0 and 0.13.0 (live): plain, sent over TLS. 0.14.0 (source): sealed to the checked gateway |
+| 6b. NEAR AI Whisper | NEAR AI Cloud | 0.14.1 (active): sealed to the checked gateway. 0.12.0 and 0.13.0: plain, sent over TLS |
 | 7. Verdict | Back through the same servers | No audio |
 
 What is kept after a run:
@@ -460,12 +460,12 @@ Limits:
 
 - **Who opens the recording after the verifier.** The Phala speaker service
   runs in a TDX VM, and the verifier pins its key from its TDX attestation.
-  For NEAR AI, the live verifier versions (0.12.0 and 0.13.0) send the
-  recording over TLS and do not check NEAR AI's attestation. The verifier
-  source (0.14.0) checks the Intel TDX quotes of NEAR AI's gateway and of
-  Whisper inside the worker, and sends the recording only sealed to the key
-  of the checked gateway. That build is not live yet; see
-  [`trust-chain.md`](trust-chain.md#the-near-ai-check).
+  For NEAR AI, verifier 0.14.1 (the active version) checks the Intel TDX
+  quotes of NEAR AI's gateway and of Whisper inside the worker, and sends the
+  recording only sealed to the key of the checked gateway. Verifier 0.13.0,
+  which the Seams staging server still calls, sends it over TLS and does not
+  check NEAR AI. The `venice` build sends it to Venice AI, which has no TEE;
+  see [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **The request is not secret.** The Wallet sends the request fields in plain
   text, and the verdict names the heard words.
 - **The project owner.** A new verifier version of the same OutLayer project

@@ -68,13 +68,14 @@ before, and it is the baseline, not hackathon work. See
    ([trust chain](docs/trust-chain.md), [spec 9.1](docs/voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote))
 8. **Where the audio is opened.** The OutLayer worker opens it, then sends it
    to the Phala speaker service (a TDX VM, its key pinned from its
-   attestation) and to NEAR AI Whisper. The verifier source on `dev` (from 0.14.0)
-   checks the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the
-   worker, and sends the audio to Whisper only sealed to the checked gateway.
-   The live versions (0.12.0 and 0.13.0) do not: they send the audio over TLS
-   and check nothing about NEAR AI. Do not write that the check is live.
+   attestation) and to Whisper. Verifier 0.14.1, the active version, checks
+   the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the worker,
+   and sends the audio to Whisper only sealed to the checked gateway. Two
+   paths have no such check: verifier 0.13.0, which the Seams staging server
+   still calls, and the `venice` build, which the demo route selects while
+   NEAR AI Whisper is down (Venice AI has no TEE).
    ([trust chain](docs/trust-chain.md#the-near-ai-check),
-   [deployed state](docs/deployed-state.md#checks-that-are-in-progress))
+   [deployed state](docs/deployed-state.md#the-verifier))
 9. **On chain, the notes contract, the market and the multisig check each
    verdict.** Each contract checks the ed25519 verdict signature and refuses a
    used verdict, so a bot with a plain NEAR key outside Seams Wallet cannot
@@ -83,8 +84,10 @@ before, and it is the baseline, not hackathon work. See
    (`examples/speak-to-pay`).
    ([deployed state](docs/deployed-state.md#the-contracts),
    [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict))
-10. **The demo calls verifier 0.13.0 by its `version_key`.** The active version
-    on OutLayer is 0.12.0. ([deployed state](docs/deployed-state.md#the-verifier))
+10. **The active verifier is 0.14.1.** The Seams staging server (a transfer, a
+    note, a rating) still calls 0.13.0 by its `version_key`. The demo route
+    for a spoken bet and the multisig page calls 0.14.1, or 0.14.1+venice
+    while NEAR AI Whisper is down. ([deployed state](docs/deployed-state.md#the-verifier))
 11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.69.2 on npm, and
     the voice libraries are separate npm packages.
     ([judge-questions 10](docs/judge-questions.md#10-can-it-live-after-the-hackathon))

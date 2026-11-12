@@ -253,7 +253,9 @@ view() { curl -s https://rpc.testnet.fastnear.com -H 'Content-Type: application/
 ```
 
 Spoken notes came in verifier 0.4.0, version `8a0b7ba0…` of the OutLayer
-project `seams-v1.testnet/voice-verifier`:
+project `seams-v1.testnet/voice-verifier`. The owner removed that version
+from the project on 2026-11-12, with the other versions that no caller used.
+So the view finds no version:
 
 ```bash
 view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef"}' | jq -c '{wasm_hash, is_active, url: .source.WasmUrl.url}'
@@ -262,10 +264,10 @@ view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifie
 Expected:
 
 ```text
-{"wasm_hash":"8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef","is_active":false,"url":"https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef.wasm"}
+{"wasm_hash":null,"is_active":null,"url":null}
 ```
 
-The WASM at that URL has that SHA-256:
+The WASM of that version is still on FastFS, with that SHA-256:
 
 ```bash
 curl -sL https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef.wasm | shasum -a 256
@@ -278,9 +280,9 @@ Expected:
 ```
 
 The active version, which a caller gets when it sets no `version_key`, is
-`bfe81633…`, verifier 0.12.0, since 2026-11-11 (`set_active_version` tx
-`HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`). Before, 0.11.0 and, until
-2026-11-11, 0.5.2 (`96b79b51…`) were active.
+`1e7c6968…`, verifier 0.14.1, since 2026-11-12 (`set_active_version` tx
+`GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC`). Before, 0.12.0 (`bfe81633…`) was
+active from 2026-11-11, and 0.14.1+venice for some minutes on 2026-11-12.
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -c '{owner, active_version}'
@@ -289,20 +291,20 @@ view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifie
 Expected:
 
 ```text
-{"owner":"seams-v1.testnet","active_version":"bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946"}
+{"owner":"seams-v1.testnet","active_version":"1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c"}
 ```
 
 ```bash
-view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946"}' | jq -c '{wasm_hash, is_active, added_at}'
+view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c"}' | jq -c '{wasm_hash, is_active, added_at}'
 ```
 
 Expected:
 
 ```text
-{"wasm_hash":"bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946","is_active":true,"added_at":1794361644287580205}
+{"wasm_hash":"1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c","is_active":true,"added_at":1794512550592416147}
 ```
 
-jq 1.6 rounds the large number and prints `"added_at":1794361644287580200`.
+jq 1.6 rounds the large number of `added_at`.
 
 The notes contract `notes.seams-v1.testnet` answers `get_notes`. Note 1 is
 the smoke test of the deployment, sent from the NEAR CLI and not spoken. It

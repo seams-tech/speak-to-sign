@@ -274,14 +274,15 @@ files that run.
 Its verdict key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
 The key is bound to the project, and the Wallet and the contracts pin it.
 
-The verifier gets the heard words from Whisper on NEAR AI by default. NEAR
-AI's Whisper is down since 2026-11-12, so the verifier uses Whisper on Venice
-AI until it is back.
+The verifier gets the heard words from Whisper on NEAR AI by default: 0.14.1
+is the active version. NEAR AI's Whisper gave no reply for about 2.5 hours on
+2026-11-12. For such an outage, the demo route selects the `venice` build,
+which uses Whisper on Venice AI, until NEAR AI answers again.
 
 | Version | State | WASM that runs | On chain |
 | --- | --- | --- | --- |
 | 0.14.1 | The default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. | [`1e7c6968…8a5c`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c.wasm) | Added: [`AJ6excNh…Bki9`](https://testnet.nearblocks.io/txns/AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9) |
-| 0.14.1+venice | In use now, while NEAR AI's Whisper is down: Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. | [`344b8b47…d3c8`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8.wasm) | Added: [`7spkQGnf…u8ip`](https://testnet.nearblocks.io/txns/7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip). Made active: [`HTQ5QvR1…CYX7`](https://testnet.nearblocks.io/txns/HTQ5QvR187yiKCA9KUYeFh1PHmZUQWJggaenCkxoCYX7) |
+| 0.14.1+venice | Only while NEAR AI's Whisper is down: Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. | [`344b8b47…d3c8`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8.wasm) | Added: [`7spkQGnf…u8ip`](https://testnet.nearblocks.io/txns/7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip). Made active: [`HTQ5QvR1…CYX7`](https://testnet.nearblocks.io/txns/HTQ5QvR187yiKCA9KUYeFh1PHmZUQWJggaenCkxoCYX7) |
 
 The name of each WASM file is its SHA-256, and OutLayer uses that hash as the
 version key. To check it, download the file and run `shasum -a 256` on it, or

@@ -470,12 +470,13 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
   WASM hash, until the owner moves the lock.
 - **Sealed audio after the verifier.** The verifier sends the opened WAV to
   the speaker service (a Phala TDX VM, its key pinned from its attestation)
-  and to NEAR AI. Verifier 0.12.0 and 0.13.0 (the live versions) send it to
-  NEAR AI over HTTPS and do not check NEAR AI's attestation. Verifier 0.14.0
-  (the source, not live yet) checks the Intel TDX quotes of NEAR AI's gateway
-  and of Whisper, and sends the WAV only sealed to the checked gateway. The
-  code of NEAR AI's VMs and the link from its gateway to Whisper stay
-  trusted; see
+  and to Whisper. Verifier 0.14.1 (the active version) checks the Intel TDX
+  quotes of NEAR AI's gateway and of Whisper, and sends the WAV only sealed
+  to the checked gateway. The code of NEAR AI's VMs and the link from its
+  gateway to Whisper stay trusted. Verifier 0.12.0 and 0.13.0 send the WAV
+  to NEAR AI over HTTPS and do not check NEAR AI's attestation; the Seams
+  staging server still calls 0.13.0. The `venice` build sends the WAV to
+  Venice AI, which has no TEE; see
   [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **NEAR AI.** The transcript has no signature. A false transcript can pass
   the word check.

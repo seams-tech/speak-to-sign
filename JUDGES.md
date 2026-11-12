@@ -1,7 +1,10 @@
 # Speak-to-Sign: a guide for judges
 
 The shortest path to see that Speak-to-Sign works, and to check each claim.
-[`README.md`](README.md) is the full reference.
+[`README.md`](README.md) is the full reference. [`AGENTS.md`](AGENTS.md)
+lists the facts that are easy to miss, and [`docs/README.md`](docs/README.md)
+is the index of the specs: the threat model, the chain of trust and the live
+state against the source.
 
 ## What it is
 
@@ -56,9 +59,12 @@ with the evidence. In short:
   sheet. The person approves the exact call by voice.
 - **Spend guards** decide when a person must approve. Speak-to-Sign makes
   that approval show what the person meant.
-- **Who controls the verifier.** Today the Wallet pins the verdict key. The
-  next step, which is not built, checks the TDX quote of each call against
-  pinned WASM hashes.
+- **Who controls the verifier.** The verdict key names the OutLayer project,
+  not the build. The Seams verify route checks the TDX quote and WASM hash
+  off chain before it returns a verdict (`seams-wallet` `0b297e976`). The contracts then check
+  only the ed25519 verdict on chain. This keeps the Intel TDX root of trust
+  with zero quote gas or chain bloat; see
+  [spec 9.1](docs/voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
 
 ## Scope of the hackathon work
 
@@ -278,6 +284,17 @@ git clone https://github.com/seams-tech/speak-to-sign
    builds of `777b844` too, and the voice multisig runs the build of
    `99231f6`. SourceScan verified all of them (`demo/contracts/README.md`).
 
+5. NEAR AI publishes an attestation report for its Whisper model: an Intel
+   TDX quote of the Whisper VM, with NVIDIA GPU evidence, and a quote of its
+   gateway. This command shows only that the report has them. Nothing in this
+   repo checks the report: see
+   [`docs/trust-chain.md`](docs/trust-chain.md#why-the-near-ai-check-is-not-shipped).
+
+   ```bash
+   # See: openai/whisper-large-v3: Intel TDX quote true, NVIDIA GPU evidence true
+   curl -s "https://cloud-api.near.ai/v1/attestation/report?model=openai/whisper-large-v3" | jq -r '.model_attestations[0] | "\(.model_name): Intel TDX quote \(.intel_quote|length > 0), NVIDIA GPU evidence \(.nvidia_payload|length > 0)"'
+   ```
+
 ## Claim -> where to check it
 
 "Spec" is [`docs/voice-intents-spec.md`](docs/voice-intents-spec.md).
@@ -317,9 +334,11 @@ boundaries", spec section 11, and the READMEs of the contracts:
 - The owner of the OutLayer project can deploy new code that signs with the
   same key. The Wallet pins the key, not the code.
 - The Phala app owner can change the speaker service and keep its key.
-- The device seals each recording, but the verifier opens it and sends it
-  to the speaker service (Phala) and to NEAR AI. Those two services see the
-  recording.
+- The device seals each recording. The verifier opens it and sends it to the
+  Phala speaker service (an Intel TDX VM, its key pinned from its
+  attestation) and to NEAR AI. NEAR AI's report shows its gateway and Whisper
+  as Intel TDX VMs, but nothing here checks that report, or that TLS ends
+  inside the gateway (see check 5).
 - The verifier does not check a proof of the NEAR RPC access-key view at
   enrollment.
 - Each of the four demo contract accounts still has a full-access key. Its

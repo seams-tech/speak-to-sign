@@ -20,8 +20,8 @@ multisig limits it. Testnet only.
 This README is for version 3.0.0, the source in `src/`. Version 3.0.0 is on
 `voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2 signers
 (see "Deployed code"). No demo page uses it yet. The older account
-`multisig.seams-v1.testnet` still runs version 2.x, with two admins that
-approve by plain calls.
+`multisig.seams-v1.testnet` (version 2.x, with two admins that approved by
+plain calls) was deleted on 2026-11-12 (see "Deployed code").
 
 The specification is in `docs/voice-intents-spec.md`, section 10. The
 sequence diagram is in `docs/architecture.md`, section 7.
@@ -283,7 +283,8 @@ git and cargo-near 0.22.0.
 
 The build of 12 Nov 2026 of version 3.0.0 is the code on
 `voice-multisig.seams-v1.testnet`. The code on `multisig.seams-v1.testnet`
-is the 2.x build of commit `777b844` (see "Deployed code").
+was the 2.x build of commit `777b844`, until that account was deleted (see
+"Deployed code").
 
 | Item               | Value |
 | ------------------ | ----- |
@@ -348,8 +349,9 @@ community-notes contract with 2 of 2 voice approvals.
 Version 3.0.0 has its own contract account. Its state (signers, threshold,
 recordings) is not the state of 2.x (admins), and the open 2.x proposals
 have admin approvals that are not voices. So a migration in place on
-`multisig.seams-v1.testnet` would carry approvals that no voice gave. That
-account stays on 2.x as a record, with its proposals and its NEAR.
+`multisig.seams-v1.testnet` would carry approvals that no voice gave. So
+3.0.0 got a new account. The 2.x account was deleted later on 2026-11-12
+(see "Deployed code").
 
 The steps below are the record of the deploy of 2026-11-12 and the way to
 deploy again. Each step waits for the owner's go-ahead. Each signer must
@@ -386,9 +388,10 @@ approves, and two signers need two different voices (`same_speaker`).
    ```
 
    A hide works only when the notes contract names this multisig as its
-   moderator. The notes contract has one moderator, and it is still
-   `multisig.seams-v1.testnet` (2.x). The switch ends the hides of 2.x, so
-   it waits for the owner:
+   moderator. The notes contract has one moderator. It was
+   `multisig.seams-v1.testnet` (2.x) until that account was deleted on
+   2026-11-12. The switch to this multisig ran on 2026-11-12, tx
+   `67yt21jDwFhcRXc6Ku8xeKutiyhPN8B2pnkL7iX1QM5D`:
 
    ```bash
    near contract call-function as-transaction notes.seams-v1.testnet set_moderator json-args '{"account_id":"voice-multisig.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as notes.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
@@ -428,20 +431,21 @@ reproducible build of commit `99231f6` (214,166 bytes, SHA-256
 `ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb`, code
 hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`, verified by
 SourceScan). The signers are `cyan-loong.testnet` and `seams-v1.testnet`,
-and the threshold is 2. The notes contract is `notes.seams-v1.testnet`, but
-the notes contract does not name this multisig as its moderator yet. The
-transactions are in "Deploy to testnet". No proposal exists yet.
+and the threshold is 2. The notes contract is `notes.seams-v1.testnet`, and
+the notes contract names this multisig as its moderator since 2026-11-12.
+The transactions are in "Deploy to testnet". No proposal exists yet.
 
 Not done for a live use: no demo route takes the multisig request kinds
 (`/api/voice-verify` takes only `market_bet`), so a signer gets a verdict
 only by a direct call of the OutLayer verifier, paid by the Seams payment
 key. The voice enrollment of the two signers is not checked here.
 
-`multisig.seams-v1.testnet` runs version 2.x: any account that is not an
-admin proposes by voice, and the admins `admin-a.seams-v1.testnet` and
-`admin-b.seams-v1.testnet` approve with plain signed calls. Its source is
+`multisig.seams-v1.testnet` ran version 2.x until 2026-11-12, when the
+account was deleted. In 2.x, any account that was not an admin proposed by
+voice, and the admins `admin-a.seams-v1.testnet` and
+`admin-b.seams-v1.testnet` approved with plain signed calls. Its source is
 commit `777b844` (`git show 777b844:demo/contracts/voice-multisig/README.md`
-has its interface). The demo site has no page for it since `d412a9a`.
+has its interface). The demo site had no page for it since `d412a9a`.
 
 - 2026-11-10: deploy and `new`, tx
   `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz` (code `c3f420b8…e037`),
@@ -454,9 +458,14 @@ has its interface). The demo site has no page for it since `d412a9a`.
   SHA-256 `95208e2a2b5091c677ad0e521fea43f7bc74d5a661981553b8ed5d835110e644`,
   code hash `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh`), no init call:
   tx `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t`. SourceScan built the
-  commit again and got the same code hash, so NearBlocks shows the code as
-  verified at
-  <https://testnet.nearblocks.io/address/multisig.seams-v1.testnet/contract>.
+  commit again and got the same code hash, so NearBlocks showed the code as
+  verified.
+- 2026-11-12: the account was deleted. NEAR refuses to delete an account
+  with more than 10 kB of storage, so an empty 8-byte WASM module replaced
+  the code first: tx `5VHiCTSsjYgFEgKtwYaeJpziLgnVjxG3gr85PusSSwAX`. Then
+  `delete-account` with the beneficiary `seams-faucet.testnet` sent its
+  10.49 NEAR to the faucet: tx
+  `946SabSDyNPet3s9cTFT9EWcjEGR1tByyVq7pJVaa4y5`.
 
 The first deploy, `team.seams-v1.testnet` (2026-11-10, code
 `d82479ab…e327`), had a cap of 0.05 NEAR. It stays on chain.

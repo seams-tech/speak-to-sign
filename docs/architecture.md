@@ -368,8 +368,10 @@ pinned WASM hash before it returns a verdict, and refuses with
 
 ## 9. Confidential audio
 
-A recording is sealed on the owner's device and opened only inside a TEE.
-The servers between them carry ciphertext. Verifier 0.12.0 and later; the
+A recording is sealed on the owner's device and unsealed only inside the
+verifier's TEE. The servers between them carry ciphertext. After that, the
+verifier sends the opened recording to the two model services (see "Limits"
+below). Verifier 0.12.0 and later; the
 rules are in section 5.1 of the specification.
 
 ```mermaid
@@ -451,10 +453,12 @@ Who holds which key:
 
 Limits:
 
-- **The two model services see the recording.** The verifier pins the key of
-  the Phala service from its TDX attestation. NEAR AI Cloud states that its
-  inference runs in a TEE; the verifier does not check an attestation of
-  NEAR AI.
+- **Who opens the recording after the verifier.** The Phala speaker service
+  runs in a TDX VM, and the verifier pins its key from its TDX attestation.
+  NEAR AI's attestation report shows its gateway and Whisper as Intel TDX VMs
+  on dstack, with NVIDIA GPU evidence for Whisper. Nothing here checks that
+  report, or that TLS ends inside the gateway; see
+  [`trust-chain.md`](trust-chain.md#why-the-near-ai-check-is-not-shipped).
 - **The request is not secret.** The Wallet sends the request fields in plain
   text, and the verdict names the heard words.
 - **The project owner.** A new verifier version of the same OutLayer project

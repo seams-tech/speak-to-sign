@@ -3,6 +3,7 @@
 
 export {
   openPhraseCard,
+  type PhraseCardContext,
   type PhraseCardControl,
   type PhraseCardControls,
   type PhraseCardFrame,

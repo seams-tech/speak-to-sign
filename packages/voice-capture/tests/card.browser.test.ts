@@ -297,3 +297,47 @@ test('a card with autoStart has no Record row, so it is shorter than a card that
   expect(result.slot).toBe('none');
   expect(result.withRecord - result.auto).toBeGreaterThan(60);
 });
+
+test('a card with a context shows the text above the sentence, and the rows keep their order', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  const result = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const card = () => [...document.querySelectorAll<HTMLElement>('.seams-voiceid-prompt')].at(-1)!;
+    const text = 'The bridge is not closed. One lane closes for two weeks in March, says the city.';
+    const plain = openPhraseCard({ sentence: 'One lane closes in March', signal: new AbortController().signal, detector: 'level' });
+    const top = (element: Element | null) => element!.getBoundingClientRect().top;
+    const plainRows = ['h2', '.seams-voiceid-phrase', '.seams-voiceid-ribbon', '.seams-voiceid-status'].map((selector) =>
+      top(card().querySelector(`:scope > ${selector}`)),
+    );
+    const plainContext = card().querySelector('.seams-voiceid-context');
+    plain.close();
+    openPhraseCard({
+      sentence: 'One lane closes in March',
+      signal: new AbortController().signal,
+      detector: 'level',
+      autoStart: true,
+      context: { label: 'Your note', text },
+    });
+    const shown = card();
+    const rows = ['.seams-voiceid-context', 'h2', '.seams-voiceid-phrase', '.seams-voiceid-ribbon', '.seams-voiceid-status'].map(
+      (selector) => top(shown.querySelector(`:scope > ${selector}`)),
+    );
+    return {
+      plainRows,
+      plainContext: plainContext !== null,
+      rows,
+      marked: shown.hasAttribute('data-context'),
+      label: shown.querySelector('.seams-voiceid-context-label')?.textContent,
+      text: shown.querySelector('.seams-voiceid-context blockquote')?.textContent,
+    };
+  });
+  expect(result.plainContext).toBe(false);
+  expect(result.marked).toBe(true);
+  expect(result.label).toBe('Your note');
+  expect(result.text).toBe('The bridge is not closed. One lane closes for two weeks in March, says the city.');
+  // Each row is below the one before it, with and without a context.
+  for (const rows of [result.plainRows, result.rows]) {
+    for (let i = 1; i < rows.length; i += 1) expect(rows[i]!).toBeGreaterThan(rows[i - 1]!);
+  }
+});

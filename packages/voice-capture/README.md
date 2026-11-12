@@ -113,6 +113,14 @@ try {
   no row for it, so it is shorter and its rows sit in the middle. If the browser starts audio
   only after a press, the card shows its Record button; "Try again" and a result's button
   bring the row back too.
+- `context: { label, text }` shows the text that the sentence speaks for above the sentence,
+  in a bordered box with its label: for example `{ label: 'Your note', text: note }` when the
+  sentence is a summary of that note. The sentence then has a smaller size. The box stays for
+  the check and the result, and it scrolls when the text is long. Without `context`, the card
+  is as before.
+- The rows of the card's grid have names: `context`, `title`, `phrase`, `line`, `status` and
+  `action`. A host that sets its own `grid-template-rows` on `.seams-voiceid-prompt` must give
+  its rows these names, or the rows move to new tracks.
 - `show()` resolves with `action` when the person selects the button of a result, `closed`
   when the person closes the card, or `replaced` when a new view or recording takes its place.
 - The card uses the CSS variables `--seams-colors-*`, `--seams-shape-*` and

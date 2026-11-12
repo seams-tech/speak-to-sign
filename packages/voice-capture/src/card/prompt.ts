@@ -24,7 +24,9 @@ const CSS = `
   margin: 0 auto;
   padding: 3.5rem 1.5rem 1.5rem;
   display: grid;
-  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) minmax(5rem, auto);
+  /* Named rows. The context row is empty (0 high) unless the card shows the text that its sentence
+     speaks for. A host that sets its own rows keeps these names. */
+  grid-template-rows: [context] auto [title] auto [phrase] minmax(6rem, auto) [line] 5rem [status] minmax(3.375rem, auto) [action] minmax(5rem, auto);
   border: 1px solid var(--seams-colors-borderPrimary, #303b41);
   border-radius: var(--seams-shape-card, 16px);
   background: var(--seams-colors-colorBackground, #192024);
@@ -56,12 +58,14 @@ const CSS = `
 }
 /* A card that holds focus itself (until its first control is ready, or after a confirm). */
 .seams-voiceid-prompt[tabindex="-1"]:focus { outline: none; }
-/* Each line owns its row. The download overlays rows 3-5; an auto-placed line would move to new rows. */
-.seams-voiceid-prompt > h2 { grid-area: 1 / 1; }
-.seams-voiceid-prompt > .seams-voiceid-phrase { grid-area: 2 / 1; }
-.seams-voiceid-prompt > .seams-voiceid-ribbon { grid-area: 3 / 1; }
-.seams-voiceid-prompt > .seams-voiceid-status { grid-area: 4 / 1; }
-.seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
+/* Each line owns its row. The download overlays the rows line, status and action; an auto-placed
+   line would move to new rows. */
+.seams-voiceid-prompt > .seams-voiceid-context { grid-row: context; grid-column: 1; }
+.seams-voiceid-prompt > h2 { grid-row: title; grid-column: 1; }
+.seams-voiceid-prompt > .seams-voiceid-phrase { grid-row: phrase; grid-column: 1; }
+.seams-voiceid-prompt > .seams-voiceid-ribbon { grid-row: line; grid-column: 1; }
+.seams-voiceid-prompt > .seams-voiceid-status { grid-row: status; grid-column: 1; }
+.seams-voiceid-progress-slot { grid-row: action; grid-column: 1; min-width: 0; align-self: center; }
 .seams-voiceid-progress-slot:empty { visibility: hidden; }
 .seams-voiceid-activation-surface .seams-voiceid-record-slot { transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1) 80ms, visibility 0s linear 0s; }
 .seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { opacity: 0; visibility: hidden; transition: none; }
@@ -248,6 +252,34 @@ const CSS = `
   margin: 0 auto;
   transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), color 300ms ease;
 }
+.seams-voiceid-prompt .seams-voiceid-context {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 9.5rem;
+  margin: 0 0 0.25rem;
+  padding: 0.625rem 0.875rem;
+  overflow-y: auto;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: var(--seams-shape-control, 10px);
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-align: start;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.seams-voiceid-prompt .seams-voiceid-context > blockquote { margin: 0; }
+.seams-voiceid-prompt .seams-voiceid-context-label {
+  display: block;
+  margin-bottom: 0.125rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+/* With the context, the sentence is the second thing to read: it needs less room. */
+.seams-voiceid-prompt[data-context] .seams-voiceid-phrase:not(.seams-voiceid-success-headline) {
+  font-size: clamp(1.375rem, 5vw, 1.75rem);
+}
 .seams-voiceid-ribbon {
   display: block;
   width: 308px;
@@ -316,7 +348,7 @@ const CSS = `
   left: 0.75rem;
 }
 .seams-voiceid-prompt .seams-voiceid-record-slot {
-  grid-row: 5;
+  grid-row: action;
   grid-column: 1;
   align-self: center;
   width: 100%;
@@ -398,7 +430,7 @@ const CSS = `
 .seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-phrase { opacity: 0.35; }
 .seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="failed"]) > .seams-voiceid-record-slot { display: none; }
 .seams-voiceid-model-download progress {
-  grid-row: 3;
+  grid-row: line;
   justify-self: center;
   appearance: none;
   display: block;
@@ -416,7 +448,7 @@ const CSS = `
    a looping animation would compete with it on a software-rendered page. */
 .seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
 .seams-voiceid-model-download p {
-  grid-row: 4;
+  grid-row: status;
   align-self: start;
   margin: 0;
   font-size: 0.75rem;
@@ -424,9 +456,9 @@ const CSS = `
   color: var(--seams-colors-textSecondary, #9cabb3);
   font-variant-numeric: tabular-nums;
 }
-.seams-voiceid-model-download button { grid-row: 5; }
+.seams-voiceid-model-download button { grid-row: action; }
 /* A phrase card shows its check and its result in the same card. */
-.seams-voiceid-prompt > .seams-voiceid-status-line { grid-area: 3 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-status-line { grid-row: line; grid-column: 1; }
 .seams-voiceid-status-line {
   transition: opacity 120ms ease;
   display: block;
@@ -476,12 +508,12 @@ const CSS = `
 .seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-phrase-dim { color: var(--seams-colors-textMuted, #6f7f87); }
 .seams-voiceid-prompt[data-phrase-view] > h2 { min-height: 1.19rem; }
 .seams-voiceid-prompt[data-phrase-view="check"] {
-  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 0;
+  grid-template-rows: [context] auto [title] auto [phrase] minmax(6rem, auto) [line] 5rem [status] minmax(3.375rem, auto) [action] 0;
 }
 .seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-record-slot { display: none; }
 /* A card that records by itself (autoStart) has no Record row: its rows sit in the middle. */
 .seams-voiceid-prompt[data-auto-start] {
-  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 0;
+  grid-template-rows: [context] auto [title] auto [phrase] minmax(6rem, auto) [line] 5rem [status] minmax(3.375rem, auto) [action] 0;
 }
 .seams-voiceid-prompt[data-auto-start] > .seams-voiceid-record-slot { display: none; }
 .seams-voiceid-prompt[data-phrase-view] .seams-voiceid-microphone { display: none; }
@@ -648,6 +680,24 @@ export class VoicePrompt {
       this.progress,
     );
     this.sizes.observe(this.element);
+  }
+
+  /**
+   * Shows the text that the sentence speaks for, such as the note that a spoken summary signs,
+   * above the sentence. It stays for the check and the result.
+   */
+  showContext(label: string, text: string): void {
+    const document = this.element.ownerDocument;
+    const context = document.createElement('figure');
+    context.className = 'seams-voiceid-context';
+    const caption = document.createElement('figcaption');
+    caption.className = 'seams-voiceid-context-label';
+    caption.textContent = label;
+    const body = document.createElement('blockquote');
+    body.textContent = text;
+    context.append(caption, body);
+    this.title.before(context);
+    this.element.dataset.context = '';
   }
 
   /**

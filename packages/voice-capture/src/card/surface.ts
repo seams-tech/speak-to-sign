@@ -57,7 +57,16 @@ export type PhraseCardInput = Readonly<{
    * start audio without a press, the card stays with its Record button.
    */
   autoStart?: boolean;
+  /**
+   * The text that the sentence speaks for, such as the note that a spoken summary signs. The
+   * card shows it above the sentence, with its label (for example "Your note"), for the whole
+   * card: the prompt, the check and the result.
+   */
+  context?: PhraseCardContext;
 }>;
+
+/** The text that a phrase card shows above its sentence. */
+export type PhraseCardContext = Readonly<{ label: string; text: string }>;
 
 /**
  * Shows the given sentence in the prompt. The surface records clips with the quality check, and
@@ -125,6 +134,7 @@ class CardSurface implements PhraseSurface {
     const controls = frame.controls ?? 'close';
     this.pressed = frame.pressed;
     const back = controls === 'close' ? null : this.prompt.showBack(controls === 'back_and_close');
+    if (input.context) this.prompt.showContext(input.context.label, input.context.text);
     this.back = back === this.prompt.cancel ? null : back;
     const handedOverPrompt = handedOver?.querySelector(':scope > .seams-voiceid-prompt') ?? null;
     const rows = handedOverPrompt ? handedOverRows(handedOverPrompt) : null;

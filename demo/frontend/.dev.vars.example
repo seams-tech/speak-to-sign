@@ -15,7 +15,7 @@ NEAR_RPC_URL=
 # verify route: the payment key decides where the voice templates are and which key signs.
 VOICE_OUTLAYER_BASE_URL=
 VOICE_OUTLAYER_PROJECT=
-# The WASM hash of a verifier version with market_bet (0.8.0 or later).
+# The WASM hash of a verifier version with market_bet and the multisig kinds (0.8.0 or later).
 VOICE_OUTLAYER_VERSION_KEY=
 VOICE_OUTLAYER_PAYMENT_KEY=
 VOICE_OUTLAYER_SECRETS_PROFILE=

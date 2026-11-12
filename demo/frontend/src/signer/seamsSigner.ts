@@ -129,6 +129,12 @@ export function walletErrorText(cause: unknown): string {
   return NEEDS_UNLOCK.test(text) ? 'Your wallet is locked. Unlock it with your passkey, then try again.' : text;
 }
 
+/** The contract's own message out of NEAR's failure text ("Smart contract panicked: ..."). */
+export function contractReason(error: string): string {
+  const match = /Smart contract panicked: ([^"\\]+)/.exec(error);
+  return match ? `The contract refused: ${match[1]}.` : `The transaction failed: ${error}`;
+}
+
 /** One spoken request that sends a transaction, as a result for the page. */
 export async function spokenRequest(seams: Seams, walletId: string, call: () => Promise<SpokenSent>): Promise<SignResult> {
   try {

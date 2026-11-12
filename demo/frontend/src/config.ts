@@ -14,6 +14,8 @@ const e = import.meta.env;
 export const config = {
   /** The notes contract on NEAR testnet (demo/contracts/community-notes/). */
   contract: env(e.VITE_NOTES_CONTRACT, 'notes.seams-v1.testnet'),
+  /** The voice multisig contract, version 3.0.0, of the page /multisig/ (demo/contracts/voice-multisig/). */
+  multisigContract: env(e.VITE_MULTISIG_CONTRACT, 'voice-multisig-2.seams-v1.testnet'),
   rpcUrl: env(e.VITE_NEAR_RPC_URL, 'https://test.rpc.fastnear.com'),
   /** The note market contract on NEAR testnet (demo/contracts/jev-prediction-market/). */
   marketContract: env(e.VITE_MARKET_CONTRACT, 'pm-notes.seams-v1.testnet'),

@@ -607,3 +607,37 @@ test('the theme value voiceBeam none turns the Beam off, and a palette name keep
   expect(result.off).toEqual({ hidden: true, display: 'none', drawn: false });
   expect(result.on).toMatchObject({ hidden: false, drawn: true });
 });
+
+test('a form card ends its check in the microphone circle with a tick, and a plain card keeps the seal', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Records with the fake microphone, shows a sealed result, and reads how the check's line ended.
+  const sealed = async (context: boolean) => {
+    await page.goto(`${origin}/example/`);
+    return page.evaluate(async (context) => {
+      const module = '/browser/card.js';
+      const { openPhraseCard } = await import(module);
+      const surface = openPhraseCard({
+        sentence: 'Send two NEAR to alice.testnet',
+        signal: new AbortController().signal,
+        detector: 'level',
+        autoStart: true,
+        ...(context ? { context: { label: 'Your note', text: 'The bridge is not closed.' } } : {}),
+      });
+      await surface.record();
+      // A result resolves when the person presses its button: the test reads the card first.
+      void surface.show({ kind: 'result', label: '', headline: 'Sent', caption: 'Sent', detail: 'Checked', action: { label: 'Done' }, line: 'seal' });
+      const card = document.querySelector<HTMLElement>('.seams-voiceid-prompt')!;
+      while (card.dataset.phraseView !== 'result') await new Promise((resolve) => setTimeout(resolve, 50));
+      const line = card.querySelector<SVGElement>('.seams-voiceid-status-line')!;
+      const tick = card.querySelector<SVGPathElement>('.seams-voiceid-line-icon-check > path');
+      const microphone = card.querySelector<SVGElement>('.seams-voiceid-line-icon-microphone');
+      return {
+        seal: line.dataset.seal ?? null,
+        tickOffset: tick ? Number(getComputedStyle(tick).strokeDashoffset.replace('px', '')) : null,
+        microphoneOpacity: microphone ? getComputedStyle(microphone).opacity : null,
+      };
+    }, context);
+  };
+  expect(await sealed(true)).toEqual({ seal: 'icon', tickOffset: 0, microphoneOpacity: '0' });
+  expect(await sealed(false)).toEqual({ seal: '', tickOffset: null, microphoneOpacity: null });
+});

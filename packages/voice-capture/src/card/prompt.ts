@@ -743,7 +743,14 @@ const CSS = `
   color: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3));
   pointer-events: none;
 }
-.seams-voiceid-line-icon > svg { width: 46%; height: 46%; }
+.seams-voiceid-line-icon > svg { grid-area: 1 / 1; width: 46%; height: 46%; }
+/* The tick waits, undrawn, in the same place as the microphone (phraseCard.ts sealIcon). */
+.seams-voiceid-line-icon-check { opacity: 0; }
+.seams-voiceid-line-icon-check > path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+/* In a form card the check's line ends in the microphone's circle, not in a ring and a seal: the
+   bar draws back into the circle from the right, and the circle's microphone turns into a tick. */
+.seams-voiceid-status-line[data-seal="icon"] > :is(.seams-voiceid-status-ring, .seams-voiceid-status-seal, .seams-voiceid-status-check) { opacity: 0; }
+.seams-voiceid-status-line[data-seal="icon"] > .seams-voiceid-status-bar { transform-origin: 0% 50%; }
 .seams-voiceid-prompt[data-context][data-phrase-view="result"] > .seams-voiceid-line-icon { display: none; }
 .seams-voiceid-prompt[data-context] > :is(.seams-voiceid-ribbon, .seams-voiceid-status-line) {
   box-sizing: border-box;
@@ -1441,25 +1448,43 @@ const MINIMIZE_PATH = 'M6 12h12';
 /** A microphone: its head, its stand and its foot. */
 const MICROPHONE_PATHS = ['M9 5a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z', 'M5 10a7 7 0 0 0 14 0', 'M8 21h8', 'M12 17v4'];
 
-/** The microphone at the left of a form card's button, in its own circle. */
+/** The tick that takes the microphone's place when a form card's check passes. */
+const ICON_CHECK_PATH = 'M5 12.5l4.5 4.5L19 7.5';
+
+/**
+ * The microphone at the left of a form card's button, in its own circle, and the tick that
+ * takes its place when the check passes (phraseCard.ts sealIcon).
+ */
 function microphoneIcon(document: Document): HTMLSpanElement {
   const circle = document.createElement('span');
   circle.className = 'seams-voiceid-line-icon';
   circle.setAttribute('aria-hidden', 'true');
+  const icon = lineIconSvg(document, 'seams-voiceid-line-icon-microphone');
+  for (const d of MICROPHONE_PATHS) icon.append(lineIconPath(document, d, '1.8'));
+  const check = lineIconSvg(document, 'seams-voiceid-line-icon-check');
+  const tick = lineIconPath(document, ICON_CHECK_PATH, '2.6');
+  tick.setAttribute('pathLength', '1');
+  check.append(tick);
+  circle.append(icon, check);
+  return circle;
+}
+
+function lineIconSvg(document: Document, className: string): SVGSVGElement {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   icon.setAttribute('viewBox', '0 0 24 24');
-  for (const d of MICROPHONE_PATHS) {
-    const part = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    part.setAttribute('d', d);
-    part.setAttribute('fill', 'none');
-    part.setAttribute('stroke', 'currentColor');
-    part.setAttribute('stroke-width', '1.8');
-    part.setAttribute('stroke-linecap', 'round');
-    part.setAttribute('stroke-linejoin', 'round');
-    icon.append(part);
-  }
-  circle.append(icon);
-  return circle;
+  icon.setAttribute('class', className);
+  return icon;
+}
+
+function lineIconPath(document: Document, d: string, width: string): SVGPathElement {
+  const part = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  part.setAttribute('d', d);
+  part.setAttribute('fill', 'none');
+  part.setAttribute('stroke', 'currentColor');
+  part.setAttribute('stroke-width', width);
+  part.setAttribute('stroke-linecap', 'round');
+  part.setAttribute('stroke-linejoin', 'round');
+  return part;
 }
 
 /** A control in a corner of the card, with an icon and no text. */

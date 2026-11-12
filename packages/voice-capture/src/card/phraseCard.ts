@@ -22,6 +22,10 @@ const GAP_CLOSE_MS = 240;
 const RING_MS = 440;
 const SEAL_MS = 320;
 const CHECK_MS = 260;
+/** A form card: the bar draws back into the microphone's circle, then the microphone goes. */
+const RETRACT_MS = 360;
+const ICON_SWAP_MS = 160;
+const PULSE_MS = 320;
 const RING_RADIUS = 21.5;
 const SEAL_RADIUS = 22.5;
 const CHECK_PATH = 'M161 26.8 151.4 36.3 147.1 32';
@@ -407,7 +411,10 @@ export class PhraseCard {
     if (blocked) await wait(this.motion.matches ? 0 : BLOCKER_HOLD_MS);
   }
 
-  /** The segments fill, the gaps close, the line shrinks as the ring draws, then seal and check. */
+  /**
+   * The segments fill and the gaps close. Then the line shrinks as the ring draws, and the seal
+   * and its check come; in a form card, the line ends in the microphone's circle instead.
+   */
   private async sealLine(version: number): Promise<void> {
     await this.setSegments(Array.from({ length: SEGMENTS }, () => 'done'));
     if (this.stale(version)) return;
@@ -416,6 +423,11 @@ export class PhraseCard {
       this.layoutSegments(GAP * (1 - progress), 3),
     );
     if (this.stale(version)) return;
+    const icon = this.lineIcon();
+    if (icon) {
+      await this.sealIcon(version, icon, reduced);
+      return;
+    }
     this.line.dataset.seal = '';
     const circumference = 2 * Math.PI * RING_RADIUS;
     this.ring.style.strokeDasharray = String(circumference);
@@ -445,12 +457,61 @@ export class PhraseCard {
     ).finished;
   }
 
+  /**
+   * A form card's success: the solid bar draws back to the left into the microphone's circle,
+   * the microphone goes, and a tick draws in its place in the button's colour, with one small
+   * pulse of the circle. The pill then becomes the result's button.
+   */
+  private async sealIcon(version: number, icon: HTMLElement, reduced: boolean): Promise<void> {
+    this.line.dataset.seal = 'icon';
+    const timing = (duration: number, easing: string): KeyframeAnimationOptions => ({
+      duration: reduced ? 0 : duration,
+      easing,
+      fill: 'forwards',
+    });
+    // The bar's left end moves to the centre of the circle while the bar shrinks, so the bar ends
+    // in the circle, behind it. The move is in the line's own units.
+    const bar = this.bar.getBoundingClientRect();
+    const circle = icon.getBoundingClientRect();
+    const scale = this.bar.getScreenCTM()?.a || 1;
+    const shift = (circle.left + circle.width / 2 - bar.left) / scale;
+    await this.bar.animate(
+      [{ transform: 'translateX(0) scaleX(1)' }, { transform: `translateX(${shift}px) scaleX(0)` }],
+      timing(RETRACT_MS, EASE_RING),
+    ).finished;
+    if (this.stale(version)) return;
+    const { microphone, check, tick } = lineIconParts(icon);
+    microphone?.animate(
+      [
+        { opacity: 1, transform: 'scale(1)' },
+        { opacity: 0, transform: 'scale(0.6)' },
+      ],
+      timing(ICON_SWAP_MS, EASE_IN_OUT),
+    );
+    check?.animate([{ opacity: 0 }, { opacity: 1 }], timing(ICON_SWAP_MS, EASE_IN_OUT));
+    icon.animate(
+      [{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }],
+      timing(PULSE_MS, EASE_MOVE),
+    );
+    await tick?.animate(
+      [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
+      timing(CHECK_MS, EASE_IN_OUT),
+    ).finished;
+  }
+
+  /** The microphone's circle of a form card, or null for another card. */
+  private lineIcon(): HTMLElement | null {
+    return this.prompt.element.querySelector<HTMLElement>(':scope > .seams-voiceid-line-icon');
+  }
+
   private resetLine(): void {
     this.morph = null;
     this.states = [];
     delete this.line.dataset.seal;
-    for (const part of [this.bar, this.ring, this.seal, this.check]) {
-      part.getAnimations().forEach((animation) => animation.cancel());
+    const icon = this.lineIcon();
+    const iconParts = icon ? Object.values(lineIconParts(icon)) : [];
+    for (const part of [this.bar, this.ring, this.seal, this.check, icon, ...iconParts]) {
+      part?.getAnimations().forEach((animation) => animation.cancel());
     }
     this.layoutSegments(0, 3);
     this.paintStates();
@@ -536,4 +597,18 @@ function fadeIn(element: Element, reduced: boolean, delay: number): void {
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** The parts of a form card's microphone circle that the success animation moves. */
+function lineIconParts(icon: HTMLElement): {
+  microphone: SVGSVGElement | null;
+  check: SVGSVGElement | null;
+  tick: SVGPathElement | null;
+} {
+  const check = icon.querySelector<SVGSVGElement>('.seams-voiceid-line-icon-check');
+  return {
+    microphone: icon.querySelector<SVGSVGElement>('.seams-voiceid-line-icon-microphone'),
+    check,
+    tick: check?.querySelector<SVGPathElement>('path') ?? null,
+  };
 }

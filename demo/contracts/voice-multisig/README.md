@@ -453,10 +453,13 @@ testnet".
 | --- | --- | --- |
 | Signer A proposes | [`9VhY5XVYFaT5jXpYGVvpnz3GFnNVkUnX8CH4AY5Yd9kb`](https://testnet.nearblocks.io/txns/9VhY5XVYFaT5jXpYGVvpnz3GFnNVkUnX8CH4AY5Yd9kb) | `accept`, speaker score 746 (the cutoff is 450), heard "approve proposal three send zero point one near to seams dash faucet dot testnet" |
 | Signer B approves | [`7sBTQskwjpmZMgiUa5bTD4WTJB45HKtvjpU2H4E82mKP`](https://testnet.nearblocks.io/txns/7sBTQskwjpmZMgiUa5bTD4WTJB45HKtvjpU2H4E82mKP) | `accept`, speaker score 790. The verifier did not refuse it as `same_speaker`: the voice of signer B is not the voice of signer A. |
+| Signer A executes | [`27rHJo5reVM1vokTakJ9z53VmhTQV2fKAmfyKMwvNZ5x`](https://testnet.nearblocks.io/txns/27rHJo5reVM1vokTakJ9z53VmhTQV2fKAmfyKMwvNZ5x) | No verdict: `execute` opens the hidden transfer with its salt. The contract checked that the receiver, the amount and the salt give the stored hash. |
 
-The contract logged `proposed` for the first transaction and `approved` with
-`"approvals":2` for the second. The chain holds only the salted hash of the
-transfer (`89fe7771…20df`) until `execute`.
+The contract logged `proposed` for the first transaction, `approved` with
+`"approvals":2` for the second, and `executed` for the third. The chain held
+only the salted hash of the transfer (`89fe7771…20df`) until `execute`. Then
+0.1 NEAR went to `seams-faucet.testnet`, and `get_proposals` shows proposal 3
+as `executed`.
 
 Facts of this proposal:
 
@@ -464,8 +467,6 @@ Facts of this proposal:
   reply on that day, so the `venice` build heard the words: Venice AI, which
   has no TEE (`crates/voice-verifier/README.md`, "Speech-to-text service").
   The speaker check and the signature are the same as in the default build.
-- Not done: `execute`. The proposal is open with 2 of 2 approvals, and the
-  0.1 NEAR did not move yet.
 
 ### Proposal 2: one person cannot approve two times (2026-11-12)
 

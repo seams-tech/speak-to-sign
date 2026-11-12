@@ -45,11 +45,8 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     const spoken = seams.near.spoken;
     if (!spoken) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
-    try {
-      return toSignResult(await call(spoken, walletId));
-    } catch (cause) {
-      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
-    }
+    const id = walletId;
+    return await spokenRequest(seams, id, () => call(spoken, id));
   };
 
   return {
@@ -69,7 +66,7 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
       const id = walletId;
-      return await withFreshUnlock(seams, id, async () => {
+      return await setupStep(seams, id, async () => {
         const availability = await seams.registration.getAuthMethodAvailability({ walletId: id, method: 'voiceid' });
         if (availability.kind === 'disabled') {
           await seams.registration.setAuthMethodEnabled({ walletId: id, method: 'voiceid', enabled: true });
@@ -86,45 +83,74 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
       const id = walletId;
       const spoken = seams.near.spoken;
       if (!spoken) return { kind: 'failed', message: 'Speak-to-Sign is not in the Wallet configuration.' };
-      return await withFreshUnlock(seams, id, () => enrollOnce(spoken, id));
+      return await setupStep(seams, id, () => enrollOnce(spoken, id));
     },
   };
 }
 
-/**
- * Runs a setup step. Some steps need the wallet's custody seed, which the Wallet keeps in
- * memory only after a passkey unlock in the same Wallet session (a session restored after a
- * page reload does not have it). If the Wallet asks for that, unlock with the passkey once and
- * run the step again.
- */
-async function withFreshUnlock(seams: Seams, walletId: string, step: () => Promise<SetupOutcome>): Promise<SetupOutcome> {
-  try {
-    return await step();
-  } catch (cause) {
-    // A closed Wallet or passkey window ("Request cancelled.") is the owner's choice, not a failure.
-    if (isCancelError(cause)) return CLOSED;
-    if (!NEEDS_UNLOCK.test(errorText(cause))) return { kind: 'failed', message: errorText(cause) };
+/** The Wallet's messages that ask for a fresh owner unlock. */
+const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active owner wallet session/i;
+
+/** The passkey unlock that a Wallet call asked for did not finish. */
+class UnlockFailed extends Error {
+  /** True when the owner closed the passkey window. */
+  readonly closed: boolean;
+  constructor(error: string) {
+    super(error);
+    this.closed = isUserRejection(error);
   }
+}
+
+/**
+ * Runs a Wallet call. Some calls need a Wallet session with a fresh passkey unlock (a spoken
+ * request, or the custody seed of a setup step), and a session that a page reload restored does
+ * not have it. If the Wallet asks for that, unlock with the passkey once and run the call again.
+ */
+async function afterUnlock<T>(seams: Seams, walletId: string, call: () => Promise<T>): Promise<T> {
   try {
-    const unlock = await seams.auth.unlock(walletId);
-    if (!unlock.success) {
-      if (isUserRejection(unlock.error ?? '')) return CLOSED;
-      return { kind: 'failed', message: `The Wallet needs a passkey unlock first, and the unlock did not finish. ${unlock.error}` };
-    }
-    return await step();
+    return await call();
   } catch (cause) {
-    if (isCancelError(cause)) return CLOSED;
-    return { kind: 'failed', message: errorText(cause) };
+    if (!NEEDS_UNLOCK.test(errorText(cause))) throw cause;
+  }
+  const unlock = await seams.auth.unlock(walletId);
+  if (!unlock.success) throw new UnlockFailed(unlock.error ?? '');
+  return await call();
+}
+
+/** A closed Wallet or passkey window ("Request cancelled.") is the owner's choice, not a failure. */
+function closedByOwner(cause: unknown): boolean {
+  return isCancelError(cause) || (cause instanceof UnlockFailed && cause.closed);
+}
+
+/** A thrown Wallet error, in plain words for the result card. */
+export function walletErrorText(cause: unknown): string {
+  if (cause instanceof UnlockFailed) return 'Your wallet is locked, and the passkey unlock did not finish.';
+  const text = errorText(cause);
+  return NEEDS_UNLOCK.test(text) ? 'Your wallet is locked. Unlock it with your passkey, then try again.' : text;
+}
+
+/** One spoken request that sends a transaction, as a result for the page. */
+export async function spokenRequest(seams: Seams, walletId: string, call: () => Promise<SpokenSent>): Promise<SignResult> {
+  try {
+    return toSignResult(await afterUnlock(seams, walletId, call));
+  } catch (cause) {
+    return closedByOwner(cause) ? { kind: 'cancelled' } : { kind: 'unavailable', reason: walletErrorText(cause) };
+  }
+}
+
+/** Runs a setup step, with the unlock of afterUnlock. */
+async function setupStep(seams: Seams, walletId: string, step: () => Promise<SetupOutcome>): Promise<SetupOutcome> {
+  try {
+    return await afterUnlock(seams, walletId, step);
+  } catch (cause) {
+    return closedByOwner(cause) ? CLOSED : { kind: 'failed', message: walletErrorText(cause) };
   }
 }
 
 /** The owner closed a Wallet or passkey window. The page shows no note for it. */
 const CLOSED: SetupOutcome = { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
 
-/** The Wallet's messages that ask for a fresh owner unlock. */
-const NEEDS_UNLOCK = /unlock (the|this) wallet|custody seed|requires an active owner wallet session/i;
-
-/** One verifier enrollment. A thrown error goes to withFreshUnlock. */
+/** One verifier enrollment. A thrown error goes to setupStep. */
 async function enrollOnce(spoken: Spoken, walletId: string): Promise<SetupOutcome> {
   const result: SpeakToSignEnrollmentResult = await inVoiceCard((place) => spoken.enroll({ walletSession: walletId, ...place }));
   switch (result.kind) {

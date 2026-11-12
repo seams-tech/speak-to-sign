@@ -1,9 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
-import { IconAlertCircle, IconBan, IconCheck, IconCoins, IconMicrophone, IconPlugConnectedX, IconUser, IconX } from '@tabler/icons-react';
-import { shortAccount } from '../config';
+import { IconBan, IconCoins, IconMicrophone, IconPlugConnectedX, IconUser, IconX } from '@tabler/icons-react';
 import type { DemoState, PrepareStep } from '../demoContext';
 import type { NotesSigner, SignResult } from '../signer/notesSigner';
-import { TxLink } from './bits';
 import { Morph } from './Morph';
 
 /** `preparing`: a step before the voice runs first (sign in, set up the voice, testnet funds). */
@@ -14,8 +12,6 @@ export type SignPhase =
   /** `title`: in place of the result's usual title, for a step before the voice that failed. */
   | { state: 'done'; result: SignResult; title?: string };
 
-/** After a voice action worked, its dialog shows the result this long, then closes by itself. */
-const AUTO_CLOSE_MS = 2400;
 /**
  * A dialog that a voice command opened shows its ready button this long before the Wallet card
  * takes its place, so the visitor sees what the command will sign.
@@ -68,19 +64,6 @@ export function speakHint(signedIn: boolean, voiceSetUp: boolean, readyHint: str
   return readyHint;
 }
 
-/** Calls `close` a moment after `active` turns on, so a result shows, then goes by itself. */
-export function useAutoClose(active: boolean, close: () => void) {
-  const closeRef = useRef(close);
-  useLayoutEffect(() => {
-    closeRef.current = close;
-  });
-  useEffect(() => {
-    if (!active) return;
-    const timer = window.setTimeout(() => closeRef.current(), AUTO_CLOSE_MS);
-    return () => window.clearTimeout(timer);
-  }, [active]);
-}
-
 /**
  * Calls `start` once, a moment after `ready` turns on, when a voice command opened the dialog
  * (`enabled`). Make `ready` false when the visitor starts by hand: the pause then ends with no
@@ -129,33 +112,31 @@ interface SpeakStepProps {
   hint: string;
   disabled: boolean;
   disabledHint?: string;
-  accountId: string | undefined;
-  /** For example "Words matched the summary". */
-  wordsLine: string;
-  /** For example "Note signed and submitted". */
-  signedLine: string;
-  /** For example "Nothing was posted." */
-  nothingLine: string;
+  /** The title when nothing was signed, for example "Nothing was posted". */
+  nothingTitle: string;
   onStart: () => void;
   onRetry: () => void;
-  onDone: () => void;
 }
 
 /**
- * The voice part of a modal: the button, then the result card. The button stays one button for
- * the steps before the voice and the wait for the Wallet card: only its words and icon change.
- * The result card fades in after it, and the dialog changes its size with it.
+ * The voice part of a modal: the button, then a result card when nothing was signed. The button
+ * stays one button for the steps before the voice and the wait for the Wallet card: only its
+ * words and icon change. A signed request has no card here: the Wallet card showed its result
+ * and receipt, and the dialog closes. The result card fades in after the button, and the dialog
+ * changes its size with it.
  */
 export function SpeakStep(props: SpeakStepProps) {
   const { phase } = props;
+  const failed = phase.state === 'done' && phase.result.kind !== 'sent' ? phase.result : null;
   return (
-    <Morph view={phase.state === 'done' ? `done-${phase.result.kind}` : 'button'}>
-      {phase.state === 'done' ? (
+    <Morph view={failed ? `done-${failed.kind}` : 'button'}>
+      {failed ? (
         <div className="speak" aria-live="polite">
-          <ResultCard {...props} result={phase.result} title={phase.title} />
+          <ResultCard {...props} result={failed} title={phase.state === 'done' ? phase.title : undefined} />
         </div>
       ) : (
-        <SpeakButton {...props} phase={phase} />
+        // A sent request keeps the button, busy, while the dialog closes.
+        <SpeakButton {...props} phase={phase.state === 'done' ? { state: 'pending' } : phase} />
       )}
     </Morph>
   );
@@ -218,85 +199,31 @@ function SpeakButton(props: SpeakStepProps & { phase: Exclude<SignPhase, { state
 function ResultCard({
   result,
   title: customTitle,
-  sentence,
-  accountId,
-  wordsLine,
-  signedLine,
-  nothingLine,
+  nothingTitle,
   onRetry,
-  onDone,
-}: SpeakStepProps & { result: SignResult; title?: string }) {
-  if (result.kind === 'sent') {
-    const seconds = result.endOfSpeechToReceiptMs === undefined ? null : (result.endOfSpeechToReceiptMs / 1000).toFixed(1);
-    return (
-      <Card>
-        {sentence && <q className="card-quote">{sentence}</q>}
-        <Check>Biometric CAPTCHA: voice matched {accountId ? shortAccount(accountId) : 'the account owner'}</Check>
-        <Check>{wordsLine}</Check>
-        {result.approval === 'voice_and_passkey' && <Check>A policy rule asked for your passkey too</Check>}
-        <div className="card-foot">
-          <Check>
-            {signedLine}
-            {seconds && ` ${seconds} s after you spoke`} · <TxLink hash={result.transactionHash} />
-          </Check>
-          <button type="button" className="btn btn-dark btn-sm" onClick={onDone} autoFocus>
-            Done
-          </button>
-        </div>
-      </Card>
-    );
-  }
-
-  const view: Record<Exclude<SignResult['kind'], 'sent'>, { icon: ReactNode; title: string }> = {
-    refused: { icon: <IconX size={16} stroke={2.4} />, title: 'Not signed' },
-    cancelled: { icon: <IconBan size={16} stroke={2} />, title: 'You left the Wallet card' },
-    unavailable: { icon: <IconPlugConnectedX size={16} stroke={2} />, title: 'Speak-to-Sign is not available' },
-  };
-  const { icon } = view[result.kind];
-  const title = customTitle ?? view[result.kind].title;
-  const reason = result.kind === 'cancelled' ? 'Nothing was signed.' : result.reason;
+}: SpeakStepProps & { result: Exclude<SignResult, { kind: 'sent' }>; title?: string }) {
+  // A voice action that signed nothing: the shape of the voice button, with what happened, why,
+  // and "Try again" in place of the button.
+  const icon = {
+    refused: <IconX size={20} stroke={2.4} />,
+    cancelled: <IconBan size={20} stroke={2} />,
+    unavailable: <IconPlugConnectedX size={20} stroke={2} />,
+  }[result.kind];
+  const reason = result.kind === 'cancelled' ? 'You closed the Wallet window.' : result.reason;
 
   return (
-    <Card tone={result.kind === 'refused' ? 'bad' : 'neutral'}>
-      <div className="card-title" role="alert">
-        <span className={`card-icon card-icon-${result.kind}`} aria-hidden="true">
-          {icon}
-        </span>
-        <b>{title}</b>
-      </div>
-      <p className="card-reason">{reason}</p>
-      <div className="card-foot">
-        <span className="muted small">
-          {result.kind !== 'unavailable' && (
-            <>
-              <IconAlertCircle size={14} stroke={1.8} aria-hidden="true" /> {nothingLine}
-            </>
-          )}
-        </span>
-        <button type="button" className="btn btn-outline btn-sm" onClick={onRetry} autoFocus>
-          Try again
-        </button>
-      </div>
-    </Card>
-  );
-}
-
-function Card({ children, tone = 'good' }: { children: ReactNode; tone?: 'good' | 'bad' | 'neutral' }) {
-  return (
-    <div className={`seams-card seams-card-${tone}`}>
-      <div className="muted small seams-card-head">
-        <IconMicrophone size={14} stroke={1.8} aria-hidden="true" /> Seams · Speak-to-Sign
-      </div>
-      {children}
+    <div className={`speak-fail speak-fail-${result.kind}`} role="alert">
+      <span className="speak-fail-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="speak-text">
+        <b>{customTitle ?? nothingTitle}</b>
+        <span className="muted">{reason}</span>
+      </span>
+      <button type="button" className="btn btn-outline btn-sm" onClick={onRetry} autoFocus>
+        Try again
+      </button>
     </div>
   );
 }
 
-function Check({ children }: { children: ReactNode }) {
-  return (
-    <div className="check">
-      <IconCheck size={16} stroke={2.4} className="check-icon" aria-hidden="true" />
-      <span>{children}</span>
-    </div>
-  );
-}

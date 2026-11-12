@@ -257,31 +257,12 @@
   font-size: 13px;
 }
 
-/* While the market is read the first time (the `placeholder` prop): the same shapes, grey and
-   gently pulsing, so the bet buttons do not pop in a second later. */
-.nm-loading .nm-bar {
-  background: var(--line-strong);
-}
-/* A grey bar of 12 px in a blank text line: the row has the height of a loaded line of text. */
-.nm-sk {
-  display: inline-block;
-  border-radius: 6px;
-  background: linear-gradient(var(--line-strong), var(--line-strong)) center / 100% 12px no-repeat;
-}
-.nm-loading .nm-bar,
-.nm-loading .nm-sk,
-.nm-loading .nm-bet {
-  animation: nm-pulse 1.2s ease-in-out infinite;
-}
 @keyframes nm-pulse {
   50% {
     opacity: 0.5;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .nm-loading .nm-bar,
-  .nm-loading .nm-sk,
-  .nm-loading .nm-bet,
   .nm-pill[data-pending],
   .nm-bar-pending,
   .nm-reveal {

@@ -5,7 +5,7 @@ import { useDemo } from '../demoContext';
 import { useEnrolled } from '../signer/voiceSetup';
 import type { ModalHandle } from './Modal';
 import { WalletDialog } from './WalletDialog';
-import { runVoiceAction, SpeakStep, speakHint, useAutoClose, useAutoStart, type SignPhase } from './SpeakStep';
+import { runVoiceAction, SpeakStep, speakHint, useAutoStart, type SignPhase } from './SpeakStep';
 
 const MAX_NOTE_CHARS = 280;
 /** The prefilled note types itself in, so it is clear that the page filled it in. */
@@ -36,8 +36,9 @@ interface Props {
  * shows the note with the summary to read aloud: the page cannot choose the words. The verifier
  * checks that the summary fits the note. The contract stores the note and the spoken summary.
  *
- * The button also runs what is still missing first: sign in, set up the voice, testnet NEAR. After
- * the note posts, the dialog shows the result for a moment and closes by itself.
+ * The button also runs what is still missing first: sign in, set up the voice, testnet NEAR. The
+ * Wallet card shows the posted note with its TEE receipt. Its Done closes the card, and the
+ * dialog closes with it.
  */
 export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false }: Props) {
   const { account, status, prepare } = useDemo();
@@ -72,10 +73,15 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
     return () => window.clearTimeout(timer);
   }, [typingNote, prefillNote]);
 
+  // The Wallet card shows the result and its receipt, and its Done ends it: the dialog then
+  // closes at once, with no result of its own.
+  const finish = () => modal.current?.close(onDone);
   const startSigning = async () => {
     const note = { postId: post.id, text: text.trim() };
     const result = await runVoiceAction(prepare, !!status?.signedIn, setPhase, (signer) => signer.requestNote(note));
-    if (result?.kind === 'sent') onSent(note.text, result.transactionHash);
+    if (result?.kind !== 'sent') return;
+    onSent(note.text, result.transactionHash);
+    finish();
   };
 
   // A voice command asked for the note: once the prefilled draft is in, the button waits a
@@ -83,9 +89,6 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
   const draftReady = !typingNote && noteOk;
   useAutoStart(autoSign, draftReady && phase.state === 'idle', () => void startSigning());
 
-  const sent = phase.state === 'done' && phase.result.kind === 'sent';
-  const finish = () => modal.current?.close(onDone);
-  useAutoClose(sent, finish);
 
   return (
     <WalletDialog titleId={titleId} onClose={onClose} locked={locked} handle={modal}>
@@ -124,13 +127,9 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
               hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'You read a short summary of the note aloud.')}
               disabled={typingNote || !noteOk}
               disabledHint={typingNote ? 'Filling in the note…' : 'Write the note first.'}
-              accountId={account}
-              wordsLine="Words matched the summary"
-              signedLine="Note signed and submitted"
-              nothingLine="Nothing was posted."
+              nothingTitle="Nothing was posted"
               onStart={startSigning}
               onRetry={() => setPhase({ state: 'idle' })}
-              onDone={sent ? finish : () => modal.current?.close()}
             />
           </footer>
     </WalletDialog>

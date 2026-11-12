@@ -518,38 +518,6 @@ code {
   color: var(--accent);
 }
 
-.media {
-  position: relative;
-  margin: 12px 0 0;
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--media);
-}
-.media svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.media-compact {
-  aspect-ratio: auto;
-  height: 100px;
-  background: #1f2937;
-}
-.media-caption {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.77);
-  color: #fff;
-  font-size: 13px;
-  line-height: 20px;
-}
-
 /* Timeline posts */
 .tl-post {
   display: flex;
@@ -781,256 +749,6 @@ code {
   align-items: center;
   gap: 2px;
   white-space: nowrap;
-}
-
-.pc-examples {
-  margin: 8px 0 0;
-  padding-left: 20px;
-  display: grid;
-  gap: 4px;
-}
-/* The note dialog has one frame, as X's own dialogs: no box inside it. Its sections (the post,
-   the note and the bet) go from edge to edge, with 16 px of space at the sides and a divider
-   between them (.dialog-body-flush). */
-.pc-post {
-  padding: 12px 16px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-.pc-post-main {
-  flex: 1;
-  min-width: 0;
-}
-.pc-post-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  white-space: nowrap;
-}
-.pc-post-head .muted {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.pc-post-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.pc-post-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-top: 2px;
-  line-height: 20px;
-  color: var(--muted);
-}
-.media-thumb {
-  position: relative;
-  flex: none;
-  width: 96px;
-  height: 60px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #1f2937;
-}
-.media-thumb svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.pc-status {
-  padding: 12px 16px;
-}
-.pc-status-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.pc-ok {
-  color: var(--green);
-  flex: none;
-}
-.pc-status-row svg {
-  flex: none;
-}
-.pc-note-text {
-  margin-top: 6px;
-  line-height: 20px;
-}
-.pc-bet {
-  padding: 12px 0 8px;
-  border-top: 1px solid var(--line);
-}
-/* A section heading, as X's "What's happening": 20 px, extra bold. */
-.pc-bet-title {
-  display: block;
-  padding: 0 16px 2px;
-  font-size: 20px;
-  font-weight: 800;
-}
-/* In the note view the strip shows only the odds and the two bet buttons: its own question
-   row (the title says it), the odds chart and the "odds change" line under the buttons are
-   hidden. So the loaded strip has the shapes of its placeholder, and the dialog keeps its
-   height when the market arrives. */
-.pc-bet .nm-strip {
-  border-top: 0;
-  font-size: 15px;
-}
-.pc-bet .nm-strip > .nm-row:first-child,
-.pc-bet .nm-spark,
-.pc-bet .nm-strip > .nm-buttons + .nm-small {
-  display: none;
-}
-.pc-bet .nm-buttons {
-  gap: 10px;
-  margin-top: 14px;
-}
-/* The two bet buttons are X's large pill buttons: 52 px high, 17 px bold text, no shadow. They
-   fill with the market's yes blue and no red (--bet-yes, --bet-no in src/market/market.css).
-   White text on both has a contrast of 3:1 or more, and the labels are large text (17 px bold).
-   A pointer makes the fill a little darker, as on X. */
-.pc-bet .nm-bet:first-child:not(:last-child),
-.pc-bet .nm-bet:last-child:not(:first-child) {
-  --fill: var(--bet-yes);
-  height: 52px;
-  border: 0;
-  color: #fff;
-  background: var(--fill);
-  font-size: 17px;
-  font-weight: 700;
-  transition:
-    background-color 120ms ease,
-    scale 150ms ease-out;
-}
-.pc-bet .nm-bet:last-child:not(:first-child) {
-  --fill: var(--bet-no);
-}
-.pc-bet .nm-loading .nm-bet {
-  opacity: 0.55;
-}
-@media (hover: hover) and (pointer: fine) {
-  .pc-bet .nm-bet:not(:disabled):hover {
-    background: color-mix(in oklch, var(--fill), #000 8%);
-  }
-}
-/* The bet slider over the two buttons, in X's blue as X's own sliders: a thin pale blue track
-   that fills in --accent up to a round --accent thumb. A pointer over the thumb gives it a pale
-   blue halo. --p (0 to 1) is the thumb's place; the fill ends at the thumb's middle, which moves
-   over the track less the thumb's width. */
-.pc-stake {
-  margin-top: 14px;
-}
-.pc-stake-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 15px;
-}
-.pc-stake-row label {
-  color: var(--muted);
-}
-.pc-stake-value {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.pc-stake-range {
-  --thumb: 20px;
-  --fill: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p, 0));
-  --stake-track: color-mix(in srgb, var(--accent) 22%, transparent);
-  --stake-halo: 0 0 0 7px color-mix(in srgb, var(--accent) 18%, transparent);
-  display: block;
-  width: 100%;
-  height: 28px;
-  margin: 2px 0 0;
-  padding: 0;
-  background: transparent;
-  -webkit-appearance: none;
-  appearance: none;
-  cursor: pointer;
-}
-.pc-stake-range::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 9999px;
-  background: linear-gradient(to right, var(--accent) var(--fill), var(--stake-track) var(--fill));
-}
-.pc-stake-range::-webkit-slider-thumb {
-  width: var(--thumb);
-  height: var(--thumb);
-  margin-top: calc(2px - var(--thumb) / 2);
-  border: 0;
-  border-radius: 9999px;
-  background: var(--accent);
-  -webkit-appearance: none;
-  appearance: none;
-  transition:
-    box-shadow 150ms ease,
-    scale 150ms ease-out;
-}
-.pc-stake-range::-moz-range-track {
-  height: 4px;
-  border-radius: 9999px;
-  background: var(--stake-track);
-}
-.pc-stake-range::-moz-range-progress {
-  height: 4px;
-  border-radius: 9999px;
-  background: var(--accent);
-}
-.pc-stake-range::-moz-range-thumb {
-  width: var(--thumb);
-  height: var(--thumb);
-  border: 0;
-  border-radius: 9999px;
-  background: var(--accent);
-  transition:
-    box-shadow 150ms ease,
-    scale 150ms ease-out;
-}
-@media (hover: hover) and (pointer: fine) {
-  .pc-stake-range:hover::-webkit-slider-thumb {
-    box-shadow: var(--stake-halo);
-  }
-  .pc-stake-range:hover::-moz-range-thumb {
-    box-shadow: var(--stake-halo);
-  }
-}
-.pc-stake-range:active::-webkit-slider-thumb {
-  box-shadow: var(--stake-halo);
-}
-.pc-stake-range:active::-moz-range-thumb {
-  box-shadow: var(--stake-halo);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .pc-stake-range:active::-webkit-slider-thumb {
-    scale: 1.1;
-  }
-  .pc-stake-range:active::-moz-range-thumb {
-    scale: 1.1;
-  }
-}
-.pc-bet .pc-stake + .nm-buttons {
-  margin-top: 10px;
-}
-.pc-practice {
-  padding: 0 16px 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.pc-busy {
-  color: var(--ink);
-}
-.pc-problem {
-  color: var(--red);
-}
-.pc-foot {
-  padding: 12px 16px 16px;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
-  color: var(--muted);
 }
 
 /* Loading, errors, empty */
@@ -1381,8 +1099,7 @@ code {
 }
 /* A spinner inside a line of text */
 .setup-line .spinner,
-.step-detail .spinner,
-.pc-busy .spinner {
+.step-detail .spinner {
   width: 12px;
   height: 12px;
   vertical-align: -2px;
@@ -1592,15 +1309,6 @@ code {
 /* With no footer under it, the body keeps the same space below as at its sides. */
 .dialog-body:last-child {
   padding-bottom: 20px;
-}
-/* A body whose sections go from edge to edge and keep their own space, as the note dialog
-   (src/components/PostContext.tsx). The head has the same 16 px sides, so the close button
-   lines up with the sections' text. */
-.dialog-body.dialog-body-flush {
-  padding: 0;
-}
-.dialog-head:has(+ .dialog-body-flush) {
-  padding: 0 16px;
 }
 .dialog-foot {
   flex: none;
@@ -1987,80 +1695,40 @@ fieldset:disabled .choice {
     box-shadow: 0 0 0 14px rgba(29, 155, 240, 0);
   }
 }
-.seams-card {
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  padding: 10px 12px;
-}
-.seams-card-bad {
-  border-color: color-mix(in srgb, var(--red) 25%, var(--bg));
-}
-.seams-card-head {
+/* A voice action that signed nothing: the shape and size of the voice button, in grey (a light
+   red for a refusal), with "Try again" at its end. */
+.speak-fail {
   display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.card-quote {
-  display: block;
-  font-size: 17px;
-  margin: 4px 0 6px;
-}
-.card-quote::before {
-  content: '“';
-}
-.card-quote::after {
-  content: '”';
-}
-.check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  margin-top: 3px;
-}
-.check-icon {
-  color: var(--green);
-  flex: none;
-}
-.card-foot {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top: 8px;
+  padding: 8px 8px 8px 8px;
+  border-radius: 28px;
+  background: var(--panel);
 }
-.card-foot .check {
-  margin: 0;
+.speak-fail-refused {
+  background: color-mix(in srgb, var(--red) 7%, var(--bg));
 }
-.card-foot .small {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.card-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-  font-size: 15px;
-}
-.card-icon {
-  width: 24px;
-  height: 24px;
+.speak-fail-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
   border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   background: var(--muted);
-  flex: none;
+  color: #fff;
 }
-.card-icon-refused {
+.speak-fail-refused .speak-fail-icon {
   background: var(--red);
 }
-.card-reason {
-  margin-top: 6px;
-  font-size: 15px;
+.speak-fail .speak-text {
+  flex: 1;
+  font-size: 14px;
+}
+.speak-fail .btn {
+  flex: none;
+  margin-right: 4px;
 }
 
 /* Toast */

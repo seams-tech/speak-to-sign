@@ -31,6 +31,10 @@
   font-size: 12px;
   text-transform: capitalize;
 }
+/* A post with no subject: the voice number goes to the right end in its place. */
+.xt-age + .voice-number {
+  margin-left: auto;
+}
 .xt-text {
   white-space: pre-wrap;
 }

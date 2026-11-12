@@ -6,15 +6,15 @@
 //
 // A command that shows a tab or goes to a named post runs on an unfinished sentence. "Next
 // post" and a command that opens a signing step (a note, a rating, a bet, a market) wait for
-// the end of the sentence. The signature itself is the
-// spoken request in the Seams Wallet, and the bar does not listen while a dialog is open or
-// while the tab is out of view.
+// the end of the sentence. The signature itself is the spoken request in the Seams Wallet. While
+// a dialog is open, the bar hears only "close"; while a recording runs and while the tab is out
+// of view, it does not listen (src/voice/hold.ts).
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import type { Screen, VoiceCommand } from './command';
-import { useVoiceHeld } from './hold';
+import { closeNewestDialog, closeRequest, useVoiceHold } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -61,6 +61,11 @@ const COMMAND_PHRASES = [
   'settled',
   'fresh',
   'for you',
+  'close',
+  'close the modal',
+  'close the dialog',
+  'close this post',
+  'cancel',
 ];
 /** A name that Chrome can take as a phrase. */
 const SAYABLE_NAME = /^[\p{L}\p{N}' .-]{2,40}$/u;
@@ -88,6 +93,9 @@ function useTabVisible(): boolean {
   return visible;
 }
 
+/** The bar's line while a dialog is open. */
+const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
+
 /** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
   text: string;
@@ -110,7 +118,9 @@ export function VoiceBar({
   /** An unfinished sentence asks for a note or a bet on this post: show the post, and wait. */
   onTarget: (postId: number) => void;
 }) {
-  const held = useVoiceHeld();
+  const hold = useVoiceHold();
+  const holdRef = useRef(hold);
+  holdRef.current = hold;
   const visible = useTabVisible();
   /** The finished sentences, oldest first, and the sentence that the visitor says now. */
   const [said, setSaid] = useState<SaidSentence[]>([]);
@@ -155,6 +165,16 @@ export function VoiceBar({
       setSaid((before) => [...before, { id: (saidSeq += 1), text }].slice(-MAX_SAID));
       setLive(null);
     } else setLive(text);
+    // A dialog is open: only "close" counts, and the words go to no classifier.
+    if (holdRef.current !== null) {
+      if (!final) return;
+      // The page's own rule, with no classifier: no time to show.
+      setTiming(null);
+      if (!closeRequest(text)) setStatus({ text: CLOSE_HINT, isProblem: false });
+      else if (closeNewestDialog()) setStatus(null);
+      else setStatus({ text: 'The dialog cannot close while the Wallet works. Say "close" on its result.', isProblem: true });
+      return;
+    }
     const run = async () => {
       request.current?.abort();
       const controller = new AbortController();
@@ -199,12 +219,15 @@ export function VoiceBar({
     else interimTimer.current = window.setTimeout(() => void run(), INTERIM_PAUSE_MS);
   });
 
+  // A dialog that opens or closes, or a recording, makes the last sentence's line old.
+  useEffect(() => setStatus(null), [hold]);
+
   // A tab that comes back into view tries again: the tab that held the speech service can be gone.
   useEffect(() => {
     if (visible) setStopReason((reason) => (reason === 'busy' ? null : reason));
   }, [visible]);
 
-  const listening = on && !held && visible && stopReason === null;
+  const listening = on && hold !== 'recording' && visible && stopReason === null;
   useEffect(() => {
     if (!listening) return;
     const listener = listen({
@@ -274,11 +297,18 @@ export function VoiceBar({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const hint = held
-    ? 'Paused while the dialog is open.'
-    : stopReason !== null
-      ? (STOP_REASONS[stopReason] ?? 'The microphone stopped. Type the command.')
-      : 'Say: "show me controversial posts".';
+  const hint =
+    hold === 'recording'
+      ? 'Paused while the Wallet listens.'
+      : stopReason !== null
+        ? (STOP_REASONS[stopReason] ?? 'The microphone stopped. Type the command.')
+        : hold === 'dialog'
+          ? CLOSE_HINT
+          : 'Say: "show me controversial posts".';
+
+  // The hint goes under the typed field, and under the words while a hold is on. With no words,
+  // the line of words shows it.
+  const showHint = (stopReason !== null && hold === null) || (hold !== null && (said.length > 0 || live !== null));
 
   return (
     <div className={on ? 'voice-bar voice-bar-on' : 'voice-bar'} role="region" aria-label="Voice commands">
@@ -291,11 +321,11 @@ export function VoiceBar({
         title={`${on ? 'Turn voice commands off' : 'Turn voice commands on'} (${SHORTCUT})`}
         onClick={toggle}
       >
-        {on ? <IconMicrophone size={20} stroke={1.9} aria-hidden="true" /> : <IconMicrophoneOff size={20} stroke={1.9} aria-hidden="true" />}
+        {on ? <IconMicrophone size={24} stroke={1.9} aria-hidden="true" /> : <IconMicrophoneOff size={24} stroke={1.9} aria-hidden="true" />}
       </button>
       {on ? (
         <div className="voice-main">
-          {stopReason !== null && !held ? (
+          {stopReason !== null && hold === null ? (
             <form className="voice-typed" onSubmit={submitTyped}>
               <input
                 className="voice-input"
@@ -311,7 +341,7 @@ export function VoiceBar({
           )}
           {/* Always in the document, so a screen reader hears a new problem; empty, it takes no room. */}
           <p className={status?.isProblem ? 'voice-status voice-status-problem' : 'voice-status'} role="status">
-            {status ? status.text : stopReason !== null && !held && <span className="voice-hint">{hint}</span>}
+            {status ? status.text : showHint && <span className="voice-hint">{hint}</span>}
           </p>
           {!status && listening && mode === 'server' && (device === 'downloadable' || device === 'downloading') && (
             <button type="button" className="voice-offer" onClick={() => void install()} disabled={device === 'downloading'}>

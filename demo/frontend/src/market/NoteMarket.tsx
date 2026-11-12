@@ -117,8 +117,6 @@ export function NoteMarketStrip({
   onSignIn,
   context,
   directBet = false,
-  stakeControl,
-  placeholder = false,
   openBet,
 }: {
   noteId: number;
@@ -143,17 +141,6 @@ export function NoteMarketStrip({
    * amount (base units) bets that.
    */
   directBet?: boolean | bigint;
-  /**
-   * A control for the amount of a direct bet (for example, a slider), shown just above "Bet yes"
-   * and "Bet no" while the market is open, and while it is read the first time.
-   */
-  stakeControl?: ReactNode;
-  /**
-   * While the market is read the first time, show the strip's shapes (the odds bar, the odds line
-   * and the two bet buttons) grey and pulsing, in place of nothing. For a place where the market
-   * is known to exist, so that nothing appears and then goes away.
-   */
-  placeholder?: boolean;
   /**
    * Starts a bet while the market is open. It opens the bet sheet, or with `directBet` and
    * `place` it places the one-tap bet.
@@ -394,35 +381,6 @@ export function NoteMarketStrip({
     setBetSide(side);
   }, [openBet, market, directBet, loaded, canOpen]);
 
-  if (!market && !loaded && placeholder) {
-    return (
-      <div className="nm-strip nm-loading" aria-busy="true" onClick={(event) => event.stopPropagation()}>
-        <span className="nm-bar" aria-hidden="true" />
-        {/* Each grey bar holds a blank text line, so the row is as high as the odds line. */}
-        <div className="nm-row" aria-hidden="true">
-          <span className="nm-sk" style={{ width: 120 }}>
-            {'\u200b'}
-          </span>
-          <span className="nm-sk" style={{ width: 100 }}>
-            {'\u200b'}
-          </span>
-        </div>
-        {stakeControl}
-        <div className="nm-buttons">
-          <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
-            Bet yes
-          </button>
-          <button type="button" className="btn btn-outline btn-sm nm-bet" disabled>
-            Bet no
-          </button>
-        </div>
-        <span className="sr-only" role="status">
-          Reading the market
-        </span>
-      </div>
-    );
-  }
-
   const noticeLine = notice && (
     <p className={notice.isError ? 'nm-error' : 'nm-done'} role={notice.isError ? 'alert' : 'status'}>
       {notice.text}
@@ -559,7 +517,6 @@ export function NoteMarketStrip({
           )}
           {status === 'open' && !asking && !(saying && voice && account) && (
             <>
-              {stakeControl}
               <div className="nm-buttons">
                 {(['yes', 'no'] as const).map((side) => (
                   <button

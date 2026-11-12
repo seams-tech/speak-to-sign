@@ -33,7 +33,7 @@ export interface DemoState {
   notesByPost: Record<number, Note[]>;
   /** The posts from X that can get a note (src/x/xPosts.ts), newest first. */
   xPosts: Post[];
-  /** `error`: the posts service gave no posts. The timeline then shows the demo post only. */
+  /** `error`: the posts service gave no posts. The timeline then shows none. */
   xPostsState: 'loading' | 'ready' | 'error';
   /** The route has more posts than the timeline loaded. */
   xPostsMore: boolean;

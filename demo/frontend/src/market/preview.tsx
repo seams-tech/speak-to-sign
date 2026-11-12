@@ -48,7 +48,7 @@ function Preview() {
       mock.resolve(
         3,
         7_200,
-        'The note cites a fact-check that traces the post to an account that posts AI-written text daily, with different numbers each time. The claim about thumbnails is partly true, so the verdict is not 100%.',
+        'The note cites the club’s annual report, which gives other numbers. One cost in the note is from an older report, so the verdict is not 100%.',
       );
       setVersion((v) => v + 1);
     });
@@ -68,7 +68,7 @@ function Preview() {
           { id: 2, label: 'Betting closed. Press "Ask JEV now" (JEV says 93%, which pays as 100%)' },
           { id: 3, label: 'Resolved by JEV, with your bet' },
           { id: 4, label: 'No market yet: "Open a market" opens one at once; then you are the creator, so "Close betting and ask JEV now" shows' },
-          { id: 5, label: 'One-tap bets (directBet), as in the post\'s Note dialog: the bar moves when the bet goes out', direct: true },
+          { id: 5, label: 'One-tap bets (directBet): the bar moves when the bet goes out', direct: true },
         ].map(({ id, label, direct }) => (
           <div key={`${id}-${version}`} style={{ marginBottom: 24 }}>
             <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 6px' }}>{label}</p>
@@ -77,7 +77,7 @@ function Preview() {
                 <IconUsers size={20} stroke={1.8} className="note-icon-shown" aria-hidden="true" />
                 <b>Readers added context they thought people might want to know</b>
               </header>
-              <div className="note-body">The account posts AI-written text every day to farm engagement. The numbers change each time.</div>
+              <div className="note-body">The club’s annual report gives other numbers. The post leaves out the costs of the new stadium.</div>
               <NoteMarketStrip
                 noteId={id}
                 source={source}

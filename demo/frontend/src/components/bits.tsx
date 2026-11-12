@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import {
   IconBookmark,
-  IconBuildingBank,
   IconChartBar,
   IconExternalLink,
   IconHeart,
@@ -10,12 +9,9 @@ import {
   IconRepeat,
   IconRosetteDiscountCheckFilled,
   IconUpload,
-  IconUserQuestion,
 } from '@tabler/icons-react';
 import { shortAccount, shortHash, transactionUrl } from '../config';
 import type { Post, PostAuthor } from '../data/posts';
-
-export { Media } from './Media';
 
 export function Avatar({ author, size = 40 }: { author: PostAuthor; size?: number }) {
   const square = author.kind === 'organization';
@@ -36,14 +32,9 @@ export function Avatar({ author, size = 40 }: { author: PostAuthor; size?: numbe
       style={{ width: size, height: size, backgroundColor: author.color, fontSize: author.initials.length > 3 ? 10 : 15 }}
       aria-hidden="true"
     >
-      {author.logo ? <Logo logo={author.logo} size={size} /> : author.initials}
+      {author.initials}
     </div>
   );
-}
-
-function Logo({ logo, size }: { logo: NonNullable<PostAuthor['logo']>; size: number }) {
-  if (logo === 'government') return <IconBuildingBank size={Math.round(size * 0.55)} stroke={1.8} />;
-  return <IconUserQuestion size={Math.round(size * 0.55)} stroke={1.8} />;
 }
 
 const BADGE_LABELS = {

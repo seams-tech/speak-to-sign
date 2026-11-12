@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { IconMicrophone, IconPlayerStopFilled } from '@tabler/icons-react';
+import { useHoldVoice } from '../voice/hold';
 import { startRecording, type Recorder } from '../voice/recorder';
 import type { BetVerdict, BetVoice, MarketSource, Side } from './types';
 
@@ -43,6 +44,8 @@ export function SayBet({
   /** With it, the step shows "Cancel". */
   onCancel?: () => void;
 }) {
+  // The sentence of the bet is not a command: the voice bar does not listen during this step.
+  useHoldVoice('recording');
   const recorder = useRef<Recorder | null>(null);
   const [phase, setPhase] = useState<Phase>({ state: 'idle' });
   const [problem, setProblem] = useState<{ text: string; heard?: string } | null>(null);

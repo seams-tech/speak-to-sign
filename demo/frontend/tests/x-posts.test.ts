@@ -39,7 +39,6 @@ test('toPost gives a post of the notes app', () => {
   assert.ok(post.image?.url.startsWith('https://pbs.twimg.com/media/'));
   assert.deepEqual(post.stats, { replies: '30', reposts: '454', likes: '3.1K', bookmarks: '', views: '444K' });
   assert.equal(post.history.source.url, 'https://x.com/Theveripost/status/2119918368736088126');
-  assert.equal(post.context, undefined);
   // The write dialog's draft: the one that the post brings, or the careful draft of its subject.
   assert.ok(post.noteDraft!.text.includes('Marthe Gautier'));
   for (const fixture of FIXTURE_POSTS) assert.deepEqual(validDraft(fixture.draft), fixture.draft);

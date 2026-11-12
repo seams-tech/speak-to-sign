@@ -8,7 +8,7 @@ import { shortAccount } from '../config';
 import { Linkified } from './bits';
 import type { ModalHandle } from './Modal';
 import { WalletDialog } from './WalletDialog';
-import { runVoiceAction, SpeakStep, speakHint, useAutoClose, useAutoStart, type SignPhase } from './SpeakStep';
+import { runVoiceAction, SpeakStep, speakHint, useAutoStart, type SignPhase } from './SpeakStep';
 
 const OPTIONS: { rating: Rating; answer: string }[] = [
   { rating: 'helpful', answer: 'Yes' },
@@ -46,15 +46,16 @@ export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, au
     const result = await runVoiceAction(prepare, !!status?.signedIn, setPhase, (signer) =>
       signer.requestRating({ noteId: note.id, rating }),
     );
-    if (result?.kind === 'sent') onSent(rating, result.transactionHash);
+    if (result?.kind !== 'sent') return;
+    onSent(rating, result.transactionHash);
+    // The Wallet card showed the result and its receipt: the dialog closes at once.
+    finish();
   };
 
   // A voice command asked for the rating: the button waits a moment, then the Wallet card comes.
   useAutoStart(autoSign, choice !== null && phase.state === 'idle', () => void startSigning());
 
-  const sent = phase.state === 'done' && phase.result.kind === 'sent';
   const finish = () => modal.current?.close(onDone);
-  useAutoClose(sent, finish);
 
   return (
     <WalletDialog titleId={titleId} onClose={onClose} locked={locked} handle={modal}>
@@ -99,13 +100,9 @@ export function RateNoteModal({ note, onClose, onSent, onDone, initialRating, au
               hint={speakHint(!!status?.signedIn, !!status?.voiceReady && enrolled, 'Your voice signs the rating. No confirm tap.')}
               disabled={!choice}
               disabledHint="Pick one answer first."
-              accountId={account}
-              wordsLine="Words matched your rating"
-              signedLine="Rating signed"
-              nothingLine="Nothing was rated."
+              nothingTitle="Nothing was rated"
               onStart={startSigning}
               onRetry={() => setPhase({ state: 'idle' })}
-              onDone={sent ? finish : () => modal.current?.close()}
             />
           </footer>
     </WalletDialog>

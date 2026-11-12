@@ -7,33 +7,33 @@
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: 12px;
-  max-width: min(560px, calc(100vw - 32px));
-  padding: 6px 18px 6px 6px;
+  gap: 14px;
+  max-width: min(680px, calc(100vw - 32px));
+  padding: 8px 22px 8px 8px;
   border-radius: 9999px;
   background: var(--ink);
   color: var(--on-ink);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
-  font-size: 14px;
+  font-size: 16px;
 }
 .voice-bar-on {
-  width: min(560px, calc(100vw - 32px));
-  /* Room for the words and the status line, centred one over the other; the microphone keeps
-     the same gap to the bar's top, left and bottom. */
-  min-height: 60px;
-  padding: 8px 18px 8px 8px;
-  border-radius: 30px;
+  width: min(680px, calc(100vw - 32px));
+  /* Room for the words and the status line, one over the other; the microphone keeps the same
+     gap to the bar's top, left and bottom. */
+  min-height: 72px;
+  padding: 10px 22px 10px 10px;
+  border-radius: 36px;
 }
 .voice-bar-on .voice-mic {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
 }
 .voice-mic {
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border: 0;
   border-radius: 50%;
   background: color-mix(in srgb, var(--on-ink) 14%, transparent);
@@ -67,7 +67,7 @@
   border-radius: 6px;
   background: color-mix(in srgb, var(--on-ink) 16%, transparent);
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 .voice-main {
@@ -127,9 +127,11 @@
   font-weight: 400;
   opacity: 0.65;
 }
+/* The status line ("No command in that sentence.") sits in the middle of the bar's text room. */
 .voice-status {
-  margin-top: 3px;
-  font-size: 13px;
+  margin-top: 4px;
+  font-size: 15px;
+  text-align: center;
   color: color-mix(in srgb, var(--on-ink) 80%, transparent);
 }
 .voice-status:empty {
@@ -148,7 +150,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.7;
   text-align: left;
   text-decoration: underline;
@@ -162,10 +164,10 @@
   text-decoration: none;
   cursor: default;
 }
-/* "JEV · 359 ms" at the right end of the bar. */
+/* "359 ms" at the right end of the bar. */
 .voice-timing {
   flex: none;
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.6;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -216,19 +218,20 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-/* The bar covers the foot of the timeline, so the timeline ends higher. */
+/* The bar covers the foot of the timeline, so the timeline ends higher: 20 px under the bar,
+   72 px of bar and 8 px over it. */
 .notes-app:has(.voice-bar) .column {
-  padding-bottom: 88px;
+  padding-bottom: 100px;
 }
 .notes-app:has(.voice-bar) .toast-region {
-  bottom: 92px;
+  bottom: 104px;
 }
 @container notes (max-width: 500px) {
   .voice-bar {
     bottom: calc(53px + 12px + env(safe-area-inset-bottom));
   }
   .notes-app:has(.voice-bar) .toast-region {
-    bottom: calc(53px + 84px + env(safe-area-inset-bottom));
+    bottom: calc(53px + 96px + env(safe-area-inset-bottom));
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -18,6 +18,7 @@ import { useContext, useEffect, useId, useRef, useState, type ReactNode, type Re
 import { WalletStep, type WalletStepProgress } from '@seams/wallet/react';
 import { DemoContext } from '../demoContext';
 import { hostVoiceCard, type VoiceCard } from '../signer/voiceCard';
+import { useHoldVoice } from '../voice/hold';
 import { CardPill } from './CardPill';
 import { Modal, RESIZE_MS, useDialogHeight, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
@@ -52,6 +53,12 @@ export function WalletDialog({
   const [progress, setProgress] = useState<WalletStepProgress | null>(null);
   const stepTitleId = useId();
   const view = signingIn ? 'signin' : call ? 'voice' : 'main';
+  // The voice bar stays off while the card can record: from its start until it checks or shows
+  // its result. Its result ("Note posted", "The words did not match") can close by voice or
+  // Escape: the dialog closes, and the card ends with it.
+  const stage = call ? (progress?.stage ?? 'recording') : null;
+  useHoldVoice(stage === 'recording' ? 'recording' : null);
+  const cardResult = stage === 'result';
 
   // The sign-in ends (signed in, Back, Escape): its menu goes, and with it a card that still
   // shows. The dialog's own step returns when the card is gone.
@@ -74,8 +81,9 @@ export function WalletDialog({
     <Modal
       labelledBy={view === 'main' ? titleId : stepTitleId}
       onClose={onClose}
-      // The voice card ends with its own Back or Close. The sign-in goes back with Escape.
-      locked={(locked || call !== null) && !signingIn}
+      // The voice card ends with its own Back or Close, or on its result with Escape. The sign-in
+      // goes back with Escape.
+      locked={(locked || call !== null) && !signingIn && !cardResult}
       handle={handle}
       onOutside={signingIn ? () => leaveSignIn(false) : undefined}
       pinned={call ? voiceCard.size : null}

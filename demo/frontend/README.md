@@ -386,19 +386,17 @@ author said, shown only when there is a note. "Home" in the app's navigation ope
 
 ## The timeline
 
-`src/x/Timeline.tsx` lists the demo post and the posts from
-`/api/x/eligible-posts`. It is the app's one view: a post has no page of its
-own, and every hash shows the timeline (an old link to `#/notes/post/<id>`
-too).
+`src/x/Timeline.tsx` lists the posts from `/api/x/eligible-posts`. It is the
+app's one view: a post has no page of its own, and every hash shows the timeline
+(an old link to `#/notes/post/<id>` too).
 
 - **A card** shows the post, its note and the note's market. The visitor acts
   on the card itself: "Write a note" opens the write dialog over the
-  timeline, and "Bet" opens the bet dialog (the demo post) or the market
-  strip's bet sheet (a note of this app). A long note, or one with more
-  lines, shows two lines and a "Show more" control. A note of this app has
-  its rating line ("Rate it", or the visitor's rating) on the card. A click
-  on the card itself opens the bet (the demo post's dialog, or the strip's
-  bet sheet while the market takes bets), and otherwise the write dialog.
+  timeline, and "Bet" opens the market strip's bet sheet. A long note shows
+  two lines and a "Show more" control. A note has its rating line ("Rate
+  it", or the visitor's rating) on the card. A click on the card itself
+  opens the strip's bet sheet while the market takes bets, and otherwise
+  the write dialog.
   "Signed by voice" in the right column brings a note's card into view.
 - **Tabs.** "For you" shows all posts. "Open markets" and "Settled" show the
   posts with a market in that state.
@@ -410,8 +408,8 @@ too).
   dialog and the text that JEV reads (`marketContext`) then work for it
   without a change.
 - **Without the route.** `pnpm dev` without the function server shows the
-  five example posts of `src/x/fixture.ts`. A build shows the demo post and
-  the line "The posts from X are not available now."
+  five example posts of `src/x/fixture.ts`. A build shows no posts and the
+  line "The posts from X are not available now."
 - `/timeline-preview.html` is the first design mock, with example notes and
   markets. It is dev only.
 
@@ -427,6 +425,10 @@ It gives no summary, so it cannot choose the words that the author says:
 3. The verifier gets the note text. It checks the voice and the words, and it asks
    JEV if the summary gives the main point of the note. A summary that does not
    fit gives `summary_mismatch`.
+4. The Wallet card shows "Note posted" with a TEE receipt: the voice, the words,
+   the summary check and the verifier version of the signed verdict, and a link
+   to the TDX quote of the OutLayer call. Its Done closes the card, and the
+   page's dialog closes with it. The page shows no result of its own.
 
 This needs the Seams Wallet with iframe protocol 25.0.0 and verifier 0.13.0
 (see `docs/note-summary-plan.md`).
@@ -484,7 +486,7 @@ For a public link, add a Cloudflare rate-limiting rule on them (and on
 | `src/seams/seamsConfig.ts`       | The SeamsWeb configuration.                                |
 | `src/notes/`                     | Note types, the contract rule, the RPC store, the balance. |
 | `src/components/`                | Note parts, modals, setup panel.                           |
-| `src/data/posts.ts`              | Fictional posts.                                           |
+| `src/data/posts.ts`              | The post type, and the lookup of the posts from X by id.   |
 | `functions/api/faucet.ts`        | The testnet faucet: one `drip` transaction for an account. |
 | `src/faucet/nearTx.ts`           | A small NEAR signer for the functions (Borsh, WebCrypto Ed25519). |
 | `src/voice/recorder.ts`, `wav.ts` | The microphone recorder and the verifier's WAV.            |
@@ -498,12 +500,6 @@ For a public link, add a Cloudflare rate-limiting rule on them (and on
   notes box, the "Do you find this helpful? Rate it" row, the modals and the
   blue toast.
 - No X logo or wordmark. The logo slot holds a neutral icon.
-- The post is a real case, shown with care (`src/data/posts.ts`):
-  - It is re-created from news reports. Its account farms engagement, so the
-    page shows "Engagement account" and not its name or handle.
-  - The picture is a drawing of the claim, labeled "Drawing of the claim", not
-    the original video.
-  - A line says what happened and links to a fact-check.
-  - The page does not invent reply, repost, like or view counts.
-  - No political posts.
+- The posts are real posts from X (`src/x/xPosts.ts`). The page does not
+  invent reply, repost, like or view counts.
 - System fonts. X's own font is proprietary.

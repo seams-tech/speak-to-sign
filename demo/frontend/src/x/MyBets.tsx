@@ -5,9 +5,8 @@
 
 import { IconExternalLink } from '@tabler/icons-react';
 import { TxLink } from '../components/bits';
-import { CONTEXT_MARKET_NOTE_ID } from '../components/PostContext';
 import { accountUrl } from '../config';
-import { POSTS, findPost } from '../data/posts';
+import { findPost } from '../data/posts';
 import { useDemo } from '../demoContext';
 import { useMarketSource } from '../market/contractSource';
 import { amountText, timeLeftText } from '../market/math';
@@ -115,12 +114,8 @@ function stateText(market: NoteMarket): string {
   }
 }
 
-/**
- * The post that a market is about: the note's post, or for the market on a post's context (note
- * 0) the post that has the context. Null when the page does not know the note.
- */
+/** The post that a market is about: the note's post. Null when the page does not know the note. */
 function postOf(market: NoteMarket, notesByPost: Record<number, Note[]>): number | null {
-  if (market.noteId === CONTEXT_MARKET_NOTE_ID) return POSTS.find((post) => post.context)?.id ?? null;
   for (const notes of Object.values(notesByPost)) {
     const note = notes.find((item) => item.id === market.noteId);
     if (note) return note.post_id;

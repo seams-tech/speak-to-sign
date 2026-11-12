@@ -10,7 +10,7 @@ import { functionCall } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
 import type { SignResult } from '../signer/notesSigner';
 import { isUserRejection } from '../signer/rejection';
-import { errorText, toSignResult, type SpokenSent } from '../signer/seamsSigner';
+import { spokenRequest, walletErrorText, type SpokenSent } from '../signer/seamsSigner';
 import { inVoiceCard, type VoiceCardPlace } from '../signer/voiceCard';
 import { spokenAmount } from './spokenBet';
 import { YOCTO_PER_NEAR, type Side, type SignProgress } from './types';
@@ -142,7 +142,7 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
           return { kind: 'unavailable', reason: `The transaction has no final result yet. ${result.error}` };
       }
     } catch (cause) {
-      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
+      return { kind: 'unavailable', reason: walletErrorText(cause) };
     }
     return { kind: 'unavailable', reason: 'The Wallet gave no result.' };
   };
@@ -166,27 +166,16 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     const voice = seams.near.spoken;
     if (!voice) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
-    try {
-      const result = toSignResult(
-        await inVoiceCard((place) =>
-          call(
-            voice,
-            walletId,
-            (event) => {
-              if (event.stage === 'transaction_sent') progress?.('sent');
-            },
-            place,
-          ),
-        ),
-      );
-      if (result.kind !== 'sent' || !nearAccountId) return result;
-      // The Wallet reports a transaction that succeeded. The market can still have refused it.
-      const outcome = await finalOutcome(rpcUrl, result.transactionHash, nearAccountId).catch(() => null);
-      const refusal = outcome === null ? null : marketRefusal(expectedEvent, eventsOf(outcome), outcome);
-      return refusal ? { kind: 'refused', reason: refusal } : result;
-    } catch (cause) {
-      return { kind: 'unavailable', reason: `The Wallet stopped with an error: ${errorText(cause)}` };
-    }
+    const id = walletId;
+    const onProgress = (event: { stage: string }) => {
+      if (event.stage === 'transaction_sent') progress?.('sent');
+    };
+    const result = await spokenRequest(seams, id, () => inVoiceCard((place) => call(voice, id, onProgress, place)));
+    if (result.kind !== 'sent' || !nearAccountId) return result;
+    // The Wallet reports a transaction that succeeded. The market can still have refused it.
+    const outcome = await finalOutcome(rpcUrl, result.transactionHash, nearAccountId).catch(() => null);
+    const refusal = outcome === null ? null : marketRefusal(expectedEvent, eventsOf(outcome), outcome);
+    return refusal ? { kind: 'refused', reason: refusal } : result;
   };
 
   const spokenBet = async (marketId: number, side: Side, amount: bigint, progress?: SignProgress): Promise<SignResult> => {

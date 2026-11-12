@@ -1,11 +1,13 @@
 // Unit tests of the voice commands: the command of a set of scores and the amount in a sentence
 // (src/voice/command.ts), the JEV request and its answer (functions/lib/jevCommand.ts), and the
-// score of the "Controversial" tab (src/x/controversy.ts).
+// score of the "Controversial" tab (src/x/controversy.ts), and the "close" sentence of an open
+// dialog (src/voice/hold.ts).
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
 import { commandRequest, decideCommand, readScores, ruleScores, spokenSide, spokenUsdc, type CommandScores, type Screen } from '../src/voice/command.ts';
+import { closeRequest } from '../src/voice/hold.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
 const USDC = 1_000_000n;
@@ -176,4 +178,14 @@ test('the controversy score counts the ratio, the rating split and the market ba
   assert.equal(controversy(post('0', '0'), undefined, market(5n, 5n)), 1);
   assert.equal(controversy(post('0', '0'), undefined, market(5n, 5n, 'resolved')), 0);
   assert.equal(controversy(post('1K', '1K'), note(1, 1), market(1n, 3n)), 2.5);
+});
+
+test('closeRequest takes only a short sentence that asks to close', () => {
+  // A speech-to-text model can write "modal" as "Moodle": a close sentence counts by its first word.
+  for (const text of ['close', 'Close this post.', 'close the dialog', 'Close the Moodle', 'okay close it', 'Cancel', 'never mind', 'Clothes this post']) {
+    assert.equal(closeRequest(text), true, text);
+  }
+  for (const text of ['I am close to the stadium', 'write a note on this post', 'this post is close to the truth', 'close this post and bet one dollar on no', '']) {
+    assert.equal(closeRequest(text), false, text);
+  }
 });

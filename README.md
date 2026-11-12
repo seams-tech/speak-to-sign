@@ -546,7 +546,7 @@ The deploy transactions and the way to build each contract again are in
 | HTTPS API           | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`                       |
 | `secrets_ref`       | `{"profile":"main","account_id":"cyan-loong.testnet"}`                                       |
 | Verdict key         | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` (bound to the project, pinned in the Wallet) |
-| Note market         | `pm-notes.seams-v1.testnet` (see "Contracts"). Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 9 is the demo post's context box (note 0), open until 18 Nov 2026 23:59 UTC. |
+| Note market         | `pm-notes.seams-v1.testnet` (see "Contracts"). Bets in testnet USDC (`3e2210e1…b8af`), at least 0.1 USDC. Market 9 (note 0) was the market of the old demo post's context box. The page no longer shows it. |
 | Voice multisig      | `multisig.seams-v1.testnet` (see "Contracts"), deployed 2026-11-10 (tx `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz`). A visitor proposes by voice (verifier 0.6.1); `admin-a.seams-v1.testnet` and `admin-b.seams-v1.testnet` approve by key. No cap. It replaces `team.seams-v1.testnet`, which had a cap of 0.05 NEAR. |
 | Market resolver     | OutLayer project `seams-v1.testnet/pm-notes-resolver`, version `360beda42aab4479a0c1ad38ef0a06878ea1819abdba05b06cab3541589d223a`: JEV (`typesafe/jev-1.13`) on NEAR AI, then a NEAR AI chat model. |
 

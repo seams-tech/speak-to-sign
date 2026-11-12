@@ -5,7 +5,7 @@ import { SetupPanel } from './components/SetupPanel';
 import { SignInModal } from './components/SignInModal';
 import { WriteNoteModal } from './components/WriteNoteModal';
 import { config } from './config';
-import { findPost, POSTS, registerPosts, type Post } from './data/posts';
+import { findPost, registerPosts, type Post } from './data/posts';
 import { DemoContext, type DemoState, type PrepareNeeds, type Prepared, type PrepareStep } from './demoContext';
 import { covers, ensureFunds, fundsProblem, peekFunds, readFunds } from './faucet/funds';
 import { RpcNotesStore } from './notes/rpcStore';
@@ -103,8 +103,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
 
   const loadAll = useCallback(async () => {
     try {
-      const posts = [...POSTS, ...xPostsRef.current];
-      const entries = await Promise.all(posts.map(async (post) => [post.id, await store.getNotes(post.id)] as const));
+      const entries = await Promise.all(xPostsRef.current.map(async (post) => [post.id, await store.getNotes(post.id)] as const));
       setNotesByPost((current) => ({ ...current, ...Object.fromEntries(entries) }));
       setLoadError(null);
     } catch (cause) {
@@ -124,7 +123,7 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
   }, [refreshStatus]);
 
   // The first page of posts from X. They are registered before the first render that shows
-  // them, and their notes load with the notes of the demo post.
+  // them, and then their notes load.
   useEffect(() => {
     let cancelled = false;
     void loadXPosts(0).then((page) => {
@@ -407,7 +406,12 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             key={writePost.id}
             post={writePost}
             autoSign={writeFor?.autoSign}
-            onClose={() => setWriteFor(null)}
+            onClose={() => {
+              // A dialog that closed on the Wallet card's result ("close" by voice) did not get
+              // the result, and the note can be on chain: read the post again.
+              void loadPost(writePost.id).catch(() => undefined);
+              setWriteFor(null);
+            }}
             onSent={(text, hash) => void onNoteSent(writePost.id, text, hash)}
             onDone={() => {
               setWriteFor(null);
@@ -421,7 +425,11 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
             note={rateNote}
             initialRating={rateFor?.rating}
             autoSign={rateFor?.autoSign}
-            onClose={() => setRateFor(null)}
+            onClose={() => {
+              // As for the write dialog: the rating can be on chain.
+              void loadPost(rateNote.post_id).catch(() => undefined);
+              setRateFor(null);
+            }}
             onSent={(rating, hash) => void onRatingSent(rateNote, rating, hash)}
             onDone={() => {
               setRateFor(null);

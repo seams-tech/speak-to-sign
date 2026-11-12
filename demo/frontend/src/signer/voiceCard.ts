@@ -3,6 +3,7 @@
 // shows in the Wallet's own modal, on top of the page.
 
 import type { AnchoredWalletPresentation } from '@seams/wallet';
+import { holdVoice } from '../voice/hold';
 
 /** The card's place over an element of the host's dialog, and the card's events. */
 export type VoiceCard = AnchoredWalletPresentation;
@@ -28,9 +29,17 @@ export function hostVoiceCard(host: VoiceCardHost): () => void {
 
 /**
  * Runs one Speak-to-Sign request with its card in the newest host's dialog:
- * `inVoiceCard((place) => seams.near.spoken.note({ ...note, ...place }))`.
+ * `inVoiceCard((place) => seams.near.spoken.note({ ...note, ...place }))`. The host holds the
+ * voice bar while its card can record. A card in the Wallet's own modal holds it all the time:
+ * the page cannot see the stage of that card.
  */
-export function inVoiceCard<T>(send: (place: VoiceCardPlace) => Promise<T>): Promise<T> {
+export async function inVoiceCard<T>(send: (place: VoiceCardPlace) => Promise<T>): Promise<T> {
   const host = hosts[hosts.length - 1];
-  return host ? host.show((card) => send({ presentation: card })) : send({});
+  if (host) return await host.show((card) => send({ presentation: card }));
+  const release = holdVoice('recording');
+  try {
+    return await send({});
+  } finally {
+    release();
+  }
 }

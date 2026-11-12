@@ -79,8 +79,8 @@ export function Modal({
   minimized?: boolean;
   children: ReactNode;
 }) {
-  // The words that the visitor says to a dialog (a sentence that signs) are not a command.
-  useHoldVoice();
+  // While a dialog is open, the voice bar hears only "close" (src/voice/hold.ts).
+  useHoldVoice('dialog');
   const dialogRef = useRef<HTMLDivElement>(null);
   const lockedRef = useRef(locked);
   const onCloseRef = useRef(onClose);
@@ -115,7 +115,11 @@ export function Modal({
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== token || minimizedRef.current) return;
-      if (event.key === 'Escape' && !lockedRef.current) (onOutsideRef.current ?? close)();
+      if (event.key === 'Escape' && !lockedRef.current) {
+        // A handled Escape is marked, so the voice bar's "close" knows that the dialog closed.
+        event.preventDefault();
+        (onOutsideRef.current ?? close)();
+      }
       if (event.key === 'Tab') keepFocusInside(event, dialogRef.current);
     };
     document.addEventListener('keydown', onKey);

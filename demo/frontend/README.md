@@ -108,9 +108,9 @@ There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
 The site has two pages on one origin, `https://speak-to-sign.pages.dev`:
-Community Notes at `/` (`index.html`) and the Speak to pay example
-(`../../examples/speak-to-pay`) at `/pay/`. Both use the same Seams project, so
-one wallet works on both.
+Community Notes at `/` (`index.html`) and the spoken multisig at `/multisig/`
+(`multisig/index.html`). Both use the same Seams project, so one wallet works
+on both.
 
 ## What must be live
 
@@ -170,13 +170,12 @@ panel says that the key is missing.
 To run the whole site as Cloudflare Pages runs it (both pages and the function):
 
 ```bash
-pnpm build:site   # demo/frontend/ into dist/, then ../../examples/speak-to-pay into dist/pay/
+pnpm build:site   # demo/frontend/ into dist/
 pnpm preview      # http://localhost:8788
 ```
 
-`build:site` (`scripts/build-site.mjs`) needs `pnpm install` in
-`../../examples/speak-to-pay` too. It gives the Speak to pay build the same
-`VITE_SEAMS_*` settings as `demo/frontend/`, so it writes nothing into `examples/`.
+`build:site` (`scripts/build-site.mjs`) stops if `VITE_SEAMS_PUBLISHABLE_KEY`
+is not set. Then it runs the same build as `pnpm build`.
 The seal code (`sealAudio`) comes from `@seams/voice-verdict` on npm.
 
 To sign in on the built site, open it through Caddy at https://localhost:8443
@@ -215,7 +214,7 @@ and two raters.
 | `pnpm dev`       | Vite dev server with hot reload on port 5173.                        |
 | `pnpm dev:api`   | `wrangler pages dev` for `functions/` on port 8788.                  |
 | `pnpm build`     | Builds this page into `dist/`.                                       |
-| `pnpm build:site`| Builds this page, then the Speak to pay page into `dist/pay/`.       |
+| `pnpm build:site`| The build for a deploy: `pnpm build`, but only with the Seams key set. |
 | `pnpm preview`   | Serves `dist/` and `functions/` with wrangler on port 8788.          |
 | `pnpm dev:https` | Caddy with local HTTPS: https://localhost:5443 and :8443.            |
 | `pnpm typecheck` | Type-checks the page, `vite.config.ts` and the Pages Function.       |
@@ -544,9 +543,9 @@ allow it (CORS and the project's allowed origins), and also
 `pages.dev` name, staging must allow that name instead.
 
 Build with `demo/frontend/.env.production.local` (or the environment) set to the key of
-the project that allows the Pages origin. One deploy ships the site and `/pay/`. Do not
-deploy `../../examples/speak-to-pay` alone to the same project: that would
-replace the whole site with the Speak to pay page.
+the project that allows the Pages origin. Do not deploy
+`../../examples/speak-to-pay` to the same project: that would replace the
+whole site with the Speak to pay page.
 
 The routes `/api/voice-command` and `/api/x/eligible-posts` spend NEAR AI credit.
 For a public link, add a Cloudflare rate-limiting rule on them (and on

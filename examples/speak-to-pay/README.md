@@ -52,9 +52,8 @@ The `VITE_*` settings are read at build time.
 2. Log in once with `pnpm exec wrangler login`.
 3. Change `name` in `wrangler.toml` to your own Pages project, and add its
    origin to the Seams project. The name in this repository,
-   `speak-to-sign`, is the live demo site, which ships this page at `/pay/`
-   from `demo/frontend`. A deploy from here to that project would replace the
-   whole site with this page.
+   `speak-to-sign`, is the live demo site. A deploy from here to that project
+   would replace the whole site with this page.
 4. Run `pnpm run deploy`. It builds `dist/` and uploads it to the Pages project
    of `wrangler.toml`. Wrangler asks to create the project if it does not
    exist.

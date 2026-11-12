@@ -44,7 +44,7 @@ voice verifier also approves payments and multisig transfers.
 | Post a community note | A short summary of the note. | The verifier, Wallet core, and the contract `notes.seams-v1.testnet` |
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
-| Pay someone (`/pay/` of the demo site) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
+| Pay someone (the example [`examples/speak-to-pay`](examples/speak-to-pay/), which you run on your machine) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
 | Approve a multisig transfer (`/multisig/` of the demo site) | "Approve proposal 3: send 0.1 NEAR to seams-faucet.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 
 In the voice bar, JEV, an AI classifier, turns your words into a command (the
@@ -354,7 +354,7 @@ speak-to-sign/
 │   │   └── faucet/                 seams-faucet.testnet
 │   └── x-refresh-worker/           a scheduled worker that gets new posts from X
 ├── examples/
-│   ├── speak-to-pay/               pay a NEAR account by voice (/pay/ of the demo site)
+│   ├── speak-to-pay/               pay a NEAR account by voice
 │   └── voice-confirm/              a Web2 page and server with no wallet
 ├── research/gate0/                 feasibility and latency probes: evidence, not product
 ├── docs/                           the specs; docs/README.md is the index

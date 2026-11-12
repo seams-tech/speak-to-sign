@@ -137,8 +137,8 @@ not click through a prompt.
     `notes.seams-v1.testnet` checks the verdict of each note and rating on
     chain. The write dialog says "Drafted by NEAR AI" under a note that the
     model wrote.
-- **Today, speak to pay** (`examples/speak-to-pay/`, at `/pay/` of the demo
-  site): the person says the payment, and the Wallet pays one exact amount
+- **Today, speak to pay** (`examples/speak-to-pay/`, an example that you run
+  on your machine): the person says the payment, and the Wallet pays one exact amount
   to one exact account. Above 10 NEAR, the verifier asks for a passkey too
   (`step_up`).
 - **Not done:** no policy lets software spend a small amount without a

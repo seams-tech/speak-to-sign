@@ -1,6 +1,5 @@
 // Build-time settings. The Seams defaults are the staging deployment, the only one whose
-// Seams server runs the Speak-to-Sign verifier. The same Seams project and key serve the
-// Speak to pay page at /pay/ (examples/speak-to-pay), so one wallet works on both.
+// Seams server runs the Speak-to-Sign verifier.
 
 import { isImplicitAccount } from './guards';
 
@@ -28,8 +27,6 @@ export const config = {
   txApiUrl: env(e.VITE_NEAR_TX_API_URL, 'https://tx.test.fastnear.com'),
   faucetUrl: 'https://docs.near.org/getting-started/faucet',
   usdcFaucetUrl: 'https://faucet.circle.com',
-  /** The Speak to pay page on the same site. */
-  payPath: '/pay/',
   seams: {
     /** The publishable key of the Seams project environment. It allows only the project's origins. */
     publishableKey: env(e.VITE_SEAMS_PUBLISHABLE_KEY),

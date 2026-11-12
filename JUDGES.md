@@ -11,11 +11,39 @@ words, and signs a verdict that binds both to the digest of the request.
 Seams Wallet core signs the call only with a verdict for that request.
 Testnet only.
 
-Wallet core is the npm dependency `@seams/wallet` 0.67.0, which the demo pins
+Wallet core is the npm dependency `@seams/wallet` 0.69.2, which the demo pins
 in `demo/frontend/package.json`. It checks the verdict against a pinned key
 and signs only a matching request. Its source is
-[`seams-wallet` at 0.67.0](https://github.com/seams-tech/seams-wallet/tree/6ae9e42a93ec1df5f958256b0427bb8e403137ed).
+[`seams-wallet` at 0.69.2](https://github.com/seams-tech/seams-wallet/tree/e9fdc65ae8ae269499dfce423412e446a87d3f0d).
 Every command below needs only this repo.
+
+## Scope of the hackathon work
+
+The hackathon project is Speak-to-Sign. Seams Wallet is not a part of it.
+
+- **Seams Wallet is the baseline, not hackathon work.** Seams Wallet is a
+  programmable embedded wallet that existed before the hackathon. It holds
+  the keys and signs with threshold signing. Speak-to-Sign uses it as a
+  dependency.
+- **Speak-to-Sign is the hackathon work.** All of this repository was made
+  in the hackathon window (2026-10-19 to 2026-11-14, UTC):
+  - The voice verifier, an OutLayer TEE worker (`crates/voice-verifier/`).
+    It gets the heard words from Whisper on NEAR AI Cloud.
+  - The speaker service, in a Phala confidential VM
+    (`crates/speaker-service/`).
+  - The `spoken-intent` crate, which makes the sentence and the request
+    digest.
+  - The voice libraries for an application: `@seams/voice-capture`,
+    `@seams/voice-verdict` and `@seams/voice-sign` (`packages/`).
+  - The demo: four NEAR contracts and the page (`demo/`), and two examples
+    (`examples/`).
+- **The integration into the Wallet is hackathon work too.** In the window,
+  we added the Speak-to-Sign paths to `seams-wallet`: Wallet core checks the
+  verdict and signs only the matching call. These paths are new files only.
+
+README [Baseline and hackathon work](README.md#baseline-and-hackathon-work)
+gives the first commit of each part, and the diff of the Wallet in the
+window.
 
 ## Why it is useful
 
@@ -54,23 +82,32 @@ changed page do not match.
   Voice approval by each admin is the next step. The demo site has no page
   for the multisig.
 
-### 3. Social sites and marketplaces: actions that are easy for people and costly for bots
+### 3. Social sites and marketplaces: a voice step that helps against bots
 
 Bots and AI agents now write a large part of the reviews, replies and
 comments on the web. Speak-to-Sign puts a voice step into the actions that
 matter: a community note, a rating, a review or a bet. For a person, one
 sentence read aloud is natural and fast. For a bot farm, it adds a cost to
 each action: each account needs a voice, and each action needs new audio of
-the exact text.
+the exact text. The voice step helps. It is one layer against bots, not a
+complete solution, and it works next to the other defences of a site.
 
 - **Today:** the community notes demo. Each note, rating and bet needs the
   enrolled voice of the account, and each recording passes one time only. A
   bot that takes over an account cannot post as that account without the
   owner's voice or a good clone of it.
-- **Not done:** this build cannot prove that a live person speaks. A
-  text-to-speech voice can enroll and pass, and one voice can enroll on many
-  accounts. To make bot farms costly, the verifier needs a liveness check
-  (fresh words), synthetic-speech detection and one voice per account.
+- **Limits:** a text-to-speech voice can enroll and pass, and one voice can
+  enroll on many accounts.
+- **Future improvements:**
+  - **Synthetic-speech detection.** An anti-spoofing model runs in the TEE
+    next to the speaker check, and refuses audio that a text-to-speech or
+    voice-conversion model made.
+  - **Sybil voice detection.** At enrollment, the TEE compares the new voice
+    with the voices that are already enrolled. It refuses a voice that is
+    already on another account. The templates stay sealed in the TEE, so no
+    voiceprint leaves it.
+  - **Liveness.** The verifier asks for fresh words, which it picks at
+    random, so that a recording made before the request does not pass.
 
 ## See it in 2 minutes
 
@@ -196,8 +233,3 @@ boundaries", and spec section 11:
   has no reproducible build. The four demo contracts and the verifier have
   one.
 - Testnet only.
-
-## Baseline and hackathon work
-
-Seams Wallet is the baseline; all of this repository was made in the window.
-See README [Baseline and hackathon work](README.md#baseline-and-hackathon-work).

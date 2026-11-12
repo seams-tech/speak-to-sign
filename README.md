@@ -7,6 +7,13 @@ you post a note, rate a note and bet on a note by voice. Testnet only.
 Judges: [`JUDGES.md`](JUDGES.md) is the short path to see it work and to
 check each claim.
 
+**Scope.** The hackathon project is Speak-to-Sign: the voice verifier (an
+OutLayer TEE worker, with Whisper on NEAR AI Cloud and a speaker service on
+Phala), the voice libraries, the demo, and the integration into Seams Wallet.
+Seams Wallet is a programmable embedded wallet that existed before the
+hackathon. It is the baseline, not hackathon work. See
+[Baseline and hackathon work](#baseline-and-hackathon-work).
+
 1. You type a community note on a post. To post it, you read a short summary of the note aloud.
 2. An attested verifier checks the audio: an OutLayer TEE worker, NEAR AI Whisper for the words and ReDimNet on Phala for the speaker.
 3. The verifier signs a verdict. The verdict binds the speaker and the heard words to the exact note: the SHA-256 of the note text, the post, the contract and the owner. For a rating, it binds the note id and the rating.
@@ -472,8 +479,8 @@ The diffs:
 ## Libraries, services and tools
 
 - Own baseline: the Seams Wallet SDK (`@seams/wallet`) and its Router A/B
-  signing. The SDK packages `@seams/voiceid` and `@seams/speak-to-sign` were
-  made in the window (see the table).
+  signing. The SDK package `@seams/voiceid` and the Speak-to-Sign flow in
+  `@seams/wallet` were made in the window (see the table).
 - Rust: `near-sdk` 5.30.1, `near-workspaces` 0.24.0 (sandbox test only),
   `outlayer` 0.2.1, `wasi` 0.13.3, `ed25519-dalek` 2, `sha2` 0.10.9, `borsh`
   1.6.1, `serde`, `serde_json`, `base64`.

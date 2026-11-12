@@ -35,7 +35,9 @@ import './multisig.css';
 const POLL_MS = 1500;
 const DEFAULT_RECEIVER = 'seams-faucet.testnet';
 const DEFAULT_AMOUNT = '0.1';
-const NO_WALLET: MultisigSigner = createMultisigSigner({ seams: null, walletId: null, contract: config.multisigContract });
+/** The refusals that the page offers to send to the contract as a record. */
+const RECORDED_REFUSALS: ReadonlySet<string> = new Set(['words', 'speaker', 'same_speaker', 'attempts_exhausted']);
+const NO_WALLET: MultisigSigner =createMultisigSigner({ seams: null, walletId: null, contract: config.multisigContract });
 
 export function MultisigPage({ seams }: { seams: boolean }) {
   const [signIn, setSignIn] = useState(false);
@@ -473,7 +475,8 @@ function ApproveByVoice({ context, proposal }: { context: Context; proposal: Pro
     setRecord({ busy: false, message: result.kind === 'refused' ? result.reason : sendFailure(result) });
   };
 
-  const refused = step.kind === 'refused' ? step.check : null;
+  // Only a decision about the voice or the words is worth a record; a service failure is not.
+  const refused = step.kind === 'refused' && RECORDED_REFUSALS.has(step.check.code) ? step.check : null;
   return (
     <div className="ms-form ms-approve">
       <p className="ms-label">Approve by voice</p>

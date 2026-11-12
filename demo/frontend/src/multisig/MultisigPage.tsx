@@ -483,7 +483,8 @@ function ApproveByVoice({ context, proposal }: { context: Context; proposal: Pro
       <p className="ms-say ms-say-empty">Approve proposal {proposal.id}: send … NEAR to …</p>
       <p className="ms-hint">
         Say the proposal that the proposer told you. This page does not show it: the chain holds only its salted hash, and the verifier
-        accepts only the words of the stored proposal. Three tries with wrong words end your tries for this proposal.
+        accepts only the exact words of the stored proposal. Say every word of the account, with “dash” and “dot”, and say “NEAR”
+        clearly. Three tries with wrong words end your tries for this proposal.
       </p>
       <VoiceRecorder busy={busy} onRecorded={(wav) => void onRecorded(wav)} />
       <VoiceMessage step={step} />

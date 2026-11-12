@@ -79,8 +79,9 @@ not each pay for a transcription.
 A Community Notes page in the light style of X. You post a note and rate a
 note with your voice, through Seams Speak-to-Sign. Testnet only. The post is
 a real case that got a Community Note on X: the viral claim of 24 Oct 2026 that
-Claude Code found 145,763 deleted iPhone photos. The posts from X can be about
-politics or health, but not about war, crime or adult content.
+Claude Code found 145,763 deleted iPhone photos. The posts from X are about
+science, technology, business or politics. Posts about sport, entertainment,
+health, war, crime or adult content do not show.
 
 - **Say a command.** In the voice bar, you say what to do, for example "bet
   one dollar on no on the second note". JEV, an AI classifier
@@ -267,11 +268,11 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet`. Default `https://test.rpc.fastnear.com`. |
 | `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |
 | `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` | Secret. The OAuth 1.0a Access Token and secret of the same account. Required. A Bearer Token does not work on this endpoint. |
-| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10; `wrangler.toml` sets 20. |
+| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10; `wrangler.toml` sets 30. |
 | `X_ELIGIBLE_KEEP` | Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. |
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 28800 (8 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |
-| `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `sport,science,technology,business,entertainment,politics,health`. `all` turns the filter off. The filter needs a JEV key: `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`. |
+| `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `science,technology,business,politics`. `all` turns the filter off. The filter needs a JEV key: `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://testnet-api.outlayer.ai` (`*.outlayer.fastnear.com` is retired). |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
 | `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` and the multisig kinds (0.8.0 or later; 0.12.0 or later for sealed recordings). |
@@ -325,7 +326,8 @@ mode and never sends a note to X.
   returns, once for each UTC day. The route keeps one snapshot and asks X again
   only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults (10 posts, each 8
   hours), one call costs $0.15 at most, one day $0.45 and one week $3.15.
-  The budget is $5 to $10 a week. The route cannot enforce it: set a spend
+  With the 30 posts a call that `wrangler.toml` sets, one call costs $0.45 at
+  most, one day $1.35 and one week $9.45. The budget is $5 to $10 a week. The route cannot enforce it: set a spend
   limit in the X console, and bind `X_CACHE` so that all Cloudflare locations
   share one snapshot.
 - **Snapshot.** `wrangler.toml` binds the KV namespace
@@ -341,7 +343,11 @@ mode and never sends a note to X.
   `politics`, `war`, `crime`, `adult` and `other`: one choice question for
   each post, 20 posts in one call (`functions/lib/topicFilter.ts`). The route
   gives only the posts with a subject in `X_ELIGIBLE_TOPICS`, each with its
-  `topic`. A post that JEV gives no answer for, or a subject with a probability
+  `topic`. The default is `science`, `technology`, `business` and `politics`.
+  Sport, entertainment and health are not in it since 2026-11-12: most of
+  their posts were of low quality (match numbers, rumours about famous people,
+  medical claims). The route applies the list to the stored snapshot too, so a
+  change of the list shows at once, without a call to X. A post that JEV gives no answer for, or a subject with a probability
   under 0.5, is `other`. If JEV fails, the refresh fails: no post shows without
   a subject. Without a JEV key (`TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`) the
   route answers 503, unless `X_ELIGIBLE_TOPICS` is `all`. On the 13 posts of
@@ -370,12 +376,14 @@ mode and never sends a note to X.
   a spoken sentence (`SAY n:`), and often left out its number. The parser then
   found no sentence and dropped the whole draft, so 19 of the 22 live posts
   kept a template.
-- **Collection.** About 1 post in 4 passes the default filter. The snapshot
-  therefore keeps the passed posts of earlier calls, newest first, up to
-  `X_ELIGIBLE_KEEP` (600). It grows by the new passed posts of each call. With
-  the 20 posts a call that `wrangler.toml` sets, that is about 5 posts, about 30
-  after two days; 10 new shown posts a call (60 after two days) need about 40
-  posts a call (`X_ELIGIBLE_MAX=40`), which costs about twice as much as 20.
+- **Collection.** About 1 post in 2 passes the default filter: of the 90
+  posts that JEV sorted until 2026-11-12, 46 had an allowed subject (39
+  politics, 4 business, 3 technology). The snapshot therefore keeps the passed
+  posts of earlier calls, newest first, up to `X_ELIGIBLE_KEEP` (600). It grows
+  by the new passed posts of each call. `wrangler.toml` sets 30 posts a call
+  (20 before 2026-11-12), so that the smaller list of subjects gives about as
+  many shown posts as before. X gives many posts of the last call again, so a
+  call adds fewer than 15 posts.
 - **Schedule.** Pages Functions have no schedule: a visitor's request makes
   the call when the snapshot is old (at the TTL less 10 minutes, or less a
   tenth of a short TTL). The Worker `../x-refresh-worker` asks every 8 hours,
@@ -395,7 +403,7 @@ Each post is `{ id, text, createdAt, lang, url, author, media, metrics, topic, d
 (`modelTries` only for a template). The tests are in
 `tests/x-eligible-posts.test.ts`, with a fake X API. A local run against the
 real X API on 10 Nov 2026 gave 10 English posts, from 2 hours to 2 days old.
-X took the `tweet.fields` name. Of 20 posts, 5 passed the default filter (2
+X took the `tweet.fields` name. Of 20 posts, 5 passed the filter of that day (2
 sport, 1 science, 1 technology, 1 entertainment). The model put the posts on
 Gaza, vaccines, politicians and crime numbers in their own subjects.
 

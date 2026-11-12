@@ -20,7 +20,8 @@
 //
 // The posts are about what people on X dispute, so most are about politics or war. JEV sorts each
 // new post by subject once (functions/lib/topicFilter.ts), and the route gives only the posts
-// with an allowed subject. The snapshot collects them over time. A NEAR AI chat model writes the
+// with an allowed subject, also from a snapshot that an earlier list of subjects made. The
+// snapshot collects them over time. A NEAR AI chat model writes the
 // draft of a note for each post (functions/lib/noteDrafts.ts), for the write dialog. Each draft
 // has a mark: `source` is "model", or "template" when the model gave no note. The route asks
 // the model again for a template on a later refresh, with limits (see draftPosts).
@@ -50,8 +51,7 @@ export interface Env {
   X_ELIGIBLE_LANG?: string;
   /**
    * Optional. The subjects to show, as a comma list (see TOPICS in functions/lib/topicFilter.ts).
-   * Default: sport, science, technology, business, entertainment, politics, health. "all" turns
-   * the filter off.
+   * Default: science, technology, business, politics. "all" turns the filter off.
    */
   X_ELIGIBLE_TOPICS?: string;
   /**
@@ -165,7 +165,7 @@ export async function handleEligiblePosts(request: Request, env: Env, deps: Deps
 
   const page = readPage(new URL(request.url).searchParams);
   const now = deps.now();
-  const old = await deps.store.get().catch(() => null);
+  const old = withAllowedPosts(await deps.store.get().catch(() => null), settings);
   const isFresh = old?.fetchedAtMs != null && now - old.fetchedAtMs < refreshAgeMs(settings.ttlMs);
   const failedLately = old?.failedAtMs != null && now - old.failedAtMs < RETRY_AFTER_FAILURE_MS;
   if (old && (isFresh || failedLately)) return answer(old, !isFresh, page);
@@ -195,6 +195,18 @@ export function readPage(params: URLSearchParams): Page {
   return { offset, limit: limitText === null ? null : clampInteger(limitText, 10, 1, MAX_PAGE) };
 }
 
+/**
+ * The snapshot with only the posts that the settings allow, so a change of the allowed subjects
+ * shows at once and not only after the next call to X. With the filter on, a post stays while its
+ * subject is allowed. With the filter off, no post has a subject.
+ */
+function withAllowedPosts(snapshot: Snapshot | null, settings: Settings): Snapshot | null {
+  if (!snapshot) return null;
+  const { filter } = settings;
+  const posts = snapshot.posts.filter((post) => (filter ? post.topic !== null && filter.allowed.has(post.topic) : post.topic === null));
+  return posts.length === snapshot.posts.length ? snapshot : { ...snapshot, posts };
+}
+
 type RefreshResult = { ok: true; posts: XPost[]; topics: Record<string, Topic> } | { ok: false; error: string };
 
 /**
@@ -219,13 +231,10 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
       return topic !== undefined && allowed.has(topic) ? [{ ...post, topic }] : [];
     });
   }
-  // The new posts first, then the old posts that X did not give again. With the filter on, an
-  // old post stays only while its subject is allowed. With the filter off, no post has a subject.
-  const ids = new Set(shown.map((post) => post.id));
-  const kept = (old?.posts ?? []).filter((post) => {
-    if (ids.has(post.id) || fetched.posts.some((other) => other.id === post.id)) return false;
-    return settings.filter ? post.topic !== null && settings.filter.allowed.has(post.topic) : post.topic === null;
-  });
+  // The new posts first, then the old posts that X did not give again (withAllowedPosts left
+  // only the allowed posts in `old`).
+  const fetchedIds = new Set(fetched.posts.map((post) => post.id));
+  const kept = (old?.posts ?? []).filter((post) => !fetchedIds.has(post.id));
   const posts = [...shown, ...kept]
     .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0))
     .slice(0, settings.maxKept);

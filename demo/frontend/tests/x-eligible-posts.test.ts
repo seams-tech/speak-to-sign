@@ -365,7 +365,7 @@ test('classifyPosts asks JEV one choice for each post, with the posts as numbere
 
 test('the filter is on by default and needs a JEV key', async () => {
   const settings = settingsOf(FILTER_ENV);
-  assert.deepEqual([...settings.filter!.allowed], ['sport', 'science', 'technology', 'business', 'entertainment', 'politics', 'health']);
+  assert.deepEqual([...settings.filter!.allowed], ['science', 'technology', 'business', 'politics']);
   assert.deepEqual([...settingsOf({ ...FILTER_ENV, X_ELIGIBLE_TOPICS: ' Sport, politics ,nonsense' }).filter!.allowed], ['sport', 'politics']);
   assert.equal(settingsOf({ ...FILTER_ENV, X_ELIGIBLE_TOPICS: 'sport,all' }).filter, null);
   assert.equal(readSettings({ ...FILTER_ENV, NEAR_AI_API_KEY: '' }), 'no-filter-key');
@@ -380,13 +380,14 @@ test('the filter is on by default and needs a JEV key', async () => {
 });
 
 test('the route shows only allowed subjects, sorts each post once and collects posts over time', async () => {
-  const services = fakeServices([xPosts('1', '2', '3'), xPosts('3', '4')], [jevSays('sport', 'war', 'science'), jevSays('business')]);
+  const services = fakeServices([xPosts('1', '2', '3', '5', '6', '7'), xPosts('3', '4')], [jevSays('politics', 'war', 'science', 'sport', 'health', 'entertainment'), jevSays('business')]);
   const store = fakeStore();
   const at = (now: number): Deps => ({ fetch: services.fetch, store: store.store, now: () => now, nonce: () => 'n' });
 
   const first = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0))).json()) as { posts: { id: string; topic: string }[] };
-  assert.deepEqual(first.posts.map((post) => [post.id, post.topic]), [['3', 'science'], ['1', 'sport']]);
-  assert.deepEqual(store.current()?.topics, { '1': 'sport', '2': 'war', '3': 'science' });
+  // The default list has no sport, health or entertainment.
+  assert.deepEqual(first.posts.map((post) => [post.id, post.topic]), [['3', 'science'], ['1', 'politics']]);
+  assert.deepEqual(store.current()?.topics, { '1': 'politics', '2': 'war', '3': 'science', '5': 'sport', '6': 'health', '7': 'entertainment' });
 
   // One hour later X gives post 3 again and the new post 4. Only post 4 goes to the model.
   const second = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0 + 3_600_000))).json()) as { posts: { id: string }[] };
@@ -396,7 +397,7 @@ test('the route shows only allowed subjects, sorts each post once and collects p
 });
 
 test('if the filter fails, no unsorted post shows and the route tries again after a minute', async () => {
-  const services = fakeServices([xPosts('1'), xPosts('1')], [new Error('offline'), jevSays('sport')]);
+  const services = fakeServices([xPosts('1'), xPosts('1')], [new Error('offline'), jevSays('politics')]);
   const store = fakeStore();
   const at = (now: number): Deps => ({ fetch: services.fetch, store: store.store, now: () => now, nonce: () => 'n' });
   assert.equal((await handleEligiblePosts(get(), FILTER_ENV, at(T0))).status, 502);
@@ -410,13 +411,18 @@ test('a change of the allowed subjects removes kept posts, and the snapshot has 
   const KEEP = 30;
   const FILTER_ENV = { ...FILTER_ENV_ALL, X_ELIGIBLE_KEEP: String(KEEP) };
   const many = Array.from({ length: KEEP + 5 }, (_, index) => String(100 + index));
-  const services = fakeServices([xPosts(...many), xPosts('7')], [jevSays(...many.slice(0, 20).map(() => 'sport')), jevSays(...many.slice(20).map(() => 'sport')), jevSays('science')]);
+  const services = fakeServices([xPosts(...many), xPosts('7')], [jevSays(...many.slice(0, 20).map(() => 'politics')), jevSays(...many.slice(20).map(() => 'politics')), jevSays('science')]);
   const store = fakeStore();
   const at = (now: number): Deps => ({ fetch: services.fetch, store: store.store, now: () => now, nonce: () => 'n' });
   const first = (await (await handleEligiblePosts(get(), FILTER_ENV, at(T0))).json()) as { posts: unknown[] };
   assert.equal(first.posts.length, KEEP);
-  const narrowed = (await (await handleEligiblePosts(get(), { ...FILTER_ENV, X_ELIGIBLE_TOPICS: 'science' }, at(T0 + 3_600_000))).json()) as { posts: { id: string }[] };
+  // A fresh snapshot makes no call to X, and the change shows at once.
+  const NARROW = { ...FILTER_ENV, X_ELIGIBLE_TOPICS: 'science' };
+  const atOnce = (await (await handleEligiblePosts(get(), NARROW, at(T0 + 60_000))).json()) as { posts: unknown[]; total: number };
+  assert.deepEqual([atOnce.posts.length, atOnce.total, services.calls.filter((host) => host === 'api.x.com').length], [0, 0, 1]);
+  const narrowed = (await (await handleEligiblePosts(get(), NARROW, at(T0 + 3_600_000))).json()) as { posts: { id: string }[] };
   assert.deepEqual(narrowed.posts.map((post) => post.id), ['7']);
+  assert.deepEqual(store.current()?.posts.map((post) => post.id), ['7']);
 });
 
 // ---- The draft of a note for each post ----
@@ -514,7 +520,7 @@ test('storedDraft marks a draft of an older route by its text, and drops its sum
 
 test('the route keeps a model draft, and asks the model again for a template on a later refresh', async () => {
   // Post 2 is the newer one, so it is "Post 1" of the first draft call.
-  const services = fakeServices([xPosts('1', '2'), xPosts('1'), xPosts('1')], [jevSays('sport', 'sport')], [
+  const services = fakeServices([xPosts('1', '2'), xPosts('1'), xPosts('1')], [jevSays('business', 'business')], [
     aiSays('NOTE 1: The post gives a score and no source.'),
     aiSays('NOTE 1: The post names no game for its numbers.'),
   ]);
@@ -525,7 +531,7 @@ test('the route keeps a model draft, and asks the model again for a template on 
   const first = await read(T0);
   assert.deepEqual(first.map((post) => [post.id, post.draft]), [
     ['2', { text: 'The post gives a score and no source.', source: 'model' }],
-    ['1', { ...fallbackDraft('sport'), source: 'template', modelTries: 1 }],
+    ['1', { ...fallbackDraft('business'), source: 'template', modelTries: 1 }],
   ]);
   // Eight hours later only the template goes to the model, and the model writes its note.
   const second = await read(T0 + 8 * 3_600_000);
@@ -549,7 +555,7 @@ test('a template is final after MAX_MODEL_TRIES answers with no note, and a fail
   const noNote = () => aiSays('I cannot write a note for this post.');
   const services = fakeServices(
     Array.from({ length: refreshes }, () => xPosts('1')),
-    [jevSays('sport')],
+    [jevSays('business')],
     [new Response('no credit', { status: 402 }), new Response('no credit', { status: 402 }), ...Array.from({ length: MAX_MODEL_TRIES }, noNote)],
   );
   const store = fakeStore();
@@ -562,7 +568,7 @@ test('a template is final after MAX_MODEL_TRIES answers with no note, and a fail
   // counts one, and after the last try the route asks the model no more.
   assert.deepEqual(tries, [0, ...Array.from({ length: MAX_MODEL_TRIES }, (_, index) => index + 1), MAX_MODEL_TRIES]);
   assert.equal(services.draftPrompts.length, 2 + MAX_MODEL_TRIES);
-  assert.deepEqual(store.current()?.posts[0]?.draft, { ...fallbackDraft('sport'), source: 'template', modelTries: MAX_MODEL_TRIES });
+  assert.deepEqual(store.current()?.posts[0]?.draft, { ...fallbackDraft('business'), source: 'template', modelTries: MAX_MODEL_TRIES });
 });
 
 test('one refresh sends at most MAX_DRAFTS_PER_REFRESH posts to the model, the newest first', async () => {

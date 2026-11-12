@@ -30,5 +30,6 @@ id = "2857303a21af46678ef1de86a270caee"
 
 [vars]
 # Posts for each call to X (the route's default is 10). X bills each post and author that it
-# returns; 20 grows the snapshot faster, since many posts of a call repeat the last call's.
-X_ELIGIBLE_MAX = "20"
+# returns: 30 posts cost $0.45 a call at most. Many posts of a call repeat the last call's, and
+# about half of the new posts pass the subject filter (science, technology, business, politics).
+X_ELIGIBLE_MAX = "30"

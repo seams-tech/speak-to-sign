@@ -584,3 +584,26 @@ test('the colors prop sets the card colours, over the page, and leaves out keys 
   });
   expect(result).toEqual({ button: 'rgb(255, 0, 0)', fill: 'rgb(0, 128, 0)', unknown: '' });
 });
+
+test('the theme value voiceBeam none turns the Beam off, and a palette name keeps it', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  const result = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const glow = async (beam: string) => {
+      document.body.style.setProperty('--seams-colors-voiceBeam', beam);
+      openPhraseCard({ sentence: 'Bet one USDC yes on market nine', signal: new AbortController().signal, detector: 'level' });
+      // The card reads the theme once it is in the page.
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const card = [...document.querySelectorAll<HTMLElement>('.seams-voiceid-prompt')].at(-1)!;
+      const element = card.querySelector<HTMLElement>('.seams-voiceid-glow')!;
+      return { hidden: element.hidden, display: getComputedStyle(element).display, drawn: element.childElementCount > 0 };
+    };
+    const off = await glow('none');
+    const on = await glow('mono');
+    document.body.style.removeProperty('--seams-colors-voiceBeam');
+    return { off, on };
+  });
+  expect(result.off).toEqual({ hidden: true, display: 'none', drawn: false });
+  expect(result.on).toMatchObject({ hidden: false, drawn: true });
+});

@@ -127,8 +127,8 @@ try {
 - `colors` sets the card's colours in code, over the page's CSS variables:
   `{ buttonBackground: '#1d9bf0', textButton: '#ffffff', voiceFill: '#d6edfc' }`. The keys are
   the colour names of the table below and of the card's base colours (`colorBackground`,
-  `textPrimary`, `textSecondary`, `textMuted`, `borderPrimary`, `surface`, `buttonBackground`,
-  `textButton`, `error`, `info`). A Seams Wallet app sets the same keys in
+  `textPrimary`, `textSecondary`, `textMuted`, `borderPrimary`, `surface`, `surface3` (a check's
+  segments that have not run), `buttonBackground`, `textButton`, `error`, `info`). A Seams Wallet app sets the same keys in
   `appearance.theme.colors` of its configuration.
 - `voiceLine` sets how the card draws the voice while it listens: `'wave'`, sine wave lines
   (the default), or `'pixels'`, columns of dots that grow from the middle row with the voice and
@@ -153,7 +153,7 @@ try {
   | `--seams-colors-voiceEcho` | `colors.voiceEcho` | Echo lines 1 and 3 behind the line | `voiceLine` |
   | `--seams-colors-voiceEchoDeep` | `colors.voiceEchoDeep` | Echo line 2 | `voiceEcho` |
   | `--seams-colors-voiceSeal` | `colors.voiceSeal` | The check's line and the seal behind the tick of a result | `voiceLine` |
-  | `--seams-colors-voiceBeam` | `colors.voiceBeam` | The Beam palette: `colorful`, `mono`, `ocean`, `sunset`, `forest`, `candy`, `ice` or `gold`. `mono` is grey, band included | `ocean` |
+  | `--seams-colors-voiceBeam` | `colors.voiceBeam` | The Beam palette: `colorful`, `mono`, `ocean`, `sunset`, `forest`, `candy`, `ice` or `gold`. `mono` is grey, band included. `none` turns the Beam off | `ocean` |
   | `--seams-shape-voiceLineWidth` | `shape.voiceLineWidth` | The width of the voice line | `1px` |
   | `--seams-shape-voiceEchoWidth` | `shape.voiceEchoWidth` | The width of the echo lines | `0.65px` |
   | `--seams-shape-voiceLine` | `shape.voiceLine` | The line style without the `voiceLine` prop: `wave` or `pixels` | `wave` |

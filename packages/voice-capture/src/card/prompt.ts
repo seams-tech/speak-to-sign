@@ -288,6 +288,7 @@ const CSS = `
 .seams-voiceid-prompt .seams-voiceid-status.seams-voiceid-success-message { font-size: 0.8125rem; }
 /* The glow is decorative and cannot intercept record, retry or cancel controls. */
 .seams-voiceid-glow { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 0; }
+.seams-voiceid-glow[hidden] { display: none; }
 .seams-voiceid-beam { width: 100%; height: 100%; border-radius: inherit; }
 .seams-voiceid-prompt > :not(.seams-voiceid-glow) { position: relative; z-index: 1; }
 .seams-voiceid-prompt > .seams-voiceid-close { position: absolute; }

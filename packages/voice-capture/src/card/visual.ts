@@ -21,7 +21,7 @@ const GREY_BAND: Record<'light' | 'dark', NonNullable<VoiceBeamProps['bandColors
   dark: { core: '#ffffff', above: '#8b98a5', mid: '#cfd9de', below: '#536471' },
 };
 
-/** The theme's `voiceBeam`, the name of a Beam palette, or the default one. */
+/** The theme's `voiceBeam`, the name of a Beam palette, or the default one. (`none`: no Beam.) */
 export function beamPalette(value: string): VoiceBeamColorVariant {
   const name = value.trim();
   return Object.hasOwn(voicePalettes, name) ? (name as VoiceBeamColorVariant) : DEFAULT_BEAM;
@@ -46,6 +46,9 @@ export class VoiceVisual {
     this.glow.setAttribute('aria-hidden', 'true');
     // Mount off-document so the page's style nonce can be applied before styles connect.
     this.render();
+    // The theme's values (voiceBeam) are readable only once the card is in the document, which
+    // its host does in the same task: draw again then.
+    queueMicrotask(this.render);
     const nonce = styleNonce();
     if (nonce) for (const style of this.glow.querySelectorAll('style')) style.nonce = nonce;
     this.themeObserver = new MutationObserver(this.render);
@@ -93,10 +96,17 @@ export class VoiceVisual {
 
   private readonly render = (): void => {
     if (this.disposed) return;
+    const beam = getComputedStyle(this.prompt).getPropertyValue('--seams-colors-voiceBeam').trim();
+    // The theme's `voiceBeam: none` turns the Beam off: the card draws no glow at all.
+    this.glow.hidden = beam === 'none';
+    if (this.glow.hidden) {
+      render(null, this.glow);
+      return;
+    }
     const theme = this.prompt.closest('[data-theme]')?.getAttribute('data-theme')
       ?? this.prompt.ownerDocument.documentElement.getAttribute('data-theme');
     const mode = theme === 'light' ? 'light' : 'dark';
-    const palette = beamPalette(getComputedStyle(this.prompt).getPropertyValue('--seams-colors-voiceBeam'));
+    const palette = beamPalette(beam);
     render(createElement(VoiceBeamView, {
       className: 'seams-voiceid-beam',
       theme: mode,

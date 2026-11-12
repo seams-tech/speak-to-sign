@@ -113,6 +113,8 @@ const PHRASE_CARD_COLORS = [
   'textMuted',
   'borderPrimary',
   'surface',
+  /** The segments of a check that have not run yet. */
+  'surface3',
   /** The main button (Record, the voice line of a form card, Done) and its text. */
   'buttonBackground',
   'textButton',

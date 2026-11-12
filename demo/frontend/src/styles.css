@@ -1043,6 +1043,9 @@ code {
   font-size: 13px;
 }
 .spinner {
+  /* A span in a line of text, too: without this its size does not apply, and only a sliver of
+     its border shows. */
+  display: inline-block;
   width: 16px;
   height: 16px;
   border: 2px solid var(--accent-bg);
@@ -1380,7 +1383,6 @@ code {
 .setup-line .spinner,
 .step-detail .spinner,
 .pc-busy .spinner {
-  display: inline-block;
   width: 12px;
   height: 12px;
   vertical-align: -2px;

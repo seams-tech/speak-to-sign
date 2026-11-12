@@ -60,8 +60,8 @@ on `dev`, and no verifier version on OutLayer has it.
 - The verifier seals each transcription request with OHTTP to the key of the
   NEAR AI gateway. The gateway's ed25519 key signs that OHTTP key config.
 - The gateway's TDX quote binds the ed25519 key and a fresh nonce from the
-  verifier. The verifier checks the quote with `dcap-qvl` and Intel's
-  collateral, which it fetches itself. It pins the gateway key, and it
+  verifier. The verifier checks the quote with Intel's collateral, which it
+  fetches itself. It pins the gateway key, and it
   records the compose hash but does not pin it, because NEAR AI deploys
   often.
 - The verifier keeps the checked result in the worker storage for 6 h. After
@@ -78,17 +78,23 @@ on `dev`, and no verifier version on OutLayer has it.
 - A normal call adds one storage read and about 10 ms of sealing. A new check
   takes about 2–4 s, once in 6 h.
 
-**The cost that stopped it.** The quote check (`dcap-qvl`, X.509, P-256)
-doubles the verifier WASM: 1,062,153 bytes, against 548,960 for 0.13.0.
-OutLayer has a fixed time per call that grows with the WASM size: about 1 s
-per MB, from earlier OutLayer timings. So the check can add about 0.5 s to
-every spoken approval. `build.sh` also refuses a WASM of 1,000,000 bytes or
-more.
+**The cost that stopped it.** At the decision, the quote check (`dcap-qvl`,
+X.509, P-256) doubled the verifier WASM: 1,062,153 bytes, against 548,960 for
+0.13.0. OutLayer has a fixed time per call that grows with the WASM size:
+about 1 s per MB, from earlier OutLayer timings. So the check could add about
+0.5 s to every spoken approval. `build.sh` also refused a WASM of 1,000,000
+bytes or more.
+
+**The cost after the decision.** On 2026-11-13, the verifier got its own small
+TDX quote check in place of `dcap-qvl` (see the
+[verifier README](../crates/voice-verifier/README.md#the-tdx-quote-check)),
+and `build.sh` got a `wasm-opt` step. The WASM with the quote check is now
+560,034 bytes, which is 11,074 bytes more than 0.13.0. The time of this build
+on OutLayer is not measured.
 
 **The two ways to ship it later:**
-- **A. One WASM.** Raise the size limit, add the build as a version that is
-  not active, measure its time against 0.13.0 with `version_key`, and decide
-  from the numbers.
+- **A. One WASM.** Add the build as a version that is not active, measure its
+  time against 0.13.0 with `version_key`, and decide from the numbers.
 - **B. Split.** The verifier keeps only the OHTTP seal and a read of the check
   result (588,877 bytes, about 0 s added). A small checker version in the same
   OutLayer project runs the quote check from a scheduled call every 6 h, and

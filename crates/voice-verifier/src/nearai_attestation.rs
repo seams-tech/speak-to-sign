@@ -7,7 +7,7 @@
 //! (`GET /v1/attestation/report`, with a fresh nonce):
 //!
 //! 1. The gateway's TDX quote chains to Intel, with Intel's current
-//!    collateral (`dcap-qvl`), the TCB status is one of
+//!    collateral ([`crate::tdx_quote`]), the TCB status is one of
 //!    [`ACCEPTED_TCB_STATUSES`], and the TD is not a debug TD.
 //! 2. The quote's report data is the gateway's ed25519 key and the nonce
 //!    of this check: `report_data = key (32) || nonce (32)`. The key is the
@@ -26,9 +26,6 @@
 //! NVIDIA GPU attestation, and the code of the compose file.
 use std::collections::BTreeMap;
 
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine;
-use dcap_qvl::QuoteCollateralV3;
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
@@ -42,6 +39,7 @@ use crate::config::{
 use crate::digest::{from_hex, from_hex_bytes, hex, sha256};
 use crate::host::{GetRequest, Reply};
 use crate::ohttp::KeyConfig;
+use crate::tdx_quote::{self, Collateral};
 
 /// The TCB statuses of Intel's TCB info that the verifier accepts:
 /// `UpToDate`, and `SWHardeningNeeded` (the platform is up to date; the
@@ -171,28 +169,8 @@ pub struct Platform {
 /// The platform of a TDX quote, from the PCK certificate chain in the
 /// quote.
 pub fn platform(quote: &[u8]) -> Result<Platform, Failure> {
-    use dcap_qvl::config::{Config, ParsedCert, X509Codec};
-    type Backend = <dcap_qvl::configs::DefaultConfig as Config>::X509;
-    let parsed = dcap_qvl::quote::Quote::parse(quote).map_err(|_| not_attested("quote: malformed"))?;
-    let chain = parsed.raw_cert_chain().map_err(|_| not_attested("quote: no_pck_chain"))?;
-    let extension =
-        dcap_qvl::intel::parse_pck_extension_from_pem(chain).map_err(|_| not_attested("quote: pck_extension"))?;
-    let leaf = first_pem_certificate(chain).ok_or_else(|| not_attested("quote: pck_certificate"))?;
-    let ca = Backend::from_der(&leaf)
-        .ok()
-        .and_then(|certificate| certificate.pck_ca())
-        .ok_or_else(|| not_attested("quote: pck_ca"))?;
-    Ok(Platform { fmspc: hex(&extension.fmspc).to_uppercase(), ca: ca.as_id_str() })
-}
-
-/// The DER of the first certificate of a PEM chain.
-fn first_pem_certificate(pem: &[u8]) -> Option<Vec<u8>> {
-    let text = std::str::from_utf8(pem).ok()?;
-    let begin = "-----BEGIN CERTIFICATE-----";
-    let start = text.find(begin)? + begin.len();
-    let end = start + text[start..].find("-----END CERTIFICATE-----")?;
-    let body: String = text[start..end].chars().filter(|char| !char.is_ascii_whitespace()).collect();
-    STANDARD.decode(body).ok()
+    let (fmspc, ca) = tdx_quote::platform(quote).map_err(|error| not_attested(format!("quote: {error}")))?;
+    Ok(Platform { fmspc: hex(&fmspc).to_uppercase(), ca })
 }
 
 /// The Intel PCS requests that give the collateral of these platforms:
@@ -223,7 +201,7 @@ fn issuer_chain(reply: &Reply, names: &[&str]) -> Result<String, Failure> {
     percent_decode(value).ok_or_else(|| not_attested("collateral: issuer_chain"))
 }
 
-fn percent_decode(text: &str) -> Option<String> {
+pub(crate) fn percent_decode(text: &str) -> Option<String> {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut at = 0;
@@ -263,7 +241,7 @@ pub fn collateral(
     platforms: &[Platform],
     requests: &[GetRequest],
     replies: Vec<Result<Reply, String>>,
-) -> Result<Vec<QuoteCollateralV3>, Failure> {
+) -> Result<Vec<Collateral>, Failure> {
     let mut by_url: BTreeMap<&str, Reply> = BTreeMap::new();
     for (request, reply) in requests.iter().zip(replies) {
         let reply = reply.map_err(|error| Failure::Unavailable(format!("intel: {error}")))?;
@@ -283,8 +261,7 @@ pub fn collateral(
             let crl = get(&format!("{INTEL_PCS_URL}/sgx/certification/v4/pckcrl?ca={}&encoding=der", platform.ca))?;
             let tcb = get(&format!("{INTEL_PCS_URL}/tdx/certification/v4/tcb?fmspc={}", platform.fmspc))?;
             let (tcb_info, tcb_info_signature) = signed_json(&tcb.body, "tcbInfo")?;
-            Ok(QuoteCollateralV3 {
-                pck_crl_issuer_chain: issuer_chain(crl, &["SGX-PCK-CRL-Issuer-Chain"])?,
+            Ok(Collateral {
                 root_ca_crl: root_ca_crl.clone(),
                 pck_crl: crl.body.clone(),
                 tcb_info_issuer_chain: issuer_chain(tcb, &["TCB-Info-Issuer-Chain", "SGX-TCB-Info-Issuer-Chain"])?,
@@ -293,7 +270,6 @@ pub fn collateral(
                 qe_identity_issuer_chain: qe_identity_issuer_chain.clone(),
                 qe_identity: qe_identity.clone(),
                 qe_identity_signature: qe_identity_signature.clone(),
-                pck_certificate_chain: None,
             })
         })
         .collect()
@@ -310,27 +286,23 @@ struct CheckedQuote {
 fn check_quote(
     name: &str,
     td: &AttestedTd,
-    collateral: &QuoteCollateralV3,
+    collateral: &Collateral,
     nonce: &[u8; 32],
     now_ms: u64,
 ) -> Result<CheckedQuote, Failure> {
-    let verified = dcap_qvl::verify::rustcrypto::verify(&td.quote, collateral, now_ms / 1000)
+    let verified = tdx_quote::verify(&td.quote, collateral, now_ms / 1000)
         .map_err(|error| not_attested(format!("{name}: quote: {error}")))?;
-    if !ACCEPTED_TCB_STATUSES.contains(&verified.status.as_str()) {
-        return Err(not_attested(format!("{name}: tcb_{}", verified.status)));
+    if !ACCEPTED_TCB_STATUSES.contains(&verified.tcb_status.as_str()) {
+        return Err(not_attested(format!("{name}: tcb_{}", verified.tcb_status)));
     }
-    let report = verified.report.as_td10().ok_or_else(|| not_attested(format!("{name}: not_a_td")))?;
-    // TDATTRIBUTES bit 0: a debug TD lets the host read its memory.
-    if report.td_attributes[0] & 1 != 0 {
-        return Err(not_attested(format!("{name}: debug_td")));
-    }
+    let report = verified.report;
     if report.report_data[..32] != td.key {
         return Err(not_attested(format!("{name}: report_data_key")));
     }
     if &report.report_data[32..] != nonce {
         return Err(not_attested(format!("{name}: report_data_nonce")));
     }
-    Ok(CheckedQuote { tcb_status: verified.status, mr_config_id: report.mr_config_id })
+    Ok(CheckedQuote { tcb_status: verified.tcb_status, mr_config_id: report.mr_config_id })
 }
 
 /// A checked gateway: the record that the worker keeps in its storage.
@@ -399,8 +371,8 @@ impl Gateway {
 pub fn check(
     report: &Report,
     nonce: &[u8; 32],
-    gateway_collateral: &QuoteCollateralV3,
-    model_collateral: &QuoteCollateralV3,
+    gateway_collateral: &Collateral,
+    model_collateral: &Collateral,
     now_ms: u64,
 ) -> Result<Gateway, Failure> {
     let pinned = from_hex::<32>(NEAR_AI_GATEWAY_KEY_HEX).expect("the pinned key is hex");

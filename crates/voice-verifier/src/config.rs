@@ -188,8 +188,8 @@ const _: () = assert!(NEAR_AI_ATTESTATION_GRACE_MS > NEAR_AI_ATTESTATION_TTL_MS)
 
 /// Intel PCS: the collateral of a TDX quote (the PCK CRL, the TCB info and
 /// the QE identity), and the CRL of the Intel SGX root CA. Intel signs each
-/// part, and `dcap-qvl` checks the signatures, so these hosts are not
-/// trusted for the collateral. To move them, change these names and the same
+/// part, and the quote check (`tdx_quote`) checks the signatures, so these
+/// hosts are not trusted for the collateral. To move them, change these names and the same
 /// hosts in both manifests (a test checks that they agree).
 macro_rules! intel_pcs_host {
     () => {

@@ -562,7 +562,8 @@ PCK CRL, the TCB info of each FMSPC, the QE identity and the root CA CRL. The
 check passes only if:
 
 1. The gateway's TDX quote chains to Intel's SGX root CA with that
-   collateral at the worker's time (`dcap-qvl` 0.7.1), the TCB status is
+   collateral at the worker's time (`src/tdx_quote.rs`, see "The TDX quote
+   check"), the TCB status is
    `UpToDate` or `SWHardeningNeeded`, and the TD is not a debug TD. Both
    quotes were `UpToDate` on 2026-11-12.
 2. The report data of the quote is the gateway's ed25519 key, then the nonce
@@ -639,6 +640,55 @@ SEAMS_NEAR_AI_LIVE=1 NEAR_AI_API_KEY=... SEAMS_WAV=clip.wav cargo test --release
 # New test data (no API key):
 SEAMS_NEAR_AI_RECORD=1 cargo test --release --test nearai_attestation_live
 ```
+
+### The TDX quote check
+
+The worker has its own small check of a TDX quote: `src/tdx_quote.rs`, with
+Intel's certificates and CRLs in `src/x509.rs`. Its only new dependency is
+`p256` (ECDSA). It replaced `dcap-qvl` with `webpki` and `x509-cert`. The
+reference build of this source (`build.sh --docker`) is 560,034 bytes, against
+851,975 with `dcap-qvl`.
+
+It checks a quote of version 4 with a TD 1.0 report, which is what NEAR AI
+gives. It refuses SGX quotes, quotes of version 5, TD 1.5 reports and a quote
+without its PCK certificate chain. The checks are the ones of `dcap-qvl`
+0.7.1 for such a quote:
+
+1. Intel's root CA certificate is pinned (`src/intel_sgx_root_ca.der`). The
+   root CA CRL has its signature.
+2. The TCB info and the QE identity: the root issued their signer, the signer
+   signed the exact JSON text, and the worker's time is between `issueDate`
+   and `nextUpdate`.
+3. The PCK certificate chain of the quote: the root issued the PCK CA, the PCK
+   CA issued the PCK certificate, and no CRL lists them.
+4. The PCK key signed the QE report, the QE report binds the attestation key,
+   and the QE report fits the QE identity.
+5. The attestation key signed the quote header and the TD report.
+6. The TCB status comes from the TCB level of the platform, of the TDX module
+   and of the QE. A revoked TCB fails.
+7. The TDX module has the signer and the attributes of the TCB info. The TD is
+   not a debug TD, and it has no migration and no service TD.
+
+`src/x509.rs` is not a general X.509 library. Intel's PKI has four kinds of
+certificate, each with a P-256 key and an ECDSA signature with SHA-256. For a
+certificate and its issuer, the module checks the signature, the issuer name,
+the validity and the CRL of the issuer. It does not do name constraints,
+policies, key usage, path lengths or CRL extensions, because Intel's PKI does
+not use them.
+
+Tests, with the two recorded quotes and Intel's recorded collateral:
+
+- `tests/tdx_quote.rs` gives the same input to the worker and to `dcap-qvl`
+  0.7.1, and compares the decisions. The inputs are the recorded ones, about
+  3,600 quotes with one changed bit, 2,700 changes of the collateral, the
+  first and the last second that pass, and 1,350 changed TCB infos (seven
+  different TCB statuses). The worker accepts no input that `dcap-qvl`
+  refuses. It is more strict in two places that no signature covers: the type
+  field of the certification data, and the text around the certificates of a
+  PEM chain.
+- The tests in `src/x509.rs` compare each field that the module reads with
+  `x509-cert` 0.3.0, on the real certificates and CRLs. They also check a
+  revoked serial number, a wrong issuer and the ends of each validity.
 
 ## Sealed audio
 
@@ -835,7 +885,9 @@ and the model records of the `local-speaker` variant.
 
 `vendor/bit-vec` is kept for `voice-probe`, which patches to it.
 
-`vendor/dcap-qvl` is dcap-qvl 0.7.1 with its `src/` unchanged. Its manifest
-does not turn on `serde_json/preserve_order` (that feature would change the
-key order of every JSON value of the verifier), builds an `rlib` only, and
-has no test targets. Its first lines give the checksum of the crate.
+`vendor/dcap-qvl` is dcap-qvl 0.7.1 with its `src/` unchanged. It is a
+dev-dependency only: the reference of `tests/tdx_quote.rs` (see "The TDX quote
+check"). The worker does not use it. Its manifest does not turn on
+`serde_json/preserve_order` (that feature would change the key order of every
+JSON value in the tests of the verifier), builds an `rlib` only, and has no
+test targets. Its first lines give the checksum of the crate.

@@ -31,13 +31,22 @@ hkdf = { version = "=0.13.0", default-features = false }
 sha2_11 = { package = "sha2", version = "=0.11.1", default-features = false }
 chacha20poly1305 = { version = "=0.11.0", default-features = false }
 rand_core = { version = "=0.10.1", default-features = false }
-# Checks the TDX quotes of the NEAR AI gateway and of its Whisper model with
-# Intel's collateral (see src/nearai_attestation.rs). RustCrypto only: no
-# `ring`, no `reqwest`; the worker fetches the collateral itself.
-dcap-qvl = { version = "=0.7.1", default-features = false, features = ["std", "rustcrypto", "default-x509"] }
+# ECDSA P-256 for the TDX quote check of the NEAR AI gateway and of its
+# Whisper model (see src/tdx_quote.rs and src/x509.rs): Intel's certificates,
+# CRLs and collateral, and the quote. No precomputed tables: they add size.
+p256 = { version = "=0.14.0", default-features = false, features = ["ecdsa"] }
 
 # ReDimNet B1 inside the worker (the feature `local-speaker`).
 tract-onnx = { version = "=0.23.10", optional = true }
+
+[dev-dependencies]
+# The reference for tests/tdx_quote.rs: `dcap-qvl` checks the same quotes,
+# and the test compares the results. The worker itself does not use it.
+dcap-qvl = { version = "=0.7.1", default-features = false, features = ["std", "rustcrypto", "default-x509", "danger-allow-tcb-override"] }
+# The reference for the tests of src/x509.rs: the fields of real certificates
+# and CRLs. The same versions as the dependencies of `dcap-qvl`.
+x509-cert = { version = "=0.3.0", default-features = false }
+der = { version = "0.8", default-features = false, features = ["alloc"] }
 
 [features]
 # The speaker model runs inside the worker: `tract` is in the WASM, and the

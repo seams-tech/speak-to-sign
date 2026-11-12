@@ -38,8 +38,10 @@ pub mod output;
 pub mod policy;
 pub mod speaker_client;
 pub mod summary_check;
+pub mod tdx_quote;
 mod template;
 mod transcriber;
 mod words;
+pub mod x509;
 
 pub use ops::{run, run_with, Pins};

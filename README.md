@@ -45,7 +45,7 @@ voice verifier also approves payments and multisig transfers.
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
 | Pay someone (`/pay/` of the demo site) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
-| Approve a multisig transfer | "Approve proposal N: send 0.1 NEAR to seams-v1.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
+| Approve a multisig transfer | "Approve proposal 3: send 0.1 NEAR to seams-faucet.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 
 In the voice bar, JEV, an AI classifier, turns your words into a command (the
 post, the side and the amount) and opens the correct sheet. JEV never

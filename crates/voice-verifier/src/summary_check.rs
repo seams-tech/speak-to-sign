@@ -12,8 +12,7 @@
 //! note is free text from the application: the question tells JEV that it is
 //! data, and a note that still misleads JEV can only pass with a summary
 //! that its author read and said.
-use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::config::{
     NEAR_AI_MAX_RESPONSE_BYTES, NEAR_AI_SYSTEMONE_MODEL, NEAR_AI_SYSTEMONE_URL, NEAR_AI_TIMEOUT_SECS, SUMMARY_FIT_MILLI,
@@ -59,21 +58,18 @@ pub fn summary_request(api_key: &str, note: &str, summary: &str) -> PostRequest 
 /// Reads a reply: status 200 and `{"answers": {"fits": {"type": "noul",
 /// "noul": 0.87}}}`. Gives the probability in thousandths.
 pub fn parse_fit(status: u16, body: &[u8]) -> Result<u32, String> {
-    #[derive(Deserialize)]
-    struct Answer {
-        #[serde(rename = "type")]
-        kind: String,
-        noul: Option<f64>,
-    }
-    #[derive(Deserialize)]
-    struct Reply {
-        answers: std::collections::BTreeMap<String, Answer>,
-    }
     if status != 200 {
         return Err(format!("status_{status}"));
     }
-    let reply: Reply = serde_json::from_slice(body).map_err(|_| "bad_reply".to_string())?;
-    let noul = reply.answers.get(QUESTION).filter(|answer| answer.kind == "noul").and_then(|answer| answer.noul);
+    // The reply is read as a `Value`, by hand: a `serde` type for it costs
+    // more WASM.
+    let reply: Value = serde_json::from_slice(body).map_err(|_| "bad_reply".to_string())?;
+    let noul = reply
+        .get("answers")
+        .and_then(|answers| answers.get(QUESTION))
+        .filter(|answer| answer.get("type").and_then(Value::as_str) == Some("noul"))
+        .and_then(|answer| answer.get("noul"))
+        .and_then(Value::as_f64);
     match noul {
         Some(noul) if (0.0..=1.0).contains(&noul) => Ok((noul * 1_000.0).round() as u32),
         _ => Err("bad_reply".into()),
@@ -87,8 +83,6 @@ pub fn summary_fits(fit_milli: u32) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
-
     use super::*;
 
     #[test]

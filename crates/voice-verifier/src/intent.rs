@@ -138,26 +138,23 @@ pub struct Proposal {
 ///   is cut to [`MAX_SLOT_VALUE_BYTES`]. A number value is kept only if it
 ///   is a JSON number. Any other value becomes `null`.
 pub fn parse_proposal(status: u16, body: &[u8], intents: &[IntentSpec], text: &str) -> Result<Proposal, String> {
-    #[derive(Deserialize)]
-    struct Reply {
-        choices: Vec<Choice>,
-    }
-    #[derive(Deserialize)]
-    struct Choice {
-        message: Message,
-    }
-    #[derive(Deserialize)]
-    struct Message {
-        content: Option<String>,
-    }
     if status != 200 {
         return Err(format!("status_{status}"));
     }
-    let reply: Reply = serde_json::from_slice(body).map_err(|_| "bad_reply".to_string())?;
-    let content = reply.choices.into_iter().next().and_then(|choice| choice.message.content).ok_or("bad_reply")?;
+    // The content of the first choice. The reply is read as a `Value`, by
+    // hand: a `serde` type for it costs more WASM.
+    let reply: Value = serde_json::from_slice(body).map_err(|_| "bad_reply".to_string())?;
+    let content = reply
+        .get("choices")
+        .and_then(|choices| choices.get(0))
+        .and_then(|choice| choice.get("message"))
+        .and_then(|message| message.get("content"))
+        .and_then(Value::as_str)
+        .ok_or("bad_reply")?;
     // The model can put the object in a code block or after its reasoning.
     let (start, end) = (content.find('{').ok_or("no_json")?, content.rfind('}').ok_or("no_json")?);
-    let value: Value = serde_json::from_str(content.get(start..=end).ok_or("no_json")?).map_err(|_| "no_json")?;
+    let object = content.get(start..=end).ok_or("no_json")?;
+    let value: Value = serde_json::from_slice(object.as_bytes()).map_err(|_| "no_json")?;
     let object = value.as_object().ok_or("no_json")?;
     let name = match object.get("intent") {
         None | Some(Value::Null) => return Ok(Proposal { intent: None, slots: BTreeMap::new() }),

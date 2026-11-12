@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use serde_json::Value;
 
-use super::request::{unsupported, Owner};
+use super::request::Owner;
 use super::steps::{consume, decode_clips, in_flight, local_embedding, reply, speaker_reply};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
@@ -43,7 +43,7 @@ pub(super) fn enroll(value: Value, host: &mut dyn Host, pins: &Pins) -> EnrollOu
 }
 
 fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut EnrollOutput) -> Result<(), Refusal> {
-    let input: EnrollInput = serde_json::from_value(value).map_err(unsupported)?;
+    let input = EnrollInput::parse(value).ok_or(Reason::Unsupported)?;
     let owner = Owner::parse(&input.owner)?;
     // A NEAR owner authorizes the enrollment with a key of the account. An
     // application owner has no key: the caller of the worker (the owner of

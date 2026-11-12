@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use serde_json::Value;
 
-use super::request::{unsupported, Owner};
+use super::request::Owner;
 use super::steps::{decode_clip, in_flight, local_embedding, reply, speaker_reply};
 use super::verify::verify_storage;
 use super::whisper::{api_key, words_reply, words_request};
@@ -63,7 +63,7 @@ fn detect_steps(
     result: &mut IntentResult,
     ms: &mut Stages,
 ) -> Result<(), Refusal> {
-    let input: DetectInput = serde_json::from_value(value).map_err(unsupported)?;
+    let input = DetectInput::parse(value).ok_or(Reason::Unsupported)?;
     if input.op != "detect" || !intents_valid(&input.intents) {
         return Err(Reason::Unsupported.into());
     }

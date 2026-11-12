@@ -17,6 +17,8 @@ import type { NotesSigner, Rating, SignerSetup, SignerStatus } from './signer/no
 import { SETUP_CHANGED, setUpVoice, voiceIsSetUp } from './signer/voiceSetup';
 
 const POLL_MS = 1500;
+/** The shortest time that the spinner of the next posts shows, so that it is seen. */
+const MORE_POSTS_MIN_MS = 600;
 /** After the Wallet says "signed in", the page waits this long for the account to show. */
 const SIGN_IN_SETTLE_MS = 10_000;
 /** How long a new note keeps its highlight. */
@@ -144,14 +146,14 @@ export function App({ signer, walletConfigured }: { signer: NotesSigner & Signer
     };
   }, [loadAll]);
 
-  // The next page, when the timeline asks (the visitor scrolled near its end). Only the new
-  // posts' notes load.
+  // The next page, when the timeline asks (the visitor scrolled to its end). Only the new
+  // posts' notes load. The spinner stays for MORE_POSTS_MIN_MS, so a fast answer does not flash.
   const loadMoreXPosts = useCallback(async () => {
     const offset = xPostsNextRef.current;
     if (loadingMoreRef.current || offset === null) return;
     loadingMoreRef.current = true;
     setXPostsMoreState('loading');
-    const page = await loadXPosts(offset);
+    const [page] = await Promise.all([loadXPosts(offset), sleep(MORE_POSTS_MIN_MS)]);
     if (!page) {
       loadingMoreRef.current = false;
       setXPostsMoreState('error');

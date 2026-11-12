@@ -303,9 +303,10 @@ mode and never sends a note to X.
   approval (its README).
 - **Pages.** `?offset=<n>&limit=<n>` (1 to 50) gives `limit` posts from
   `offset` (0 is the newest), with `total` and `nextOffset` (null at the
-  end). Without `limit` the answer has all the posts. The timeline loads 10,
-  then the next 10 when the visitor scrolls within 800 px of the end
-  (`loadMoreXPosts`).
+  end). Without `limit` the answer has all the posts. The timeline loads 5
+  posts (`X_PAGE_SIZE`), then the next 5 when the visitor scrolls to the end
+  of the timeline, above the voice bar. A spinner shows meanwhile, for at
+  least 0.6 s (`loadMoreXPosts`).
 - **Checks.** The route drops posts that X marks as sensitive. It checks each
   field of X's answer, and keeps only image URLs on `twimg.com`.
 

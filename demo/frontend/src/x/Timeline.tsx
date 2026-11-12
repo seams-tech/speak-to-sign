@@ -357,9 +357,9 @@ export function Timeline() {
 }
 
 /**
- * The end of the loaded posts, while the route has more: the next page (X_PAGE_SIZE) loads before the
- * visitor gets there (800 px ahead). After each page the line is watched again, so a short page
- * that leaves it in sight loads the next one too.
+ * The end of the loaded posts, while the route has more: when the visitor scrolls to it, it shows
+ * a spinner and the next page (X_PAGE_SIZE posts) loads. After each page the line is watched
+ * again, so a short page that leaves it in sight loads the next one too.
  */
 function MorePosts() {
   const { xPosts, xPostsMore, xPostsMoreState, loadMoreXPosts } = useDemo();
@@ -375,8 +375,9 @@ function MorePosts() {
       ([entry]) => {
         if (entry?.isIntersecting) load.current();
       },
-      // The margin counts from the element that scrolls: the window's own edge is far below.
-      { root: scrollParent(element), rootMargin: '0px 0px 800px 0px' },
+      // The element that scrolls is the root: the window's own edge is far below. Its bottom 88 px
+      // are under the voice bar, so the line counts only above the bar, where its spinner shows.
+      { root: scrollParent(element), rootMargin: '0px 0px -88px 0px' },
     );
     observer.observe(element);
     return () => observer.disconnect();

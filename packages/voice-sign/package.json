@@ -1,6 +1,6 @@
 {
   "name": "@seams/voice-sign",
-  "version": "0.68.1",
+  "version": "0.69.0",
   "type": "module",
   "description": "Speak-to-Sign for an application with no wallet: record a sentence, enroll a voice, get a verdict and check it",
   "license": "Apache-2.0",
@@ -36,10 +36,10 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
-    "@seams/voice-verdict": "0.68.1"
+    "@seams/voice-verdict": "0.69.0"
   },
   "peerDependencies": {
-    "@seams/voice-capture": "0.68.1"
+    "@seams/voice-capture": "0.69.0"
   },
   "peerDependenciesMeta": {
     "@seams/voice-capture": {
@@ -47,7 +47,7 @@
     }
   },
   "devDependencies": {
-    "@seams/voice-capture": "0.68.1",
+    "@seams/voice-capture": "0.69.0",
     "@types/node": "24.2.0",
     "typescript": "5.9.3",
     "@playwright/test": "1.56.1"

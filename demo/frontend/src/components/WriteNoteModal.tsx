@@ -51,6 +51,8 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
   const [text, setText] = useState(() => (typingNote ? '' : prefillNote));
   const [phase, setPhase] = useState<SignPhase>({ state: 'idle' });
 
+  // The line goes away when the visitor changes the note: it is then their own text.
+  const byNearAi = post.noteDraft?.byNearAi === true && (typingNote || text === prefillNote);
   const noteChars = [...text].length;
   const noteOk = text.trim() !== '' && noteChars <= MAX_NOTE_CHARS;
   const locked = phase.state === 'pending' || phase.state === 'preparing';
@@ -113,7 +115,13 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
                 setText(event.target.value);
               }}
               aria-invalid={!noteOk}
+              aria-describedby={byNearAi ? `${titleId}-by` : undefined}
             />
+            {byNearAi && (
+              <p id={`${titleId}-by`} className="wn-by muted small">
+                Drafted by NEAR AI. Change it if you like.
+              </p>
+            )}
             {noteChars > MAX_NOTE_CHARS && (
               <p className="field-error" role="alert">
                 The note has {noteChars} characters. Use {MAX_NOTE_CHARS} or fewer.

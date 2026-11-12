@@ -190,13 +190,15 @@ export function NotesPage({ seams }: { seams: boolean }) {
                 Sign with your voice.
               </h1>
               <p className="ss-hero-sub">
-                Say what you want to do, and your words become a transaction intent. NEAR infra checks that the voice is yours and that the
-                transaction is what you said, before your Seams Wallet signs.
+                Say what you want to do, and your words become a confidential voice intent. NEAR infra checks in a TEE that the voice is
+                yours and that the transaction is what you said, before your Seams Wallet signs.
               </p>
-              {/* The short form of "Why sign by voice?" in the root README. */}
+              {/* The short form of "How it differs" in JUDGES.md, with its limit: AI drafts and routes, the person approves the
+                  exact call by voice, and a good voice clone can still pass (README "Trust limits"). */}
               <p className="ss-hero-sub ss-hero-why">
-                Each signature shows that a person acted, not a bot. You cannot sign blind, and your own spoken words show that you meant
-                the action.
+                AI drafts the note and routes your command. Then you approve: the exact call that you say is the approval, and the words must
+                match the transaction, so you cannot sign blind. The voice check refuses another person&rsquo;s voice, but a good voice clone
+                can still pass.
               </p>
             </div>
           </div>

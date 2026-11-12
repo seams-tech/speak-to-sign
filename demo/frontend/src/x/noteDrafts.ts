@@ -1,11 +1,24 @@
 // The draft of a note for a post from X. The demo fills it in, so a visitor only presses the
-// button and speaks the summary that the Seams server writes from it. The posts route writes a
-// draft for each post once (functions/lib/noteDrafts.ts). This file has the check and the drafts
-// for a post that has none.
+// button and speaks the summary that the Seams server writes from it. The posts route asks a
+// NEAR AI model for each draft (functions/lib/noteDrafts.ts), and marks who wrote it: the model,
+// or the careful template of the post's subject when the model gave no note. A template is not
+// final: the route asks the model again on a later refresh. This file has the check, the marks
+// and the templates.
 
 export interface NoteDraftText {
   /** The note, 1 to 280 characters. */
   text: string;
+}
+
+/** Who wrote a draft: the NEAR AI model, or the template of the post's subject. */
+export type DraftSource = 'model' | 'template';
+
+/** The draft of a post as the route gives it. */
+export interface PostDraft extends NoteDraftText {
+  /** Who wrote the note. No mark: a draft of an older route, or of the fixture, which a person wrote. */
+  source?: DraftSource;
+  /** A template only: the NEAR AI answers that had no valid note for this post. */
+  modelTries?: number;
 }
 
 export const MAX_DRAFT_NOTE_CHARS = 280;
@@ -18,6 +31,14 @@ export function validDraft(value: unknown): NoteDraftText | null {
   const note = text.trim().replace(/\s+/g, ' ');
   const length = [...note].length;
   return length === 0 || length > MAX_DRAFT_NOTE_CHARS ? null : { text: note };
+}
+
+/**
+ * True for a valid draft that the route marks as the model's. A draft with no mark (an older
+ * snapshot, or the fixture's notes, which a person wrote) is not.
+ */
+export function isModelDraft(value: unknown): boolean {
+  return validDraft(value) !== null && (value as { source?: unknown }).source === 'model';
 }
 
 // A careful note for each subject. It says what the post leaves out, and states no fact about
@@ -50,7 +71,14 @@ const GENERAL: NoteDraftText = {
   text: 'The post presents a claim as a fact and gives no source for it. Look for a reliable source before you share it.',
 };
 
+const TEMPLATE_TEXTS = new Set([...Object.values(BY_TOPIC), GENERAL].map((draft) => draft.text));
+
 /** The draft for a post that the model wrote none for. */
 export function fallbackDraft(topic: string | null | undefined): NoteDraftText {
   return (topic && BY_TOPIC[topic]) || GENERAL;
+}
+
+/** True when the text is one of the templates. A draft of an older route has no mark, so the route reads its source from its text. */
+export function isTemplateText(text: string): boolean {
+  return TEMPLATE_TEXTS.has(text);
 }

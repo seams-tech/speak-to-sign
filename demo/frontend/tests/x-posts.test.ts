@@ -43,6 +43,14 @@ test('toPost gives a post of the notes app', () => {
   assert.ok(post.noteDraft!.text.includes('Marthe Gautier'));
   for (const fixture of FIXTURE_POSTS) assert.deepEqual(validDraft(fixture.draft), fixture.draft);
   assert.equal(toPost({ ...FIXTURE_POSTS[0]!, draft: null }, 0).noteDraft?.text, fallbackDraft('sport').text);
+  // "Drafted by NEAR AI" only for a draft that the route marks as the model's. The fixture's
+  // notes have no mark: a person wrote them.
+  const byModel = toPost({ ...FIXTURE_POSTS[0]!, draft: { text: 'A note of the model.', source: 'model' } }, 0).noteDraft;
+  assert.deepEqual([byModel?.text, byModel?.byNearAi], ['A note of the model.', true]);
+  const template = toPost({ ...FIXTURE_POSTS[0]!, draft: { ...fallbackDraft('sport'), source: 'template', modelTries: 1 } }, 0).noteDraft;
+  assert.deepEqual([template?.text, template?.byNearAi], [fallbackDraft('sport').text, undefined]);
+  assert.equal(post.noteDraft!.byNearAi, undefined);
+  assert.equal(toPost({ ...FIXTURE_POSTS[0]!, draft: { text: '', source: 'model' } }, 0).noteDraft?.byNearAi, undefined);
 
   const bare = toPost({ id: '5000000', text: 'Text', createdAt: null, lang: null, url: 'https://x.com/i/status/5000000', author: null, media: [], metrics: null, topic: null }, 0);
   assert.deepEqual([bare.author.name, bare.author.handle, bare.age, bare.postedAt, bare.stats, bare.image, bare.topic], ['X user', 'unknown', '', 'On X', undefined, undefined, undefined]);

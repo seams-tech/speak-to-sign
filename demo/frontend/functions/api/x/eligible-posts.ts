@@ -21,13 +21,15 @@
 // The posts are about what people on X dispute, so most are about politics or war. JEV sorts each
 // new post by subject once (functions/lib/topicFilter.ts), and the route gives only the posts
 // with an allowed subject. The snapshot collects them over time. A NEAR AI chat model writes the
-// draft of a note for each post (functions/lib/noteDrafts.ts), for the write dialog.
+// draft of a note for each post (functions/lib/noteDrafts.ts), for the write dialog. Each draft
+// has a mark: `source` is "model", or "template" when the model gave no note. The route asks
+// the model again for a template on a later refresh, with limits (see draftPosts).
 
 import { json, refuseOtherOrigin } from '../../lib/http.ts';
 import { oauth1Header, queryString, type OAuth1Keys } from '../../lib/oauth1.ts';
 import type { XAuthor, XMedia, XPost } from '../../../src/x/types.ts';
-import { fallbackDraft, validDraft } from '../../../src/x/noteDrafts.ts';
-import { DEFAULT_DRAFT_MODEL, draftNotes } from '../../lib/noteDrafts.ts';
+import { fallbackDraft, isTemplateText, validDraft, type PostDraft } from '../../../src/x/noteDrafts.ts';
+import { DEFAULT_DRAFT_MODEL, DRAFT_BATCH, draftNotes } from '../../lib/noteDrafts.ts';
 import { jevRoute, type KeyedJevRoute } from '../../lib/jev.ts';
 import { classifyPosts, DEFAULT_ALLOWED_TOPICS, isTopic, type Topic } from '../../lib/topicFilter.ts';
 
@@ -132,6 +134,10 @@ export function refreshAgeMs(ttlMs: number): number {
 }
 /** The most posts in one page of the answer. */
 export const MAX_PAGE = 50;
+/** The NEAR AI answers with no valid note for a post, after which its template is final. */
+export const MAX_MODEL_TRIES = 3;
+/** The most posts that one refresh sends to the draft model: 3 calls of DRAFT_BATCH posts. */
+export const MAX_DRAFTS_PER_REFRESH = 3 * DRAFT_BATCH;
 const MAX_KEPT_TOPICS = 1_000;
 
 export const NO_KEYS = 'The posts service has no X API keys.';
@@ -223,17 +229,56 @@ async function refresh(settings: Settings, old: Snapshot | null, deps: Deps): Pr
   const posts = [...shown, ...kept]
     .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0))
     .slice(0, settings.maxKept);
-  // Each post gets the draft of a note once: from the model when the route has its key, and the
-  // careful draft of its subject if not. A post keeps the draft that it has.
-  const oldDrafts = new Map((old?.posts ?? []).map((post) => [post.id, post.draft]));
-  for (const post of posts) post.draft ??= oldDrafts.get(post.id) ?? null;
-  const undrafted = posts.filter((post) => !validDraft(post.draft));
-  if (undrafted.length > 0) {
-    const drafts = settings.drafter ? await draftNotes(undrafted, { ...settings.drafter, fetch: deps.fetch }) : {};
-    for (const post of undrafted) post.draft = drafts[post.id] ?? fallbackDraft(post.topic);
-  }
+  await draftPosts(posts, old, settings, deps);
   const entries = Object.entries(topics);
   return { ok: true, posts, topics: Object.fromEntries(entries.slice(Math.max(0, entries.length - MAX_KEPT_TOPICS))) };
+}
+
+/**
+ * Gives each post a draft of a note. A model draft is final. A template is not: on each refresh
+ * the model gets the newest posts that have a template (MAX_DRAFTS_PER_REFRESH at most), until
+ * it writes a note for the post or has answered MAX_MODEL_TRIES times with no valid note for it.
+ * Only an answer counts as a try: a failed call (no key, no credit, a timeout) does not, so an
+ * outage of NEAR AI does not make a template final. The limit per refresh keeps the NEAR AI
+ * cost of a refresh at MAX_DRAFTS_PER_REFRESH / DRAFT_BATCH calls.
+ */
+async function draftPosts(posts: XPost[], old: Snapshot | null, settings: Settings, deps: Deps): Promise<void> {
+  const oldDrafts = new Map((old?.posts ?? []).map((post) => [post.id, post.draft]));
+  for (const post of posts) post.draft = storedDraft(post.draft ?? oldDrafts.get(post.id));
+  const asked = settings.drafter
+    ? posts.filter((post) => post.draft?.source !== 'model' && (post.draft?.modelTries ?? 0) < MAX_MODEL_TRIES).slice(0, MAX_DRAFTS_PER_REFRESH)
+    : [];
+  if (settings.drafter && asked.length > 0) {
+    const result = await draftNotes(asked, { ...settings.drafter, today: new Date(deps.now()).toISOString().slice(0, 10), fetch: deps.fetch });
+    for (const problem of result.problems) console.warn(`eligible-posts: note drafts: ${problem}`);
+    for (const post of asked) {
+      const draft = result.drafts[post.id];
+      const tries = post.draft?.modelTries ?? 0;
+      post.draft = draft
+        ? { ...draft, source: 'model' }
+        : templateDraft(post.topic, result.answered.has(post.id) ? tries + 1 : tries);
+    }
+  }
+  for (const post of posts) post.draft ??= templateDraft(post.topic, 0);
+}
+
+function templateDraft(topic: Topic | null, modelTries: number): PostDraft {
+  return { ...fallbackDraft(topic), source: 'template', modelTries };
+}
+
+/**
+ * A stored draft with its mark, or null. A draft of an older route has no mark (and can have a
+ * spoken summary, which is left out): a template's text marks a template, any other text is the
+ * model's.
+ */
+export function storedDraft(value: unknown): PostDraft | null {
+  const draft = validDraft(value);
+  if (!draft) return null;
+  const { source, modelTries } = value as { source?: unknown; modelTries?: unknown };
+  if (source === 'model' || (source === undefined && !isTemplateText(draft.text))) return { text: draft.text, source: 'model' };
+  if (source !== 'template' && source !== undefined) return null;
+  const tries = typeof modelTries === 'number' && Number.isSafeInteger(modelTries) && modelTries >= 0 ? Math.min(modelTries, MAX_MODEL_TRIES) : 0;
+  return { text: draft.text, source: 'template', modelTries: tries };
 }
 
 function answer(snapshot: Snapshot, stale: boolean, page: Page): Response {

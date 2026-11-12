@@ -32,6 +32,8 @@ export interface NoteDraft {
   /** At most 280 characters, with a link to a source. */
   text: string;
   sources: 'yes' | 'no';
+  /** True when a NEAR AI model wrote the text (not a template): the write dialog says so. */
+  byNearAi?: boolean;
 }
 
 export interface Post {

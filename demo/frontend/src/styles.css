@@ -1501,6 +1501,10 @@ fieldset:disabled .choice {
   outline-offset: -1px;
   background: var(--bg);
 }
+/* "Drafted by NEAR AI", under a note that the model wrote. */
+.wn-by {
+  margin: 6px 0 0;
+}
 /* While the prefilled note types itself in. */
 .note-typing {
   border-color: var(--accent);

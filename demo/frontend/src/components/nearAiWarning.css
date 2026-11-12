@@ -11,22 +11,62 @@
 .nearai-warning-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding: 6px 12px;
+  padding: 3px 5px 3px 12px;
   border: 1px solid var(--warn-line);
   border-radius: 9999px;
   background: var(--warn-bg);
   color: var(--warn-ink);
-  font: inherit;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
+}
+
+/* The icon and the words: a button, because on a phone a tap opens the sentence. */
+.nearai-warning-words {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   cursor: default;
 }
 
-.nearai-warning-pill svg {
+.nearai-warning svg {
   flex: none;
+}
+
+/* The close button: a 24px target in the pill. */
+.nearai-warning-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nearai-warning-close:focus-visible,
+.nearai-warning-words:focus-visible {
+  outline: 2px solid var(--warn-ink);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nearai-warning-close:hover {
+    background: var(--warn-line);
+  }
 }
 
 .nearai-warning-long,
@@ -65,17 +105,26 @@
     display: none;
   }
   .nearai-warning-pill {
-    padding: 6px;
+    padding: 3px 6px;
+  }
+  .nearai-warning-words {
     cursor: pointer;
   }
+  /* The pill has room for the icon only, so the close button is in the open sentence. */
+  .nearai-warning-pill .nearai-warning-close {
+    display: none;
+  }
   .nearai-warning[data-open] .nearai-warning-pop {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
     position: absolute;
     top: calc(100% + 4px);
     left: 16px;
     right: 16px;
     z-index: 30;
-    padding: 8px 12px;
+    padding: 8px 6px 8px 12px;
     border: 1px solid var(--warn-line);
     border-radius: 12px;
     background: var(--warn-bg);

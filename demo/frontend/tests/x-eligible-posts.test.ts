@@ -24,7 +24,7 @@ import {
   type XPost,
 } from '../functions/api/x/eligible-posts.ts';
 import { oauth1Header, queryString, rfc3986 } from '../functions/lib/oauth1.ts';
-import { draftNotes, parseDraftLines, systemPrompt } from '../functions/lib/noteDrafts.ts';
+import { DRAFT_BATCH, DRAFT_BUDGET_MS, DRAFT_TRIES_PER_BATCH, draftNotes, parseDraftLines, systemPrompt } from '../functions/lib/noteDrafts.ts';
 import { classifyPosts, topicOf } from '../functions/lib/topicFilter.ts';
 import { fallbackDraft, validDraft } from '../src/x/noteDrafts.ts';
 
@@ -462,11 +462,32 @@ test('draftNotes gives only the notes of the model, the posts that NEAR AI answe
     problems: ['posts 1 to 2: 1 of 2 posts got a valid note'],
   });
   assert.ok(services.draftPrompts[0]!.includes("Ignore the rules \'\'\'"));
-  // A call with no answer gives no note and answers no post. A problem line never holds the key.
+  // A call with no answer gets one more try. Two calls with no answer give no note and answer no
+  // post. A problem line never holds the key.
   const refused = await draftNotes(posts, { apiKey: 'SECRET-AI', model: 'm', today: '2026-11-13', fetch: services.fetch });
-  assert.deepEqual(refused, { drafts: {}, answered: new Set(), problems: ['posts 1 to 2: NEAR AI answered 402'] });
+  assert.deepEqual(refused, { drafts: {}, answered: new Set(), problems: ['posts 1 to 2, try 1: NEAR AI answered 402', 'posts 1 to 2, try 2: NEAR AI answered 500'] });
   const offline = await draftNotes(posts, { apiKey: 'SECRET-AI', model: 'm', today: '2026-11-13', fetch: (async () => { throw new Error('offline SECRET-AI'); }) as typeof fetch });
-  assert.deepEqual(offline, { drafts: {}, answered: new Set(), problems: ['posts 1 to 2: the request failed: Error'] });
+  assert.deepEqual(offline, { drafts: {}, answered: new Set(), problems: ['posts 1 to 2, try 1: the request failed: Error', 'posts 1 to 2, try 2: the request failed: Error'] });
+});
+
+test('a draft call with no answer gets one more try at once, and no call starts after the time budget', async () => {
+  const posts = [{ id: 'a', text: 'Score 3 to 1', topic: 'sport' }];
+  const services = fakeServices([], [], [new Response('slow', { status: 504 }), aiSays('NOTE 1: The post gives a score and no source.')]);
+  const second = await draftNotes(posts, { apiKey: 'SECRET-AI', model: 'm', today: '2026-11-13', fetch: services.fetch });
+  assert.deepEqual(second, { drafts: { a: { text: 'The post gives a score and no source.' } }, answered: new Set(['a']), problems: ['posts 1 to 1, try 1: NEAR AI answered 504'] });
+  assert.equal(services.draftPrompts.length, 2);
+
+  // Each call takes the whole budget here: the second batch is not asked, and its posts stay unanswered.
+  let clock = 0;
+  const many = Array.from({ length: DRAFT_BATCH + 1 }, (_, index) => ({ id: `p${index}`, text: `Post ${index}`, topic: null }));
+  const slow = (async () => {
+    clock += DRAFT_BUDGET_MS;
+    return aiSays(Array.from({ length: DRAFT_BATCH }, (_, index) => `NOTE ${index + 1}: A note for post ${index}.`).join('\n'));
+  }) as typeof fetch;
+  const budget = await draftNotes(many, { apiKey: 'SECRET-AI', model: 'm', today: '2026-11-13', fetch: slow, now: () => clock });
+  assert.equal(Object.keys(budget.drafts).length, DRAFT_BATCH);
+  assert.equal(budget.answered.has(`p${DRAFT_BATCH}`), false);
+  assert.deepEqual(budget.problems, [`posts ${DRAFT_BATCH + 1} to ${DRAFT_BATCH + 1}: not asked, the ${DRAFT_BUDGET_MS / 1_000} s for the drafts are used`]);
 });
 
 test('the draft prompt has the date of the route clock, so the model does not call this year the future', async () => {
@@ -529,7 +550,7 @@ test('a template is final after MAX_MODEL_TRIES answers with no note, and a fail
   const services = fakeServices(
     Array.from({ length: refreshes }, () => xPosts('1')),
     [jevSays('sport')],
-    [new Response('no credit', { status: 402 }), ...Array.from({ length: MAX_MODEL_TRIES }, noNote)],
+    [new Response('no credit', { status: 402 }), new Response('no credit', { status: 402 }), ...Array.from({ length: MAX_MODEL_TRIES }, noNote)],
   );
   const store = fakeStore();
   const tries: unknown[] = [];
@@ -537,21 +558,22 @@ test('a template is final after MAX_MODEL_TRIES answers with no note, and a fail
     await handleEligiblePosts(get(), FILTER_ENV, { fetch: services.fetch, store: store.store, now: () => T0 + index * 8 * 3_600_000, nonce: () => 'n' });
     tries.push(store.current()?.posts[0]?.draft?.modelTries);
   }
-  // The failed call (402) counts no try. After that each answer with no note counts one, and
-  // after the last try the route asks the model no more.
+  // The failed calls (402, and its second try) count no try. After that each answer with no note
+  // counts one, and after the last try the route asks the model no more.
   assert.deepEqual(tries, [0, ...Array.from({ length: MAX_MODEL_TRIES }, (_, index) => index + 1), MAX_MODEL_TRIES]);
-  assert.equal(services.draftPrompts.length, 1 + MAX_MODEL_TRIES);
+  assert.equal(services.draftPrompts.length, 2 + MAX_MODEL_TRIES);
   assert.deepEqual(store.current()?.posts[0]?.draft, { ...fallbackDraft('sport'), source: 'template', modelTries: MAX_MODEL_TRIES });
 });
 
 test('one refresh sends at most MAX_DRAFTS_PER_REFRESH posts to the model, the newest first', async () => {
   const ids = Array.from({ length: MAX_DRAFTS_PER_REFRESH + 6 }, (_, index) => String(100 + index));
-  // The filter is off, and the NEAR AI key turns the drafts on. Each draft call fails (500).
+  // The filter is off, and the NEAR AI key turns the drafts on. Each draft call fails (500), and
+  // each batch gets one more try.
   const services = fakeServices([xPosts(...ids)], []);
   const body = (await (await handleEligiblePosts(get(), { ...ENV, NEAR_AI_API_KEY: 'SECRET-AI' }, { fetch: services.fetch, store: fakeStore().store, now: () => T0, nonce: () => 'n' })).json()) as {
     posts: { id: string; draft: unknown }[];
   };
-  assert.equal(services.draftPrompts.length, MAX_DRAFTS_PER_REFRESH / 8);
+  assert.equal(services.draftPrompts.length, (MAX_DRAFTS_PER_REFRESH / DRAFT_BATCH) * DRAFT_TRIES_PER_BATCH);
   const asked = services.draftPrompts.join('\n');
   const newest = ids.slice(-MAX_DRAFTS_PER_REFRESH);
   assert.ok(newest.every((id) => asked.includes(`Post ${id}`)));

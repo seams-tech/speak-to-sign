@@ -670,11 +670,11 @@ mod tests {
     #[test]
     fn verdict_has_thirteen_fields_in_order() {
         let text = verdict_json(&Verdict::new());
-        // The `venice` build writes `0.14.0+venice`.
+        // The `venice` build writes `0.14.1+venice`.
         assert!(text.contains(&format!(r#""verifier":"{VERIFIER_VERSION}""#)));
         assert_eq!(
-            text.replace(VERIFIER_VERSION, "0.14.0"),
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.14.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            text.replace(VERIFIER_VERSION, "0.14.1"),
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.14.1","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);

@@ -7,13 +7,15 @@
 //! that many bytes) on every stream in turn. When no stream can take
 //! bytes and no response is ready, one `poll` call waits on every stream
 //! and response pollable together. A response body is read as soon as its
-//! future is ready; its time is from the batch start to the end of that
-//! body.
+//! future is ready; its time is from the start of its request to the end of
+//! that body.
 //!
 //! [`Batch::start`] returns when every body is sent (or a request has
 //! failed or answered). The host then carries the requests while the
-//! worker makes its blocking storage calls. [`Batch::wait`] polls the
-//! responses. A dropped batch drops its futures and streams.
+//! worker makes its blocking storage calls. [`Batch::add`] puts more
+//! requests into the same batch, for a request that needs a storage read
+//! first. [`Batch::wait`] polls the responses. A dropped batch drops its
+//! futures and streams.
 use seams_voice_verifier::host::{GetRequest, PostRequest, Reply, Timed};
 use std::time::{Duration, Instant};
 use wasi::http::outgoing_handler::{self, FutureIncomingResponse};
@@ -22,6 +24,7 @@ use wasi::io::streams::{OutputStream, StreamError};
 
 struct Flight {
     request: PostRequest,
+    started: Instant,
     future: Option<FutureIncomingResponse>,
     // Drop order: the stream (a child of the body) before the body.
     stream: Option<OutputStream>,
@@ -139,20 +142,44 @@ fn read(response: IncomingResponse, max: usize) -> Result<(u16, Vec<u8>), String
 impl Flight {
     /// Ends the flight with `result` and its time. A reply can come before
     /// the whole body is sent, so the stream and the body go too.
-    fn finish_with(&mut self, result: Result<(u16, Vec<u8>), String>, started: Instant) {
+    fn finish_with(&mut self, result: Result<(u16, Vec<u8>), String>) {
         self.stream = None;
         self.body = None;
         self.done = Some(result);
-        self.ms = started.elapsed().as_millis() as u64;
+        self.ms = self.started.elapsed().as_millis() as u64;
     }
 
-    fn fail(&mut self, error: String, started: Instant) {
-        self.finish_with(Err(error), started);
+    fn fail(&mut self, error: String) {
+        self.finish_with(Err(error));
+    }
+
+    /// Starts the request. Its body goes out in [`Flight::push`].
+    fn start(request: PostRequest) -> Self {
+        let mut flight = Flight {
+            request,
+            started: Instant::now(),
+            future: None,
+            stream: None,
+            body: None,
+            sent: 0,
+            full: false,
+            done: None,
+            ms: 0,
+        };
+        match start(&flight.request) {
+            Ok((future, body, stream)) => {
+                flight.future = Some(future);
+                flight.body = Some(body);
+                flight.stream = Some(stream);
+            }
+            Err(error) => flight.fail(error),
+        }
+        flight
     }
 
     /// Writes what the stream takes now. Sets `full` if the stream is still
     /// open and takes no more bytes now (so it needs a poll).
-    fn push(&mut self, started: Instant) {
+    fn push(&mut self) {
         self.full = false;
         let Some(stream) = &self.stream else { return };
         let data = &self.request.body;
@@ -165,32 +192,32 @@ impl Flight {
                 Ok(room) => {
                     let end = data.len().min(self.sent + room as usize);
                     if let Err(error) = stream.write(&data[self.sent..end]) {
-                        self.fail(format!("write: {error:?}"), started);
+                        self.fail(format!("write: {error:?}"));
                         return;
                     }
                     self.sent = end;
                 }
                 Err(error) => {
-                    self.fail(format!("write: {error:?}"), started);
+                    self.fail(format!("write: {error:?}"));
                     return;
                 }
             }
         }
         // All bytes are queued: flush, then finish the body.
         if let Err(error) = stream.blocking_flush() {
-            self.fail(format!("flush: {error:?}"), started);
+            self.fail(format!("flush: {error:?}"));
             return;
         }
         self.stream = None;
         if let Some(body) = self.body.take() {
             if let Err(error) = OutgoingBody::finish(body, None) {
-                self.fail(format!("finish: {error:?}"), started);
+                self.fail(format!("finish: {error:?}"));
             }
         }
     }
 
     /// Takes the response if it is ready.
-    fn collect(&mut self, started: Instant) {
+    fn collect(&mut self) {
         let Some(future) = &self.future else { return };
         let Some(result) = future.get() else { return };
         self.future = None;
@@ -199,48 +226,36 @@ impl Flight {
             Ok(Err(error)) => Err(format!("{error:?}")),
             Err(()) => Err("response taken".into()),
         };
-        self.finish_with(result, started);
+        self.finish_with(result);
     }
 }
 
-/// Requests in flight, from one start time.
+/// Requests in flight.
 pub struct Batch {
-    started: Instant,
     flights: Vec<Flight>,
 }
 
 impl Batch {
     /// Starts every request and sends every body.
     pub fn start(requests: Vec<PostRequest>) -> Self {
-        let started = Instant::now();
-        let flights = requests
-            .into_iter()
-            .map(|request| {
-                let mut flight =
-                    Flight { request, future: None, stream: None, body: None, sent: 0, full: false, done: None, ms: 0 };
-                match start(&flight.request) {
-                    Ok((future, body, stream)) => {
-                        flight.future = Some(future);
-                        flight.body = Some(body);
-                        flight.stream = Some(stream);
-                    }
-                    Err(error) => flight.fail(error, started),
-                }
-                flight
-            })
-            .collect();
-        let mut batch = Self { started, flights };
-        batch.drive(true);
+        let mut batch = Self { flights: Vec::new() };
+        batch.add(requests);
         batch
+    }
+
+    /// Starts more requests and sends their bodies. The requests that are
+    /// in flight stay in flight.
+    pub fn add(&mut self, requests: Vec<PostRequest>) {
+        self.flights.extend(requests.into_iter().map(Flight::start));
+        self.drive(true);
     }
 
     /// Pushes bodies and takes the responses that are ready, once,
     /// without waiting.
     pub fn poll(&mut self) {
-        let started = self.started;
         for flight in self.flights.iter_mut().filter(|flight| flight.done.is_none()) {
-            flight.push(started);
-            flight.collect(started);
+            flight.push();
+            flight.collect();
         }
     }
 

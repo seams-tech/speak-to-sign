@@ -236,7 +236,7 @@ fn select_signs_the_request_that_the_owner_said() {
     assert_eq!(verdict.heard.as_deref(), Some("cancel my order"));
     assert!(verdict.spoken_text_digest.is_some());
     assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
-    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]);
 
     // The `local-speaker` variant.
     let mut local = app_enrolled();

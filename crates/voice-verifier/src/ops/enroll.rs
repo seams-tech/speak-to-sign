@@ -100,7 +100,7 @@ fn enroll_steps(value: Value, host: &mut dyn Host, pins: &Pins, output: &mut Enr
     // three clips, while the access-key request is in flight.
     let local: Vec<&_> = clips.iter().collect();
     let flight =
-        in_flight(host, &mut output.ms, requests, pins.local_speaker.then_some(&local[..]), |host, _| {
+        in_flight(host, &mut output.ms, requests, None, pins.local_speaker.then_some(&local[..]), |host, _| {
             enroll_storage(host, &key, &output.audio_digests)
         })?;
     let (previous, results) = (flight.value, flight.results);

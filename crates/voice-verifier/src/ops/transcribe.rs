@@ -82,12 +82,12 @@ fn transcribe_steps(
         requests.push(service_request(&clip.wav, &nonce));
     }
     let words_at = requests.len();
-    let (words_post, words) = words_request(host, ms, &api_key, &clip.wav)?;
-    requests.push(words_post);
+    let words = words_request(host, ms, &api_key, &clip.wav, &mut requests)?;
     let local = [&clip];
-    let flight = in_flight(host, ms, requests, pins.local_speaker.then_some(&local[..]), |host, ms| {
-        verify_storage(host, owner.as_str(), &digest_b64u, ms)
-    })?;
+    let flight =
+        in_flight(host, ms, requests, Some(words.early), pins.local_speaker.then_some(&local[..]), |host, ms| {
+            verify_storage(host, owner.as_str(), &digest_b64u, ms)
+        })?;
     let (record, results) = (flight.value, flight.results);
     if let Some(timed) = results.first().filter(|_| !pins.local_speaker) {
         ms.record("speaker", timed.ms);

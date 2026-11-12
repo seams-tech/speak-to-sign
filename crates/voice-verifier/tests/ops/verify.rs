@@ -54,17 +54,19 @@ fn verify_accepts_and_signs_the_verdict() {
     ] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
-    // Both calls went out in one batch, before the storage calls; the audio
-    // is marked used during the requests, before the decision.
+    // The speaker request went out first. The Whisper request joined its
+    // batch after the read of the gateway record, before the storage calls
+    // of the owner. The audio is marked used during the requests, before the
+    // decision.
     assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL]);
-    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "wait"]);
+    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]);
 
     // The same audio again: refused by the mark; the batch is dropped
     // without a wait.
     fake.events.clear();
     let again = call(&mut fake, verify_input(&wav));
     assert_eq!(outcome_name(&checked_verdict(&again)), "audio_reused");
-    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "cancel"]);
+    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "cancel"]);
 }
 
 #[test]

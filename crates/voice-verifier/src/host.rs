@@ -85,7 +85,7 @@ pub trait Host {
     /// Writes a plaintext record of the worker storage.
     fn worker_set(&mut self, key: &str, value: &[u8]) -> Result<(), String>;
     /// Sends every GET at once and waits for all of them, in request order.
-    /// Call it only when no batch of [`Host::post_start`] is in flight.
+    /// A batch of [`Host::post_start`] stays in flight during the call.
     fn get_all(&mut self, requests: Vec<GetRequest>) -> Vec<Result<Reply, String>>;
     /// Reads a raw (not encrypted) record. No keystore round trip.
     fn marker_get(&mut self, key: &str) -> Result<Option<Vec<u8>>, String>;
@@ -96,6 +96,10 @@ pub trait Host {
     /// blocking host calls; the host runs the requests during them. One
     /// batch at a time: a new start drops a batch that nobody waited for.
     fn post_start(&mut self, requests: Vec<PostRequest>);
+    /// Adds requests to the batch in flight and sends their bodies. Their
+    /// responses come after the earlier ones in [`Host::post_wait`]. With no
+    /// batch in flight, it starts one.
+    fn post_add(&mut self, requests: Vec<PostRequest>);
     /// Takes the responses that are ready now, without waiting, so that a
     /// response that comes during a storage call gets its own time. Does
     /// nothing if no batch was started.

@@ -58,7 +58,7 @@ fn verify_accepts_a_template_of_the_service_variant() {
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert!(verdict.speaker_score_milli.unwrap() >= 450);
     assert_eq!(fake.posts, [NEAR_AI_OHTTP_URL]);
-    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "embed_local", "wait"]);
+    assert_eq!(fake.events, ["worker_get", "add", "get", "poll", "marker_set", "embed_local", "wait"]);
     for stage in ["model_fetch", "redimnet", "transcribe", "parallel", "sign", "total"] {
         assert!(out["ms"][stage].is_u64(), "{stage}: {out}");
     }
@@ -127,6 +127,9 @@ fn a_build_with_no_model_refuses() {
         }
         fn post_start(&mut self, requests: Vec<PostRequest>) {
             self.0.post_start(requests)
+        }
+        fn post_add(&mut self, requests: Vec<PostRequest>) {
+            self.0.post_add(requests)
         }
         fn post_poll(&mut self) {
             self.0.post_poll()

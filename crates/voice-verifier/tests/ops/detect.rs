@@ -67,7 +67,7 @@ fn detect_signs_the_intent_that_the_model_names() {
     assert!(result.speaker_score_milli.unwrap() >= 450);
     // The chat model is called after the speaker and the words, alone.
     assert_eq!(fake.posts, [SPEAKER_EMBED_URL, NEAR_AI_OHTTP_URL, NEAR_AI_CHAT_URL]);
-    assert_eq!(fake.events, ["worker_get", "start", "get", "poll", "marker_set", "wait", "start", "wait"]);
+    assert_eq!(fake.events, ["start", "worker_get", "add", "get", "poll", "marker_set", "wait", "start", "wait"]);
     assert_eq!(out["intent_json"].as_str().unwrap().matches("request_digest").count(), 0);
     assert!(out["ms"]["detect"].is_u64() && out["ms"]["total"].is_u64());
 

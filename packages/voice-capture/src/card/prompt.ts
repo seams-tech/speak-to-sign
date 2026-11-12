@@ -1,7 +1,7 @@
 import { styleNonce } from '../config';
 import type { VoiceCaptureEvent } from '../microphone';
 import { useSystemVoiceMicrophone } from '../microphoneInput';
-import type { VoiceCheckingStyle } from './ribbon';
+import type { VoiceCheckingStyle, VoiceLineStyle } from './ribbon';
 import { ROW_EASE, ROW_IN_DELAY_MS, ROW_IN_MS, ROW_OUT_MS, ROW_STAGGER_MS } from './rowMotion';
 import { VoiceVisual } from './visual';
 
@@ -252,34 +252,6 @@ const CSS = `
   margin: 0 auto;
   transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), color 300ms ease;
 }
-.seams-voiceid-prompt .seams-voiceid-context {
-  box-sizing: border-box;
-  width: 100%;
-  max-height: 9.5rem;
-  margin: 0 0 0.25rem;
-  padding: 0.625rem 0.875rem;
-  overflow-y: auto;
-  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
-  border-radius: var(--seams-shape-control, 10px);
-  color: var(--seams-colors-textPrimary, #eff2f3);
-  font-size: 0.875rem;
-  line-height: 1.45;
-  text-align: start;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-}
-.seams-voiceid-prompt .seams-voiceid-context > blockquote { margin: 0; }
-.seams-voiceid-prompt .seams-voiceid-context-label {
-  display: block;
-  margin-bottom: 0.125rem;
-  color: var(--seams-colors-textSecondary, #9cabb3);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-/* With the context, the sentence is the second thing to read: it needs less room. */
-.seams-voiceid-prompt[data-context] .seams-voiceid-phrase:not(.seams-voiceid-success-headline) {
-  font-size: clamp(1.375rem, 5vw, 1.75rem);
-}
 .seams-voiceid-ribbon {
   display: block;
   width: 308px;
@@ -300,6 +272,12 @@ const CSS = `
 .seams-voiceid-ribbon .seams-voiceid-ribbon-echo[data-layer="2"] {
   color: var(--seams-colors-voiceEchoDeep, var(--seams-colors-voiceEcho, var(--seams-colors-voiceLine, currentColor)));
 }
+/* The pixel style (voiceLine: 'pixels'): dots in X blue tones by default, the lightest in the
+   middle row. The theme colours the three bands: voiceEcho (the middle row), voiceLine (rows
+   1 and 2 from it) and voiceEchoDeep (rows 3 and 4). */
+.seams-voiceid-ribbon-pixel { fill: var(--seams-colors-voiceEchoDeep, #1a6fb0); }
+.seams-voiceid-ribbon-pixel[data-band="1"] { fill: var(--seams-colors-voiceLine, #1d9bf0); }
+.seams-voiceid-ribbon-pixel[data-band="0"] { fill: var(--seams-colors-voiceEcho, #8ecdf8); }
 .seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-success-headline {
   display: grid;
   align-content: end;
@@ -558,6 +536,213 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-status-line rect { animation: none !important; transition: none; }
 }
+/* The note layout: a card with a context, in the shape of a form. The context (a note) sits
+   in a soft box under its label, the sentence to read sits centred in a blue box under its own
+   label, and one button right under it changes with the card: Record or the voice line while
+   it records, the check, then the result's action. The status sits at the foot, under the
+   button. */
+.seams-voiceid-prompt[data-context] {
+  grid-template-rows: [context] auto [title] auto [phrase] auto [line] 4.5rem [action] 0 [status] auto;
+  text-align: start;
+  /* The height of the button: 4.5rem as the voice line, with either line style, and 3.5rem as
+     Record or a result's action. The microphone's circle follows it. */
+  --seams-voiceid-button-height: 4.5rem;
+  /* The fill of what the person says: a tint of the main button's colour (voiceFill). */
+  --seams-voiceid-tint: 16%;
+  --seams-voiceid-fill: var(--seams-colors-voiceFill, color-mix(in srgb, var(--seams-colors-buttonBackground, #1d9bf0) var(--seams-voiceid-tint), var(--seams-colors-colorBackground, #192024)));
+}
+/* A form is as wide as an app's dialog for a note: 560 px. */
+.seams-voiceid-activation-surface:has(> .seams-voiceid-prompt[data-context]),
+.seams-voiceid-prompt[data-context] {
+  width: min(100%, 35rem);
+}
+[data-theme="light"] .seams-voiceid-prompt[data-context] { --seams-voiceid-tint: 14%; }
+[data-theme="dark"] .seams-voiceid-prompt[data-context] { --seams-voiceid-tint: 24%; }
+/* A button (Record, Try again, a result's action) takes the place of the voice line. */
+.seams-voiceid-prompt[data-context]:not([data-phrase-view="check"]):has(> .seams-voiceid-record-slot > .seams-voiceid-primary:not([hidden])) {
+  --seams-voiceid-button-height: 3.5rem;
+  grid-template-rows: [context] auto [title] auto [phrase] auto [line] 0 [action] auto [status] auto;
+}
+/* A result's caption and detail read before its button. */
+.seams-voiceid-prompt[data-context][data-phrase-view="result"]:not([data-phrase-view="check"]):has(> .seams-voiceid-record-slot > .seams-voiceid-primary:not([hidden])) {
+  grid-template-rows: [context] auto [title] auto [phrase] auto [status] auto [line] 0 [action] auto;
+}
+.seams-voiceid-prompt[data-context]:not([data-phrase-view="check"]):has(> .seams-voiceid-record-slot > .seams-voiceid-primary:not([hidden])) > :is(.seams-voiceid-ribbon, .seams-voiceid-status-line) {
+  visibility: hidden;
+}
+.seams-voiceid-prompt[data-context] > .seams-voiceid-glow { display: none; }
+/* A line across the card under the context: above it is what the person posts, below it is
+   the voice signature. */
+.seams-voiceid-prompt .seams-voiceid-context {
+  margin: 0 -1.5rem 1.25rem;
+  padding: 0 1.5rem 1.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--seams-colors-borderPrimary, #303b41);
+}
+.seams-voiceid-prompt .seams-voiceid-context-label {
+  display: block;
+  margin-bottom: 0.375rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+.seams-voiceid-prompt .seams-voiceid-context > blockquote {
+  max-height: 8.5rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  overflow-y: auto;
+  border-radius: 1rem;
+  background: var(--seams-colors-surface, #202b31);
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font-size: 1rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+/* A result has no label: its empty title takes no room. */
+.seams-voiceid-prompt[data-context] > h2:empty { display: none; }
+.seams-voiceid-prompt[data-context] > h2 {
+  margin: 0 0 0.625rem;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+.seams-voiceid-prompt[data-context] .seams-voiceid-phrase {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  /* A thin gap to the button: the sentence and the voice belong together. */
+  margin: 0 0 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 1rem;
+  /* Blue, apart from the grey box of the context: this is what the person says. */
+  background: var(--seams-voiceid-fill);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.35;
+  text-align: center;
+}
+.seams-voiceid-prompt[data-context] .seams-voiceid-phrase.seams-voiceid-success-headline {
+  display: block;
+  padding: 0;
+  background: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+/* The status sits at the foot of the card, under the button: "Listening", or the check. */
+.seams-voiceid-prompt[data-context] .seams-voiceid-status {
+  min-height: 1.125rem;
+  margin: 0;
+  padding: 0.625rem 0 0;
+  text-align: center;
+}
+.seams-voiceid-prompt[data-context][data-phrase-view="result"] .seams-voiceid-status { padding: 0.25rem 0 0.75rem; }
+/* Under the button, the check's caption and detail share one line at the size of "Listening",
+   so the card keeps its height when the check starts. A long line ends with an ellipsis. */
+.seams-voiceid-prompt[data-context]:not([data-phrase-view="result"]) .seams-voiceid-status.seams-voiceid-two-lines {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.seams-voiceid-prompt[data-context]:not([data-phrase-view="result"]) .seams-voiceid-status.seams-voiceid-two-lines > span {
+  display: inline;
+}
+.seams-voiceid-prompt[data-context]:not([data-phrase-view="result"]) .seams-voiceid-status .seams-voiceid-caption {
+  margin: 0;
+  font-size: inherit;
+}
+.seams-voiceid-prompt[data-context]:not([data-phrase-view="result"]) .seams-voiceid-status .seams-voiceid-caption-detail:not(:empty)::before {
+  content: ' · ';
+}
+/* A result's link, such as the transaction in a block explorer: short, in the main button's
+   colour, underlined only on hover. */
+.seams-voiceid-prompt[data-context] .seams-voiceid-status a {
+  color: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3));
+  font-weight: 500;
+  text-decoration: none;
+}
+.seams-voiceid-prompt[data-context] .seams-voiceid-status a:hover,
+.seams-voiceid-prompt[data-context] .seams-voiceid-status a:focus-visible { text-decoration: underline; }
+/* The voice line and the check, in the main button's colours, with either line style. The line
+   keeps its drawing size; the taller button gives it room above and below. */
+.seams-voiceid-prompt[data-context] > :is(.seams-voiceid-ribbon, .seams-voiceid-status-line) {
+  box-sizing: border-box;
+  width: 100%;
+  height: 4.5rem;
+  padding-block: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3));
+  color: var(--seams-colors-textButton, var(--seams-colors-colorBackground, #192024));
+}
+.seams-voiceid-prompt[data-context] .seams-voiceid-ribbon .seams-voiceid-ribbon-echo { color: currentColor; }
+.seams-voiceid-prompt[data-context] .seams-voiceid-status-line rect {
+  fill: color-mix(in srgb, currentColor 35%, transparent);
+}
+.seams-voiceid-prompt[data-context] .seams-voiceid-status-line rect[data-state="done"],
+.seams-voiceid-prompt[data-context] .seams-voiceid-status-line rect[data-state="run"] { fill: currentColor; }
+.seams-voiceid-prompt[data-context] .seams-voiceid-status-check {
+  stroke: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3));
+}
+.seams-voiceid-prompt[data-context][data-voice-line="pixels"] {
+  --seams-voiceid-pixel-background: var(--seams-colors-voicePixelBackground, var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3)));
+  --seams-voiceid-pixel-ink: var(--seams-colors-textButton, var(--seams-colors-colorBackground, #192024));
+}
+.seams-voiceid-prompt[data-context][data-voice-line="pixels"] > :is(.seams-voiceid-ribbon, .seams-voiceid-status-line) {
+  background: var(--seams-voiceid-pixel-background);
+  color: var(--seams-voiceid-pixel-ink);
+}
+.seams-voiceid-prompt[data-context][data-voice-line="pixels"] .seams-voiceid-status-check {
+  stroke: var(--seams-voiceid-pixel-background);
+}
+/* On the button, the dots are the button's text colour: full in the middle row, then mixed a
+   little and more with the button's colour (white, light and light blue on X blue). */
+.seams-voiceid-prompt[data-context] .seams-voiceid-ribbon-pixel[data-band="0"] { fill: var(--seams-voiceid-pixel-ink); }
+.seams-voiceid-prompt[data-context] .seams-voiceid-ribbon-pixel[data-band="1"] {
+  fill: color-mix(in srgb, var(--seams-voiceid-pixel-ink) 80%, var(--seams-voiceid-pixel-background));
+}
+.seams-voiceid-prompt[data-context] .seams-voiceid-ribbon-pixel[data-band="2"] {
+  fill: color-mix(in srgb, var(--seams-voiceid-pixel-ink) 55%, var(--seams-voiceid-pixel-background));
+}
+/* The microphone at the left of the button, as on an app's own voice button: on Record, on the
+   voice line while the card records, and on the check. A result's button has none. Its circle
+   keeps the same gap to the button's top, left and bottom, so it follows the button's round end.
+   The line leaves the icon its room. */
+.seams-voiceid-prompt[data-context] > .seams-voiceid-line-icon {
+  --seams-voiceid-icon-gap: 0.375rem;
+  grid-row: line / span 2;
+  grid-column: 1;
+  align-self: center;
+  justify-self: start;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: calc(var(--seams-voiceid-button-height) - 2 * var(--seams-voiceid-icon-gap));
+  height: calc(var(--seams-voiceid-button-height) - 2 * var(--seams-voiceid-icon-gap));
+  margin-inline-start: var(--seams-voiceid-icon-gap);
+  border-radius: 50%;
+  transition: width 180ms ease, height 180ms ease;
+  background: var(--seams-colors-textButton, var(--seams-colors-colorBackground, #192024));
+  color: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary, #eff2f3));
+  pointer-events: none;
+}
+.seams-voiceid-line-icon > svg { width: 46%; height: 46%; }
+.seams-voiceid-prompt[data-context][data-phrase-view="result"] > .seams-voiceid-line-icon { display: none; }
+.seams-voiceid-prompt[data-context] > :is(.seams-voiceid-ribbon, .seams-voiceid-status-line) {
+  box-sizing: border-box;
+  padding-inline: calc(var(--seams-voiceid-button-height) + 0.25rem) 1rem;
+}
+/* The status line's own space below it is the gap above the button, in every view. */
+.seams-voiceid-prompt[data-context] > .seams-voiceid-record-slot { margin-top: 0; }
+.seams-voiceid-prompt[data-context] .seams-voiceid-primary {
+  min-height: 3.5rem;
+  border-radius: 9999px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
 @media (hover: hover) and (pointer: fine) {
   .seams-voiceid-close:hover { background: var(--seams-colors-surface, #202b31); }
   .seams-voiceid-primary:hover:not(:disabled) { opacity: 0.9; }
@@ -685,6 +870,12 @@ export class VoicePrompt {
     this.sizes.observe(this.element);
   }
 
+  /** Draws the voice as wave lines (the default) or as columns of pixels. */
+  useVoiceLine(style: VoiceLineStyle): void {
+    this.element.dataset.voiceLine = style;
+    this.visual.setLineStyle(style);
+  }
+
   /**
    * Shows the text that the sentence speaks for, such as the note that a spoken summary signs,
    * above the sentence. It stays for the check and the result.
@@ -700,6 +891,7 @@ export class VoicePrompt {
     body.textContent = text;
     context.append(caption, body);
     this.title.before(context);
+    this.element.append(microphoneIcon(document));
     this.element.dataset.context = '';
   }
 
@@ -1232,6 +1424,29 @@ export function leaveSurface(element: HTMLElement): void {
 const CLOSE_PATH = 'M6 6l12 12M18 6L6 18';
 const BACK_PATH = 'm15 18-6-6 6-6';
 const MINIMIZE_PATH = 'M6 12h12';
+/** A microphone: its head, its stand and its foot. */
+const MICROPHONE_PATHS = ['M9 5a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z', 'M5 10a7 7 0 0 0 14 0', 'M8 21h8', 'M12 17v4'];
+
+/** The microphone at the left of a form card's button, in its own circle. */
+function microphoneIcon(document: Document): HTMLSpanElement {
+  const circle = document.createElement('span');
+  circle.className = 'seams-voiceid-line-icon';
+  circle.setAttribute('aria-hidden', 'true');
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  for (const d of MICROPHONE_PATHS) {
+    const part = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    part.setAttribute('d', d);
+    part.setAttribute('fill', 'none');
+    part.setAttribute('stroke', 'currentColor');
+    part.setAttribute('stroke-width', '1.8');
+    part.setAttribute('stroke-linecap', 'round');
+    part.setAttribute('stroke-linejoin', 'round');
+    icon.append(part);
+  }
+  circle.append(icon);
+  return circle;
+}
 
 /** A control in a corner of the card, with an icon and no text. */
 function cornerButton(document: Document, label: string, path: string): HTMLButtonElement {

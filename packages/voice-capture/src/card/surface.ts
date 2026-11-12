@@ -13,11 +13,16 @@ import { expectedSpeechMs } from '../speechPause';
 import { voiceActivityModel } from '../voiceActivity';
 import { PhraseCard, type HandedOverRows } from './phraseCard';
 import { leaveSurface, VoicePrompt } from './prompt';
+import type { VoiceLineStyle } from './ribbon';
 import type { PhraseChoice, PhraseRecording, PhraseSurface, PhraseView } from './types';
 
 const LABEL = 'Say this with your voice';
 const PROMPT_LABEL = 'Say this sentence';
-const PROMPT_MESSAGE = 'Read it naturally, then pause.';
+/**
+ * The status line before a recording: empty, so the sentence is the one text to read. It holds
+ * "Opening microphone…", a loading line or a problem with the recording.
+ */
+const PROMPT_MESSAGE = '';
 
 /** What the host page adds around the card. Every field is optional. */
 export type PhraseCardFrame = Readonly<{
@@ -79,15 +84,61 @@ export type PhraseCardInput = Readonly<{
    */
   autoStart?: boolean;
   /**
-   * The text that the sentence speaks for, such as the note that a spoken summary signs. The
-   * card shows it above the sentence, with its label (for example "Your note"), for the whole
-   * card: the prompt, the check and the result.
+   * The text that the sentence speaks for, such as the note that a spoken summary signs. With
+   * it, the card is a form: the text in a soft box under its label, the sentence centred in a
+   * box under its own label, and one button at the foot that is the voice line while the card
+   * records. The text stays for the check and the result.
    */
   context?: PhraseCardContext;
+  /**
+   * How the card draws the voice while it listens: `wave`, sine wave lines (the default), or
+   * `pixels`, columns of dots in blue tones. Without it, the theme value `--seams-shape-voiceLine`
+   * (`wave` or `pixels`) decides, so a Wallet host can choose it with its theme.
+   */
+  voiceLine?: VoiceLineStyle;
+  /**
+   * The card's colours, as CSS colours, for example `{ buttonBackground: '#1d9bf0' }`. Each one
+   * sets the CSS variable `--seams-colors-<key>` on this card, over the page's own value. A
+   * Seams Wallet app sets the same keys in `appearance.theme.colors`.
+   */
+  colors?: PhraseCardColors;
 }>;
 
+/** The colours that a phrase card reads. */
+const PHRASE_CARD_COLORS = [
+  /** The card, its text, its lines and its soft boxes. */
+  'colorBackground',
+  'textPrimary',
+  'textSecondary',
+  'textMuted',
+  'borderPrimary',
+  'surface',
+  /** The main button (Record, the voice line of a form card, Done) and its text. */
+  'buttonBackground',
+  'textButton',
+  /** A failed check, and a held one. */
+  'error',
+  'info',
+  /** The voice line, its echoes, and the bands of the pixel style. */
+  'voiceLine',
+  'voiceEcho',
+  'voiceEchoDeep',
+  /** A form card: the fill of the sentence's box, and the button behind the pixels. */
+  'voiceFill',
+  'voicePixelBackground',
+] as const;
+
+export type PhraseCardColor = (typeof PHRASE_CARD_COLORS)[number];
+export type PhraseCardColors = Partial<Readonly<Record<PhraseCardColor, string>>>;
+
 /** The text that a phrase card shows above its sentence. */
-export type PhraseCardContext = Readonly<{ label: string; text: string }>;
+export type PhraseCardContext = Readonly<{
+  /** The label above the text, such as "Your note on @alice". */
+  label: string;
+  text: string;
+  /** The label above the sentence, such as "Read this aloud to post". Default: "Say this sentence". */
+  sentenceLabel?: string;
+}>;
 
 /**
  * Shows the given sentence in the prompt. The surface records clips with the quality check, and
@@ -152,8 +203,10 @@ class CardSurface implements PhraseSurface {
     this.element.setAttribute('role', 'dialog');
     this.element.setAttribute('aria-modal', 'true');
     this.element.setAttribute('aria-label', LABEL);
+    paintColors(this.element, input.colors);
     this.prompt = new VoicePrompt(document, LABEL, sentence);
-    this.prompt.title.textContent = PROMPT_LABEL;
+    const promptLabel = input.context?.sentenceLabel ?? PROMPT_LABEL;
+    this.prompt.title.textContent = promptLabel;
     // A sentence that already ends with punctuation, such as an enrollment phrase, keeps it.
     const shown = /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
     this.prompt.phrase.textContent = shown;
@@ -178,7 +231,7 @@ class CardSurface implements PhraseSurface {
     }
     this.card = new PhraseCard(
       this.prompt,
-      { label: PROMPT_LABEL, sentence: shown, message: PROMPT_MESSAGE, action: 'Record' },
+      { label: promptLabel, sentence: shown, message: PROMPT_MESSAGE, action: 'Record' },
       rows,
     );
     // A card that records by itself shows no Record button and has no row for it, so its rows
@@ -198,6 +251,9 @@ class CardSurface implements PhraseSurface {
     outer.addEventListener('abort', this.cancel);
     if (handedOver) handedOver.replaceWith(this.element);
     else parent.appendChild(this.element);
+    // The theme's choice is readable only once the card is in the document.
+    const voiceLine = input.voiceLine ?? themeVoiceLine(this.prompt.element);
+    if (voiceLine === 'pixels') this.prompt.useVoiceLine(voiceLine);
     // The host sizes its frame to this surface, so the card can follow the frame (fillFrame).
     if (frame.hugged) this.element.classList.add('seams-voiceid-hugged');
     this.unmounted = frame.mounted?.(this.element);
@@ -363,7 +419,6 @@ class CardSurface implements PhraseSurface {
     this.minimizedHook?.(false);
   }
 
-
   private settleChoice(choice: PhraseChoice): void {
     const settle = this.choice;
     this.choice = null;
@@ -392,6 +447,21 @@ class CardSurface implements PhraseSurface {
     this.settleChoice('closed');
     if (this.outer.aborted) this.close();
   };
+}
+
+/** Sets the card's own colours. Keys that a card does not read are left out. */
+function paintColors(element: HTMLElement, colors: PhraseCardColors | undefined): void {
+  if (!colors) return;
+  for (const key of PHRASE_CARD_COLORS) {
+    const value = colors[key];
+    if (value) element.style.setProperty(`--seams-colors-${key}`, value);
+  }
+}
+
+/** The theme's `--seams-shape-voiceLine`: `pixels`, or else the wave lines. */
+function themeVoiceLine(element: HTMLElement): VoiceLineStyle {
+  const value = getComputedStyle(element).getPropertyValue('--seams-shape-voiceLine').trim();
+  return value === 'pixels' ? 'pixels' : 'wave';
 }
 
 /** A failed early load runs again when Record needs the detector, and shows its error there. */

@@ -43,6 +43,22 @@ const LINE_REST_OPACITY = 0.55;
 const SUCCESS_MS = 1140;
 const SEAL_RADIUS = 22.5;
 const CHECK_PATH = 'M161 26.8 151.4 36.3 147.1 32';
+// The pixel style: columns of square dots that grow up and down from the middle row with the
+// voice. Each step adds the level of that moment at the right end, and the columns move left.
+const PIXEL_COLUMNS = 44;
+/** The rows above the middle row, and the rows below it. */
+const PIXEL_ROWS = 4;
+const PIXEL_PITCH = 7;
+/** Rows sit closer than columns, so the tallest column keeps a gap to the edge of a button. */
+const PIXEL_ROW_PITCH = 6;
+const PIXEL_SIZE = 4.5;
+const PIXEL_STEP_MS = 70;
+/** A column shows between this share of the level and all of it. */
+const PIXEL_SPREAD = 0.3;
+// While the card listens in silence, a small wave of one dot runs along the middle row.
+const PIXEL_IDLE_LEVEL = 0.18;
+const PIXEL_IDLE_SWING = 0.12;
+const PIXEL_IDLE_PERIOD_MS = 2400;
 
 const easeMove = cubicBezier(0.65, 0, 0.35, 1);
 const easeArc = cubicBezier(0.4, 0, 0.2, 1);
@@ -52,6 +68,8 @@ const easeOut = cubicBezier(0.2, 0, 0, 1);
 type RibbonPhase = 'idle' | 'listening' | 'processing';
 /** How the line shows that the voice is being checked. */
 export type VoiceCheckingStyle = 'ring' | 'segments';
+/** How the card draws the voice while it listens: sine wave lines, or columns of pixels. */
+export type VoiceLineStyle = 'wave' | 'pixels';
 type Arc = Readonly<{ start: number; sweep: number }>;
 type Stage =
   | Readonly<{ kind: 'line' }>
@@ -87,6 +105,14 @@ export class VoiceRibbon {
   private target = 0;
   private level = 0;
   private stopped = false;
+  private lineStyle: VoiceLineStyle = 'wave';
+  /** The pixel style's dots by column, top row first. Made when the style is first chosen. */
+  private pixels: Readonly<{ group: SVGGElement; columns: SVGRectElement[][] }> | null = null;
+  /** The level of each column, the newest at the right end. */
+  private readonly pixelLevels: number[] = new Array<number>(PIXEL_COLUMNS).fill(0);
+  /** The rows that each column shows now, above and below the middle row. */
+  private readonly pixelHeights: number[] = new Array<number>(PIXEL_COLUMNS).fill(-1);
+  private pixelClock = 0;
 
   constructor(
     document: Document,
@@ -134,6 +160,46 @@ export class VoiceRibbon {
   }
 
   readonly readLevel = (): number => this.level;
+
+  /** Draws the voice as wave lines (the default) or as columns of pixels. */
+  setLineStyle(style: VoiceLineStyle): void {
+    this.lineStyle = style;
+    this.element.dataset.lineStyle = style;
+    if (style === 'pixels' && !this.pixels) this.pixels = this.makePixels();
+    this.pixelHeights.fill(-1);
+    this.paint(performance.now());
+    this.wake();
+  }
+
+  private makePixels(): Readonly<{ group: SVGGElement; columns: SVGRectElement[][] }> {
+    const document = this.element.ownerDocument;
+    const group = document.createElementNS(SVG_NAMESPACE, 'g');
+    group.classList.add('seams-voiceid-ribbon-pixels');
+    group.setAttribute('opacity', '0');
+    const left = (WIDTH - ((PIXEL_COLUMNS - 1) * PIXEL_PITCH + PIXEL_SIZE)) / 2;
+    const columns: SVGRectElement[][] = [];
+    for (let column = 0; column < PIXEL_COLUMNS; column += 1) {
+      const dots: SVGRectElement[] = [];
+      for (let row = -PIXEL_ROWS; row <= PIXEL_ROWS; row += 1) {
+        const dot = document.createElementNS(SVG_NAMESPACE, 'rect');
+        dot.classList.add('seams-voiceid-ribbon-pixel');
+        // The theme colours the dots by their distance from the middle row: 0, 1-2, 3-4.
+        const distance = Math.abs(row);
+        dot.dataset.band = distance === 0 ? '0' : distance <= 2 ? '1' : '2';
+        dot.setAttribute('x', (left + column * PIXEL_PITCH).toFixed(2));
+        dot.setAttribute('y', (MID - PIXEL_SIZE / 2 + row * PIXEL_ROW_PITCH).toFixed(2));
+        dot.setAttribute('width', String(PIXEL_SIZE));
+        dot.setAttribute('height', String(PIXEL_SIZE));
+        dot.setAttribute('rx', '1');
+        dot.setAttribute('opacity', '0');
+        group.append(dot);
+        dots.push(dot);
+      }
+      columns.push(dots);
+    }
+    this.element.prepend(group);
+    return { group, columns };
+  }
 
   /** The voice line's width now: 1, or the theme's `voiceLineWidth`. */
   private lineWidth(): number {
@@ -231,12 +297,16 @@ export class VoiceRibbon {
     this.previousTime = time;
     this.level += (this.target - this.level) * (1 - Math.exp(-dt / (this.target > this.level ? 55 : 200)));
     if (!this.motion.matches) this.position += dt * (0.0012 + this.level * 0.003);
+    if (this.lineStyle === 'pixels') this.stepPixels(dt);
     this.paint(time);
     // A ribbon that has left the document stops drawing; a later phase or activity wakes it.
     const resting =
       !this.element.isConnected ||
       this.stage.kind === 'sealed' ||
-      (this.stage.kind === 'line' && this.phase === 'idle' && this.level <= 0.001);
+      (this.stage.kind === 'line' &&
+        this.phase === 'idle' &&
+        this.level <= 0.001 &&
+        this.pixelLevels.every((level) => level <= 0.001));
     if (!resting) this.frame = requestAnimationFrame(this.draw);
   };
 
@@ -245,13 +315,26 @@ export class VoiceRibbon {
     return IDLE_AMPLITUDE * (0.72 + 0.28 * Math.sin((time / IDLE_PERIOD_MS) * TAU));
   }
 
+  /** Adds the level of each step at the right end; the older columns move left. */
+  private stepPixels(dt: number): void {
+    this.pixelClock += dt;
+    while (this.pixelClock >= PIXEL_STEP_MS) {
+      this.pixelClock -= PIXEL_STEP_MS;
+      this.pixelLevels.shift();
+      // Neighbouring columns differ, as the bars of a recorder do.
+      this.pixelLevels.push(this.level * (PIXEL_SPREAD + (1 - PIXEL_SPREAD) * Math.random()));
+    }
+  }
+
   private paint(time: number): void {
     for (const part of [this.ripple, this.track, this.middle, this.top, this.bottom, this.seal, this.check])
       part.setAttribute('opacity', '0');
     for (const line of this.lines) line.setAttribute('opacity', '0');
+    this.pixels?.group.setAttribute('opacity', '0');
     switch (this.stage.kind) {
       case 'line':
-        this.paintLine(Math.max(this.level, this.idleAmplitude(time)));
+        if (this.lineStyle === 'pixels') this.paintPixels(time);
+        else this.paintLine(Math.max(this.level, this.idleAmplitude(time)));
         return;
       case 'capture':
         this.paintCapture(time, this.stage);
@@ -276,6 +359,26 @@ export class VoiceRibbon {
       const layer = 3 - index;
       this.lines[index].setAttribute('d', this.linePath(layer, amplitude, 0, WIDTH, 1));
       this.lines[index].setAttribute('opacity', String(layer === 0 ? LINE_REST_OPACITY + amplitude * 0.4 : 0.1 + amplitude * 0.1));
+    }
+  }
+
+  /** Each column shows the middle dot and as many rows above and below it as its level. */
+  private paintPixels(time: number): void {
+    if (!this.pixels) return;
+    this.pixels.group.setAttribute('opacity', '1');
+    const live = this.phase === 'listening' && !this.motion.matches;
+    for (const [column, dots] of this.pixels.columns.entries()) {
+      let level = this.pixelLevels[column] ?? 0;
+      if (live) {
+        const wave = Math.sin((time / PIXEL_IDLE_PERIOD_MS) * TAU - column * 0.55);
+        level = Math.max(level, PIXEL_IDLE_LEVEL + PIXEL_IDLE_SWING * wave);
+      }
+      const height = Math.min(PIXEL_ROWS, Math.round(level * PIXEL_ROWS * 1.3));
+      if (height === this.pixelHeights[column]) continue;
+      this.pixelHeights[column] = height;
+      for (const [index, dot] of dots.entries()) {
+        dot.setAttribute('opacity', Math.abs(index - PIXEL_ROWS) <= height ? '1' : '0');
+      }
     }
   }
 

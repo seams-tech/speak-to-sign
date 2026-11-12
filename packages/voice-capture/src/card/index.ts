@@ -3,6 +3,8 @@
 
 export {
   openPhraseCard,
+  type PhraseCardColor,
+  type PhraseCardColors,
   type PhraseCardContext,
   type PhraseCardControl,
   type PhraseCardControls,
@@ -22,5 +24,5 @@ export type {
 } from './types';
 export { leaveSurface, VoicePrompt, type PhraseDisplay, type PromptChange } from './prompt';
 export { PhraseCard, type HandedOverRows, type PromptCopy } from './phraseCard';
-export { VoiceRibbon, type VoiceCheckingStyle } from './ribbon';
+export { VoiceRibbon, type VoiceCheckingStyle, type VoiceLineStyle } from './ribbon';
 export { VoiceVisual } from './visual';

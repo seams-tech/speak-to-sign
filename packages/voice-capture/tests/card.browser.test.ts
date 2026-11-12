@@ -137,7 +137,8 @@ test('a card with autoStart keeps its Record button when the browser waits for a
   const card = page.getByRole('dialog', { name: 'Say this with your voice' });
   await expect(card.getByText('Opening microphone…')).toBeVisible();
   await expect(card.getByRole('button', { name: 'Record' })).toBeEnabled({ timeout: 10_000 });
-  await expect(card.getByText('Read it naturally, then pause.')).toBeVisible();
+  // The status line is empty again: the sentence is the one text to read.
+  await expect(card.getByText('Opening microphone…')).toHaveCount(0);
 });
 
 type Corner = { label: string | null; path: string | null; left: number; right: number };
@@ -440,9 +441,10 @@ test('a card with a context shows the text above the sentence, and the rows keep
       signal: new AbortController().signal,
       detector: 'level',
       autoStart: true,
-      context: { label: 'Your note', text },
+      context: { label: 'Your note', text, sentenceLabel: 'Read this aloud to post' },
     });
     const shown = card();
+    // The form: the voice line is the button, right under the sentence; the status is at the foot.
     const rows = ['.seams-voiceid-context', 'h2', '.seams-voiceid-phrase', '.seams-voiceid-ribbon', '.seams-voiceid-status'].map(
       (selector) => top(shown.querySelector(`:scope > ${selector}`)),
     );
@@ -452,15 +454,95 @@ test('a card with a context shows the text above the sentence, and the rows keep
       rows,
       marked: shown.hasAttribute('data-context'),
       label: shown.querySelector('.seams-voiceid-context-label')?.textContent,
+      title: shown.querySelector(':scope > h2')?.textContent,
       text: shown.querySelector('.seams-voiceid-context blockquote')?.textContent,
     };
   });
   expect(result.plainContext).toBe(false);
   expect(result.marked).toBe(true);
   expect(result.label).toBe('Your note');
+  expect(result.title).toBe('Read this aloud to post');
   expect(result.text).toBe('The bridge is not closed. One lane closes for two weeks in March, says the city.');
   // Each row is below the one before it, with and without a context.
   for (const rows of [result.plainRows, result.rows]) {
     for (let i = 1; i < rows.length; i += 1) expect(rows[i]!).toBeGreaterThan(rows[i - 1]!);
   }
+});
+
+test('a form card shows the Record button in place of the voice line until it records', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  const result = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const card = () => [...document.querySelectorAll<HTMLElement>('.seams-voiceid-prompt')].at(-1)!;
+    openPhraseCard({
+      sentence: 'One lane closes in March',
+      signal: new AbortController().signal,
+      detector: 'level',
+      context: { label: 'Your note', text: 'One lane closes for two weeks in March.' },
+    });
+    const shown = card();
+    const visible = (selector: string) => getComputedStyle(shown.querySelector(`:scope > ${selector}`)!).visibility;
+    const record = shown.querySelector<HTMLElement>('.seams-voiceid-primary')!;
+    return { line: visible('.seams-voiceid-ribbon'), record: !record.hidden && record.getBoundingClientRect().height > 0 };
+  });
+  expect(result).toEqual({ line: 'hidden', record: true });
+});
+
+test('the voice line draws sine wave lines by default, and pixels by prop or by the theme', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  const result = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const card = () => [...document.querySelectorAll<HTMLElement>('.seams-voiceid-prompt')].at(-1)!;
+    const open = (options: Record<string, unknown>) => {
+      openPhraseCard({ sentence: 'One lane closes in March', signal: new AbortController().signal, detector: 'level', ...options });
+      const shown = card();
+      const pixels = shown.querySelector('.seams-voiceid-ribbon-pixels');
+      return {
+        style: shown.dataset.voiceLine ?? 'wave',
+        dots: shown.querySelectorAll('.seams-voiceid-ribbon-pixel').length,
+        shown: pixels?.getAttribute('opacity') ?? null,
+        middle: [...shown.querySelectorAll('.seams-voiceid-ribbon-pixel[data-band="0"]')].filter((dot) => dot.getAttribute('opacity') === '1').length,
+      };
+    };
+    const plain = open({});
+    const byProp = open({ voiceLine: 'pixels' });
+    document.body.style.setProperty('--seams-shape-voiceLine', 'pixels');
+    const byTheme = open({});
+    const propWins = open({ voiceLine: 'wave' });
+    document.body.style.removeProperty('--seams-shape-voiceLine');
+    return { plain, byProp, byTheme, propWins };
+  });
+  expect(result.plain).toEqual({ style: 'wave', dots: 0, shown: null, middle: 0 });
+  // 44 columns of 9 dots; at rest, each column shows its middle dot.
+  expect(result.byProp).toEqual({ style: 'pixels', dots: 396, shown: '1', middle: 44 });
+  expect(result.byTheme).toEqual(result.byProp);
+  expect(result.propWins.style).toBe('wave');
+});
+
+test('the colors prop sets the card colours, over the page, and leaves out keys that the card does not read', async ({ page }) => {
+  await page.goto(`${origin}/example/`);
+  const result = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    document.body.style.setProperty('--seams-colors-buttonBackground', 'rgb(0, 0, 255)');
+    openPhraseCard({
+      sentence: 'One lane closes in March',
+      signal: new AbortController().signal,
+      detector: 'level',
+      autoStart: true,
+      context: { label: 'Your note', text: 'One lane closes for two weeks in March.' },
+      colors: { buttonBackground: 'rgb(255, 0, 0)', voiceFill: 'rgb(0, 128, 0)', notACardColour: 'red' },
+    });
+    const surface = [...document.querySelectorAll<HTMLElement>('.seams-voiceid-activation-surface')].at(-1)!;
+    const shown = surface.querySelector<HTMLElement>('.seams-voiceid-prompt')!;
+    document.body.style.removeProperty('--seams-colors-buttonBackground');
+    return {
+      button: getComputedStyle(shown.querySelector('.seams-voiceid-ribbon')!).backgroundColor,
+      fill: getComputedStyle(shown.querySelector('.seams-voiceid-phrase')!).backgroundColor,
+      unknown: surface.style.getPropertyValue('--seams-colors-notACardColour'),
+    };
+  });
+  expect(result).toEqual({ button: 'rgb(255, 0, 0)', fill: 'rgb(0, 128, 0)', unknown: '' });
 });

@@ -113,11 +113,27 @@ try {
   no row for it, so it is shorter and its rows sit in the middle. If the browser starts audio
   only after a press, the card shows its Record button; "Try again" and a result's button
   bring the row back too.
-- `context: { label, text }` shows the text that the sentence speaks for above the sentence,
-  in a bordered box with its label: for example `{ label: 'Your note', text: note }` when the
-  sentence is a summary of that note. The sentence then has a smaller size. The box stays for
-  the check and the result, and it scrolls when the text is long. Without `context`, the card
-  is as before.
+- `context: { label, text, sentenceLabel? }` makes the card a form for a sentence that speaks
+  for a text, such as the summary of a note:
+  `{ label: 'Your note on @alice', text: note, sentenceLabel: 'Read this aloud to post' }`.
+  - The text sits in a soft box under its label, and scrolls when it is long.
+  - The sentence sits centred in a box with a light blue fill under `sentenceLabel` (default
+    "Say this sentence"). The fill is a tint of the main button's colour, or the theme's
+    `voiceFill`.
+  - One button at the foot changes with the card: Record (or Try again) when the card waits
+    for a press, the voice line while it records, the check, then the result's action. A
+    microphone in a circle sits at its left, except on the result's action.
+  - The text stays for the check and the result. Without `context`, the card is as before.
+- `colors` sets the card's colours in code, over the page's CSS variables:
+  `{ buttonBackground: '#1d9bf0', textButton: '#ffffff', voiceFill: '#d6edfc' }`. The keys are
+  the colour names of the table below and of the card's base colours (`colorBackground`,
+  `textPrimary`, `textSecondary`, `textMuted`, `borderPrimary`, `surface`, `buttonBackground`,
+  `textButton`, `error`, `info`). A Seams Wallet app sets the same keys in
+  `appearance.theme.colors` of its configuration.
+- `voiceLine` sets how the card draws the voice while it listens: `'wave'`, sine wave lines
+  (the default), or `'pixels'`, columns of dots that grow from the middle row with the voice and
+  move left. Without the prop, the theme value `--seams-shape-voiceLine` (`wave` or `pixels`)
+  decides, so a Wallet host can choose it with its theme (`shape.voiceLine`).
 - The rows of the card's grid have names: `context`, `title`, `phrase`, `line`, `status` and
   `action`. A host that sets its own `grid-template-rows` on `.seams-voiceid-prompt` must give
   its rows these names, or the rows move to new tracks.
@@ -139,6 +155,16 @@ try {
   | `--seams-colors-voiceBeam` | `colors.voiceBeam` | The Beam palette: `colorful`, `mono`, `ocean`, `sunset`, `forest`, `candy`, `ice` or `gold`. `mono` is grey, band included | `ocean` |
   | `--seams-shape-voiceLineWidth` | `shape.voiceLineWidth` | The width of the voice line | `1px` |
   | `--seams-shape-voiceEchoWidth` | `shape.voiceEchoWidth` | The width of the echo lines | `0.65px` |
+  | `--seams-shape-voiceLine` | `shape.voiceLine` | The line style without the `voiceLine` prop: `wave` or `pixels` | `wave` |
+  | `--seams-colors-voiceFill` | `colors.voiceFill` | The fill of the sentence's box in a form card | The main button's colour at 14% (light), 24% (dark) or 16% |
+  | `--seams-colors-voicePixelBackground` | `colors.voicePixelBackground` | The button behind the pixels in a form card | The main button's colour |
+
+  The pixel style takes three of these colours, by the distance of a dot from the middle row:
+  `voiceEcho` for the middle row (default `#8ecdf8`), `voiceLine` for rows 1 and 2
+  (`#1d9bf0`) and `voiceEchoDeep` for rows 3 and 4 (`#1a6fb0`). In a form card the dots sit on
+  the button, so they take the button's text colour instead: full in the middle row, and mixed
+  with the button's colour further out (white, light and light blue on X blue).
+
   `data-theme="light"` or `"dark"` on the page selects the glow colours.
 - `frame` adds what a host needs: the parent element, more class names, the corner controls,
   and a callback when the card is in the document.

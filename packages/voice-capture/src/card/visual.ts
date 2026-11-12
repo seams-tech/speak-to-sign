@@ -2,7 +2,7 @@ import { createElement, render, type ComponentType } from 'preact';
 import { VoiceBeam, voicePalettes, type VoiceBeamColorVariant, type VoiceBeamProps } from 'voice-glow';
 import { styleNonce } from '../config';
 import type { VoiceActivityEvent } from '../microphone';
-import { VoiceRibbon, type VoiceCheckingStyle } from './ribbon';
+import { VoiceRibbon, type VoiceCheckingStyle, type VoiceLineStyle } from './ribbon';
 
 // The build maps VoiceBeam's React imports to Preact.
 const VoiceBeamView = VoiceBeam as unknown as ComponentType<VoiceBeamProps>;
@@ -53,6 +53,8 @@ export class VoiceVisual {
     this.themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
   }
 
+  /** Draws the voice as wave lines (the default) or as columns of pixels. */
+  setLineStyle(style: VoiceLineStyle): void { this.ribbon.setLineStyle(style); }
   listen(): void { this.setPhase('listening'); }
   add(event: VoiceActivityEvent): void { this.ribbon.add(event); }
   checking(): void { this.setPhase('processing'); }

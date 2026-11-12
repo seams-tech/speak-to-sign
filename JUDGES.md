@@ -26,10 +26,10 @@ for example "Send 2 NEAR to alice.testnet". Then:
 
 Testnet only.
 
-Wallet core is the npm dependency `@seams/wallet` 0.69.2, which the demo pins
+Wallet core is the npm dependency `@seams/wallet` 0.70.0, which the demo pins
 in `demo/frontend/package.json`. It checks the verdict against a pinned key
 and signs only a matching request. Its source is
-[`seams-wallet` at 0.69.2](https://github.com/seams-tech/seams-wallet/tree/e9fdc65ae8ae269499dfce423412e446a87d3f0d).
+[`seams-wallet` at 0.70.0](https://github.com/seams-tech/seams-wallet/tree/35649a05b7378e674a3980966cb217fbddd31a6f).
 Every command below needs only this repo.
 
 ## How it differs
@@ -332,7 +332,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | A voice payment above 10 NEAR needs a passkey too (`step_up`). | `verify_steps_up_above_ten_near`; spec 7.3 |
 | The verifier signs fixed verdict vectors that the Wallet tests also read. A verdict expires after 120 s. | `tests/signed_vector.rs` of the verifier (`testdata/signed_verdict_v2.json`); `VERDICT_TTL_MS` in `src/config.rs`; spec section 8 |
 | A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
-| With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.69.2: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L197) and its [test](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/tests/unit/speakToSignHost.unit.test.ts#L1118) |
+| With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.70.0: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/35649a05b7378e674a3980966cb217fbddd31a6f/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L197) and its [test](https://github.com/seams-tech/seams-wallet/blob/35649a05b7378e674a3980966cb217fbddd31a6f/tests/unit/speakToSignHost.unit.test.ts#L1168) |
 | The notes contract takes a note or a rating only with its own verdict: the key, the outcome, the expiry and the digest. Each verdict counts once. On testnet, `get_voice_config` of `notes.seams-v1.testnet` gives `"required":true`. | `check_spoken` in `demo/contracts/community-notes/src/lib.rs`; `src/tests.rs` and `spoken_notes_in_the_sandbox` in `sandbox/tests/sandbox.rs` |
 | The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig.seams-v1.testnet`; no proposal ran there yet. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |

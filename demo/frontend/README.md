@@ -118,9 +118,9 @@ on both.
 | Part                     | Where                                                        | Status on 12 Nov 2026                                  |
 | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
 | Notes contract           | `notes.seams-v1.testnet` (`../contracts/community-notes/`)             | Deployed.                                              |
-| Seams Wallet host        | `https://staging.sign.seams.sh`                              | Must be 0.69.2 (iframe protocol 25.0.0). Speak-to-Sign is a part of the Wallet. |
+| Seams Wallet host        | `https://staging.sign.seams.sh`                              | Must be 0.70.0 (iframe protocol 25.0.0). Speak-to-Sign is a part of the Wallet. |
 | Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.13.0 (version key `1b777154…`, not the active version): it opens sealed recordings, and JEV checks the summary of a note. |
-| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`                            | This page pins 0.69.2. It has no plugin package.       |
+| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`                            | This page pins 0.70.0. It has no plugin package.       |
 | Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin, `https://localhost:5443` and `https://localhost:8443`. |
 
 ## Run it locally
@@ -291,7 +291,7 @@ the names of the missing variables, and the bet form shows that text.
   key, VoiceID, and Speak-to-Sign on testnet. The SDK derives the passkey
   RP ID (the Wallet host) and the Router A/B signing worker from the Wallet origin.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
-- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.69.2, `seams.near.spoken`):
+- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.70.0, `seams.near.spoken`):
   - `requestNote` → `seams.near.spoken.note({ walletSession, contract, postId, text })`
   - `requestRating` → `seams.near.spoken.rating({ walletSession, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.setAuthMethodEnabled` when the owner turned VoiceID off

@@ -74,7 +74,7 @@ with both can do much more harm than a voice clone.
   `verify_refuses_other_words_and_uses_the_audio` in
   `crates/voice-verifier/tests/ops/verify.rs`.
 - The device binding of VoiceID: `packages/voiceid/src/README.md` of
-  [`seams-wallet` at 0.69.2](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/voiceid/src/README.md).
+  [`seams-wallet` at 0.70.0](https://github.com/seams-tech/seams-wallet/blob/35649a05b7378e674a3980966cb217fbddd31a6f/packages/voiceid/src/README.md).
 
 **Not done.** On the person's own device, with the Wallet unlocked and in an
 attacker's hands (or under malware), a good clone can pass for a NEAR
@@ -216,7 +216,7 @@ above 90 s.
 ## 10. Can it live after the hackathon?
 
 **Short answer.** Speak-to-Sign is a feature of a wallet that existed before
-the hackathon. Seams Wallet ships it in `@seams/wallet` 0.69.2 on npm as an
+the hackathon. Seams Wallet ships it in `@seams/wallet` 0.70.0 on npm as an
 experimental, testnet-only feature. The voice libraries are separate npm
 packages for any app: `@seams/voice-capture`, `@seams/voice-verdict` and
 `@seams/voice-sign`.

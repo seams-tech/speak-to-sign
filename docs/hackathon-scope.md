@@ -52,13 +52,13 @@ The diffs:
   ```text
   2026-11-07 06:50 UTC 923e576 Add the spoken-intent crate for Refactor 210 voice intents: one no_std 
   ```
-- `seams-wallet`, all changes in the window up to 0.69.2, the version that
-  the demo pins (2026-11-12):
-  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...e9fdc65ae8ae269499dfce423412e446a87d3f0d>.
-  Most of these 785 commits are general Wallet work. The Speak-to-Sign paths
+- `seams-wallet`, all changes in the window up to 0.70.0, the version that
+  the demo pins (2026-11-13):
+  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...35649a05b7378e674a3980966cb217fbddd31a6f>.
+  Most of these 794 commits are general Wallet work. The Speak-to-Sign paths
   (`packages/voiceid`, `packages/wallet/src/core/transactionFeatures`, and
   `packages/speak-to-sign` and `crates/spoken-intent`, which later moved to
-  this repository) are new files only: 58 files, 8,436 added lines at 0.69.2.
+  this repository) are new files only: 58 files, 8,572 added lines at 0.70.0.
   Up to Wallet 0.59.0 (`b12cf643`, 2026-11-09), the same paths held 91
   files, 17,110 added lines.
 

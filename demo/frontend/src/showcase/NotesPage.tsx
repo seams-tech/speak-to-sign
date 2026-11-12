@@ -190,16 +190,15 @@ export function NotesPage({ seams }: { seams: boolean }) {
                 Sign with your voice.
               </h1>
               <p className="ss-hero-sub">
-                Say what you want to do, and your words become a confidential voice intent. NEAR infra checks in a TEE that the voice is
-                yours and that the transaction is what you said, before your Seams Wallet signs.
+                Say what you want to do, and your words become a confidential transaction intent. NEAR infra checks that the voice is yours
+                and that the transaction is what you said, before your wallet signs.
               </p>
-              {/* The short form of "How it differs" in JUDGES.md, with its limit: AI drafts and routes, the person approves the
-                  exact call by voice, and a good voice clone can still pass (README "Trust limits"). */}
-              <p className="ss-hero-sub ss-hero-why">
-                AI drafts the note and routes your command. Then you approve: the exact call that you say is the approval, and the words must
-                match the transaction, so you cannot sign blind. The voice check refuses another person&rsquo;s voice, but a good voice clone
-                can still pass.
-              </p>
+              {/* The short form of "How it differs" and "Questions a judge asks" in JUDGES.md: the spoken exact call is the
+                  approval, and a voice clone alone gets nothing, as the keys stay on the person's device. */}
+              <ul className="ss-hero-sub ss-hero-why">
+                <li>You approve by saying the exact transaction. If your words do not match it, nothing is signed, so you never sign blind.</li>
+                <li>Your voice must match the voice that you enrolled. A cloned voice alone gets nothing: your keys stay on your device.</li>
+              </ul>
             </div>
           </div>
           <div className="ss-setup-strip" id="setup" aria-label="Set up">

@@ -956,10 +956,15 @@ button.ss-seams {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.92);
 }
-/* The second paragraph: what a voice signature is useful for. A little quieter than the first. */
+/* The list under it: how the spoken approval works, and why a cloned voice alone gets nothing.
+   A little quieter than the first paragraph. */
 .ss-hero-why {
-  margin-top: 12px;
+  margin: 12px 0 0;
+  padding-left: 1.2em;
   color: rgba(255, 255, 255, 0.78);
+}
+.ss-hero-why li + li {
+  margin-top: 4px;
 }
 
 /* The sheet: the notes app, as a part of the page. The page is the one scroll area: one

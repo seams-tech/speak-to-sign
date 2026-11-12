@@ -167,7 +167,8 @@ changed page do not match.
   signers, and SourceScan verified its code.
 - **Live run:** on 2026-11-12 two persons proposed and approved one transfer
   by voice on `voice-multisig-2.seams-v1.testnet`, which runs the same build.
-  Each transaction holds the signed verdict. `execute` is not done yet. The
+  Each transaction holds the signed verdict. The contract then executed the
+  transfer of 0.1 NEAR. The
   transactions are in
   [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
   The older account

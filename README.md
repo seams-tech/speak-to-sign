@@ -80,8 +80,8 @@ The same verifier also approves other calls:
   above. It is on `voice-multisig.seams-v1.testnet` since 2026-11-12, with
   2 of 2 signers, and SourceScan verified its code. On 2026-11-12 two persons
   proposed and approved one transfer by voice on
-  `voice-multisig-2.seams-v1.testnet`, which runs the same build; `execute`
-  is not done yet ([the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet)). The
+  `voice-multisig-2.seams-v1.testnet`, which runs the same build, and the
+  contract executed it ([the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet)). The
   older account `multisig.seams-v1.testnet` (version 2.x, where two admins
   approved with plain signed calls) was deleted on 2026-11-12.
 

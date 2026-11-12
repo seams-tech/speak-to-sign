@@ -25,7 +25,7 @@ last line of the contract's `reproducible.sha256`.
 | Item | Live | Source | Differs? |
 | --- | --- | --- | --- |
 | Active version on OutLayer (a call with no `version_key`) | 0.14.1, `1e7c6968…8a5c`, since 2026-11-12 (`set_active_version` tx `GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC`). It is the worker with the NEAR AI check. Before it on that day: 0.14.1+venice for about 25 minutes, while NEAR AI Whisper gave no reply (tx `HTQ5QvR187yiKCA9KUYeFh1PHmZUQWJggaenCkxoCYX7`), and 0.12.0 from 2026-11-11. | Commit `62cd438`; JUDGES.md check 3 builds it | No |
-| 0.12.0 | `bfe81633…c946`, on OutLayer, not active since 2026-11-12 | Commit `a816798` | No |
+| 0.12.0 and 0.13.0 | `bfe81633…c946` and `1b777154…f930`. Removed from the project on 2026-11-12, when no caller used them: the Seams staging server moved to 0.14.1 (`remove_version` txs `2XGQZT5GGJkoVbiCe34VaTZiPkaVDvFxHTLMnhscJVc4` and `3AVPXQTpVkh7cwCvUyDRrN1fdrQ2QyJtSPec53mrWMZB`). A call with one of these keys fails. | Commits `a816798` and `a4d6ce7` | |
 | Version that the Seams staging server calls (a transfer, a note, a rating) | 0.13.0, `1b777154…f930`, not active. The server selects it by `version_key`. | Commit `a4d6ce7` | No |
 | Versions that the demo route `/api/voice-verify` calls (a spoken bet, the multisig page) | Since the deploy of 2026-11-12: 0.14.1 while NEAR AI Whisper answers, and 0.14.1+venice while it is down. The route checks Whisper before each call, and a request can name the service. The answer names it in the header `X-Speech-To-Text`. | `demo/frontend/functions/api/voice-verify.ts` | No |
 | Verdict key | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`, bound to the project, so every version signs with it | `crates/voice-verifier/manifest/outlayer.json` | No |
@@ -38,14 +38,13 @@ last line of the contract's `reproducible.sha256`.
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -r .active_version
 ```
 
-The project has four versions: 0.12.0, 0.13.0, 0.14.1 and 0.14.1+venice. On
-2026-11-12 the owner removed the 25 other versions, because no caller used
-them. A call with the key of a removed version fails. The history of each
+The project has two versions: 0.14.1 and 0.14.1+venice. On 2026-11-12 the
+owner removed the 27 other versions, when no caller used them. A call with the key of a removed version fails. The history of each
 version and the transaction of each removal are in
 [`crates/voice-verifier/README.md`](../crates/voice-verifier/README.md#versions).
 
 ```bash
-# See: 4
+# See: 2
 view outlayer.testnet get_version_count '{"project_id":"seams-v1.testnet/voice-verifier"}'
 ```
 

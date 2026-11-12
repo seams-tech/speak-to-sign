@@ -71,15 +71,80 @@ it needs.
 
 ## How it works
 
+### The parts
+
+Each box is a part, and each group is a place that runs it. The audio leaves
+your device only sealed to the verifier.
+
 ```mermaid
 flowchart LR
-  You(["You say the sentence"]) --> Wallet["Seams Wallet<br/>records and seals the audio"]
-  Wallet --> Verifier["Verifier in a TEE<br/>(OutLayer, Intel TDX)"]
-  Verifier --> Speaker["Is it your voice?<br/>ReDimNet on Phala"]
-  Verifier --> Words["Which words?<br/>Whisper on NEAR AI"]
-  Verifier -- "signed verdict" --> Wallet
-  Wallet -- "signed call and verdict" --> Contract["NEAR contract<br/>checks the verdict again"]
+  subgraph Device["Your device"]
+    Page["Demo page"]
+    Wallet["Speak-to-Sign module<br/>in Seams Wallet<br/>records and seals the audio,<br/>checks the verdict, signs"]
+  end
+
+  subgraph Seams["Seams servers"]
+    Route["Verify route<br/>checks the TDX quote<br/>of the verifier call"]
+  end
+
+  subgraph OutLayer["OutLayer TEE (Intel TDX)"]
+    Verifier["Voice verifier<br/>opens the audio, checks the voice<br/>and the words, signs the verdict"]
+  end
+
+  subgraph Models["Models"]
+    Speaker["Is it your voice?<br/>ReDimNet on Phala (TDX)"]
+    Whisper["Which words?<br/>Whisper on NEAR AI"]
+  end
+
+  subgraph Chain["NEAR testnet"]
+    Contracts["Contracts: notes, market, multisig<br/>check the verdict again"]
+  end
+
+  Page --> Wallet
+  Wallet -->|"sealed audio and the request"| Route
+  Route --> Verifier
+  Verifier -->|"audio"| Speaker
+  Verifier -->|"audio"| Whisper
+  Verifier -->|"signed verdict"| Route
+  Route -->|"signed verdict"| Wallet
+  Wallet -->|"signed call with the verdict"| Contracts
 ```
+
+### One approval, step by step
+
+```mermaid
+sequenceDiagram
+  actor You
+  participant Wallet as Speak-to-Sign module in Seams Wallet
+  participant Verifier as Verifier (OutLayer TEE)
+  participant Speaker as Speaker model (Phala)
+  participant Whisper as Whisper (NEAR AI)
+  participant Contract as NEAR contract
+
+  Wallet->>You: Show the sentence
+  You->>Wallet: Say the sentence
+  Wallet->>Verifier: 1. Sealed audio and the request
+  par 2. Two models at the same time
+    Verifier->>Speaker: Audio
+    Speaker-->>Verifier: Voice embedding
+  and
+    Verifier->>Whisper: Audio
+    Whisper-->>Verifier: Heard words
+  end
+  Verifier->>Verifier: 3. Check the voice, the words and that the audio is new
+  Verifier-->>Wallet: 4. Signed verdict (accept, step_up or refuse)
+  alt accept
+    Wallet->>Wallet: 5. Check the verdict key and the request digest
+    Wallet->>Contract: Signed call with the verdict
+    Contract->>Contract: Check the verdict again
+  else step_up
+    Wallet->>You: Ask for a passkey too (a transfer above 10 NEAR)
+  else refuse
+    Wallet->>You: Show the reason and the heard words. Nothing is signed.
+  end
+```
+
+The numbers in the diagram are these steps:
 
 1. The Wallet records you and sends the audio and the typed request to the
    verifier, an OutLayer WASM worker (`seams-v1.testnet/voice-verifier`).
@@ -105,8 +170,10 @@ gateway. The live versions that the demo uses (0.12.0 and 0.13.0) do not have
 this check yet ([state](docs/trust-chain.md#the-near-ai-check)).
 
 The formats and the rules are in
-[`docs/voice-intents-spec.md`](docs/voice-intents-spec.md). The diagrams are
-in [`docs/architecture.md`](docs/architecture.md).
+[`docs/voice-intents-spec.md`](docs/voice-intents-spec.md).
+[`docs/architecture.md`](docs/architecture.md) has the detailed diagrams:
+enrollment, the decision in the verifier, what a verdict binds, the voice
+multisig, the trust boundaries and the path of the audio.
 
 ## Why sign by voice
 

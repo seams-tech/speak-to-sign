@@ -41,7 +41,7 @@ voice verifier also approves payments and multisig transfers.
 
 | You do this | You say | What checks it |
 | --- | --- | --- |
-| Post a community note | A short summary of the note. NEAR AI drafts the note, and you can change it. | The verifier, Wallet core, and the contract `notes.seams-v1.testnet` |
+| Post a community note | A short summary of the note. | The verifier, Wallet core, and the contract `notes.seams-v1.testnet` |
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
 | Pay someone (`/pay/` of the demo site) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |

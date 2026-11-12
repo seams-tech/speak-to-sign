@@ -72,7 +72,7 @@ The moderator of the notes contract is `voice-multisig.seams-v1.testnet`.
 | Item | Live | Notes |
 | --- | --- | --- |
 | Wallet SDK | `@seams/wallet` 0.69.2 | Pinned in `demo/frontend/package.json`; source [`seams-wallet` at 0.69.2](https://github.com/seams-tech/seams-wallet/tree/e9fdc65ae8ae269499dfce423412e446a87d3f0d) |
-| Demo site | https://speak-to-sign.pages.dev, deployed on 2026-11-12 from `dev` at commit `ef43490` | It has the spoken multisig page `/multisig/`, and the route that selects NEAR AI or Venice AI for each voice check. Check: `curl -s https://speak-to-sign.pages.dev/api/near-ai-status` gives the state of NEAR AI and of its Whisper. |
+| Demo site | https://speak-to-sign.pages.dev, deployed on 2026-11-12 from `dev` at commit `0709db2` | It has the spoken multisig page `/multisig/`, and the route that selects NEAR AI or Venice AI for each voice check. Check: `curl -s https://speak-to-sign.pages.dev/api/near-ai-status` gives the state of NEAR AI and of its Whisper. |
 
 ## Checks that are in progress
 

@@ -303,11 +303,13 @@ git clone https://github.com/seams-tech/speak-to-sign
 From [`docs/architecture.md`](docs/architecture.md) section 8, "Trust
 boundaries", spec section 11, and the READMEs of the contracts:
 
-- A good voice clone can pass on the person's own device, if malware feeds
-  the audio to the browser or someone holds the unlocked device. Only a NEAR
-  transfer above 10 NEAR also needs a passkey: a smaller transfer, a bet of
-  any size and the other calls have no passkey step. This build has no
-  liveness check and no fresh words.
+- A voice clone works only on the person's own device, with the Wallet
+  unlocked: VoiceID runs in the Wallet's isolated iframe on that device, and
+  the keys stay there. An attacker needs that device in hand (or malware
+  that controls it) and an unlocked Wallet, and with those, the attacker can
+  do much more harm than a voice clone. On that device, this build has no
+  liveness check and no fresh words, and only a NEAR transfer above 10 NEAR
+  also needs a passkey.
 - A text-to-speech voice can enroll and pass. The verifier does not detect
   synthetic speech, and it does not refuse one voice on many accounts.
 - The NEAR AI transcript has no signature. A false transcript can pass the

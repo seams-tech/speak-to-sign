@@ -274,7 +274,7 @@ flowchart TB
     AK["NEAR RPC access-key view"]
   end
   subgraph Open["Not covered"]
-    CL["Voice clone on a compromised device<br/>no liveness check"]
+    CL["Voice clone on the person's own device,<br/>Wallet unlocked: no liveness check"]
     PO["Project owner can deploy new code<br/>with the same key"]
   end
 

@@ -48,8 +48,8 @@ for the person to repeat, is not built.
 ## 2. Voice can be cloned. Why trust it?
 
 **Short answer.** A cloned voice alone gets an attacker nothing. The attack
-also needs the person's unlocked device, and a NEAR transfer above 10 NEAR
-also needs the person's passkey.
+also needs the person's own device, with the Wallet unlocked. An attacker
+with both can do much more harm than a voice clone.
 
 1. **The keys stay on the device.** The Wallet runs in an isolated iframe on
    its own origin, and its key share stays on the device. A verdict is not a
@@ -63,11 +63,11 @@ also needs the person's passkey.
    that call aloud, so they hear it, and the verifier refuses other words.
    See question 3.
 3. **The rest of the risk has a limit.** A clone works only on the person's
-   own device. That needs physical possession, like a forced fingerprint on
-   a phone, or malware that feeds the audio to the browser. For a NEAR
-   transfer above 10 NEAR, the Wallet asks for a passkey, and malware cannot
-   fake a passkey check. A bet of any size has no passkey step. Each
-   recording passes one time only.
+   own device, with the Wallet unlocked. That needs the device in hand, like
+   a forced fingerprint on a phone, or malware that controls it. Such an
+   attacker can already do much more harm than a voice clone. Even then, a
+   NEAR transfer above 10 NEAR needs a passkey, and malware cannot fake a
+   passkey check. Each recording passes one time only.
 
 **Check it.**
 - `verify_steps_up_above_ten_near` and
@@ -76,10 +76,11 @@ also needs the person's passkey.
 - The device binding of VoiceID: `packages/voiceid/src/README.md` of
   [`seams-wallet` at 0.69.2](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/voiceid/src/README.md).
 
-**Not done.** On a device that malware controls, a good clone can pass for a
-NEAR transfer of 10 NEAR or less, for a bet of any size, and for the other
-calls. This build has no liveness check (fresh words) and no detection of
-synthetic speech. See [Not covered](../JUDGES.md#not-covered) and
+**Not done.** On the person's own device, with the Wallet unlocked and in an
+attacker's hands (or under malware), a good clone can pass for a NEAR
+transfer of 10 NEAR or less, for a bet of any size, and for the other calls.
+This build has no liveness check (fresh words) and no detection of synthetic
+speech. See [Not covered](../JUDGES.md#not-covered) and
 [Future improvements](../JUDGES.md#future-improvements).
 
 ## 3. What if the page or the agent is compromised?

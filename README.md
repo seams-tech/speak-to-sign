@@ -37,8 +37,9 @@ hackathon. It is the baseline, not hackathon work. See
   market 12". The verifier
   compares the voice with the voice that the owner enrolled, and checks the
   words. The market contract takes the USDC only with a verdict for that
-  bettor, market, side and amount. A good clone can still pass: this build
-  has no liveness check (see [Trust limits](#trust-limits)).
+  bettor, market, side and amount. A voice clone alone cannot bet: it works
+  only on the person's own device, with the Wallet unlocked (see
+  [Trust limits](#trust-limits)).
 - **No blind signing.** A passkey click shows that a device approved
   something, not what the person agreed to. Here the Wallet signs only when
   the spoken words match the request, so the words of a phishing request do
@@ -651,7 +652,7 @@ The deploy transactions and the way to build each contract again are in
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
 - **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.
-- **Voice clones.** A good voice clone can pass on the person's own device, if malware feeds the audio to the browser or someone holds the unlocked device. Only a NEAR transfer above 10 NEAR also needs a passkey: a smaller transfer, a bet of any size and the other calls have no passkey step. This build has no liveness check and no fresh words. On another device, a clone alone cannot unlock the Wallet (see [`docs/judge-questions.md`](docs/judge-questions.md), question 2).
+- **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/judge-questions.md`](docs/judge-questions.md), question 2). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check and no fresh words, and only a NEAR transfer above 10 NEAR also needs a passkey.
 - **Synthetic voices.** A text-to-speech voice can enroll and pass. The verifier does not detect synthetic speech, and it does not refuse one voice on many accounts.
 
 ## Evidence

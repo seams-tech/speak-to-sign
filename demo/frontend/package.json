@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261109.1",
+    "@seams/voice-capture": "0.68.1",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

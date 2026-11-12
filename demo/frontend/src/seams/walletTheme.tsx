@@ -27,6 +27,9 @@ interface PagePalette {
   lineStrong: string;
   accent: string;
   accentInk: string;
+  /** The echo lines of the voice card: a lighter and a deeper X blue. */
+  echo: string;
+  echoDeep: string;
   green: string;
   gold: string;
   red: string;
@@ -43,6 +46,8 @@ const X_LIGHT: PagePalette = {
   lineStrong: '#cfd9de',
   accent: '#1d9bf0',
   accentInk: '#1a8cd8',
+  echo: '#83c8f7',
+  echoDeep: '#1674b4',
   green: '#00ba7c',
   gold: '#e2b719',
   red: '#f4212e',
@@ -63,6 +68,8 @@ const LIGHTS_OUT: PagePalette = {
   lineStrong: '#3e4246',
   accent: '#1d9bf0',
   accentInk: '#1a8cd8',
+  echo: '#8ecdf8',
+  echoDeep: '#1a8cd8',
   green: '#00ba7c',
   gold: '#e2b719',
   red: '#f4212e',
@@ -118,6 +125,13 @@ function walletColors(base: Record<string, string>, p: PagePalette): Record<stri
     highlightReceiver: p.accent,
     highlightMethodName: p.ink,
     highlightAmount: p.ink,
+
+    // The voice card (voice-capture 0.68.1): the line in X blue, its echoes in a lighter and a
+    // deeper blue, and a grey Beam. Earlier cards do not read these keys.
+    voiceLine: p.accent,
+    voiceEcho: p.echo,
+    voiceEchoDeep: p.echoDeep,
+    voiceBeam: 'mono',
   };
 }
 
@@ -133,6 +147,9 @@ const X_SHAPE: Record<string, string> = {
   field: '12px',
   box: '12px',
   item: '12px',
+  // The voice card's line (voice-capture 0.68.1): thicker than its 1 px default.
+  voiceLineWidth: '2px',
+  voiceEchoWidth: '1.25px',
 };
 
 type AppearanceTheme = NonNullable<NonNullable<SeamsConfigsInput['appearance']>['theme']>;
@@ -141,6 +158,18 @@ const WALLET_THEMES: Record<ThemeName, AppearanceTheme> = {
   dark: { id: 'lights-out', mode: 'dark', colors: walletColors(DARK_TOKENS.colors, LIGHTS_OUT), shape: X_SHAPE },
   light: { id: 'x-light', mode: 'light', colors: walletColors(LIGHT_TOKENS.colors, X_LIGHT), shape: X_SHAPE },
 };
+
+/**
+ * The Wallet's theme for a page theme as the CSS variables that its components read. For a
+ * Wallet card that runs in the page itself: the dev preview of the voice card (src/dev).
+ */
+export function walletThemeVars(theme: ThemeName): Record<string, string> {
+  const { colors = {}, shape = {} } = WALLET_THEMES[theme];
+  return {
+    ...Object.fromEntries(Object.entries(colors).map(([key, value]) => [`--seams-colors-${key}`, value])),
+    ...Object.fromEntries(Object.entries(shape).map(([key, value]) => [`--seams-shape-${key}`, value])),
+  };
+}
 
 /** SeamsWebProvider with the Wallet's theme for the page's theme. */
 export function ThemedSeamsProvider({

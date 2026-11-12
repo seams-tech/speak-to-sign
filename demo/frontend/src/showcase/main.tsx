@@ -30,6 +30,9 @@ function WithWallet({ config }: { config: SeamsConfigsInput }) {
   );
 }
 
+// Dev only: the voice card preview (src/dev). The build drops this import.
+if (import.meta.env.DEV) void import('../dev/cardPreview');
+
 createRoot(root).render(
   <StrictMode>{seamsConfig ? <WithWallet config={seamsConfig} /> : <NotesPage seams={false} />}</StrictMode>,
 );

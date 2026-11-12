@@ -32,7 +32,7 @@ check each claim.
 | ----------- | ------------------------------------------------------- |
 | Demo video  | TODO: the owner adds the link to the demo video.        |
 | X post      | TODO: the owner adds the link to the X post.            |
-| Demo page   | `demo/frontend/README.md` tells how to run it and what must be live. |
+| Demo page   | `pnpm site` starts it on this machine. `demo/frontend/README.md` tells what must be live. |
 | Contracts   | [Testnet facts](#contracts): the four contract accounts, with NearBlocks links. |
 
 The same verifier also approves spoken NEAR transfers

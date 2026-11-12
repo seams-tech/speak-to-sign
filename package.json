@@ -1,0 +1,9 @@
+{
+  "name": "speak-to-sign",
+  "private": true,
+  "type": "module",
+  "description": "Speak-to-Sign: the voice libraries, the verifier and the demo site.",
+  "scripts": {
+    "site": "node scripts/site.mjs"
+  }
+}

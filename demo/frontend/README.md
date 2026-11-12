@@ -80,7 +80,16 @@ cp .dev.vars.example .dev.vars   # then set NEAR_AI_API_KEY in .dev.vars
 cp .env.example .env.local       # then set the VITE_SEAMS_* key and environment (ask the project owner)
 ```
 
-Start the functions, the page and the HTTPS proxy, each in its own terminal:
+Start the functions, the page and the HTTPS proxy with one command, from the root of the
+repository:
+
+```bash
+pnpm site        # installs the packages if needed, starts all three, prints the address to open
+```
+
+`pnpm site` (`scripts/site.mjs`) uses a server that runs already on its port, starts Vite with
+`--force` (so a new SDK version always replaces Vite's cached copy), and Ctrl+C stops the
+servers that it started. To run them one by one instead, each in its own terminal:
 
 ```bash
 pnpm dev:api     # wrangler pages dev on http://localhost:8788 (the functions under functions/api/)

@@ -126,12 +126,13 @@ function walletColors(base: Record<string, string>, p: PagePalette): Record<stri
     highlightMethodName: p.ink,
     highlightAmount: p.ink,
 
-    // The voice card (voice-capture 0.68.1): the line in X blue, its echoes in a lighter and a
-    // deeper blue, and a grey Beam. Earlier cards do not read these keys.
+    // The voice card: the line in X blue, its echoes in a lighter and a deeper blue, and no
+    // Beam (the glow at the card's foot; `none` needs voice-capture 0.69.1 or later, which the
+    // Wallet 0.69.2 has).
     voiceLine: p.accent,
     voiceEcho: p.echo,
     voiceEchoDeep: p.echoDeep,
-    voiceBeam: 'mono',
+    voiceBeam: 'none',
   };
 }
 

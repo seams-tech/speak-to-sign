@@ -5,12 +5,12 @@
 // WalletDialog. A script plays the check and the result, so nothing records and nothing signs.
 // `?theme=dark` shows Lights out.
 
-import { StrictMode, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { WalletStepProgress } from '@seams/wallet/react';
 import { CardPill } from '../components/CardPill';
 import { Modal } from '../components/Modal';
-import { WALLET_THEMES } from '../seams/walletTheme';
+import { cardThemeVariables } from './cardTheme';
 import type { ThemeName } from '../showcase/theme';
 import '../styles.css';
 
@@ -41,14 +41,6 @@ interface CaptureModule {
 const theme: ThemeName = new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light';
 document.documentElement.dataset.theme = theme;
 
-/** The Wallet theme as the CSS variables that the card reads. */
-function themeVariables(): CSSProperties {
-  const { colors = {}, shape = {} } = WALLET_THEMES[theme] as { colors?: object; shape?: object };
-  const variables: Record<string, string> = {};
-  for (const [name, value] of Object.entries(colors)) variables[`--seams-colors-${name}`] = String(value);
-  for (const [name, value] of Object.entries(shape)) variables[`--seams-shape-${name}`] = String(value);
-  return variables as CSSProperties;
-}
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -204,7 +196,7 @@ function PreviewCard({
     return () => stop.abort();
   }, []);
 
-  return <div ref={host} className="card-preview-host" style={{ ...themeVariables(), padding: '8px 0' }} data-theme={theme} />;
+  return <div ref={host} className="card-preview-host" style={{ ...cardThemeVariables(theme), padding: '8px 0' }} data-theme={theme} />;
 }
 
 createRoot(document.getElementById('root')!).render(

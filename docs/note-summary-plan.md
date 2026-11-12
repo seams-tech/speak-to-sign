@@ -1,6 +1,6 @@
 # Plan: the Seams server writes the note summary, and the TEE checks it
 
-Status: decided on 2026-11-12. Not released.
+Status: decided on 2026-11-12. Released in 0.69.0 on 2026-11-12: verifier 0.13.0 (`1b777154…`) on OutLayer, Seams Wallet 0.69.0, and the demo.
 
 ## The problem
 

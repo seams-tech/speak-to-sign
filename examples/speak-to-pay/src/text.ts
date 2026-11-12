@@ -27,6 +27,8 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   transaction_failed: 'NEAR ran the transfer, and it failed.',
   // The Seams co-signer checks the verdict again before it signs. This is its refusal.
   cosigner_refused: 'Seams did not accept the verdict, so nothing was signed.',
+  summary_mismatch: 'The sentence does not give the main point of the note.',
+  summary_check_unavailable: 'The summary check service did not answer.',
 };
 
 const ENROLLMENT_REFUSALS: Record<EnrollmentRefusal, string> = {
@@ -48,6 +50,7 @@ const UNAVAILABLE: Record<SpeakToSignUnavailableReason, string> = {
   verifier_unavailable: 'The Seams verify route did not answer.',
   not_submitted: 'The Wallet did not send the transaction. Nothing was paid.',
   submission_unknown: 'The transaction may have been sent. Check NearBlocks before you pay again.',
+  summary_unavailable: 'Seams could not write the sentence to say. Try again.',
 };
 
 export function transferRefusalText(reason: TransferRefusal): string {

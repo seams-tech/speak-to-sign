@@ -1,4 +1,4 @@
-// The real signer: Seams Wallet Speak-to-Sign (SDK 0.68.1, `seams.near.spoken`).
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.69.0, `seams.near.spoken`).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe (its card shows in the
 // page's open dialog, src/signer/voiceCard.ts). For a note, the Seams server writes a short
@@ -13,7 +13,7 @@ import { isCancelError, isUserRejection } from './rejection';
 import { inVoiceCard } from './voiceCard';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-/** The typed spoken requests and the enrollment: `seams.near.spoken` (Wallet 0.68.1). */
+/** The typed spoken requests and the enrollment: `seams.near.spoken` (Wallet 0.69.0). */
 type Spoken = NonNullable<Seams['near']['spoken']>;
 /** The result of a spoken call that sends a transaction. */
 export type SpokenSent = SpeakToSignResult<SpeakToSignSentTransaction, string>;

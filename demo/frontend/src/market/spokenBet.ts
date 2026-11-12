@@ -47,6 +47,8 @@ const REASONS: Record<string, string> = {
   speaker_unavailable: 'The speaker check did not answer. Try again.',
   storage: 'The verifier could not read its record. Try again.',
   transcriber_unavailable: 'The speech-to-text service did not answer. Try again.',
+  // Verifier 0.14.0 and later: the NEAR AI gateway failed its TEE check.
+  transcriber_not_attested: 'The speech-to-text service did not pass its TEE check, so the verifier did not use it.',
 };
 
 const reasonText = (reason: string) => REASONS[reason] ?? `The verifier refused (${reason}).`;

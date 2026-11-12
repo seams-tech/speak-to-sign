@@ -186,7 +186,9 @@ checks before it.
 2. **Audio.** Decode the WAV, compute `audio_digest`, and run the energy
    gate.
 3. **Calls.** Send the canonical WAV to the speaker service and to NEAR AI
-   Whisper (`openai/whisper-large-v3`, English) at the same time.
+   Whisper (`openai/whisper-large-v3`, English) at the same time. In 0.14.0
+   and later, the Whisper request goes sealed with Oblivious HTTP to the
+   NEAR AI gateway that the verifier checked (section 11).
 4. **Storage.** While the calls are in flight, read the template and write
    the used-audio mark.
 5. **Speaker.** Check the signed reply of the speaker service (section 7.1).
@@ -298,7 +300,8 @@ key stays the same across verifier versions.
 | `words` | The heard words are not the rendered words. |
 | `unsupported` | The input is not a request that this version handles. |
 | `speaker_unavailable` | The speaker service did not answer, or its reply failed a check. |
-| `transcriber_unavailable` | NEAR AI did not answer, or gave no text. |
+| `transcriber_unavailable` | NEAR AI did not answer, or gave no text. In 0.14.0 and later also: the NEAR AI attestation could not be checked (no answer of NEAR AI or Intel PCS), and no check of the last 24 hours is stored. |
+| `transcriber_not_attested` | 0.14.0 and later: the attestation of the NEAR AI gateway failed a check, or the Whisper reply was not sealed by the checked gateway for this request. No transcript is used. |
 | `summary_mismatch` | A community note only (0.13.0 and later): JEV says that the summary does not give the main point of the note. |
 | `summary_check_unavailable` | A community note only (0.13.0 and later): JEV did not answer, or gave no fit. |
 | `storage` | The worker storage failed. |
@@ -402,11 +405,20 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
   version also reads the audio key and can open sealed audio. The OutLayer
   access rule "One build only" on the secrets profile limits this to one
   WASM hash, until the owner moves the lock.
-- **Sealed audio after the verifier.** The verifier sends the opened WAV to
-  the speaker service (Phala) and to NEAR AI over HTTPS. Those two services
-  see the recording.
-- **NEAR AI.** The transcript has no signature. A false transcript can pass
-  the word check.
+- **Sealed audio after the verifier.** Only TEEs open the WAV after the
+  verifier: the speaker service in a Phala dstack VM (Intel TDX, key pinned
+  from its attestation), and NEAR AI's gateway and Whisper, each in an Intel
+  TDX VM on dstack. Verifiers up to 0.13.0 send it to NEAR AI over HTTPS and
+  do not check NEAR AI's attestation. Verifier 0.14.0 checks the gateway's
+  TDX quote (Intel collateral, TCB, the pinned gateway key and a fresh
+  nonce, the compose hash) and the Whisper model's quote, keeps the result
+  for 6 hours, and seals each request to the gateway's attested OHTTP key
+  (RFC 9458). Not checked: the code that NEAR AI's VMs run, how the gateway
+  reaches Whisper, and the NVIDIA GPU evidence.
+- **NEAR AI.** The transcript has no signature. A false transcript of the
+  NEAR AI gateway or of Whisper can pass the word check. Verifier 0.14.0
+  takes it only from a reply that the checked gateway sealed for this
+  request.
 - **Phala.** The owner of the Phala app can change the service code and keep
   the same key.
 - **NEAR RPC.** The verifier does not check a proof of the access-key view at

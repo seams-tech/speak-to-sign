@@ -464,10 +464,21 @@ Who holds which key:
 
 Limits:
 
-- **The two model services see the recording.** The verifier pins the key of
-  the Phala service from its TDX attestation. NEAR AI Cloud states that its
-  inference runs in a TEE; the verifier does not check an attestation of
-  NEAR AI.
+- **Who opens the recording after the verifier.** Only TEEs: the speaker
+  service in a Phala dstack VM (Intel TDX), and NEAR AI's gateway and
+  Whisper, each in an Intel TDX VM on dstack (the report of the Whisper VM
+  also has NVIDIA GPU evidence). The verifier pins the key of the Phala
+  service from its TDX attestation. The active verifier (0.12.0) and the
+  demo's verifier (0.13.0) do not check NEAR AI: they send the recording
+  over HTTPS. The TLS key of `cloud-api.near.ai` is the key that the
+  gateway's TDX quote names (`JUDGES.md`, check 5), but these versions do not
+  check it. Verifier 0.14.0 (built, not on OutLayer) checks the gateway's
+  quote first, keeps the result for 6 hours, and seals each request to the
+  gateway's attested OHTTP key, so only that VM opens it
+  (`crates/voice-verifier/README.md`, "NEAR AI attestation"). Not checked:
+  the code that NEAR AI's VMs run, how the gateway reaches Whisper (the
+  gateway's code checks Whisper's TDX and GPU attestation and pins its TLS
+  key), and the NVIDIA GPU evidence.
 - **The request is not secret.** The Wallet sends the request fields in plain
   text, and the verdict names the heard words.
 - **The project owner.** A new verifier version of the same OutLayer project

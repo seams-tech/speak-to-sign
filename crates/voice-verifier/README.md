@@ -14,7 +14,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.13.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.14.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -130,7 +130,11 @@ another machine cannot build them again.
 - Speaker: ReDimNet B1 in a Phala dstack CVM (`config::SPEAKER_HOST`). Each
   embedding is signed; the worker checks the signature, the nonce, the audio
   digest, the model digest and the pinned key `config::SPEAKER_PINNED_KEY_HEX`.
-- Words: Whisper large-v3 on NEAR AI Cloud. Secret `NEAR_AI_API_KEY`.
+- Words: Whisper large-v3 on NEAR AI Cloud. Secret `NEAR_AI_API_KEY`. In
+  0.14.0 and later, the whole request (with the key) goes sealed with
+  Oblivious HTTP to the NEAR AI gateway that the worker checked, and the
+  worker reads the attestation report of NEAR AI and Intel's collateral when
+  its stored check is older than 6 hours. See "NEAR AI attestation".
 - Note summary (0.13.0 and later): JEV (`typesafe/jev-1.13`, Typesafe System
   One) on NEAR AI Cloud (`config::NEAR_AI_SYSTEMONE_URL`), with the same
   secret. Only a `community_note` request calls it.
@@ -150,7 +154,7 @@ payment key).
 | Build | `./build.sh` | `./build.sh --local-speaker` |
 | Speaker model | In the speaker service (Phala), signed embeddings | Inside the worker, in `tract` (`src/local_model.rs`) |
 | Manifest | `manifest/outlayer.json` | `manifest/outlayer-local-speaker.json` |
-| Hosts | Phala, NEAR AI, NEAR RPC | FastFS (first run only), NEAR AI, NEAR RPC |
+| Hosts | Phala, NEAR AI, NEAR RPC, Intel PCS (0.14.0 and later) | FastFS (first run only), NEAR AI, NEAR RPC, Intel PCS (0.14.0 and later) |
 | WASM (macOS arm64 build) | about 0.45 MB | about 8.3 MB |
 | Trust for the speaker | The Phala app and its pinned key | Only the worker and the pinned model digest |
 | Cost | A second service to operate and pay | More worker time for each call |
@@ -309,6 +313,8 @@ Stage times (`ms`, not signed), in ms:
 | `parallel`   | yes      | yes      | start of the requests to the last response (send + storage + wait) |
 | `speaker`    | yes      | yes      | speaker service response (`enroll`: the slowest of three)          |
 | `transcribe` | yes      |          | NEAR AI response (at most the template read late)                  |
+| `tee`        | yes      |          | 0.14.0 and later: get the checked NEAR AI gateway, before the requests |
+| `tee_cached` | yes      |          | 1: the stored check; 0: a new check; 2: the stored check, because the new one could not reach a service |
 | `summary`    | yes      |          | JEV response, a community note only (0.13.0 and later)             |
 | `redimnet`   | yes      |          | the service's own model time                                       |
 | `rpc`        |          | yes      | NEAR RPC access-key view response                                  |
@@ -525,6 +531,114 @@ Calibration with the instructions of this build: fair summaries gave 680 to
 generic summaries ("this is a note about a post") gave 410 to 690. JEV
 answers in approximately 0.3 s, in parallel with the transcription.
 
+## NEAR AI attestation
+
+Verifier 0.14.0 and later. The worker sends each recording to Whisper only
+sealed to the NEAR AI gateway, and only after it checked the gateway's
+attestation. Older versions send it over HTTPS and check nothing about
+NEAR AI.
+
+The request (`src/transcriber.rs`, `src/ohttp.rs`):
+
+- The worker writes the transcription request as Binary HTTP (RFC 9292,
+  known-length form): the POST to `/v1/audio/transcriptions` with the API
+  key, the multipart body and `x-no-aliasing: true`.
+- It seals the whole message with Oblivious HTTP (RFC 9458): HPKE base mode
+  with DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and ChaCha20-Poly1305, to the
+  OHTTP key configuration of the checked gateway. The POST goes to
+  `https://cloud-api.near.ai/ohttp` with the content type
+  `message/ohttp-req`. TLS terminators and the host of the VM carry only
+  ciphertext.
+- The gateway opens the request inside its TDX VM, and sends it to its own
+  route on the loopback address (source: `crates/api/src/routes/ohttp.rs` of
+  `nearai/cloud-api`). It seals the reply with a key from the same HPKE
+  context. So a reply that opens was written by the holder of the gateway
+  key, for this request.
+
+The check (`src/nearai_attestation.rs`): `GET
+https://cloud-api.near.ai/v1/attestation/report?model=openai/whisper-large-v3&signing_algo=ed25519&nonce=<32 random bytes>`
+(no API key), then Intel's collateral of its two quotes from Intel PCS: the
+PCK CRL, the TCB info of each FMSPC, the QE identity and the root CA CRL. The
+check passes only if:
+
+1. The gateway's TDX quote chains to Intel's SGX root CA with that
+   collateral at the worker's time (`dcap-qvl` 0.7.1), the TCB status is
+   `UpToDate`, and the TD is not a debug TD.
+2. The report data of the quote is the gateway's ed25519 key, then the nonce
+   of this check. The key is the pinned `config::NEAR_AI_GATEWAY_KEY_HEX`
+   (`40599fb2…4acb`). The gateway derives it from its dstack KMS key, so
+   every gateway instance has it (three instances gave it on 2026-11-12).
+3. The MRCONFIGID of the quote is `0x01 || SHA-256(app_compose) || 15 zero
+   bytes` (dstack). So the compose file of the report is the one that the TD
+   runs. The worker records its hash and does not pin it: NEAR AI deploys
+   often.
+4. The gateway key signs (ed25519) the OHTTP key configuration, and the
+   configuration has an X25519 key and the suite HKDF-SHA256 with
+   ChaCha20-Poly1305.
+5. The report has an attestation of `openai/whisper-large-v3`. Its TDX
+   quote passes the checks of step 1 and binds the model's ed25519 key and
+   the same nonce.
+
+The cache (`src/ops/whisper.rs`). A check that passes is a plaintext record
+in the worker storage of the project, `nearai-gateway:v1`: the gateway key,
+the OHTTP key configuration, the compose hash, the TCB status, the SHA-256
+of the quote and the time of the check. All callers and all versions of the
+project share it. Each operation with words (`verify`, `select`,
+`transcribe`, `detect`) does this before it sends any request:
+
+- It reads the record. If the check is younger than 6 hours
+  (`config::NEAR_AI_ATTESTATION_TTL_MS`), it seals to the key configuration
+  of the record. This is the normal call: one storage read, and about 3 ms
+  to seal a WAV of 211 KB (native release build).
+- Else it checks again with a fresh nonce, and writes the new record.
+- If that check cannot reach NEAR AI or Intel PCS, it uses the stored check
+  up to 24 hours after that check (`config::NEAR_AI_ATTESTATION_GRACE_MS`).
+  After that, it refuses with `transcriber_unavailable`.
+- If an answer fails a check, it refuses with `transcriber_not_attested`, also
+  within the 24 hours. No request goes out.
+- A reply that does not open, or the status 400 of the OHTTP endpoint (the
+  gateway could not open the request, for example after a change of its
+  key), refuses with `transcriber_not_attested` and drops the record. The
+  next call checks again.
+
+Times on 2026-11-12, from a laptop, not from OutLayer:
+
+| Step | Time |
+| --- | --- |
+| A sealed transcription of a 211 KB WAV (4 calls) | 1.35 to 1.52 s |
+| The same request in plain HTTPS (4 calls) | 1.50 to 1.57 s |
+| The attestation report (288,651 bytes) | 1.41 to 1.51 s |
+| Intel's collateral, five requests in parallel | 0.87 to 0.93 s |
+| The two quote checks (native release build) | 6 to 9 ms |
+
+So a normal call adds the storage read and the seal, and the first call after
+6 hours adds about 2.4 s. Not checked:
+
+- The code that NEAR AI's VMs run. The worker records the compose hash of the
+  gateway, not a review of it.
+- How the gateway reaches Whisper. The gateway's code checks Whisper's TDX
+  and GPU attestation and pins Whisper's TLS key
+  (`crates/inference_providers/src/spki_verifier.rs` of `nearai/cloud-api`).
+- The NVIDIA GPU evidence in the report of the Whisper VM.
+- That the gateway passes Whisper's words unchanged. NEAR AI does not sign a
+  transcription: its signature endpoint covers chat completions and
+  responses only.
+
+Tests: `tests/nearai_attestation.rs` checks a recorded real report
+(`testdata/nearai_report_v1.json`, for the nonce of 32 bytes of 0x5a) with
+Intel's recorded replies (`testdata/nearai_collateral_v1.json`) at the time of
+the recording: a wrong nonce, stale collateral, another compose file, a
+changed MRCONFIGID, another model, other keys, changed signatures and
+collateral, and no answer. `tests/ops/whisper.rs` tests the cache and each
+refusal with a fake gateway. Against the live services:
+
+```sh
+SEAMS_NEAR_AI_LIVE=1 cargo test --release --test nearai_attestation_live -- --nocapture
+SEAMS_NEAR_AI_LIVE=1 NEAR_AI_API_KEY=... SEAMS_WAV=clip.wav cargo test --release --test ohttp_live -- --nocapture
+# New test data (no API key):
+SEAMS_NEAR_AI_RECORD=1 cargo test --release --test nearai_attestation_live
+```
+
 ## Sealed audio
 
 Verifier 0.12.0 and later. A Wallet seals each WAV to the audio key, so the
@@ -712,6 +826,15 @@ only.
 - `msig1:<multisig>:<commitment b64u>:tries:<owner>`: the decimal count of
   `words` refusals of that owner.
 
+The worker storage of the project (one for all callers and versions) holds
+`nearai-gateway:v1`, the checked NEAR AI gateway (see "NEAR AI attestation"),
+and the model records of the `local-speaker` variant.
+
 ## Vendored crate
 
 `vendor/bit-vec` is kept for `voice-probe`, which patches to it.
+
+`vendor/dcap-qvl` is dcap-qvl 0.7.1 with its `src/` unchanged. Its manifest
+does not turn on `serde_json/preserve_order` (that feature would change the
+key order of every JSON value of the verifier), builds an `rlib` only, and
+has no test targets. Its first lines give the checksum of the crate.

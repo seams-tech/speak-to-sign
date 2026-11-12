@@ -250,10 +250,14 @@ The deploy transactions and the way to build each contract again are in
 Its verdict key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
 The key is bound to the project, and the Wallet and the contracts pin it.
 
+The verifier gets the heard words from Whisper on NEAR AI by default. NEAR
+AI's Whisper is down since 2026-11-12, so the verifier uses Whisper on Venice
+AI until it is back.
+
 | Version | State |
 | --- | --- |
-| 0.14.1 | On OutLayer, not active. It checks the TDX quotes of NEAR AI before it sends audio there. No caller selects it yet. |
-| 0.14.1+venice | Active since 2026-11-12, because NEAR AI Whisper gave no reply: a call with no `version_key` runs it. It gets the words from Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. |
+| 0.14.1 | The default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. |
+| 0.14.1+venice | In use now, while NEAR AI's Whisper is down: Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. |
 
 [`docs/deployed-state.md`](docs/deployed-state.md) says what is live now, where
 it differs from the source, and the command that checks each part.

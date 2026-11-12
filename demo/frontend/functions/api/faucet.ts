@@ -8,14 +8,20 @@
 // A new Seams wallet is an implicit account, which is not on the chain until its first NEAR.
 // The drip's NEAR transfer creates it, so the faucet takes such an account as it is. A named
 // account must exist first: its USDC would go to an account that nobody holds.
+//
+// Each network (IP address) gets the faucet for ACCOUNTS_PER_NETWORK accounts, so that a script
+// with new account IDs cannot empty the faucet (lib/networkLimit.ts).
 
 import { isImplicitAccount } from '../../src/guards.ts';
 import { accountExists, signAndSendCall, viewCall } from '../../src/faucet/nearTx.ts';
 import { DEFAULT_RPC_URL, isAccountId, json, refuseOtherOrigin } from '../lib/http.ts';
+import { ACCOUNTS_PER_NETWORK, takeAccount } from '../lib/networkLimit.ts';
 
 interface Env {
   /** "ed25519:..." The function-call key of the faucet account for `drip`. */
   FAUCET_PRIVATE_KEY?: string;
+  /** KV: the accounts that each network got. No faucet without it. */
+  FAUCET_LIMITS?: KVNamespace;
   /** Optional. Default seams-faucet.testnet. */
   FAUCET_ACCOUNT?: string;
   /** Optional. Default https://test.rpc.fastnear.com. */
@@ -37,6 +43,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.FAUCET_PRIVATE_KEY) {
     return json({ error: 'The faucet has no key on this server.' }, 503);
   }
+  if (!env.FAUCET_LIMITS) {
+    return json({ error: 'The faucet has no limit store on this server.' }, 503);
+  }
+  const limits = env.FAUCET_LIMITS;
   const faucet = env.FAUCET_ACCOUNT ?? DEFAULT_FAUCET;
   const rpcUrl = env.NEAR_RPC_URL ?? DEFAULT_RPC_URL;
 
@@ -59,6 +69,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return json({ error: 'This account is not on NEAR testnet yet.' }, 400);
     }
     const config = await viewCall<FaucetConfig>(rpcUrl, faucet, 'get_config', {});
+    const giveBack = await takeAccount(limits, request.headers.get('CF-Connecting-IP'));
+    if (!giveBack) {
+      return json({ error: `Your network already got testnet funds for ${ACCOUNTS_PER_NETWORK} accounts.` }, 429);
+    }
+    // From here an error keeps the network's account: the drip may have gone through.
     const outcome = await signAndSendCall(rpcUrl, faucet, faucet, env.FAUCET_PRIVATE_KEY, {
       methodName: 'drip',
       args: { account_id: accountId },
@@ -66,9 +81,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       deposit: 0n,
     });
     if (outcome.failure) {
+      await giveBack();
       return json({ error: `The faucet stopped: ${outcome.failure}`, transactionHash: outcome.transactionHash }, 502);
     }
     if (outcome.value !== true) {
+      await giveBack();
       return json(
         { error: 'The faucet could not send USDC (it may be empty). Nothing was sent.', transactionHash: outcome.transactionHash },
         502,

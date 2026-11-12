@@ -68,12 +68,13 @@ before, and it is the baseline, not hackathon work. See
    ([trust chain](docs/trust-chain.md), [spec 9.1](docs/voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote))
 8. **Where the audio is opened.** The OutLayer worker opens it, then sends it
    to the Phala speaker service (a TDX VM, its key pinned from its
-   attestation) and to NEAR AI. NEAR AI's attestation report shows its
-   gateway and Whisper as Intel TDX VMs on dstack, with NVIDIA GPU evidence
-   for Whisper. Nothing here checks that report, or that TLS ends inside the
-   gateway. A check of the report is built but not shipped, because it adds
-   about 0.5 s to each call.
-   ([trust chain](docs/trust-chain.md#why-the-near-ai-check-is-not-shipped))
+   attestation) and to NEAR AI Whisper. The verifier source on `dev` (0.14.0)
+   checks the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the
+   worker, and sends the audio to Whisper only sealed to the checked gateway.
+   The live versions (0.12.0 and 0.13.0) do not: they send the audio over TLS
+   and check nothing about NEAR AI. Do not write that the check is live.
+   ([trust chain](docs/trust-chain.md#the-near-ai-check),
+   [deployed state](docs/deployed-state.md#checks-that-are-in-progress))
 9. **On chain, the market and the multisig check each verdict.** The live
    notes contract does not: its source has the check, but that build is not
    deployed. ([deployed state](docs/deployed-state.md#the-contracts))

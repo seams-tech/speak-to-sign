@@ -286,13 +286,18 @@ git clone https://github.com/seams-tech/speak-to-sign
 
 5. NEAR AI publishes an attestation report for its Whisper model: an Intel
    TDX quote of the Whisper VM, with NVIDIA GPU evidence, and a quote of its
-   gateway. This command shows only that the report has them. Nothing in this
-   repo checks the report: see
-   [`docs/trust-chain.md`](docs/trust-chain.md#why-the-near-ai-check-is-not-shipped).
+   gateway. The first command shows only that the report has them. The second
+   command runs the verifier's own check of the two quotes on a recorded
+   report, with Intel's recorded collateral, and compares that check with
+   `dcap-qvl`. The check is in the verifier source (0.14.0). The live verifier
+   versions (0.12.0 and 0.13.0) do not have it yet: see
+   [`docs/trust-chain.md`](docs/trust-chain.md#the-near-ai-check).
 
    ```bash
    # See: openai/whisper-large-v3: Intel TDX quote true, NVIDIA GPU evidence true
    curl -s "https://cloud-api.near.ai/v1/attestation/report?model=openai/whisper-large-v3" | jq -r '.model_attestations[0] | "\(.model_name): Intel TDX quote \(.intel_quote|length > 0), NVIDIA GPU evidence \(.nvidia_payload|length > 0)"'
+   # See: 2 lines "test result: ok." with 10 passed and 5 passed (the first run also compiles the crate)
+   (cd speak-to-sign/crates/voice-verifier && cargo test --test nearai_attestation --test tdx_quote 2>&1 | grep "^test result")
    ```
 
 ## Claim -> where to check it
@@ -312,6 +317,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.69.2: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L197) and its [test](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/tests/unit/speakToSignHost.unit.test.ts#L1118) |
 | The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig.seams-v1.testnet`; no proposal ran there yet. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |
+| In the verifier source (0.14.0, not live yet), a recording goes to Whisper only sealed to a NEAR AI gateway whose TDX quote passed the check. A failed check sends nothing to NEAR AI. | `the_recorded_report_passes`, `a_wrong_key_fails`, `a_wrong_measurement_fails` in `crates/voice-verifier/tests/nearai_attestation.rs`; `no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper`, `a_failed_check_refuses_even_within_the_grace_period` in `tests/ops/whisper.rs`; check 5 above |
 | A sealed recording opens only for its owner and operation. | `sealed_audio_opens_only_for_its_owner_and_operation` in `crates/voice-verifier/tests/ops/sealed.rs`; spec 5.1 |
 | The active verifier (0.12.0) and the verifier that the demo calls (0.13.0) come from this source. | Check 3 above; `crates/voice-verifier/README.md`, "Reproducible build" |
 
@@ -336,9 +342,12 @@ boundaries", spec section 11, and the READMEs of the contracts:
 - The Phala app owner can change the speaker service and keep its key.
 - The device seals each recording. The verifier opens it and sends it to the
   Phala speaker service (an Intel TDX VM, its key pinned from its
-  attestation) and to NEAR AI. NEAR AI's report shows its gateway and Whisper
-  as Intel TDX VMs, but nothing here checks that report, or that TLS ends
-  inside the gateway (see check 5).
+  attestation) and to NEAR AI. The live verifier versions (0.12.0 and 0.13.0)
+  send it to NEAR AI over TLS and do not check NEAR AI's attestation. The
+  verifier source (0.14.0) checks the TDX quotes of NEAR AI's gateway and of
+  Whisper, and sends the recording only sealed to the checked gateway (see
+  check 5). That build is not live yet. Also with the check, the code of
+  NEAR AI's VMs and the link from its gateway to Whisper stay trusted.
 - The verifier does not check a proof of the NEAR RPC access-key view at
   enrollment.
 - Each of the four demo contract accounts still has a full-access key. Its

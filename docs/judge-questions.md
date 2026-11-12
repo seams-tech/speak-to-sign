@@ -229,5 +229,9 @@ run".
 
 **Not done.** Testnet only. The verifier sends the opened recording to the
 Phala speaker service, whose key it pins from its attestation, and to NEAR
-AI, whose report shows TDX VMs but which nothing here checks. There is no
-mainnet date yet.
+AI. The live verifier versions do not check NEAR AI's attestation. The
+verifier source (0.14.0) checks the TDX quotes of NEAR AI's gateway and of
+Whisper, and sends the recording only sealed to the checked gateway; that
+build is not live yet (see
+[`trust-chain.md`](trust-chain.md#the-near-ai-check)). There is no mainnet
+date yet.

@@ -16,7 +16,7 @@ section 9.1 (each checker). The live state is in
 | 2 | The verifier runs in a TEE (OutLayer, Intel TDX) | The TDX quote of each call. Its report data binds the WASM hash, the input and the output, and the verdict is in the output. | The Seams verify route, against the pinned WASM hash. It refuses with `attestation_<code>`. | Built: `seams-wallet` `dev` at `0b297e976` (`speakToSignAttestation.ts`). These docs do not record a deploy of the staging server yet. |
 | 3 | The verifier is this source | The reproducible build: Docker gives the same SHA-256 as the OutLayer version | Anyone: JUDGES.md check 3 | Live |
 | 4 | The speaker check runs in a TEE (Phala dstack CVM, Intel TDX) | The service signs each embedding with a key from its TDX attestation | The verifier pins that key (`SPEAKER_PINNED_KEY_HEX`), after a check of the attestation on 2026-11-07 | Live |
-| 5 | The transcript comes from a TEE (NEAR AI Cloud, Whisper large-v3) | NEAR AI publishes an attestation report: Intel TDX quotes of its gateway and of the Whisper VM, on dstack, and NVIDIA GPU evidence for Whisper. The report does not name the TLS key of `cloud-api.near.ai`. | Nobody. The verifier does not check it, and the transcript has no signature. | **Built, not shipped** (decision of 2026-11-12). See [Why the NEAR AI check is not shipped](#why-the-near-ai-check-is-not-shipped). |
+| 5 | The transcript comes from a TEE (NEAR AI Cloud, Whisper large-v3) | The Intel TDX quotes of NEAR AI's gateway and of its Whisper VM, each with a fresh nonce of the verifier. The gateway's quote names the gateway key, and that key signs the key to which the verifier seals each recording (Oblivious HTTP). So only the gateway's TDX VM opens the request, and the sealed reply comes from that VM. | The verifier, from 0.14.0: it checks both quotes with Intel's collateral, at least each 6 hours, before it sends a recording. It refuses with `transcriber_not_attested`. | **In the source on `dev`, not in the live versions.** 0.12.0 and 0.13.0 send the audio over TLS and check nothing about NEAR AI. See [The NEAR AI check](#the-near-ai-check). |
 | 6 | The verdict | An ed25519 signature by the verdict key over the request digest, the audio digest, the heard words, the outcome and an expiry of 120 s | Wallet core, the Seams co-signer and the contracts, against the pinned key | Live |
 | 7 | The Wallet signs only the matching call | Threshold signing with two parts: a co-signer on the device (in an origin-isolated iframe) and the Seams co-signer. Each builds the request itself and checks the verdict for it. | Each co-signer refuses a verdict for another request. A `step_up` verdict needs a passkey too. | Live |
 | 8 | The contract takes only a spoken action | `voice-multisig` and `pm-notes` check the verdict and its key on chain, and count each verdict once | The contract itself | Live for these two. The notes contract has the check in its source only. |
@@ -46,64 +46,82 @@ section 9.1 (each checker). The live state is in
 - **Intel TDX** and its collateral, and the OutLayer worker image that
   `worker.outlayer.testnet` approves.
 - **The Phala app owner.** It can change the speaker service and keep its key.
-- **NEAR AI**, for the transcript, and for the claim that only its TEEs see
-  the audio, including that TLS ends inside its gateway. Its attestation
-  report is public: JUDGES.md check 5 reads it, but does not check it.
+- **NEAR AI.** The live verifier versions (0.12.0 and 0.13.0) trust it for
+  the transcript, and for the claim that only its TEEs see the audio. The
+  verifier source on `dev` (0.14.0) checks the TDX quotes of its gateway and
+  of Whisper, and seals the audio to the gateway. Then this is left: the
+  code of NEAR AI's VMs, the link from its gateway to Whisper, and a
+  correct transcript, because the transcript has no signature of the model.
+  See [The NEAR AI check](#the-near-ai-check).
 
-## Why the NEAR AI check is not shipped
+<a id="why-the-near-ai-check-is-not-shipped"></a>
 
-A check of NEAR AI's attestation is built and tested in the verifier, on the
-branch `claude/nearai-attestation-cache-8506f2` (commit `e8d7400`). It is not
-on `dev`, and no verifier version on OutLayer has it.
+## The NEAR AI check
+
+The verifier source on `dev` (version 0.14.0) checks NEAR AI's attestation
+inside the OutLayer worker, and sends each recording to Whisper only sealed
+to the gateway that it checked. The details are in the
+[verifier README](../crates/voice-verifier/README.md#near-ai-attestation).
+
+**The state.**
+- The check is in the source and its tests pass. The versions that run for
+  users do not have it: 0.12.0 is the active version, and the demo and the
+  Seams staging server call 0.13.0. Both send the audio to NEAR AI over TLS
+  and check nothing about NEAR AI.
+- A first build of 0.14.0 (`2f8e75a3…`, with `dcap-qvl`) is on OutLayer, not
+  active, and no caller selects it. On 2026-11-12 it checked the two quotes
+  inside OutLayer and kept the result, and two later calls read that result.
+  NEAR AI Whisper gave no reply during that test, so no sealed transcription
+  ran on OutLayer. From a laptop, the sealed transcription and the full check
+  passed against NEAR AI and Intel (the live tests of the crate).
+- The build of `dev` has the worker's own quote check in place of `dcap-qvl`.
+  It is not on OutLayer. The live state is in
+  [`deployed-state.md`](deployed-state.md).
 
 **The design.**
-- The verifier seals each transcription request with OHTTP to the key of the
-  NEAR AI gateway. The gateway's ed25519 key signs that OHTTP key config.
-- The gateway's TDX quote binds the ed25519 key and a fresh nonce from the
+- The verifier seals each transcription request with Oblivious HTTP (HPKE) to
+  the key of the NEAR AI gateway. The gateway's ed25519 key signs that key
+  configuration. Only the gateway's TDX VM opens the request, and it seals
+  its reply to the same request.
+- The gateway's TDX quote names the ed25519 key and a fresh nonce from the
   verifier. The verifier checks the quote with Intel's collateral, which it
-  fetches itself. It pins the gateway key, and it
-  records the compose hash but does not pin it, because NEAR AI deploys
-  often.
-- The verifier keeps the checked result in the worker storage for 6 h. After
-  that, a network failure of NEAR AI or of Intel's collateral service keeps
-  the last good result for up to 24 h. A failed check, or a changed key,
-  refuses at once.
-- Not checked by this design: the link from the gateway to Whisper (the
-  gateway itself checks Whisper's TDX and GPU attestation and pins its TLS
-  key), and the NVIDIA GPU attestation.
+  gets itself: the certificate chain to Intel's root, the revocation lists,
+  the TCB status (`UpToDate` or `SWHardeningNeeded`), and no debug mode. It
+  pins the gateway key. It records the compose hash but does not pin it,
+  because NEAR AI deploys often.
+- Whisper has its own TDX quote. The verifier checks it in the same way, with
+  the same nonce.
+- The verifier keeps the checked result in the worker storage for 6 hours.
+  After that, a network failure of NEAR AI or of Intel's collateral service
+  keeps the last good result for up to 24 hours. A failed check, or a reply
+  that does not open, refuses at once with `transcriber_not_attested`. No
+  recording goes to NEAR AI without a checked gateway.
 
-**The numbers** (testnet, 2026-11-12):
-- An OHTTP transcription took 1.41–1.45 s, against 1.50–1.52 s for plain
-  HTTPS.
-- A normal call adds one storage read and about 10 ms of sealing. A new check
-  takes about 2–4 s, once in 6 h.
+**What the check does not cover.**
+- The code of NEAR AI's VMs. The verifier records the compose hash and does
+  not pin it.
+- The link from the gateway to Whisper. The gateway itself checks Whisper's
+  attestation and pins its TLS key. That is NEAR AI's code.
+- The NVIDIA GPU evidence of Whisper.
+- A correct transcript. The transcript has no signature of the model.
+- The stored result is one record for all versions of the OutLayer project.
+  A new version of the project can write it.
 
-**The cost that stopped it.** At the decision, the quote check (`dcap-qvl`,
-X.509, P-256) doubled the verifier WASM: 1,062,153 bytes, against 548,960 for
-0.13.0. OutLayer has a fixed time per call that grows with the WASM size:
-about 1 s per MB, from earlier OutLayer timings. So the check could add about
-0.5 s to every spoken approval. `build.sh` also refused a WASM of 1,000,000
-bytes or more.
+**The cost.** OutLayer loads the WASM on each call, and the load time grows
+with its size: about 2.3 ms for each KB on 2026-11-12. The first build with
+the check was 1,038,333 bytes, against 548,960 for 0.13.0, and it took about
+1.1 s more on each call. For that reason the owner decided on 2026-11-12 not
+to ship it. Three changes then made the worker smaller: `wasm-opt` in the
+build, the worker's own TDX quote check in place of `dcap-qvl`, and inputs
+that are read without `serde` types. The build of `dev` is 494,721 bytes,
+which is smaller than 0.13.0. The numbers are in the
+[verifier README](../crates/voice-verifier/README.md#size-and-load-time).
 
-**The cost after the decision.** On 2026-11-13, the verifier got its own small
-TDX quote check in place of `dcap-qvl` (see the
-[verifier README](../crates/voice-verifier/README.md#the-tdx-quote-check)),
-and `build.sh` got a `wasm-opt` step. The WASM with the quote check is now
-560,034 bytes, which is 11,074 bytes more than 0.13.0. The time of this build
-on OutLayer is not measured.
-
-**The two ways to ship it later:**
-- **A. One WASM.** Add the build as a version that is not active, measure its
-  time against 0.13.0 with `version_key`, and decide from the numbers.
-- **B. Split.** The verifier keeps only the OHTTP seal and a read of the check
-  result (588,877 bytes, about 0 s added). A small checker version in the same
-  OutLayer project runs the quote check from a scheduled call every 6 h, and
-  writes the result to the shared worker storage. This adds two versions, a
-  schedule and route changes, and it fails closed if the schedule stops for
-  24 h.
-
-**Decision.** On 2026-11-12, the owner decided not to ship it, and to record
-this tradeoff. So NEAR AI stays trusted, as listed above.
+**What is left before it is live.** The build of `dev` must go to OutLayer as
+a version that is not active, and its time must be measured against 0.13.0.
+Then the Seams staging server and the demo must select the new version, and
+the Wallet must know the refusal `transcriber_not_attested`. Until then, NEAR
+AI stays trusted for the live versions, as listed above.
 
 The attacks that these gaps allow, and what stops each one, are in
 [`threat-model.md`](threat-model.md).

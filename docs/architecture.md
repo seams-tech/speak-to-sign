@@ -427,7 +427,7 @@ recording. Grey boxes hold no audio.
 | 4. OutLayer coordinator | OutLayer's API and its call record | Sealed |
 | 5. Verifier | The OutLayer worker, inside its TEE | Plain, only for this run |
 | 6a. Speaker service | A Phala dstack confidential VM (Intel TDX) | Plain, sent over TLS |
-| 6b. NEAR AI Whisper | NEAR AI Cloud | Plain, sent over TLS |
+| 6b. NEAR AI Whisper | NEAR AI Cloud | 0.12.0 and 0.13.0 (live): plain, sent over TLS. 0.14.0 (source): sealed to the checked gateway |
 | 7. Verdict | Back through the same servers | No audio |
 
 What is kept after a run:
@@ -455,10 +455,12 @@ Limits:
 
 - **Who opens the recording after the verifier.** The Phala speaker service
   runs in a TDX VM, and the verifier pins its key from its TDX attestation.
-  NEAR AI's attestation report shows its gateway and Whisper as Intel TDX VMs
-  on dstack, with NVIDIA GPU evidence for Whisper. Nothing here checks that
-  report, or that TLS ends inside the gateway; see
-  [`trust-chain.md`](trust-chain.md#why-the-near-ai-check-is-not-shipped).
+  For NEAR AI, the live verifier versions (0.12.0 and 0.13.0) send the
+  recording over TLS and do not check NEAR AI's attestation. The verifier
+  source (0.14.0) checks the Intel TDX quotes of NEAR AI's gateway and of
+  Whisper inside the worker, and sends the recording only sealed to the key
+  of the checked gateway. That build is not live yet; see
+  [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **The request is not secret.** The Wallet sends the request fields in plain
   text, and the verdict names the heard words.
 - **The project owner.** A new verifier version of the same OutLayer project

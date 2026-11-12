@@ -299,6 +299,7 @@ key stays the same across verifier versions.
 | `unsupported` | The input is not a request that this version handles. |
 | `speaker_unavailable` | The speaker service did not answer, or its reply failed a check. |
 | `transcriber_unavailable` | NEAR AI did not answer, or gave no text. |
+| `transcriber_not_attested` | Verifier 0.14.0 and later: the check of NEAR AI's TDX quotes failed, or a reply did not come from the checked gateway. No recording went to NEAR AI. |
 | `summary_mismatch` | A community note only (0.13.0 and later): JEV says that the summary does not give the main point of the note. |
 | `summary_check_unavailable` | A community note only (0.13.0 and later): JEV did not answer, or gave no fit. |
 | `storage` | The worker storage failed. |
@@ -454,12 +455,15 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
   version also reads the audio key and can open sealed audio. The OutLayer
   access rule "One build only" on the secrets profile limits this to one
   WASM hash, until the owner moves the lock.
-- **Sealed audio after the verifier.** The verifier sends the opened WAV over
-  HTTPS to the speaker service (a Phala TDX VM, its key pinned from its
-  attestation) and to NEAR AI. NEAR AI's report shows its gateway and Whisper
-  as Intel TDX VMs, but nothing here checks that report, or that TLS ends
-  inside the gateway; see
-  [`trust-chain.md`](trust-chain.md#why-the-near-ai-check-is-not-shipped).
+- **Sealed audio after the verifier.** The verifier sends the opened WAV to
+  the speaker service (a Phala TDX VM, its key pinned from its attestation)
+  and to NEAR AI. Verifier 0.12.0 and 0.13.0 (the live versions) send it to
+  NEAR AI over HTTPS and do not check NEAR AI's attestation. Verifier 0.14.0
+  (the source, not live yet) checks the Intel TDX quotes of NEAR AI's gateway
+  and of Whisper, and sends the WAV only sealed to the checked gateway. The
+  code of NEAR AI's VMs and the link from its gateway to Whisper stay
+  trusted; see
+  [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **NEAR AI.** The transcript has no signature. A false transcript can pass
   the word check.
 - **Phala.** The owner of the Phala app can change the service code and keep

@@ -564,9 +564,11 @@ The diffs:
 From verifier 0.12.0 the audio is sealed: the device seals each recording to
 a key that exists only inside the OutLayer TEE, and the servers between them
 carry ciphertext. The verifier then sends the opened recording to the
-speaker service (a Phala TDX VM, its key pinned) and to NEAR AI, whose report
-shows its gateway and Whisper as TDX VMs. Nothing here checks NEAR AI's
-report. The diagram is
+speaker service (a Phala TDX VM, its key pinned) and to NEAR AI Whisper. The
+verifier source (0.14.0) checks the TDX quotes of NEAR AI's gateway and of
+Whisper inside the worker, and sends the recording only sealed to the checked
+gateway. The live versions (0.12.0 and 0.13.0) do not have this check yet
+([state](docs/trust-chain.md#the-near-ai-check)). The diagram is
 [section 9 of `docs/architecture.md`](docs/architecture.md#9-confidential-audio).
 
 The specification is `docs/voice-intents-spec.md`. The diagrams are in
@@ -635,6 +637,7 @@ The deploy transactions and the way to build each contract again are in
 | ------------------- | -------------------------------------------------------------------------------------------- |
 | Verifier            | `seams-v1.testnet/voice-verifier`, version 0.12.0, `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946`, active since 2026-11-11 (`set_active_version` tx `HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`). All request kinds, application owners, `select`, `transcribe`, `detect` and sealed audio. Before it, 0.11.0 (`d2f8b630…d9f8`) was active on 2026-11-11, and 0.5.2 (`96b79b51…d7e5`) from 2026-11-09 17:04 UTC. The Wallet server and the demo routes each send their own `version_key`. |
 | Verifier that the demo calls | version 0.13.0, `1b7771544f3bcf5b3ba9e9bf3ac611f6abad21e7538f67b2666fd8aafc8cf930`, added 2026-11-12 and not active. The demo signs through the Seams staging server, and that server selects this version by `version_key` (`speakToSignVerifier` in `deployment/wallet-system/targets.json` of seams-monorepo). It adds the JEV check that the summary of a community note gives its main point. Commit `a4d6ce7` builds it (`JUDGES.md`, check 3). Its transactions are in `crates/voice-verifier/README.md`. |
+| Verifier with the NEAR AI check | version 0.14.0, `2f8e75a3590e90518c344f4683a8912fd0876ab3f000981a002f1741b607ffb5`, added 2026-11-12 and not active (FastFS tx `12q7t1fcC2biqRRuKveo7LUWLREx3MfD2SSGN6tydxja`, `add_version` tx `CRbDmxzJWqLXCvwrfKGKdUWQ1UWJ6xm8FmKRYcuuojHa`). It is the first build of the check, with `dcap-qvl` (1,038,333 bytes). No caller selects it. The source on `dev` has a smaller build of the same check (494,721 bytes), which is not on OutLayer. See [`docs/deployed-state.md`](docs/deployed-state.md#the-verifier). |
 | Verifier with notes | version 0.4.0, `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`, added 2026-11-09 and not active (FastFS tx `GPzHTAuC2VADuGR46ks7Mij8oPcZ4xVW9h7VuEkyqfuh`, `add_version` tx `9k7qWvG1JcCVyfzRjWjbWsjdK5MjXwQQ7vh71rT8me7y`). It adds `community_note` and `note_rating`; transfers are unchanged. A caller selects it by `version_key`. |
 | Verifier with multisig | version 0.6.1, `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb`, added 2026-11-10 and not active (FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). It reads "point" for "dot" and a left-out "dash" in a spoken multisig proposal. The voice multisig route of the demo selected it by `version_key`, until that route was removed on 2026-11-12. Version 0.6.0, `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9`, added 2026-11-10 and not active (FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). It adds `multisig_propose` and `multisig_confirm`; the other kinds are unchanged. The voice multisig route used it until 0.6.1. |
 | Earlier verifiers   | version 0.5.1, `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258`, and version 0.4.1, `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`, not active. Version 0.3.1, `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`, transfers only, not active. |
@@ -649,9 +652,9 @@ The deploy transactions and the way to build each contract again are in
 
 - **OutLayer.** The TEE run of pinned code, its storage of the template and the used audio, its signing key, and the NEAR AI secret. If OutLayer's TEE or governance fails, the verdict means nothing.
 - **Project owner.** The owner of the OutLayer project can deploy a new version that signs with the same project-bound key. The Wallet pins the key, not the code.
-- **NEAR AI.** The gateway gives the transcript without a signature. A false transcript could pass the words check.
+- **NEAR AI.** The transcript has no signature of the model. A false transcript could pass the words check. The verifier source (0.14.0) checks that the transcript comes from NEAR AI's attested gateway; the live versions do not.
 - **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID. The Phala app owner can change the service code and keep the same key.
-- **Sealed audio after the verifier.** The verifier sends the opened recording to the speaker service (a Phala TDX VM, its key pinned from its attestation) and to NEAR AI. NEAR AI's report shows its gateway and Whisper as TDX VMs, but nothing here checks that report, or that TLS ends inside the gateway ([why](docs/trust-chain.md#why-the-near-ai-check-is-not-shipped)).
+- **Sealed audio after the verifier.** The verifier sends the opened recording to the speaker service (a Phala TDX VM, its key pinned from its attestation) and to NEAR AI. The live versions (0.12.0 and 0.13.0) send it to NEAR AI over TLS and do not check NEAR AI's attestation. The verifier source (0.14.0) checks the TDX quotes of NEAR AI's gateway and of Whisper, and sends the recording only sealed to the checked gateway. That build is not live yet, and it still trusts the code of NEAR AI's VMs and the link from the gateway to Whisper ([details](docs/trust-chain.md#the-near-ai-check)).
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **NEAR RPC.** The verifier reads the owner's access key from `test.rpc.fastnear.com` to check an enrollment authorization. It does not check a proof of that view.
 - **Seams.** The Wallet and the Seams co-signer sign jointly. No contract limits a spoken payment; the policy step asks for a passkey above its amount.

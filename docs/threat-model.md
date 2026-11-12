@@ -18,7 +18,7 @@ is in [`trust-chain.md`](trust-chain.md), and the live state is in
 | 6 | A bot farm with text-to-speech voices | Partly: a cost for each action |
 | 7 | One multisig signer who approves for another | **Yes** |
 | 8 | The owner of the OutLayer project | Partly: through the Seams verify route |
-| 9 | NEAR AI | No: trusted (a check is built, not shipped) |
+| 9 | NEAR AI | Partly: the verifier source checks its TDX quotes; the live versions do not |
 | 10 | The owner of the Phala app | No: trusted |
 | 11 | The Seams team | No: trusted |
 | 12 | A contract caller with a plain key | Key check only |
@@ -135,18 +135,30 @@ key check only, for example a caller that does not use the Seams Wallet (see
 
 ## 9. NEAR AI
 
-**What stops it.** Nothing that this repo checks. NEAR AI's attestation
-report shows its gateway and Whisper as Intel TDX VMs on dstack, with NVIDIA
-GPU evidence for Whisper (JUDGES.md check 5 reads it). A check of that report
-in the verifier is built, but not shipped, because it adds about 0.5 s to
-each call. See
-[trust-chain.md](trust-chain.md#why-the-near-ai-check-is-not-shipped).
+**What stops it.** In the verifier source on `dev` (version 0.14.0): the
+verifier checks the Intel TDX quotes of NEAR AI's gateway and of its Whisper
+VM, with Intel's collateral and a fresh nonce. It sends each recording to
+Whisper only sealed to the key of the checked gateway, so only that TDX VM
+opens it. A failed check refuses with `transcriber_not_attested`, and no
+recording goes to NEAR AI. In the live versions (0.12.0 and 0.13.0): nothing.
+They send the audio over TLS and do not check NEAR AI. See
+[trust-chain.md](trust-chain.md#the-near-ai-check) and
+[deployed-state.md](deployed-state.md).
 
-**What is left.** The verifier does not check the attestation, and the
-transcript has no signature. A false transcript can pass the word check. The
-claim that only a TEE sees the audio rests on NEAR AI, including that TLS ends
-inside its gateway: the public report does not name the TLS key of
-`cloud-api.near.ai`.
+**Evidence.** `the_recorded_report_passes`, `a_wrong_key_fails` and
+`a_wrong_measurement_fails` in `crates/voice-verifier/tests/nearai_attestation.rs`;
+`no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper` and
+`a_reply_that_the_gateway_did_not_seal_refuses_and_drops_the_record` in
+`tests/ops/whisper.rs`; `tests/tdx_quote.rs` compares the worker's quote check
+with `dcap-qvl`.
+
+**What is left.** With the check: the transcript has no signature of the
+model, so a false transcript from NEAR AI's VMs can pass the word check. The
+verifier records the compose hash of the gateway and does not pin it, so the
+code of NEAR AI's VMs is trusted. The verifier does not check the link from
+the gateway to Whisper, or the NVIDIA GPU evidence. Without the check (the
+live versions): also the claim that only a TEE sees the audio rests on NEAR
+AI.
 
 ## 10. The owner of the Phala app
 

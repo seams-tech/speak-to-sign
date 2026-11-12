@@ -27,6 +27,8 @@ last line of the contract's `reproducible.sha256`.
 | Active version on OutLayer (a call with no `version_key`) | 0.12.0, `bfe81633…c946` | Commit `a816798`; JUDGES.md check 3 builds it | No |
 | Version that the demo calls | 0.13.0, `1b777154…f930`, not active. The Seams staging server selects it by `version_key`. | Commit `a4d6ce7` | No |
 | Verdict key | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`, bound to the project, so every version signs with it | `crates/voice-verifier/manifest/outlayer.json` | No |
+| First build with the NEAR AI check | 0.14.0, `2f8e75a3…7ffb5` (1,038,333 bytes), added on 2026-11-12, **not active**. No caller selects it. | Commit `6f0d43f`, with `dcap-qvl` | **Yes.** `dev` has a smaller build of the same check. |
+| The verifier source on `dev` | Not on OutLayer | 0.14.0 at commit `ab8f6bc`: 494,721 bytes, `d265bf05…3416`, with the NEAR AI check | **Yes.** The live versions (0.12.0 and 0.13.0) do not check NEAR AI. |
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -r .active_version
@@ -69,7 +71,7 @@ as live until this table says so.
 | Check | Where | State |
 | --- | --- | --- |
 | The Seams verify route checks the TDX quote of each verifier call against the pinned WASM hash | `seams-wallet`, `speakToSignAttestation.ts` | Built on `seams-wallet` `dev` at `0b297e976`. A deploy of the Seams staging server is not recorded here yet. See [trust-chain.md](trust-chain.md), link 2. |
-| The verifier checks NEAR AI's attestation of Whisper, with a cache | `crates/voice-verifier`, branch `claude/nearai-attestation-cache-8506f2` | Built and tested (commit `e8d7400`), **not shipped** by the owner's decision of 2026-11-12: it adds about 0.5 s to each call. See [trust-chain.md](trust-chain.md#why-the-near-ai-check-is-not-shipped). |
+| The verifier checks the TDX quotes of NEAR AI's gateway and Whisper, and sends each recording to Whisper only sealed to the checked gateway | `crates/voice-verifier` on `dev` (`src/nearai_attestation.rs`, `src/tdx_quote.rs`, `src/ohttp.rs`) | **In the source, not in the live versions.** The source is verifier 0.14.0, and its tests pass. A first build of it (`2f8e75a3…`) is on OutLayer, not active: on 2026-11-12 it checked the two quotes inside OutLayer and kept the result. The demo and the Seams staging server still call 0.13.0, which sends the audio over TLS and checks nothing about NEAR AI. The build of `dev` is not on OutLayer, and its time there is not measured. See [trust-chain.md](trust-chain.md#the-near-ai-check). |
 | One live 2-of-2 voice multisig proposal | `voice-multisig.seams-v1.testnet` | Planned. No proposal has run. |
 | The voice check of the notes contract | `notes.seams-v1.testnet` | Built (commit `119ef0e`), not deployed. |
 

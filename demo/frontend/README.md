@@ -310,9 +310,12 @@ mode and never sends a note to X.
   gets the careful template of its subject (`fallbackDraft` in
   `src/x/noteDrafts.ts`). Each draft has a mark, `source`: `model` or
   `template`. A model draft is final. A template is not: each refresh sends
-  the newest 24 posts with a template to the model again (3 calls at most).
+  the newest 24 posts with a template to the model again (3 batches of 8).
   After 3 answers with no valid note for a post, its template is final. A
-  failed call (no key, no credit, a timeout) counts no try. The write dialog
+  failed call (no key, no credit, a timeout) counts no try, and it gets one
+  more try at once. After 60 s of draft calls, no new call starts. On
+  2026-11-12 at 16:00 UTC, one call of three got no answer, and its 8 posts,
+  the newest, kept a template until the next refresh. The write dialog
   says "Drafted by NEAR AI" only under a model draft, until the visitor
   changes the note. The five example posts have hand-written drafts, with
   no mark.

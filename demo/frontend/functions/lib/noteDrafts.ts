@@ -15,6 +15,10 @@ const NEAR_AI_URL = 'https://cloud-api.near.ai/v1/chat/completions';
 /** A small model that NEAR AI hosts itself: the one that the Seams server uses for a note's summary. */
 export const DEFAULT_DRAFT_MODEL = 'Qwen/Qwen3.8-27B';
 export const DRAFT_BATCH = 8;
+/** The calls for one batch: a call with no answer gets one more try. */
+export const DRAFT_TRIES_PER_BATCH = 2;
+/** After this time from the first call, no new draft call starts. */
+export const DRAFT_BUDGET_MS = 60_000;
 const MAX_POST_CHARS = 700;
 const TIMEOUT_MS = 25_000;
 
@@ -47,6 +51,8 @@ export interface DraftOptions {
   /** The date of the call, YYYY-MM-DD, for the prompt. */
   today: string;
   fetch: typeof fetch;
+  /** The clock of the time budget. Default Date.now. */
+  now?: () => number;
 }
 
 export interface DraftResult {
@@ -58,22 +64,37 @@ export interface DraftResult {
   problems: string[];
 }
 
-/** The model's notes for the posts. A failed call or a bad answer never fails: it is a problem line. */
+/**
+ * The model's notes for the posts. A failed call or a bad answer never fails: it is a problem line.
+ * A call with no answer (an error, a timeout) gets one more try at once: on 2026-11-12 one call of
+ * three failed at a refresh, and its 8 posts, the newest, kept a template until the next refresh.
+ * After DRAFT_BUDGET_MS no new call starts, so a refresh waits at most that long and one call more.
+ */
 export async function draftNotes(posts: DraftInput[], options: DraftOptions): Promise<DraftResult> {
   const result: DraftResult = { drafts: {}, answered: new Set(), problems: [] };
+  const now = options.now ?? Date.now;
+  const started = now();
   for (let start = 0; start < posts.length; start += DRAFT_BATCH) {
     const batch = posts.slice(start, start + DRAFT_BATCH);
-    const answer = await askForDrafts(batch, options).catch((error: unknown) => `the request failed: ${error instanceof Error ? error.name : 'unknown'}`);
-    if (typeof answer === 'string') {
-      result.problems.push(`posts ${start + 1} to ${start + batch.length}: ${answer}`);
-      continue;
+    const range = `posts ${start + 1} to ${start + batch.length}`;
+    let answer: Map<number, NoteDraftText> | null = null;
+    for (let attempt = 1; attempt <= DRAFT_TRIES_PER_BATCH && answer === null; attempt += 1) {
+      if (now() - started >= DRAFT_BUDGET_MS) {
+        result.problems.push(`${range}: not asked, the ${DRAFT_BUDGET_MS / 1_000} s for the drafts are used`);
+        break;
+      }
+      const reply = await askForDrafts(batch, options).catch((error: unknown) => `the request failed: ${error instanceof Error ? error.name : 'unknown'}`);
+      if (typeof reply === 'string') result.problems.push(`${range}, try ${attempt}: ${reply}`);
+      else answer = reply;
     }
+    if (answer === null) continue;
+    const notes = answer;
     batch.forEach((post, index) => {
       result.answered.add(post.id);
-      const draft = answer.get(index + 1);
+      const draft = notes.get(index + 1);
       if (draft) result.drafts[post.id] = draft;
     });
-    if (answer.size < batch.length) result.problems.push(`posts ${start + 1} to ${start + batch.length}: ${answer.size} of ${batch.length} posts got a valid note`);
+    if (notes.size < batch.length) result.problems.push(`${range}: ${notes.size} of ${batch.length} posts got a valid note`);
   }
   return result;
 }

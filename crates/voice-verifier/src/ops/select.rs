@@ -16,7 +16,7 @@ use std::time::Instant;
 use serde_json::Value;
 use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest, RenderedIntentV1, SpokenRequestV1};
 
-use super::request::{known_accounts, typed_request, unsupported};
+use super::request::{known_accounts, typed_request};
 use super::steps::{check_summary, decode_clip, in_flight, local_embedding, push_summary_check, speaker_reply};
 use super::verify::{finish, verify_storage};
 use super::whisper::{api_key, words_reply, words_request};
@@ -69,7 +69,7 @@ fn select_steps(
     selected: &mut Option<usize>,
 ) -> Result<Decision, Refusal> {
     let started = Instant::now();
-    let input: SelectInput = serde_json::from_value(value).map_err(unsupported)?;
+    let input = SelectInput::parse(value).ok_or(Reason::Unsupported)?;
     if input.op != "select"
         || input.contacts.len() > MAX_CONTACTS
         || !(2..=MAX_SELECT_REQUESTS).contains(&input.requests.len())

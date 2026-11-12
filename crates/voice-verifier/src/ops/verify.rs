@@ -6,7 +6,7 @@ use serde_json::Value;
 use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest};
 
 use super::multisig::{self, Prepared};
-use super::request::{known_accounts, typed_request, unsupported, SERVED_NETWORK};
+use super::request::{known_accounts, typed_request, SERVED_NETWORK};
 use super::steps::{
     check_summary, consume, decode_clip, in_flight, local_embedding, push_summary_check, speaker_reply,
 };
@@ -65,7 +65,7 @@ fn verify_steps(
     opening: &mut Option<MultisigOpening>,
 ) -> Result<Decision, Refusal> {
     let started = Instant::now();
-    let input: VerifyInput = serde_json::from_value(value).map_err(unsupported)?;
+    let input = VerifyInput::parse(value).ok_or(Reason::Unsupported)?;
     if input.op != "verify" || input.contacts.len() > MAX_CONTACTS {
         return Err(Reason::Unsupported.into());
     }

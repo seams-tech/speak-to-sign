@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use serde_json::Value;
 
-use super::request::{unsupported, Owner};
+use super::request::Owner;
 use super::steps::{decode_clip, in_flight, local_embedding, speaker_reply};
 use super::verify::verify_storage;
 use super::whisper::{api_key, words_reply, words_request};
@@ -58,7 +58,7 @@ fn transcribe_steps(
     ms: &mut Stages,
 ) -> Result<(), Refusal> {
     let started = Instant::now();
-    let input: TranscribeInput = serde_json::from_value(value).map_err(unsupported)?;
+    let input = TranscribeInput::parse(value).ok_or(Reason::Unsupported)?;
     if input.op != "transcribe" {
         return Err(Reason::Unsupported.into());
     }

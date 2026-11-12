@@ -35,6 +35,7 @@ pub mod ops;
 pub mod output;
 pub mod policy;
 pub mod speaker_client;
+pub mod summary_check;
 mod template;
 mod transcriber;
 mod words;

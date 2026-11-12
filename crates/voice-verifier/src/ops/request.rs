@@ -6,7 +6,8 @@ use spoken_intent::{
     SpokenRequestV1, SpokenSummary, UsdcAmount,
 };
 
-use crate::digest::from_hex;
+use crate::config::MAX_NOTE_CHARS;
+use crate::digest::{from_hex, sha256};
 use crate::input::{parse_yocto, OutcomeInput, RatingInput, RequestInput};
 use crate::output::Reason;
 
@@ -78,13 +79,16 @@ pub(super) fn typed_request(owner: &str, request: &RequestInput) -> Result<Spoke
         RequestInput::Transfer { receiver, amount_yocto } => {
             transfer(owner, receiver, parse_yocto(amount_yocto).ok_or(Reason::Unsupported)?)
         }
-        RequestInput::CommunityNote { contract, post_id, note_sha256_hex, summary } => {
+        RequestInput::CommunityNote { contract, post_id, note_text, summary } => {
+            if note_text.trim().is_empty() || note_text.chars().count() > MAX_NOTE_CHARS {
+                return Err(Reason::Unsupported);
+            }
             Ok(SpokenRequestV1::CommunityNote {
                 network: SERVED_NETWORK,
                 owner,
                 contract: NearAccount::new(contract).map_err(unsupported)?,
                 post_id: *post_id,
-                note_sha256: lowercase_hex::<32>(note_sha256_hex)?,
+                note_sha256: sha256(note_text.as_bytes()),
                 summary: SpokenSummary::new(summary).map_err(unsupported)?,
             })
         }

@@ -11,8 +11,10 @@ use crate::digest::{from_b64, sha256};
 use crate::embedding::Embedding;
 use crate::envelope::{audio_aad, AudioKey};
 use crate::host::{Host, LocalEmbeddings, PostRequest, Timed};
+use crate::input::RequestInput;
 use crate::output::{short, Reason, Stages};
 use crate::speaker_client::{check_service_reply, ServiceReply};
+use crate::summary_check::{parse_fit, summary_fits, summary_request};
 
 /// A decoded inline WAV: its samples, the canonical WAV and its digest.
 pub(super) struct Clip {
@@ -175,6 +177,35 @@ pub(super) fn speaker_reply(
     reply(timed, "speaker", Reason::SpeakerUnavailable, |status, body| {
         check_service_reply(status, body, &clip.digest, nonce, &pins.speaker_key)
     })
+}
+
+/// Adds the summary check of a community note to the batch, and gives its
+/// place in the batch. `None` for a request of another kind: only a note
+/// holds the text that its summary describes.
+pub(super) fn push_summary_check(
+    requests: &mut Vec<PostRequest>,
+    api_key: &str,
+    request: &RequestInput,
+) -> Option<usize> {
+    let (note, summary) = request.note_summary()?;
+    requests.push(summary_request(api_key, note, summary));
+    Some(requests.len() - 1)
+}
+
+/// The summary check of a note, from the reply at `at` of the batch: the
+/// summary must give the main point of the note. No answer refuses too, so
+/// a note is never signed without the check.
+pub(super) fn check_summary(results: &[Timed], at: usize, ms: &mut Stages) -> Result<(), Refusal> {
+    let timed = results.get(at);
+    if let Some(timed) = timed {
+        ms.record("summary", timed.ms);
+    }
+    let fit_milli = reply(timed, "summary", Reason::SummaryCheckUnavailable, parse_fit)?;
+    if summary_fits(fit_milli) {
+        Ok(())
+    } else {
+        Err(Refusal::new(Reason::SummaryMismatch, format!("summary: fit_{fit_milli}")))
+    }
 }
 
 /// Marks an audio digest used, atomically. A second use is refused.

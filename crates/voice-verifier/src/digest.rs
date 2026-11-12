@@ -60,7 +60,7 @@ pub fn base58(bytes: &[u8]) -> String {
         }
     }
     let mut text = String::with_capacity(zeros + digits.len());
-    text.extend(std::iter::repeat('1').take(zeros));
+    text.extend(std::iter::repeat_n('1', zeros));
     text.extend(digits.iter().rev().map(|digit| BASE58[*digit as usize] as char));
     text
 }

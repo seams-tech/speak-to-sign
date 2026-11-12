@@ -129,8 +129,10 @@ pub enum RequestInput {
         /// The notes contract.
         contract: String,
         post_id: u64,
-        /// SHA-256 of the UTF-8 note text, 64 lowercase hex characters.
-        note_sha256_hex: String,
+        /// The note, 1 to [`MAX_NOTE_CHARS`](crate::config::MAX_NOTE_CHARS)
+        /// characters. The request binds its SHA-256, and the worker checks
+        /// that the summary gives its main point.
+        note_text: String,
         summary: String,
     },
     /// A rating of a community note.
@@ -237,6 +239,15 @@ impl RequestInput {
     pub fn is_multisig(&self) -> bool {
         matches!(self, Self::MultisigPropose { .. } | Self::MultisigHideNote { .. } | Self::MultisigConfirm { .. })
     }
+
+    /// The note and its summary, for a community note: the summary check
+    /// reads both.
+    pub fn note_summary(&self) -> Option<(&str, &str)> {
+        match self {
+            Self::CommunityNote { note_text, summary, .. } => Some((note_text, summary)),
+            _ => None,
+        }
+    }
 }
 
 /// The outcome of a `market_bet` request.
@@ -299,13 +310,12 @@ mod tests {
             "kind": "community_note",
             "contract": "notes.testnet",
             "post_id": 7,
-            "note_sha256_hex": "00",
+            "note_text": "One lane closes for two weeks.",
             "summary": "The bridge stays open",
         });
-        assert!(matches!(
-            serde_json::from_value::<RequestInput>(note).unwrap(),
-            RequestInput::CommunityNote { post_id: 7, .. }
-        ));
+        let note = serde_json::from_value::<RequestInput>(note).unwrap();
+        assert!(matches!(note, RequestInput::CommunityNote { post_id: 7, .. }));
+        assert_eq!(note.note_summary(), Some(("One lane closes for two weeks.", "The bridge stays open")));
         let transaction = json!({
             "kind": "transaction",
             "receiver": "guest-book.testnet",

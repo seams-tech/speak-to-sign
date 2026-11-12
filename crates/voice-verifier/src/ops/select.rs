@@ -17,7 +17,9 @@ use serde_json::Value;
 use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest, RenderedIntentV1, SpokenRequestV1};
 
 use super::request::{known_accounts, typed_request, unsupported};
-use super::steps::{decode_clip, in_flight, local_embedding, reply, speaker_reply};
+use super::steps::{
+    check_summary, decode_clip, in_flight, local_embedding, push_summary_check, reply, speaker_reply,
+};
 use super::verify::{finish, verify_storage};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
@@ -111,6 +113,9 @@ fn select_steps(
     }
     let words_at = requests.len();
     requests.push(transcription_request(&api_key, &clip.wav));
+    // A note among the candidates gets its summary check in the same batch.
+    let summary_at: Vec<Option<usize>> =
+        input.requests.iter().map(|request| push_summary_check(&mut requests, &api_key, request)).collect();
     let local = [&clip];
     let flight = in_flight(host, ms, requests, pins.local_speaker.then_some(&local[..]), |host, ms| {
         verify_storage(host, &input.owner, &digest_b64u, ms)
@@ -166,6 +171,11 @@ fn select_steps(
     verdict.heard = Some(check.heard);
     verdict.word_margin_milli = check.margin_milli;
     *selected = Some(index);
+
+    // 7b. A selected note: the said summary must give the main point of it.
+    if let Some(at) = summary_at[index] {
+        check_summary(&results, at, ms)?;
+    }
 
     // 8. The policy step, for the selected request.
     Ok(ms.time("policy", || policy::decide(request)))

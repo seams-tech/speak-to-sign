@@ -7,7 +7,9 @@ use spoken_intent::{confusion_set, render, request_digest, spoken_text_digest};
 
 use super::multisig::{self, Prepared};
 use super::request::{known_accounts, typed_request, unsupported, SERVED_NETWORK};
-use super::steps::{consume, decode_clip, in_flight, local_embedding, reply, speaker_reply};
+use super::steps::{
+    check_summary, consume, decode_clip, in_flight, local_embedding, push_summary_check, reply, speaker_reply,
+};
 use super::{Pins, Refusal};
 use crate::audio::energy_gate;
 use crate::config::{template_key, MAX_CONTACTS, NEAR_AI_API_KEY_ENV, VERDICT_TTL_MS};
@@ -100,8 +102,9 @@ fn verify_steps(
     }
     ms.since("decode", started);
 
-    // 3. The speaker service and NEAR AI, at the same time. The bodies go
-    //    out now; the responses are read after the storage calls.
+    // 3. The speaker service and NEAR AI, at the same time: the transcript,
+    //    and for a note the summary check. The bodies go out now; the
+    //    responses are read after the storage calls.
     let Some(api_key) =
         host.secret(NEAR_AI_API_KEY_ENV).map(|key| key.trim().to_string()).filter(|key| !key.is_empty())
     else {
@@ -110,12 +113,13 @@ fn verify_steps(
     // The `local-speaker` build sends only the NEAR AI request, and runs the
     // model inside the worker while that request is in flight.
     let nonce = host.random32().map_err(|_| Reason::SpeakerUnavailable)?;
-    let mut requests = Vec::with_capacity(2);
+    let mut requests = Vec::with_capacity(3);
     if !pins.local_speaker {
         requests.push(service_request(&clip.wav, &nonce));
     }
     let words_at = requests.len();
     requests.push(transcription_request(&api_key, &clip.wav));
+    let summary_at = push_summary_check(&mut requests, &api_key, &input.request);
 
     // 4. The template and the used-audio mark, while the requests are in
     //    flight. A refusal here drops them.
@@ -169,6 +173,11 @@ fn verify_steps(
     }
     verdict.word_margin_milli = check.margin_milli;
     verdict.spoken_text_digest = Some(text_digest);
+
+    // 7b. A note: the said summary must give the main point of the note.
+    if let Some(at) = summary_at {
+        check_summary(&results, at, ms)?;
+    }
 
     // 8. The policy step, after the deterministic checks. It can only
     //    tighten an accept into a step-up.

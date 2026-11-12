@@ -299,6 +299,8 @@ key stays the same across verifier versions.
 | `unsupported` | The input is not a request that this version handles. |
 | `speaker_unavailable` | The speaker service did not answer, or its reply failed a check. |
 | `transcriber_unavailable` | NEAR AI did not answer, or gave no text. |
+| `summary_mismatch` | A community note only (0.13.0 and later): JEV says that the summary does not give the main point of the note. |
+| `summary_check_unavailable` | A community note only (0.13.0 and later): JEV did not answer, or gave no fit. |
 | `storage` | The worker storage failed. |
 | `not_authorized`, `authorization_unavailable`, `template_exists` | `enroll` only. |
 | `proposal_missing`, `same_speaker`, `attempts_exhausted` | Multisig only (section 10). |

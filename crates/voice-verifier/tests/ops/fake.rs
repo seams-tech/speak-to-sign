@@ -11,7 +11,8 @@ use seams_voice_verifier::audio::wav_bytes;
 use seams_voice_verifier::authorization::{authorization_message, enrollment_digest, nep413_hash};
 use seams_voice_verifier::config::{
     AUDIO_INFO, AUDIO_KEY_ENV, EMBEDDING_DIM, ENROLLMENT_RECIPIENT, MAX_OUTPUT_BYTES, NEAR_AI_API_KEY_ENV,
-    NEAR_AI_CHAT_URL, NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX, SPEAKER_EMBED_URL,
+    NEAR_AI_CHAT_URL, NEAR_AI_SYSTEMONE_URL, NEAR_AI_TRANSCRIPTIONS_URL, NEAR_RPC_URL, REDIMNET_SHA256_HEX,
+    SPEAKER_EMBED_URL,
 };
 use seams_voice_verifier::envelope::{audio_aad, AudioKey};
 use seams_voice_verifier::digest::{b64u, base58, from_hex, hex, near_ed25519_key};
@@ -68,6 +69,11 @@ pub(crate) struct Fake {
     /// The content of the chat model's reply (`detect`). `None`: the model
     /// does not answer.
     pub(crate) chat: Option<String>,
+    /// JEV's probability that the summary of a note gives its main point.
+    /// `None`: JEV does not answer.
+    pub(crate) summary_fit: Option<f64>,
+    /// The body of each request to JEV.
+    pub(crate) summary_checks: Vec<Value>,
     pub(crate) speaker_down: bool,
     pub(crate) speaker_tamper: bool,
     /// The model inside the worker fails (the `local-speaker` build).
@@ -202,6 +208,15 @@ impl Host for Fake {
                     match &self.chat {
                         Some(content) => {
                             let reply = json!({ "choices": [{ "message": { "role": "assistant", "content": content } }] });
+                            Ok((200, reply.to_string().into_bytes()))
+                        }
+                        None => Ok((503, b"{}".to_vec())),
+                    }
+                } else if request.url == NEAR_AI_SYSTEMONE_URL {
+                    self.summary_checks.push(serde_json::from_slice(&request.body).expect("JSON body"));
+                    match self.summary_fit {
+                        Some(noul) => {
+                            let reply = json!({ "answers": { "fits": { "type": "noul", "noul": noul } } });
                             Ok((200, reply.to_string().into_bytes()))
                         }
                         None => Ok((503, b"{}".to_vec())),
@@ -406,6 +421,8 @@ pub(crate) fn enrolled() -> Fake {
     assert_eq!(out["outcome"], "accept", "{out}");
     fake.events.clear();
     fake.posts.clear();
+    // JEV finds that a note's summary fits, unless a test says otherwise.
+    fake.summary_fit = Some(0.9);
     fake
 }
 

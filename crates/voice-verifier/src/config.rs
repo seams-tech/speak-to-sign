@@ -2,7 +2,7 @@
 //! WASM hash. The Wallet pins the signing key, not the hash.
 
 /// The verifier version that every output names.
-pub const VERIFIER_VERSION: &str = "0.12.0";
+pub const VERIFIER_VERSION: &str = "0.13.0";
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.
@@ -153,6 +153,18 @@ pub const NEAR_AI_LANGUAGE: &str = "en";
 pub const NEAR_AI_API_KEY_ENV: &str = "NEAR_AI_API_KEY";
 pub const NEAR_AI_TIMEOUT_SECS: u64 = 30;
 pub const NEAR_AI_MAX_RESPONSE_BYTES: usize = 65_536;
+
+/// JEV (Typesafe System One) on the same host: the summary check of a
+/// community note. The model is pinned: another version gives other
+/// probabilities.
+pub const NEAR_AI_SYSTEMONE_URL: &str = "https://cloud-api.near.ai/v1/systemone";
+pub const NEAR_AI_SYSTEMONE_MODEL: &str = "typesafe/jev-1.13";
+/// The least probability, in thousandths, that the summary of a note gives
+/// the main point of the note. In the test set of 2026-11-12, fair
+/// summaries had 680 or more, and summaries of another note 480 or less.
+pub const SUMMARY_FIT_MILLI: u32 = 600;
+/// The most characters of a note: the limit of the notes contract.
+pub const MAX_NOTE_CHARS: usize = 280;
 
 /// The chat model of `detect`, on the same host as the speech-to-text
 /// model. The market resolver of this repository uses the same model.

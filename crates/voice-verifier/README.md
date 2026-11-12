@@ -14,7 +14,7 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.12.0 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.13.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 | Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
@@ -37,6 +37,7 @@ sections below say when a feature needs a later version than 0.3.1.
 | 0.11.0 `local-speaker` | `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | The same source with ReDimNet inside the worker. Added on 2026-11-11 (first FastFS chunk tx `3sNi1vRtfdESuxJNpVSodvgwUueM9hqKibWWidpFgL6x`, `add_version` tx `2gdj8j7xAizq8daGu1WfnwhA6o87UQV8wRuBAK8caLxn`). **Not active.** |
 | 0.10.0 (sealed-audio preview) | `e322edae8c1497a4ecbc6f51ee67c9b25ef08cd48bcf2cd64fa7f5f6fba3af09` | A build of sealed audio on the older `dev` commit `1a8721b`, before the port to this branch (473,612 bytes, `build.sh --docker`, FastFS tx `9nYihYjxBS8F7i5qm1X1niTUvFu7bDQpc7WysaHxHWht`, `add_version` tx `2R6Y82H1dEmmFDiQqcYMntYQwnzbh8kn3sfLBxttJMom`). **Not active.** It writes `0.10.0` in a verdict and does not have `select`, `transcribe` or `detect`. It has `audio_key` and sealed audio for `verify` and `enroll`, with AES-256-GCM in place of ChaCha20-Poly1305, so a clip sealed for this source does not open there. Do not use it. |
 | 0.12.0  | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` | The source on this branch at commit `a816798` (536,004 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `3ZTwf8cWSAo4m8wNuvabsNynVwW3bcUZ4gfGB4n2MiuZ`, `add_version` tx `ByxnDTxpbs7pyDa4j6WahS7dpJYwGM4sLYSvvUx1cbai`). **Active** since 2026-11-11 (`set_active_version` tx `HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`): a call with no `version_key` runs it. Before the switch, a test with plain audio gave the expected result for `enroll`, `verify` (the word check and the speaker check too), `select`, `transcribe` and `detect`, each with its TDX quote bound to this WASM. The staging Wallet server pins it too. The `local-speaker` variant is not built. Adds sealed audio: `verify`, `enroll`, `select`, `transcribe` and `detect` take each recording in `audio_sealed_b64` (HPKE to the audio key, the OutLayer secret `PROTECTED_AUDIO_KEY`) in place of `audio_wav_b64`, and the new operation `audio_key` returns the audio public key with a signature of the verdict key. Plain audio works as before. See "Sealed audio" below. |
+| 0.13.0  | not built | The source on this branch. **Not on OutLayer.** A `community_note` request takes the note text (`note_text`, 1 to 280 characters) in place of `note_sha256_hex`, and the verifier calculates the SHA-256 itself. JEV checks that the summary gives the main point of the note; a fit below 600 thousandths refuses with `summary_mismatch`, and no answer refuses with `summary_check_unavailable`. A Wallet that sends `note_sha256_hex` gets `unsupported`, so the Wallet and this build go live together. See "Note summary check" below. |
 
 Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
 `b0f53da4…bff3` and the two "standalone preview" builds. So that text does
@@ -129,9 +130,12 @@ another machine cannot build them again.
   embedding is signed; the worker checks the signature, the nonce, the audio
   digest, the model digest and the pinned key `config::SPEAKER_PINNED_KEY_HEX`.
 - Words: Whisper large-v3 on NEAR AI Cloud. Secret `NEAR_AI_API_KEY`.
+- Note summary (0.13.0 and later): JEV (`typesafe/jev-1.13`, Typesafe System
+  One) on NEAR AI Cloud (`config::NEAR_AI_SYSTEMONE_URL`), with the same
+  secret. Only a `community_note` request calls it.
 - NEAR RPC: `https://test.rpc.fastnear.com` (`config::NEAR_RPC_URL`), for the
   owner's access key at enrollment only.
-- `verify` sends both requests at once (`wasi:http`, one poll loop).
+- `verify` sends all its requests at once (`wasi:http`, one poll loop).
 
 ## Two variants
 
@@ -304,6 +308,7 @@ Stage times (`ms`, not signed), in ms:
 | `parallel`   | yes      | yes      | start of the requests to the last response (send + storage + wait) |
 | `speaker`    | yes      | yes      | speaker service response (`enroll`: the slowest of three)          |
 | `transcribe` | yes      |          | NEAR AI response (at most the template read late)                  |
+| `summary`    | yes      |          | JEV response, a community note only (0.13.0 and later)             |
 | `redimnet`   | yes      |          | the service's own model time                                       |
 | `rpc`        |          | yes      | NEAR RPC access-key view response                                  |
 | `mark`       | yes      |          | used-audio write, inside `storage`                                 |
@@ -323,10 +328,13 @@ Stage times (`ms`, not signed), in ms:
       `spoken_intent::SpokenRequestV1::AccountTransfer`. The receiver must be
       a named account that the text can say, and not the owner.
     - `community_note` (0.4.0 and later):
-      `{"contract","post_id","note_sha256_hex","summary"}`, as
+      `{"contract","post_id","note_text","summary"}`, as
       `SpokenRequestV1::CommunityNote`. The owner says only the summary:
       1 to 12 words of ASCII letters (`spoken_intent::SpokenSummary`). The
-      note is bound by its SHA-256 (64 lowercase hex characters).
+      note is bound by the SHA-256 of `note_text` (1 to 280 characters, not
+      only white space), which the verifier calculates. The builds before
+      0.13.0 take `note_sha256_hex` (64 lowercase hex characters) in place
+      of `note_text`, and do not check the summary.
     - `note_rating` (0.4.0 and later): `{"contract","note_id","rating"}` with
       `rating` `helpful`, `somewhat_helpful` or `not_helpful`, as
       `SpokenRequestV1::NoteRating`. The owner says "this note is helpful",
@@ -490,6 +498,31 @@ Stage times (`ms`, not signed), in ms:
 - WAV: 16 kHz mono PCM16, at most 8 s, standard base64. The worker writes it
   again with a 44-byte header (the canonical WAV); the audio digest is the
   SHA-256 of the canonical WAV.
+
+## Note summary check
+
+Verifier 0.13.0 and later. The owner of a community note says a summary of
+the note, not the note. The word check shows that the voice said the
+summary. The summary check shows that the summary gives the main point of
+the note. So an app cannot show one note and sign another note.
+
+- `verify` sends the note text and the summary to JEV with the speaker and
+  the transcription requests. JEV answers one `noul` question (`fits`) with a
+  probability. The instructions say that the note and the summary are
+  untrusted data (`summary_check::INSTRUCTIONS`).
+- The check runs after the word check. A transcript that fails the words
+  refuses with `words`, whatever JEV said.
+- A fit of 600 thousandths or more passes (`config::SUMMARY_FIT_MILLI`).
+  Below it, `summary_mismatch`, with the detail `summary: fit_<milli>`.
+- No answer, or a reply with no fit, refuses with
+  `summary_check_unavailable` (detail `summary: status_<code>` or
+  `summary: bad_reply`).
+- A `note_rating` has no summary, so it has no summary check.
+
+Calibration with the instructions of this build: fair summaries gave 680 to
+940; a summary of another note or the opposite claim gave 480 or less;
+generic summaries ("this is a note about a post") gave 410 to 690. JEV
+answers in approximately 0.3 s, in parallel with the transcription.
 
 ## Sealed audio
 

@@ -75,12 +75,18 @@ pub enum Reason {
     /// `detect` only: the chat model did not answer, or its reply was not
     /// one intent of the list.
     DetectorUnavailable,
+    /// A community note: the summary does not give the main point of the
+    /// note.
+    SummaryMismatch,
+    /// A community note: JEV did not answer, or its reply was not a
+    /// probability.
+    SummaryCheckUnavailable,
 }
 
 #[cfg(test)]
 impl Reason {
     /// Every reason, in declaration order.
-    const ALL: [Reason; 17] = [
+    const ALL: [Reason; 19] = [
         Reason::Quality,
         Reason::Speaker,
         Reason::Words,
@@ -98,6 +104,8 @@ impl Reason {
         Reason::SameSpeaker,
         Reason::AttemptsExhausted,
         Reason::DetectorUnavailable,
+        Reason::SummaryMismatch,
+        Reason::SummaryCheckUnavailable,
     ];
 }
 
@@ -646,7 +654,7 @@ mod tests {
         let text = verdict_json(&Verdict::new());
         assert_eq!(
             text,
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.12.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.13.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);
@@ -675,7 +683,9 @@ mod tests {
                 "proposal_missing",
                 "same_speaker",
                 "attempts_exhausted",
-                "detector_unavailable"
+                "detector_unavailable",
+                "summary_mismatch",
+                "summary_check_unavailable"
             ])
         );
     }

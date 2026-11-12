@@ -108,6 +108,11 @@ try {
 
 - `record()` resolves with `recorded` (the samples) or `cancelled`. A too quiet recording
   stays on the card with "Try again".
+- A result can have a `receipt`: a box between the caption and the detail, with a checked row
+  for each check and a link to check it again, such as the TEE attestation of the call:
+  `{ title: 'TEE receipt', source: 'Intel TDX · OutLayer', rows: [{ label: 'Voice', value:
+  'matched alice.near' }], link: { text: 'View TDX quote', href } }`. The check marks have the
+  seal's colour (`voiceSeal`, else `voiceLine`).
 - `autoStart: true` starts the first recording with no press on Record. Use it when the person
   just asked for the card with a click or a key. The card then shows no Record button and has
   no row for it, so it is shorter and its rows sit in the middle. If the browser starts audio

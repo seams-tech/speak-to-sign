@@ -526,6 +526,56 @@ const CSS = `
   color: var(--seams-colors-textPrimary, #eff2f3);
 }
 .seams-voiceid-status a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* A result's receipt (PhraseResultView.receipt): a quiet box between the caption and the detail,
+   with a checked row for each check of the result, in the seal's colour. */
+.seams-voiceid-status .seams-voiceid-receipt {
+  margin: 0.625rem 0;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--seams-colors-borderPrimary, rgba(239, 242, 243, 0.16));
+  border-radius: 0.875rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-receipt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+.seams-voiceid-receipt-source {
+  font-size: 0.75rem;
+  color: var(--seams-colors-textSecondary, #9aa4ab);
+}
+.seams-voiceid-receipt-rows {
+  display: grid;
+  grid-template-columns: 1rem auto minmax(0, 1fr);
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  align-items: center;
+}
+.seams-voiceid-receipt-check {
+  display: flex;
+  color: var(--seams-colors-voiceSeal, var(--seams-colors-voiceLine, var(--seams-colors-textPrimary, #eff2f3)));
+}
+.seams-voiceid-receipt-check svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seams-voiceid-receipt-label { color: var(--seams-colors-textSecondary, #9aa4ab); }
+.seams-voiceid-receipt-value { overflow-wrap: anywhere; }
+.seams-voiceid-receipt-foot {
+  display: block;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--seams-colors-borderPrimary, rgba(239, 242, 243, 0.16));
+  font-size: 0.75rem;
+}
 .seams-voiceid-heard-mark {
   background: none;
   color: var(--seams-colors-error, oklch(0.74 0.166 19));

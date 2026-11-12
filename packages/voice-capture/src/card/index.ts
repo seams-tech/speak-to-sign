@@ -15,6 +15,7 @@ export {
 export type {
   PhraseCheckView,
   PhraseChoice,
+  PhraseReceipt,
   PhraseRecording,
   PhraseResultView,
   PhraseSegmentState,

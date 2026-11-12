@@ -507,6 +507,56 @@ test('a result shows the seal, then its headline, details and button, and the se
   expect(result.below).toBeLessThan(30);
 });
 
+test('a result with a receipt shows its rows between the caption and the detail, with its link', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto(`${origin}/example/`);
+  const shown = await page.evaluate(async () => {
+    document.documentElement.style.setProperty('--seams-colors-voiceSeal', 'rgb(0, 186, 124)');
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const surface = openPhraseCard({ sentence: 'Send two NEAR to alice.testnet', signal: new AbortController().signal, detector: 'level', autoStart: true });
+    await surface.record();
+    void surface.show({
+      kind: 'result',
+      label: '',
+      headline: 'Note posted',
+      caption: 'The claim is not confirmed',
+      receipt: {
+        title: 'TEE receipt',
+        source: 'Intel TDX · OutLayer',
+        rows: [
+          { label: 'Voice', value: 'matched alice.testnet' },
+          { label: 'Words', value: 'matched the summary' },
+        ],
+        link: { text: 'View TDX quote', href: 'https://testnet-api.outlayer.ai/attestations/by-call/1' },
+      },
+      detail: 'Checked and posted in 2.0 s ·',
+      link: { text: 'View transaction', href: 'https://testnet.nearblocks.io/txns/abc' },
+      action: { label: 'Done' },
+      line: 'seal',
+    });
+    const card = document.querySelector<HTMLElement>('.seams-voiceid-prompt')!;
+    while (card.dataset.phraseView !== 'result') await new Promise((resolve) => setTimeout(resolve, 50));
+    const status = card.querySelector('.seams-voiceid-status')!;
+    const receipt = status.querySelector<HTMLElement>('.seams-voiceid-receipt')!;
+    const link = receipt.querySelector('a')!;
+    return {
+      order: [...status.children].map((child) => child.className),
+      head: receipt.querySelector('.seams-voiceid-receipt-head')!.textContent,
+      labels: [...receipt.querySelectorAll('.seams-voiceid-receipt-label')].map((label) => label.textContent),
+      values: [...receipt.querySelectorAll('.seams-voiceid-receipt-value')].map((value) => value.textContent),
+      check: getComputedStyle(receipt.querySelector('.seams-voiceid-receipt-check')!).color,
+      link: [link.textContent, link.href, link.target],
+    };
+  });
+  expect(shown.order).toEqual(['seams-voiceid-caption', 'seams-voiceid-receipt', 'seams-voiceid-caption-detail']);
+  expect(shown.head).toBe('TEE receiptIntel TDX · OutLayer');
+  expect(shown.labels).toEqual(['Voice', 'Words']);
+  expect(shown.values).toEqual(['matched alice.testnet', 'matched the summary']);
+  expect(shown.check).toBe('rgb(0, 186, 124)');
+  expect(shown.link).toEqual(['View TDX quote', 'https://testnet-api.outlayer.ai/attestations/by-call/1', '_blank']);
+});
+
 test('a form card shows the Record button in place of the voice line until it records', async ({ page }) => {
   await page.goto(`${origin}/example/`);
   const result = await page.evaluate(async () => {

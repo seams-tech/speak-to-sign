@@ -1,4 +1,4 @@
-import type { PhraseSegmentState, PhraseView } from './types';
+import type { PhraseReceipt, PhraseSegmentState, PhraseView } from './types';
 import type { VoicePrompt } from './prompt';
 import { ROW_EASE, ROW_IN_DELAY_MS, ROW_IN_MS, ROW_OUT_MS, ROW_STAGGER_MS } from './rowMotion';
 
@@ -190,12 +190,12 @@ export class PhraseCard {
         head: view.headline,
         headline: true,
         dim: false,
-        caption: `result:${JSON.stringify([view.caption, view.detail, view.link ?? null])}`,
+        caption: `result:${JSON.stringify([view.caption, view.receipt ?? null, view.detail, view.link ?? null])}`,
         action: `result:${view.action.icon ?? ''}:${view.action.label}`,
       };
       await this.transition(rows, version, () => {
         element.dataset.phraseView = 'result';
-        this.writeCaption(this.markedText(view.caption), this.detailNodes(view));
+        this.writeCaption(this.markedText(view.caption), this.detailNodes(view), view.receipt);
         this.writeAction(view.action);
         this.prompt.record.hidden = false;
       });
@@ -300,21 +300,59 @@ export class PhraseCard {
 
   private detailNodes(view: Extract<PhraseView, { kind: 'result' }>): (string | Node)[] {
     if (!view.link) return [view.detail];
-    const link = this.prompt.element.ownerDocument.createElement('a');
-    link.href = view.link.href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = view.link.text;
-    return [view.detail, ' ', link];
+    return [view.detail, ' ', this.linkNode(view.link)];
   }
 
-  /** One line for the prompt; a caption and a detail line for the check and the result. */
+  /** A link that opens in a new tab, such as a transaction or an attestation. */
+  private linkNode(link: Readonly<{ text: string; href: string }>): HTMLAnchorElement {
+    const anchor = this.prompt.element.ownerDocument.createElement('a');
+    anchor.href = link.href;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    anchor.textContent = link.text;
+    return anchor;
+  }
+
+  /**
+   * The receipt box: its title and source on one line, a checked row for each check, and its
+   * link at the end.
+   */
+  private receiptNode(receipt: PhraseReceipt): HTMLElement {
+    const document = this.prompt.element.ownerDocument;
+    const element = (tag: string, className: string, ...children: (string | Node)[]) => {
+      const node = document.createElement(tag);
+      node.className = className;
+      node.append(...children);
+      return node;
+    };
+    const head = element('span', 'seams-voiceid-receipt-head', element('b', '', receipt.title));
+    if (receipt.source) head.append(element('span', 'seams-voiceid-receipt-source', receipt.source));
+    const rows = element(
+      'span',
+      'seams-voiceid-receipt-rows',
+      ...receipt.rows.flatMap((row) => [
+        element('span', 'seams-voiceid-receipt-check', checkIcon(document)),
+        element('span', 'seams-voiceid-receipt-label', row.label),
+        element('span', 'seams-voiceid-receipt-value', row.value),
+      ]),
+    );
+    const box = element('span', 'seams-voiceid-receipt', head, rows);
+    if (receipt.link) box.append(element('span', 'seams-voiceid-receipt-foot', this.linkNode(receipt.link)));
+    return box;
+  }
+
+  /**
+   * One line for the prompt; a caption and a detail line for the check and the result, with the
+   * result's receipt between them.
+   */
   private writeCaption(
     first: string | readonly (string | Node)[],
     second: readonly (string | Node)[],
+    receipt?: PhraseReceipt,
   ): void {
     const status = this.prompt.status;
-    if (typeof first === 'string' && second.length === 0) {
+    status.classList.toggle('seams-voiceid-has-receipt', receipt !== undefined);
+    if (typeof first === 'string' && second.length === 0 && !receipt) {
       status.classList.remove('seams-voiceid-two-lines');
       status.textContent = first;
       return;
@@ -326,7 +364,7 @@ export class PhraseCard {
     const two = document.createElement('span');
     two.className = 'seams-voiceid-caption-detail';
     two.append(...second);
-    status.replaceChildren(one, two);
+    status.replaceChildren(...(receipt ? [one, this.receiptNode(receipt), two] : [one, two]));
     status.classList.add('seams-voiceid-two-lines');
   }
 
@@ -566,6 +604,19 @@ function passkeyIcon(document: Document): SVGSVGElement {
     path.setAttribute('d', d);
     icon.append(path);
   }
+  return icon;
+}
+
+/** The check mark of a receipt row, in the seal's colour. */
+function checkIcon(document: Document): SVGSVGElement {
+  const icon = document.createElementNS(SVG_NAMESPACE, 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('width', '15');
+  icon.setAttribute('height', '15');
+  icon.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(SVG_NAMESPACE, 'path');
+  path.setAttribute('d', 'M5 12l5 5L20 7');
+  icon.append(path);
   return icon;
 }
 

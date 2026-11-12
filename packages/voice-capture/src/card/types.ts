@@ -34,12 +34,29 @@ export type PhraseCheckView = Readonly<{
   segments: readonly PhraseSegmentState[];
 }>;
 
+/**
+ * The proof of a result, in a box between the caption and the detail: who checked what, and a
+ * link to check it again, such as a TEE attestation.
+ */
+export type PhraseReceipt = Readonly<{
+  /** For example "TEE receipt". */
+  title: string;
+  /** Where the checks ran, at the right of the title, for example "Intel TDX · OutLayer". */
+  source?: string;
+  /** One checked line each, for example `{ label: 'Voice', value: 'matched alice.near' }`. */
+  rows: readonly Readonly<{ label: string; value: string }>[];
+  /** A link under the rows, for example the attestation of the call. */
+  link?: Readonly<{ text: string; href: string }>;
+}>;
+
 /** A result or a question: a headline takes the sentence's place, with one action. */
 export type PhraseResultView = Readonly<{
   kind: 'result';
   label: string;
   headline: string;
   caption: PhraseText;
+  /** The proof of the result, under the caption. */
+  receipt?: PhraseReceipt;
   detail: string;
   /** A link after the detail, such as a transaction in a block explorer. */
   link?: Readonly<{ text: string; href: string }>;

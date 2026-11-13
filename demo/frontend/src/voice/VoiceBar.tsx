@@ -18,7 +18,7 @@ import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import { helpRequest, stopRequest, type Screen, type VoiceCommand } from './command';
 import { transactionUrl } from '../config';
-import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
+import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useShownResult, useVoiceHold, viewQuoteRequest, viewTransactionRequest, type ShownResult } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -60,6 +60,7 @@ const COMMAND_PHRASES = [
   'scroll to',
   'scroll down a little bit',
   'view transaction',
+  'view TDX quote',
   'try again',
   'done',
   'show more',
@@ -113,7 +114,8 @@ function useTabVisible(): boolean {
 
 /** The bar's line while a dialog is open. */
 const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
-const RESULT_HINT = 'Say "view transaction", or "done".';
+/** The bar's line while the Wallet's card shows the result of a transaction. */
+const resultHint = (result: ShownResult) => (result.quoteUrl === null ? 'Say "view transaction", or "done".' : 'Say "view transaction", "view TDX quote", or "done".');
 
 /** What "what can I say?" shows: the sentences of the page, and the sentences for an open dialog. */
 const PAGE_HELP = [
@@ -131,7 +133,7 @@ const PAGE_HELP = [
   'Show my bets',
   'Stop listening',
 ];
-const DIALOG_HELP = ['Close · Done', 'Try again', 'View transaction', 'Stop listening'];
+const DIALOG_HELP = ['Close · Done', 'Try again', 'View transaction', 'View TDX quote', 'Stop listening'];
 
 /** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
@@ -158,9 +160,9 @@ export function VoiceBar({
   const hold = useVoiceHold();
   const holdRef = useRef(hold);
   holdRef.current = hold;
-  const shownTransaction = useShownTransaction();
-  const transactionRef = useRef(shownTransaction);
-  transactionRef.current = shownTransaction;
+  const shownResult = useShownResult();
+  const resultRef = useRef(shownResult);
+  resultRef.current = shownResult;
   const visible = useTabVisible();
   /** The finished sentences, oldest first, and the sentence that the visitor says now. */
   const [said, setSaid] = useState<SaidSentence[]>([]);
@@ -225,17 +227,22 @@ export function VoiceBar({
       if (!final) return;
       // The page's own rule, with no classifier: no time to show.
       setTiming(null);
+      const result = resultRef.current;
+      // The two links of the Wallet's result card. Each opens in a new tab.
+      const open = (url: string | null, missing: string) => setStatus(url === null ? { text: missing, isProblem: true } : openInNewTab(url) ? null : { text: NEW_TAB_STOPPED, isProblem: true });
       if (viewTransactionRequest(text)) {
-        const hash = transactionRef.current;
-        if (hash === null) setStatus({ text: 'This dialog shows no transaction.', isProblem: true });
-        else setStatus(openInNewTab(transactionUrl(hash)) ? null : { text: NEW_TAB_STOPPED, isProblem: true });
+        open(result && transactionUrl(result.transaction), 'This dialog shows no transaction.');
+        return;
+      }
+      if (viewQuoteRequest(text)) {
+        open(result && result.quoteUrl, 'This dialog shows no TDX quote.');
         return;
       }
       if (retryRequest(text)) {
         setStatus(pressTryAgain() ? null : { text: 'This dialog has no "Try again" now.', isProblem: true });
         return;
       }
-      if (!closeRequest(text)) setStatus({ text: transactionRef.current === null ? CLOSE_HINT : RESULT_HINT, isProblem: false });
+      if (!closeRequest(text)) setStatus({ text: result === null ? CLOSE_HINT : resultHint(result), isProblem: false });
       else if (closeNewestDialog()) setStatus(null);
       else setStatus({ text: 'The dialog cannot close while the Wallet works. Say "close" on its result.', isProblem: true });
       return;
@@ -372,9 +379,9 @@ export function VoiceBar({
       : stopReason !== null
         ? (STOP_REASONS[stopReason] ?? 'The microphone stopped. Type the command.')
         : hold === 'dialog'
-          ? shownTransaction === null
+          ? shownResult === null
             ? CLOSE_HINT
-            : RESULT_HINT
+            : resultHint(shownResult)
           : 'Say: "show me controversial posts", or "what can I say?".';
 
   // The hint goes under the typed field, and under the words while a hold is on. With no words,

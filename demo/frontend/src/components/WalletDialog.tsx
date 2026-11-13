@@ -18,7 +18,7 @@ import { createContext, useContext, useEffect, useId, useRef, useState, type Rea
 import { WalletStep, type WalletStepProgress } from '@seams/wallet/react';
 import { DemoContext } from '../demoContext';
 import { hostVoiceCard, type VoiceCard } from '../signer/voiceCard';
-import { showTransaction, transactionHashOf, useHoldVoice } from '../voice/hold';
+import { showResult, useHoldVoice } from '../voice/hold';
 import { CardPill } from './CardPill';
 import { Modal, RESIZE_MS, useDialogHeight, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
@@ -74,7 +74,7 @@ export function WalletDialog({
   const stage = call ? (progress?.stage ?? 'recording') : null;
   useHoldVoice(stage === 'recording' ? 'recording' : null);
   // A dialog that closes on the card's result takes its transaction with it.
-  useEffect(() => () => showTransaction(null), []);
+  useEffect(() => () => showResult(null), []);
   const cardResult = stage === 'result';
 
   // The sign-in ends (signed in, Back, Escape): its menu goes, and with it a card that still
@@ -131,12 +131,12 @@ export function WalletDialog({
               send: (card) =>
                 call
                   .send(card)
-                  // The card now shows its result: "view transaction" opens this transaction.
-                  .then((result) => showTransaction(transactionHashOf(result)))
+                  // The card now shows its result: "view transaction" and "view TDX quote" open its links.
+                  .then((result) => showResult(result))
                   .catch(() => undefined)
                   .finally(() =>
                     voiceCard.afterCard(() => {
-                      showTransaction(null);
+                      showResult(null);
                       // A card that ends while it is minimized (an error) brings the dialog back.
                       setMinimized(null);
                       setProgress(null);

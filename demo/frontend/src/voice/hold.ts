@@ -1,9 +1,9 @@
 // What the command listener may hear while other parts of the page are open.
 //
 // - An open dialog holds it as `dialog`: the bar then hears only "close" (closeRequest), which
-//   closes the newest dialog, and "view transaction" (viewTransactionRequest), when the Wallet's
-//   card shows the result of a transaction. The rest of what the visitor says to a dialog is
-//   not a command.
+//   closes the newest dialog, and "view transaction" (viewTransactionRequest) and "view TDX
+//   quote" (viewQuoteRequest), when the Wallet's card shows the result of a transaction. The
+//   rest of what the visitor says to a dialog is not a command.
 // - A recording holds it as `recording`: the Seams Wallet's voice card, or the page's own bet
 //   recorder, records the sentence that signs. The bar then does not listen at all, so it takes
 //   no words of that sentence and does not compete for the microphone. A voice card in the
@@ -51,26 +51,35 @@ export function useVoiceHold(): VoiceHold {
   }, current);
 }
 
-/** The transaction of the Wallet card that shows its result in the open dialog, if any. */
-let shownTransaction: string | null = null;
+/** What the Wallet card in the open dialog shows with its result: the two links of the card. */
+export interface ShownResult {
+  /** The hash of the transaction, for "view transaction". */
+  transaction: string;
+  /** The OutLayer record of the verifier call, for "view TDX quote". Null when the Wallet gave none. */
+  quoteUrl: string | null;
+}
+
+let shownResult: ShownResult | null = null;
 
 /**
- * Sets the transaction that "view transaction" opens: the hash when the Wallet's card shows the
- * result of a transaction, and null when that card goes. The card is in the Wallet's frame, so
- * the page cannot press its "View transaction" link; it opens the same transaction itself.
+ * Sets what "view transaction" and "view TDX quote" open: the result of the Wallet request when
+ * the Wallet's card shows the result of a transaction, and null when that card goes. The card is
+ * in the Wallet's frame, so the page cannot press its links; it opens the same pages itself.
  */
-export function showTransaction(hash: string | null): void {
-  if (hash === shownTransaction) return;
-  shownTransaction = hash;
+export function showResult(result: unknown): void {
+  const transaction = transactionHashOf(result);
+  const next = transaction === null ? null : { transaction, quoteUrl: quoteUrlOf(result) };
+  if (next?.transaction === shownResult?.transaction && next?.quoteUrl === shownResult?.quoteUrl) return;
+  shownResult = next;
   listeners.forEach((listener) => listener());
 }
 
-/** The transaction that "view transaction" opens now, or null. */
-export function useShownTransaction(): string | null {
+/** The result that the Wallet card in the open dialog shows now, or null. */
+export function useShownResult(): ShownResult | null {
   return useSyncExternalStore((listener) => {
     listeners.add(listener);
     return () => listeners.delete(listener);
-  }, () => shownTransaction);
+  }, () => shownResult);
 }
 
 /** The transaction hash in the result of a Wallet request, in each form that the signers get. */
@@ -80,6 +89,24 @@ export function transactionHashOf(result: unknown): string | null {
   const inner = fields(outer.result);
   const hash = inner.transactionHash ?? outer.transactionHash ?? outer.transactionId;
   return typeof hash === 'string' && hash !== '' ? hash : null;
+}
+
+/**
+ * The OutLayer record of the verifier call in the result of a Wallet request (`attestationUrl`,
+ * from Seams Wallet 0.70.3), with its TDX quote. Null when the result has none.
+ */
+export function quoteUrlOf(result: unknown): string | null {
+  const url = typeof result === 'object' && result !== null ? (result as Record<string, unknown>).attestationUrl : null;
+  return typeof url === 'string' && url.startsWith('https://') ? url : null;
+}
+
+// "View TDX quote", "open the quote", "show me the attestation". A speech-to-text model can
+// write "TDX" as "T D X", and "quote" as "quotes".
+const VIEW_QUOTE = /^(?:(?:ok|okay|please|now|just|and)\s+)*(?:view|open|show|see|click|press|go to)\b(?:\s+[a-z']+){0,5}\s+(?:quotes?|attestation)\b(?:\s+[a-z']+){0,3}$/;
+
+/** True when a sentence only asks to see the TDX quote of the verifier call. */
+export function viewQuoteRequest(text: string): boolean {
+  return VIEW_QUOTE.test(plainWords(text));
 }
 
 export { retryRequest, viewTransactionRequest };

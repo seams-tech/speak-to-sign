@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
 import { commandRequest, decideCommand, helpRequest, myBetsRequest, readScores, retryRequest, stopRequest, wordsDecide, ruleScores, spokenNoteText, spokenScroll, spokenSide, spokenUsdc, topRequest, type CommandScores, type Screen } from '../src/voice/command.ts';
-import { closeRequest, transactionHashOf, viewTransactionRequest } from '../src/voice/hold.ts';
+import { closeRequest, quoteUrlOf, transactionHashOf, viewQuoteRequest, viewTransactionRequest } from '../src/voice/hold.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
 const USDC = 1_000_000n;
@@ -267,4 +267,17 @@ test('"show my bets", "what can I say" and "stop listening" come from the words'
 
   for (const text of ['Stop listening', 'stop listening.', 'Okay, stop listening now', 'Turn voice commands off', 'turn off the microphone', 'Mic off', 'stop the voice bar']) assert.equal(stopRequest(text), true, text);
   for (const text of ['Stop', 'they must stop listening to rumours', 'the microphone is off the table', 'turn off the lights']) assert.equal(stopRequest(text), false, text);
+});
+
+test('"view TDX quote" opens the record of the verifier call that the Wallet result names', () => {
+  for (const text of ['View TDX quote', 'view the T.D.X. quote', 'Okay, open the quote', 'show me the attestation', 'Click view TDX quote please', 'view TDX quotes']) assert.equal(viewQuoteRequest(text), true, text);
+  for (const text of ['View transaction', 'quote', 'the note has a quote from the study that I want to view today', 'done']) assert.equal(viewQuoteRequest(text), false, text);
+  assert.equal(viewTransactionRequest('View TDX quote'), false);
+  const url = 'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877';
+  assert.equal(quoteUrlOf({ kind: 'approved', result: { transactionHash: 'A1' }, attestationUrl: url }), url);
+  // A Wallet before 0.70.3 gives no link, and OutLayer can give none.
+  assert.equal(quoteUrlOf({ kind: 'approved', result: { transactionHash: 'A1' } }), null);
+  assert.equal(quoteUrlOf({ attestationUrl: null }), null);
+  assert.equal(quoteUrlOf({ attestationUrl: 'javascript:alert(1)' }), null);
+  assert.equal(quoteUrlOf(undefined), null);
 });

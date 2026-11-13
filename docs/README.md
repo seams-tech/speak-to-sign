@@ -17,6 +17,7 @@ link to it.
 | Document | Read it to learn |
 | --- | --- |
 | [`voice-intents-spec.md`](voice-intents-spec.md) | The formats and the rules: requests, sentences, digests, sealed audio, enrollment, verification, the verdict, who checks it, and the multisig. |
+| [`spoken-summary.md`](spoken-summary.md) | The summary that a person says for a long text: who writes it, its rules, who checks it, how a page gets it early, and how Seams Wallet uses it. |
 | [`architecture.md`](architecture.md) | Diagrams of the parts and the flows. Section 8.1 records the decision about the verdict key and the TDX quote. Section 9 follows the audio. |
 
 ## What is live, and how to check it

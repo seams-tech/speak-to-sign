@@ -148,6 +148,10 @@ const result = await checkVerdict({
 });
 ```
 
+- `summaryRefusal(summary)` gives the rule that a summary breaks, or null:
+  1 to 12 words of the letters A to Z, at most 120 bytes, and no "send",
+  "sent" or "sends" as the first word. The verifier refuses a request whose
+  summary breaks a rule, so check it before you show it.
 - `op: 'select'` takes `requests` (2 to 16 of them) in place of `request`.
   The output has `selected`, the index of the request that the user said.
   Check the verdict with the digest of that request.

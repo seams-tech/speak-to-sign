@@ -11,12 +11,13 @@ The package joins two libraries of this repository:
 | `@seams/voice-capture` | Records one sentence in the browser |
 | `@seams/voice-verdict` | Checks what the verifier signed |
 
-It has two entry points:
+It has three entry points:
 
 | Import | Where | Job |
 | --- | --- | --- |
 | `@seams/voice-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
-| `@seams/voice-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked |
+| `@seams/voice-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked. `writeSummary`: the sentence that a person says for a long text |
+| `@seams/voice-sign/summary` | The page | `createSummarySource`: asks for a summary early and keeps it. No dependency |
 
 Install it with the libraries that your code imports:
 
@@ -177,6 +178,57 @@ answers throw `VerifierCallError` (`timeout`, `network`, `http` or
 `output`). The output is not proof: the page or your server checks it with
 `checkVerdict`. Check `owner` first. Your payment key pays for each run and
 is the authority for the enrollment of each owner.
+
+## A summary that your server writes
+
+A person can approve a long text (a note, a message) by saying a short
+summary of it. Let your server write that summary. A page that gives the
+summary can put other words in the person's mouth.
+
+```ts
+import { writeSummary } from '@seams/voice-sign/server';
+
+const written = await writeSummary({ apiKey: process.env.NEAR_AI_API_KEY }, noteText);
+if (!written.ok) return refuse(written.code);
+// written.summary: 1 to 12 words of letters, for example "One lane closes in March"
+```
+
+- `writeSummary` asks a chat model (default: `Qwen/Qwen3.8-27B` on NEAR AI
+  Cloud, about 0.5 s). `model`, `chatUrl` and `subject` change the model,
+  the service and the name of the text in the request.
+- It checks the reply with `summaryRefusal` of `@seams/voice-verdict`. A
+  name with a number in it keeps its letters ("COP31" becomes "COP").
+  Another broken rule gets one second request.
+- A failure has a fixed code: `summary_unreachable`, `summary_failed` or
+  `summary_not_speakable`.
+- The summary is a proposal. The verifier checks the spoken words against
+  it. For a community note, the verifier also checks that the summary gives
+  the main point of the note.
+
+The request takes time, so ask before the person presses the button.
+`@seams/voice-sign/summary` keeps the summaries of a page. It has no
+dependency.
+
+```ts
+import { createSummarySource } from '@seams/voice-sign/summary';
+
+const summaries = createSummarySource({
+  // Your way to reach your server. Give a code for a failure; do not throw.
+  write: async (text, signal) => (await fetch('/api/summary', { method: 'POST', body: text, signal })).json(),
+});
+
+summaries.prepare(noteText); // when the text is ready: starts the request
+const result = await summaries.get(noteText); // at the press: kept, in flight, or a new request
+```
+
+- The source keeps one summary for each exact text, for 5 minutes
+  (`lifeMs`), and at most 8 texts (`maxEntries`). So a second try shows the
+  same sentence, and a changed text gets its own summary.
+- A failure is not kept: the next call asks again.
+- `forget()` removes the kept summaries, for example at a sign-out.
+
+Seams Wallet uses both parts: its server route calls `writeSummary`, and
+the Wallet keeps a source for `seams.near.spoken.prepare`.
 
 ## Limits
 

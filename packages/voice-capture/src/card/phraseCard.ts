@@ -139,7 +139,7 @@ export class PhraseCard {
         this.resetLine();
         this.prompt.ready(this.copy.message);
       });
-      if (!this.stale(version)) this.prompt.record.focus();
+      if (!this.stale(version)) this.prompt.record.focus({ preventScroll: true });
     });
   }
 
@@ -201,7 +201,10 @@ export class PhraseCard {
       });
       if (this.stale(version)) return;
       this.prompt.record.disabled = view.action.busy === true;
-      if (!view.action.busy) this.prompt.record.focus();
+      // The focus must not scroll: in the Wallet frame, a result that is taller than the view
+      // before it shows while the frame still grows. A scroll then cuts the card's top off and
+      // leaves an empty band under the card.
+      if (!view.action.busy) this.prompt.record.focus({ preventScroll: true });
     });
   }
 

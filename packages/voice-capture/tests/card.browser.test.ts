@@ -557,6 +557,57 @@ test('a result with a receipt shows its rows between the caption and the detail,
   expect(shown.link).toEqual(['View TDX quote', 'https://testnet-api.outlayer.ai/attestations/by-call/1', '_blank']);
 });
 
+test('a result that is taller than its frame does not scroll the frame', async ({ page }) => {
+  test.setTimeout(60_000);
+  // The Wallet frame grows to the result one moment after the result shows. Until then the
+  // result is taller than the frame, and the frame's document can scroll. A short window is
+  // such a frame.
+  await page.setViewportSize({ width: 520, height: 300 });
+  await page.goto(`${origin}/example/`);
+  const scrolled = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const surface = openPhraseCard({ sentence: 'Send two NEAR to alice.testnet', signal: new AbortController().signal, detector: 'level', autoStart: true });
+    await surface.record();
+    window.scrollTo(0, 0);
+    const before = window.scrollY;
+    void surface.show({
+      kind: 'result',
+      label: '',
+      headline: 'Note posted',
+      caption: 'The claim is not confirmed',
+      receipt: {
+        title: 'TEE receipt',
+        source: 'Intel TDX · OutLayer',
+        rows: [
+          { label: 'Voice', value: 'matched alice.testnet' },
+          { label: 'Words', value: 'matched the summary' },
+          { label: 'Summary', value: 'fits the note (JEV)' },
+          { label: 'Verdict', value: 'signed by the OutLayer verifier 0.14.1' },
+        ],
+        link: { text: 'View TDX quote', href: 'https://testnet-api.outlayer.ai/attestations/by-call/1' },
+      },
+      detail: 'Checked and posted in 2.0 s ·',
+      action: { label: 'Done' },
+      line: 'seal',
+    });
+    const card = document.querySelector<HTMLElement>('.seams-voiceid-prompt')!;
+    while (card.dataset.phraseView !== 'result') await new Promise((resolve) => setTimeout(resolve, 50));
+    // The focus of the action comes after the rows change.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return {
+      before,
+      after: window.scrollY,
+      taller: document.documentElement.scrollHeight > window.innerHeight,
+      focused: document.activeElement === card.querySelector('.seams-voiceid-primary'),
+    };
+  });
+  expect(scrolled.taller).toBe(true);
+  expect(scrolled.focused).toBe(true);
+  // Before, the focus of "Done" scrolled the frame, so the card's top was cut off.
+  expect(scrolled).toMatchObject({ before: 0, after: 0 });
+});
+
 test('a caption with a word of 64 characters breaks inside the card, and no row leaves the card', async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto(`${origin}/example/`);

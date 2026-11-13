@@ -260,7 +260,7 @@ class CardSurface implements PhraseSurface {
     if (frame.hugged) this.element.classList.add('seams-voiceid-hugged');
     this.unmounted = frame.mounted?.(this.element);
     if (rows || this.autoStart) this.prompt.element.focus({ preventScroll: true });
-    else this.prompt.record.focus();
+    else this.prompt.record.focus({ preventScroll: true });
     if (outer.aborted) this.cancel();
   }
 
@@ -394,7 +394,7 @@ class CardSurface implements PhraseSurface {
     delete this.prompt.element.dataset.autoStart;
     this.prompt.record.textContent = action;
     this.prompt.ready(message);
-    this.prompt.record.focus();
+    this.prompt.record.focus({ preventScroll: true });
     this.report({ stage: 'recording', done: 0, total: 0 });
     this.needPerson();
   }

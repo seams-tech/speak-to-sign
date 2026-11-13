@@ -1314,7 +1314,7 @@ export class VoicePrompt {
     this.record.disabled = false;
     this.microphone.disabled = false;
     this.microphone.hidden = true;
-    this.record.focus();
+    this.record.focus({ preventScroll: true });
   }
 
   dispose(): void {

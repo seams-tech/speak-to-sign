@@ -48,6 +48,13 @@ export type PhraseCardFrame = Readonly<{
   minimized?(minimized: boolean): void;
   /** Runs on each new stage of the card, so the host can show the progress of a hidden card. */
   progressed?(progress: PhraseCardProgress): void;
+  /**
+   * For a host that takes commands for the card, such as voice commands. The card gives the host
+   * `press`, which presses one control of the card as the person does. Its result is false when
+   * the card does not show that control now. The value that `remote` returns runs when the card
+   * closes.
+   */
+  remote?(press: (control: PhraseCardPress) => boolean): (() => void) | void;
   /** The host sizes its frame to the surface, so the card follows the frame. */
   hugged?: boolean;
   /** Runs when the surface is in the document. Its return value runs when the surface closes. */
@@ -61,11 +68,18 @@ export type PhraseCardControls = 'close' | 'back' | 'back_and_close';
 export type PhraseCardControl = 'back' | 'close';
 
 /**
- * The stage of a phrase card: it records the sentence (or waits for Record), it checks the
- * recording, or it shows a result.
+ * A control that a host can press for the person. `retry` is the card's button while it starts a
+ * recording: Record or "Try again" on the prompt, and the action of a result that has `retry`.
+ * It is never another action. `minimize`, `back` and `close` are the corner controls.
+ */
+export type PhraseCardPress = 'retry' | 'minimize' | 'back' | 'close';
+
+/**
+ * The stage of a phrase card: it waits for a press on Record or "Try again" (the microphone is
+ * off), it records the sentence, it checks the recording, or it shows a result.
  */
 export type PhraseCardProgress = Readonly<{
-  stage: 'recording' | 'checking' | 'result';
+  stage: 'waiting' | 'recording' | 'checking' | 'result';
   /** The parts of the check that are over, of `total`. Both are 0 outside a check. */
   done: number;
   total: number;
@@ -159,6 +173,11 @@ class CardSurface implements PhraseSurface {
   private readonly outer: AbortSignal;
   private readonly detector: VoiceRecordingOptions['detector'];
   private readonly pressed: PhraseCardFrame['pressed'];
+  private readonly controls: PhraseCardControls;
+  /** Ends the host's hold of `press`. */
+  private readonly remoteEnded: (() => void) | void;
+  /** The person pressed a result's "Try again": the next recording starts with no press. */
+  private retryPressed = false;
   /** Back, when the card shows it apart from Close. */
   private readonly back: HTMLButtonElement | null;
   /** Minimize, when the host can hide the card. */
@@ -216,6 +235,7 @@ class CardSurface implements PhraseSurface {
     this.prompt.status.textContent = PROMPT_MESSAGE;
     this.prompt.record.textContent = 'Record';
     const controls = frame.controls ?? 'close';
+    this.controls = controls;
     this.pressed = frame.pressed;
     const back = controls === 'close' ? null : this.prompt.showBack(controls === 'back_and_close');
     if (input.context) this.prompt.showContext(input.context.label, input.context.text);
@@ -259,6 +279,7 @@ class CardSurface implements PhraseSurface {
     // The host sizes its frame to this surface, so the card can follow the frame (fillFrame).
     if (frame.hugged) this.element.classList.add('seams-voiceid-hugged');
     this.unmounted = frame.mounted?.(this.element);
+    this.remoteEnded = frame.remote?.(this.pressFor);
     if (rows || this.autoStart) this.prompt.element.focus({ preventScroll: true });
     else this.prompt.record.focus({ preventScroll: true });
     if (outer.aborted) this.cancel();
@@ -270,12 +291,19 @@ class CardSurface implements PhraseSurface {
     this.recording?.resolve({ kind: 'cancelled' });
     const recording = deferred<PhraseRecording>();
     this.recording = recording;
+    const again = this.retryPressed;
+    this.retryPressed = false;
     if (this.view) {
       this.view = null;
-      this.report({ stage: 'recording', done: 0, total: 0 });
-      void this.card.showPrompt();
+      const shown = this.card.showPrompt();
+      // "Try again" on the result was the press: the recording starts with no press on Record,
+      // when the prompt is back.
+      if (again) void shown.then(() => this.beginAfterRetry(recording));
+      else this.report({ stage: 'waiting', done: 0, total: 0 });
     } else if (this.autoStart) {
       this.begin(recording);
+    } else {
+      this.report({ stage: 'waiting', done: 0, total: 0 });
     }
     this.autoStart = false;
     return recording.promise;
@@ -307,6 +335,7 @@ class CardSurface implements PhraseSurface {
     this.recording?.resolve({ kind: 'cancelled' });
     this.settleChoice('closed');
     this.unmounted?.();
+    this.remoteEnded?.();
     this.outer.removeEventListener('abort', this.cancel);
     this.element.removeEventListener('cancel', this.cancel);
     this.prompt.record.removeEventListener('click', this.press);
@@ -322,12 +351,50 @@ class CardSurface implements PhraseSurface {
   /** The one button records on the prompt and answers a result. */
   private readonly press = (): void => {
     if (this.view) {
-      if (this.view.kind === 'result' && !this.view.action.busy) this.settleChoice('action');
+      if (this.view.kind === 'result' && !this.view.action.busy) {
+        this.retryPressed = this.view.action.retry === true;
+        this.settleChoice('action');
+      }
       return;
     }
     if (!this.recording || this.started) return;
     this.begin(this.recording);
   };
+
+  /** True while the card's button starts a recording, and the microphone is off. */
+  private canRetry(): boolean {
+    if (this.closed) return false;
+    if (this.view) return this.view.kind === 'result' && this.view.action.retry === true && !this.view.action.busy;
+    return this.recording !== null && !this.started;
+  }
+
+  /** A press of the host for the person (PhraseCardFrame.remote). */
+  private readonly pressFor = (control: PhraseCardPress): boolean => {
+    if (this.closed) return false;
+    switch (control) {
+      case 'retry':
+        if (!this.canRetry()) return false;
+        this.press();
+        return true;
+      case 'minimize':
+        if (!this.minimize || this.minimized) return false;
+        this.pressMinimize();
+        return true;
+      case 'back':
+      case 'close': {
+        // The card draws this control, and a check has no corner control.
+        const drawn = control === 'back' ? this.controls !== 'close' : this.controls !== 'back';
+        if (!drawn || this.view?.kind === 'check') return false;
+        this.pressControl(control);
+        return true;
+      }
+    }
+  };
+
+  private beginAfterRetry(recording: Deferred<PhraseRecording>): void {
+    if (this.closed || this.view || this.started || this.recording !== recording) return;
+    this.begin(recording);
+  }
 
   private begin(recording: Deferred<PhraseRecording>): void {
     this.started = true;
@@ -395,7 +462,7 @@ class CardSurface implements PhraseSurface {
     this.prompt.record.textContent = action;
     this.prompt.ready(message);
     this.prompt.record.focus({ preventScroll: true });
-    this.report({ stage: 'recording', done: 0, total: 0 });
+    this.report({ stage: 'waiting', done: 0, total: 0 });
     this.needPerson();
   }
 

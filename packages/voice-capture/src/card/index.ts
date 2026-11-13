@@ -10,6 +10,7 @@ export {
   type PhraseCardControls,
   type PhraseCardFrame,
   type PhraseCardInput,
+  type PhraseCardPress,
   type PhraseCardProgress,
 } from './surface';
 export type {

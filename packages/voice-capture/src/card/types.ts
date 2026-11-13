@@ -60,8 +60,13 @@ export type PhraseResultView = Readonly<{
   detail: string;
   /** A link after the detail, such as a transaction in a block explorer. */
   link?: Readonly<{ text: string; href: string }>;
-  /** `busy` shows the action dimmed while something outside the surface finishes. */
-  action: Readonly<{ label: string; icon?: 'passkey'; busy?: boolean }>;
+  /**
+   * `busy` shows the action dimmed while something outside the surface finishes. `retry`: the
+   * action records the sentence again ("Try again"). The next recording then starts with no
+   * second press, and a host's `retry` press can run this action. No host press runs another
+   * action, such as a confirmation.
+   */
+  action: Readonly<{ label: string; icon?: 'passkey'; busy?: boolean; retry?: boolean }>;
   /** `seal`: the line closes into the success seal. */
   line: 'seal' | readonly PhraseSegmentState[];
 }>;

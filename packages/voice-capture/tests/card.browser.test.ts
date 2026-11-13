@@ -336,11 +336,94 @@ test('Minimize tells the host and the card goes on; a result asks the host to sh
   expect(end.pressed).toEqual([]);
   // Each new stage once, with the parts of the check that are over.
   expect(end.progress).toEqual([
+    // The card waits for a press on Record first.
+    { stage: 'waiting', done: 0, total: 0 },
     { stage: 'checking', done: 1, total: 3 },
     { stage: 'checking', done: 2, total: 3 },
     { stage: 'result', done: 0, total: 0 },
   ]);
   await expect(card.getByRole('button', { name: 'Minimize' })).toBeVisible();
+});
+
+test('a host presses "Try again", Minimize, Back and Close for the person, and no other action', async ({
+  page,
+}) => {
+  await page.goto(`${origin}/example/`);
+  await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const state = window as unknown as MinimizeState & { press: (control: string) => boolean; choices: string[] };
+    state.minimized = [];
+    state.progress = [];
+    state.pressed = [];
+    state.choices = [];
+    state.surface = openPhraseCard({
+      sentence: 'Send two NEAR to alice.testnet',
+      signal: new AbortController().signal,
+      detector: 'level',
+      frame: {
+        controls: 'back_and_close',
+        pressed: (control: string) => state.pressed.push(control),
+        minimized: (minimized: boolean) => state.minimized.push(minimized),
+        progressed: (progress: unknown) => state.progress.push(progress),
+        remote: (press: (control: string) => boolean) => {
+          state.press = press;
+        },
+      },
+    });
+    state.result = state.surface.record();
+  });
+  type Remote = MinimizeState & { press: (control: string) => boolean; choices: string[] };
+  const press = (control: string) => page.evaluate((name) => (window as unknown as Remote).press(name), control);
+  const stages = () =>
+    page.evaluate(() => (window as unknown as Remote).progress.map((progress) => (progress as { stage: string }).stage));
+  const show = (action: { label: string; retry?: boolean; icon?: 'passkey' }) =>
+    page.evaluate((shown) => {
+      const state = window as unknown as Remote;
+      void state.surface
+        .show({ kind: 'result', label: 'Nothing was sent', headline: 'The words did not match', caption: '', detail: '', action: shown, line: ['fail'] })
+        .then((choice: string) => state.choices.push(choice));
+    }, action);
+
+  // The card waits for a press on Record, with the microphone off: `retry` is that press.
+  expect(await stages()).toEqual(['waiting']);
+  expect(await press('retry')).toBe(true);
+  expect(await stages()).toEqual(['waiting', 'recording']);
+  // While it records, the button does not start a recording.
+  expect(await press('retry')).toBe(false);
+
+  // The recording ends at the end of the speech.
+  await page.evaluate(() => (window as unknown as Remote).result);
+  expect(await stages()).toEqual(['waiting', 'recording', 'checking']);
+
+  // A failed check with "Try again": the press answers it, and the next recording starts with
+  // no press on Record.
+  await show({ label: 'Try again', retry: true });
+  expect(await press('retry')).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as unknown as Remote).choices)).toEqual(['action']);
+  await page.evaluate(() => {
+    const state = window as unknown as Remote;
+    state.result = state.surface.record();
+  });
+  await expect
+    .poll(async () => (await stages()).slice(0, 5))
+    .toEqual(['waiting', 'recording', 'checking', 'result', 'recording']);
+
+  // Minimize, as the person's press.
+  expect(await press('minimize')).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as Remote).minimized)).toEqual([true]);
+
+  // No host press runs another action: "Confirm with passkey" and "Done" stay for the person.
+  await show({ label: 'Confirm with passkey', icon: 'passkey' });
+  expect(await press('retry')).toBe(false);
+  expect(await page.evaluate(() => (window as unknown as Remote).choices)).toEqual(['action']);
+
+  // A check has no corner control. On a result, Close ends the card and reports the press.
+  await page.evaluate((check) => void (window as unknown as Remote).surface.show(check), CHECK);
+  expect(await press('close')).toBe(false);
+  await show({ label: 'Done' });
+  expect(await press('close')).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as Remote).pressed)).toEqual(['close']);
 });
 
 test('Record has the theme button colours, and the ink colours without them', async ({ page }) => {

@@ -58,6 +58,13 @@ that opens a signing step waits for the end of the sentence.
 - "Show more" or "read the note" opens the whole text of the note of "this
   one", or of a named note ("read the second note"). "Show less" closes it.
 - "Scroll to the top" goes to the top of the timeline.
+- "Show my bets" goes to **Your bets** in the right column, and to the post of
+  the newest market there. The box shows only for an account with a bet.
+- "What can I say?" or "help" shows the list of the commands above the bar.
+  With a dialog open, the list has the sentences for the dialog. The list goes
+  with the next sentence.
+- "Stop listening" turns the bar off, as a click on the microphone does. The
+  bar hears it with a dialog open too.
 - With no dialog open, "view transaction" or "click the transaction link"
   opens the newest transaction of "Signed by voice" in the right column.
 - "Scroll down a little bit" and "scroll up a little bit" move the page by half

@@ -13,7 +13,7 @@ import { amountText, timeLeftText } from '../market/math';
 import { useMyBets, type MyMarket } from '../market/myBets';
 import { NEAR_CURRENCY, type Currency, type NoteMarket } from '../market/types';
 import type { Note } from '../notes/types';
-import { postCardId, showCard } from './Timeline';
+import { MY_BETS_TITLE_ID, postCardId, showCard } from './Timeline';
 
 /** The bets with a transaction link under each market. An account explorer link has the rest. */
 const MAX_TX_ROWS = 3;
@@ -25,8 +25,8 @@ export function MyBets() {
   if (!account || markets.length === 0) return null;
   const currency = source.currency ?? NEAR_CURRENCY;
   return (
-    <section className="side-box" aria-labelledby="my-bets-title">
-      <h2 id="my-bets-title" className="side-title">
+    <section className="side-box" aria-labelledby={MY_BETS_TITLE_ID}>
+      <h2 id={MY_BETS_TITLE_ID} className="side-title">
         Your bets
       </h2>
       <ul className="trend-list">

@@ -9,11 +9,14 @@
 // the end of the sentence. The signature itself is the spoken request in the Seams Wallet. While
 // a dialog is open, the bar hears only "close"; while a recording runs and while the tab is out
 // of view, it does not listen (src/voice/hold.ts).
+//
+// Two sentences are for the bar itself, with or without a dialog: "what can I say?" shows the
+// list of the commands above the bar, and "stop listening" turns the bar off.
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
-import type { Screen, VoiceCommand } from './command';
+import { helpRequest, stopRequest, type Screen, type VoiceCommand } from './command';
 import { transactionUrl } from '../config';
 import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
@@ -75,6 +78,10 @@ const COMMAND_PHRASES = [
   'close',
   'close the modal',
   'close the dialog',
+  'what can I say',
+  'help',
+  'show my bets',
+  'stop listening',
   'close this post',
   'cancel',
 ];
@@ -107,6 +114,24 @@ function useTabVisible(): boolean {
 /** The bar's line while a dialog is open. */
 const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
 const RESULT_HINT = 'Say "view transaction", or "done".';
+
+/** What "what can I say?" shows: the sentences of the page, and the sentences for an open dialog. */
+const PAGE_HELP = [
+  'Show me controversial posts',
+  'Next post · Previous post',
+  'Scroll to the second post',
+  'Scroll down a little bit',
+  'Scroll to the top',
+  'Show more · Show less',
+  'Add a community note to this one',
+  'Rate this note helpful',
+  'Open a market on this note',
+  'Bet one dollar on no',
+  'View transaction',
+  'Show my bets',
+  'Stop listening',
+];
+const DIALOG_HELP = ['Close · Done', 'Try again', 'View transaction', 'Stop listening'];
 
 /** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
@@ -151,6 +176,8 @@ export function VoiceBar({
   /** Why the microphone cannot listen. The bar then takes typed commands. */
   const [stopReason, setStopReason] = useState<string | null>(() => (canListen() ? null : 'unsupported'));
   const [typed, setTyped] = useState('');
+  /** True while the list of the commands shows: from "what can I say?" to the next sentence. */
+  const [help, setHelp] = useState(false);
 
   const screenRef = useRef(screen);
   const onCommandRef = useRef(onCommand);
@@ -180,6 +207,19 @@ export function VoiceBar({
       setSaid((before) => [...before, { id: (saidSeq += 1), text }].slice(-MAX_SAID));
       setLive(null);
     } else setLive(text);
+    // A sentence for the bar itself, with or without a dialog. It waits for its end, and goes to no classifier.
+    const asksHelp = helpRequest(text);
+    if (asksHelp || stopRequest(text)) {
+      if (!final) return;
+      request.current?.abort();
+      setTiming(null);
+      setStatus(null);
+      if (asksHelp) setHelp(true);
+      else toggleRef.current();
+      return;
+    }
+    // The list of the commands goes with the next sentence.
+    if (final) setHelp(false);
     // A dialog is open: only "close" counts, and the words go to no classifier.
     if (holdRef.current !== null) {
       if (!final) return;
@@ -244,8 +284,11 @@ export function VoiceBar({
     else interimTimer.current = window.setTimeout(() => void run(), INTERIM_PAUSE_MS);
   });
 
-  // A dialog that opens or closes, or a recording, makes the last sentence's line old.
-  useEffect(() => setStatus(null), [hold]);
+  // A dialog that opens or closes, or a recording, makes the last sentence's line old, and the list too.
+  useEffect(() => {
+    setStatus(null);
+    setHelp(false);
+  }, [hold]);
 
   // A tab that comes back into view tries again: the tab that held the speech service can be gone.
   useEffect(() => {
@@ -304,6 +347,7 @@ export function VoiceBar({
     setTiming(null);
     setSaid([]);
     setLive(null);
+    setHelp(false);
     onToggle(!on);
   };
   // Cmd+K (Ctrl+K on Windows and Linux) turns the bar on and off. A key press counts as the
@@ -331,7 +375,7 @@ export function VoiceBar({
           ? shownTransaction === null
             ? CLOSE_HINT
             : RESULT_HINT
-          : 'Say: "show me controversial posts".';
+          : 'Say: "show me controversial posts", or "what can I say?".';
 
   // The hint goes under the typed field, and under the words while a hold is on. With no words,
   // the line of words shows it.
@@ -339,6 +383,16 @@ export function VoiceBar({
 
   return (
     <div className={on ? 'voice-bar voice-bar-on' : 'voice-bar'} role="region" aria-label="Voice commands">
+      {on && help && (
+        <div className="voice-help" role="status">
+          <p className="voice-help-title">You can say</p>
+          <ul className="voice-help-list">
+            {(hold === 'dialog' ? DIALOG_HELP : PAGE_HELP).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <button
         type="button"
         className={listening ? 'voice-mic voice-mic-live' : 'voice-mic'}

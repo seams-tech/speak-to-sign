@@ -238,3 +238,35 @@ body:has(.notes-app .voice-bar) [data-sonner-toaster] {
     animation: none;
   }
 }
+
+/* The list of the commands ("what can I say?"), above the bar and as wide as the bar. */
+.voice-help {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding: 16px 22px 18px;
+  border-radius: 24px;
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+}
+.voice-help-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.voice-help-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}

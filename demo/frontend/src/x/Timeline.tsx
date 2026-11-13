@@ -297,6 +297,15 @@ export function Timeline() {
       timelineTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return null;
     }
+    if (command.kind === 'my_bets') {
+      // "Your bets" shows only for an account with a bet (MyBets.tsx). Its first row is the newest market.
+      const box = document.getElementById(MY_BETS_TITLE_ID)?.closest('section');
+      if (!box) return account ? 'You have no bets yet.' : 'Sign in to see your bets.';
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // The row's own link shows the post of that market in the timeline.
+      box.querySelector<HTMLAnchorElement>('a.trend')?.click();
+      return null;
+    }
     if (command.kind === 'scroll') {
       if (scrollALittle(command.to, focusedPostId, timelineTop.current)) return null;
       return command.to === 'down' ? 'This is the end of this post. Say "next post".' : 'This is the top of this post. Say "previous post".';
@@ -434,6 +443,9 @@ function MorePosts() {
 
 /** The id of a post's card, so that the voice feed can bring it into view. */
 export const postCardId = (postId: number) => `post-${postId}`;
+
+/** The id of the title of "Your bets" (MyBets.tsx): "show my bets" finds the box by it. */
+export const MY_BETS_TITLE_ID = 'my-bets-title';
 
 function PostCard({
   post,

@@ -33,6 +33,8 @@ export type VoiceCommand =
   | { kind: 'view_transaction' }
   /** To the top of the timeline: "scroll to the top". */
   | { kind: 'top' }
+  /** To "Your bets", and to the post of the newest bet: "show my bets". */
+  | { kind: 'my_bets' }
   /** The whole text of the note of a post, or its short form again: "show more", "show less". */
   | { kind: 'note_text'; postId: number; open: boolean }
   | { kind: 'write_note'; postId: number }
@@ -138,6 +140,7 @@ export function decideCommand(scores: CommandScores, screen: Screen, transcript:
   if (little !== null && !namedPost()) return { kind: 'scroll', to: little };
   if (viewTransactionRequest(transcript)) return { kind: 'view_transaction' };
   if (topRequest(transcript) && !namedPost()) return { kind: 'top' };
+  if (myBetsRequest(transcript)) return { kind: 'my_bets' };
   const noteText = spokenNoteText(transcript);
   if (noteText !== null) {
     const post = notedPost();
@@ -314,9 +317,38 @@ export function retryRequest(text: string): boolean {
   return RETRY.test(plainWords(text));
 }
 
+// "Show my bets", "where are my bets", "go to my bets". Not "show my bets on the second note".
+const MY_BETS = new RegExp(String.raw`${START}(?:show|see|view|open|list|go to|scroll to|take me to|where are|what are)(?:\s+me)?(?:\s+all(?:\s+of)?)?\s+my(?:\s+own)?\s+bets?(?:\s+(?:please|now|again))?$`);
+
+/** True when a sentence only asks for the bets of the signed-in account. */
+export function myBetsRequest(text: string): boolean {
+  return MY_BETS.test(plainWords(text));
+}
+
+// "What can I say?", "help", "show me the commands", "what are the voice commands".
+const HELP = new RegExp(
+  String.raw`${START}(?:help(?:\s+me)?|what\s+can\s+(?:i|you|we|jev)\s+(?:say|do|ask)(?:\s+(?:here|now|to you))?|what\s+(?:are|were)\s+(?:the|your|my)\s+(?:voice\s+)?commands|(?:show|list|tell)(?:\s+me)?\s+(?:all\s+)?(?:the\s+|your\s+)?(?:voice\s+)?commands)(?:\s+please)?$`,
+);
+
+/** True when a sentence only asks which commands the bar knows. The bar answers it: it is no command of the page. */
+export function helpRequest(text: string): boolean {
+  return HELP.test(plainWords(text));
+}
+
+// "Stop listening", "turn voice commands off", "microphone off".
+const VOICE = String.raw`(?:the\s+)?(?:voice(?:\s+commands?|\s+bar)?|microphone|mic)`;
+const STOP_LISTENING = new RegExp(
+  String.raw`${START}(?:stop\s+listening(?:\s+to\s+me)?|stop\s+${VOICE}|(?:turn|switch)\s+${VOICE}\s+off|(?:turn|switch)\s+off\s+${VOICE}|${VOICE}\s+off)(?:\s+(?:please|now))?$`,
+);
+
+/** True when a sentence only asks the bar to stop: it turns the bar off, as a click on the microphone does. */
+export function stopRequest(text: string): boolean {
+  return STOP_LISTENING.test(plainWords(text));
+}
+
 /** True when the words alone decide the command, so it needs no classifier. */
 export function wordsDecide(text: string): boolean {
-  return spokenScroll(text) !== null || viewTransactionRequest(text) || topRequest(text) || spokenNoteText(text) !== null;
+  return spokenScroll(text) !== null || viewTransactionRequest(text) || topRequest(text) || myBetsRequest(text) || spokenNoteText(text) !== null;
 }
 
 /** Reads the answer of POST /api/voice-command. Null when it is not a set of scores. */

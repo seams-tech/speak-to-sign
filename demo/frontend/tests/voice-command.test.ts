@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
-import { commandRequest, decideCommand, readScores, retryRequest, ruleScores, spokenNoteText, spokenScroll, spokenSide, spokenUsdc, topRequest, type CommandScores, type Screen } from '../src/voice/command.ts';
+import { commandRequest, decideCommand, helpRequest, myBetsRequest, readScores, retryRequest, stopRequest, wordsDecide, ruleScores, spokenNoteText, spokenScroll, spokenSide, spokenUsdc, topRequest, type CommandScores, type Screen } from '../src/voice/command.ts';
 import { closeRequest, transactionHashOf, viewTransactionRequest } from '../src/voice/hold.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
@@ -252,4 +252,19 @@ test('closeRequest takes only a short sentence that asks to close', () => {
   for (const text of ['I am close to the stadium', 'write a note on this post', 'this post is close to the truth', 'close this post and bet one dollar on no', '']) {
     assert.equal(closeRequest(text), false, text);
   }
+});
+
+test('"show my bets", "what can I say" and "stop listening" come from the words', () => {
+  const run = (transcript: string) => decideCommand(ruleScores(commandRequest(transcript, SCREEN)), SCREEN, transcript);
+  for (const text of ['Show my bets', 'show me my bets.', 'Okay, where are my bets?', 'Go to my bets please', 'show all of my bets']) assert.equal(myBetsRequest(text), true, text);
+  for (const text of ['Show my bets on the second note', 'bet one dollar on no', 'my bets are good', 'show me the open markets']) assert.equal(myBetsRequest(text), false, text);
+  assert.deepEqual(run('Show my bets.'), { kind: 'my_bets' });
+  assert.equal(wordsDecide('Show my bets'), true);
+  assert.equal(run('Bet one dollar on no on the first note').kind, 'bet');
+
+  for (const text of ['What can I say?', 'Help', 'help me', 'Okay, what can I do here?', 'Show me the commands', 'What are the voice commands?', 'list all the commands please']) assert.equal(helpRequest(text), true, text);
+  for (const text of ['This note is helpful', 'help me write a note on this post', 'what can I say about this post', 'show me the controversial posts']) assert.equal(helpRequest(text), false, text);
+
+  for (const text of ['Stop listening', 'stop listening.', 'Okay, stop listening now', 'Turn voice commands off', 'turn off the microphone', 'Mic off', 'stop the voice bar']) assert.equal(stopRequest(text), true, text);
+  for (const text of ['Stop', 'they must stop listening to rumours', 'the microphone is off the table', 'turn off the lights']) assert.equal(stopRequest(text), false, text);
 });

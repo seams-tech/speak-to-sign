@@ -13,6 +13,8 @@ const TYPE_START_MS = 450;
 /** It types several letters for each step: about a second in all. */
 const NOTE_TYPE_MS = 1_000;
 const NOTE_STEP_MS = 16;
+/** The note text must stay the same this long before the Wallet prepares it. */
+const PREPARE_AFTER_MS = 400;
 
 function prefersLessMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -41,7 +43,7 @@ interface Props {
  * dialog closes with it.
  */
 export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false }: Props) {
-  const { account, status, prepare } = useDemo();
+  const { account, status, prepare, signer } = useDemo();
   const enrolled = useEnrolled(account);
   const modal = useRef<ModalHandle>(null);
   const titleId = useId();
@@ -74,6 +76,20 @@ export function WriteNoteModal({ post, onClose, onSent, onDone, autoSign = false
     timer = window.setTimeout(step, TYPE_START_MS);
     return () => window.clearTimeout(timer);
   }, [typingNote, prefillNote]);
+
+  // The Wallet prepares the note while the visitor reads the draft: it loads its code and asks
+  // the Seams server for the summary, so the card comes sooner after the press. The text must
+  // stay the same for a moment first, so typing does not ask for a summary of each letter.
+  const ready = !!status?.signedIn && !!status.voiceReady && enrolled;
+  // While the draft types itself in, its whole text is known already: the Wallet starts then.
+  const draft = (typingNote ? prefillNote : text).trim();
+  const draftOk = draft !== '' && [...draft].length <= MAX_NOTE_CHARS;
+  const noteToPrepare = ready && draftOk && phase.state === 'idle' ? draft : null;
+  useEffect(() => {
+    if (noteToPrepare === null) return;
+    const timer = window.setTimeout(() => signer.prepareNote?.(noteToPrepare), PREPARE_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [noteToPrepare, signer]);
 
   // The Wallet card shows the result and its receipt, and its Done ends it: the dialog then
   // closes at once, with no result of its own.

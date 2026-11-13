@@ -3,7 +3,7 @@
 // when the note has no market.
 //
 // The flow has as few steps as the contract allows: "Open a market" opens one at once (1 USDC,
-// 3 minutes), the creator closes the betting and asks JEV in one transaction, and an action that
+// 15 minutes), the creator closes the betting and asks JEV in one transaction, and an action that
 // starts while signed out runs after the sign-in.
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
@@ -43,15 +43,18 @@ import './market.css';
 
 const EMPTY_POSITION: MarketPosition = { yes: 0n, no: 0n, claimed: false };
 const MINUTE = 60_000;
-/** How long a new market takes bets. The creator can close it earlier. */
+/**
+ * How long a new market takes bets. The creator can close it earlier. The shortest time is 15
+ * minutes: with 3 minutes, a market closed before other people could find it and bet.
+ */
 const DURATIONS: readonly { label: string; ms: number }[] = [
-  { label: '3 min', ms: 3 * MINUTE },
+  { label: '15 min', ms: 15 * MINUTE },
   { label: '1 hour', ms: 60 * MINUTE },
   { label: '1 day', ms: 24 * 60 * MINUTE },
   { label: '3 days', ms: 3 * 24 * 60 * MINUTE },
 ];
 /** "Open a market" in one tap: the first seed chip and the first duration. */
-const DEFAULT_DURATION_MS = 3 * MINUTE;
+const DEFAULT_DURATION_MS = DURATIONS[0]!.ms;
 /** An action started while signed out runs after a sign-in within this time. */
 const INTENT_MS = 2 * MINUTE;
 /** How often the strip reads the market again: while JEV decides, and otherwise. */
@@ -592,7 +595,7 @@ function openStageText(stage: SignStage, signsByVoice: boolean): string {
   return stage === 'confirm' && signsByVoice ? 'Say it in the Wallet…' : stageText(stage, 'Opening…');
 }
 
-/** "3 minutes", "1 hour", "3 days". */
+/** "15 minutes", "1 hour", "3 days". */
 function durationText(ms: number): string {
   const minutes = Math.round(ms / MINUTE);
   if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;

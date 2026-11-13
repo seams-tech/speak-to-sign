@@ -25,7 +25,7 @@ The strip keeps the steps few. Each step below is one tap and, where it signs,
 one Wallet confirm.
 
 1. **Open a market.** "Open a market" opens one at once: the first seed chip
-   (1 USDC) and 3 minutes of betting. "Change" opens the sheet for another
+   (1 USDC) and 15 minutes of betting. "Change" opens the sheet for another
    seed or time.
 2. **Bet.** "Bet yes" or "Bet no". With `directBet`, the bet goes out at once;
    without it, the bet sheet asks for the side and the amount. The bar, the

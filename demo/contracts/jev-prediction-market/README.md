@@ -319,8 +319,8 @@ token's `ft_transfer_call`. The timeline (`src/x/Timeline.tsx`) mounts the
 strip as the last row of a note card:
 
 - No market: "Will this note hold up?" and **Open a market**, which opens one
-  at once with a 1 USDC seed and 3 minutes of betting. **Change** gives a
-  seed of 1, 2 or 5 USDC and a close time of 3 minutes to 3 days. The context
+  at once with a 1 USDC seed and 15 minutes of betting. **Change** gives a
+  seed of 1, 2 or 5 USDC and a close time of 15 minutes to 3 days. The context
   that JEV reads is the post text and the note text, frozen at the open.
 - Open: the pool bar, the odds, the odds line from `get_odds_history`, the
   pool size, the bet count, a countdown, and **Bet yes** / **Bet no** (chips

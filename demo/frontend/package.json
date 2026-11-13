@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@fontsource/hanken-grotesk": "5.3.0",
-    "@seams/voice-verdict": "0.70.4",
-    "@seams/voiceid": "0.70.4",
-    "@seams/wallet": "0.70.4",
+    "@seams/voice-verdict": "0.70.5",
+    "@seams/voiceid": "0.70.5",
+    "@seams/wallet": "0.70.5",
     "@tabler/icons-react": "^3.51.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

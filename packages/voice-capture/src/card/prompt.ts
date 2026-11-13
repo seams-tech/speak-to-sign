@@ -24,6 +24,9 @@ const CSS = `
   margin: 0 auto;
   padding: 3.5rem 1.5rem 1.5rem;
   display: grid;
+  /* One column, never wider than the card: a long word in one row (an account of 64 characters)
+     must not push the other rows, such as the receipt and the button, out of the card. */
+  grid-template-columns: minmax(0, 1fr);
   /* Named rows. The context row is empty (0 high) unless the card shows the text that its sentence
      speaks for. A host that sets its own rows keeps these names. */
   grid-template-rows: [context] auto [title] auto [phrase] minmax(6rem, auto) [line] 5rem [status] minmax(3.375rem, auto) [action] minmax(5rem, auto);
@@ -293,6 +296,8 @@ const CSS = `
 .seams-voiceid-prompt > :not(.seams-voiceid-glow) { position: relative; z-index: 1; }
 .seams-voiceid-prompt > .seams-voiceid-close { position: absolute; }
 .seams-voiceid-prompt .seams-voiceid-status {
+  /* A word that is longer than the line breaks inside the card. */
+  overflow-wrap: anywhere;
   font-size: 0.75rem;
   line-height: 1.5;
   min-height: 3.375rem;

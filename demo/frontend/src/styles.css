@@ -1343,6 +1343,11 @@ code {
   background: transparent;
   border-radius: 0;
 }
+/* Dev pages only (src/dev): the voice card of the local build, at the width of the site's card. */
+.dialog.dialog-bare:has(.card-preview-host) {
+  width: min(var(--card-w), 100%);
+  max-width: var(--card-w);
+}
 .dialog-bare .card-close {
   position: absolute;
   top: 10px;

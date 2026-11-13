@@ -5,10 +5,13 @@
 // the views that the Wallet shows (copied from seams-wallet core/transactionFeatures/approver/
 // card.ts). Nothing records for real and nothing signs.
 //
-// - `flow`: `note` (a community note, with the note above the sentence) or `bet` (a market bet).
+// - `flow`: `note` (a community note, with the note above the sentence), `bet` (a market bet) or
+//   `transaction` (a general transaction to an implicit account, whose name is 64 characters).
 // - `view`: `prompt` (the card records), `checking`, `sending`, `result` (with the TEE receipt)
 //   or `failure` (the words did not match).
 // - `theme=dark`: Lights out.
+// - `account=long`: the `transaction` caption names the full 64-character account.
+// - `norecord`: do not wait for a recording (for a browser with no microphone).
 // The page sets `data-flow-ready` on <html> when the view shows.
 
 import { StrictMode, useEffect, useRef } from 'react';
@@ -20,7 +23,7 @@ import '../styles.css';
 
 const BASE = '/__voice-capture/';
 
-type Flow = 'note' | 'bet';
+type Flow = 'note' | 'bet' | 'transaction';
 type View = 'prompt' | 'checking' | 'sending' | 'result' | 'failure';
 
 interface Surface {
@@ -36,10 +39,14 @@ interface CaptureModule {
 }
 
 const params = new URLSearchParams(location.search);
-const flow: Flow = params.get('flow') === 'bet' ? 'bet' : 'note';
+const asked = params.get('flow');
+const flow: Flow = asked === 'bet' || asked === 'transaction' ? asked : 'note';
 const view = (params.get('view') ?? 'prompt') as View;
 const theme: ThemeName = params.get('theme') === 'dark' ? 'dark' : 'light';
 document.documentElement.dataset.theme = theme;
+
+/** An implicit NEAR account: 64 hex characters with no place to break a line. */
+const IMPLICIT_ACCOUNT = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520df9b1a4c7e55';
 
 const NOTE =
   'The claim that a team won a state championship through cheating is an unverified allegation that readers cannot confirm from the text alone.';
@@ -63,6 +70,16 @@ const FLOWS = {
     done: 'placed',
     seconds: '9.8',
     heard: ['We heard “Bet 0.5 USDC ', { mark: 'no' }, ' on market 12”'],
+  },
+  transaction: {
+    sentence: 'Create a prediction market on this note',
+    context: undefined,
+    headline: 'Transaction sent',
+    // The Wallet's caption, as its flow.ts writes it for this account.
+    caption: params.get('account') === 'long' ? `To ${IMPLICIT_ACCOUNT}` : 'To 3e2210…20df',
+    done: 'sent',
+    seconds: '11.6',
+    heard: ['We heard “Create a prediction market on ', { mark: 'his' }, ' note”'],
   },
 } as const;
 
@@ -158,14 +175,18 @@ function Preview() {
         document.documentElement.dataset.flowReady = 'true';
         return;
       }
-      await recorded;
+      // `norecord`: a browser with no microphone (a headless check) shows the view at once.
+      if (!params.has('norecord')) await recorded;
+      else void recorded.catch(() => undefined);
       void surface.show(walletView(view));
       document.documentElement.dataset.flowReady = 'true';
     })();
     return () => stop.abort();
   }, []);
   return (
-    <Modal labelledBy="flow-title" onClose={() => undefined} locked>
+    // Bare, as on the site: there the dialog takes the size of the Wallet's card and has no
+    // surface of its own while the card shows (WalletDialog, `pinned`), so the card is the only layer.
+    <Modal labelledBy="flow-title" onClose={() => undefined} locked bare>
       <h2 id="flow-title" className="sr-only">
         Voice card
       </h2>

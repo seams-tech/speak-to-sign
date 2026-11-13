@@ -18,7 +18,7 @@ import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import { helpRequest, stopRequest, type Screen, type VoiceCommand } from './command';
 import { transactionUrl } from '../config';
-import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useRetryOffered, useShownResult, useVoiceHold, viewQuoteRequest, viewTransactionRequest, type ShownResult } from './hold';
+import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, cardRequest, pressTryAgain, retryRequest, useShownCard, useShownResult, useVoiceHold, viewQuoteRequest, viewTransactionRequest, type ShownResult } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -114,8 +114,10 @@ function useTabVisible(): boolean {
 
 /** The bar's line while a dialog is open. */
 const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
-/** The bar's line while the Wallet's card shows a failed check. */
-const RETRY_HINT = 'Say "try again", or "close".';
+/** The bar's line while the Wallet's card waits for "Try again". */
+const RETRY_HINT = 'Say "try again", "back" or "close".';
+/** The bar's line while the Wallet's card is minimized. */
+const MINIMIZED_HINT = 'The card is minimized. Say "maximize".';
 /** The bar's line while the Wallet's card shows the result of a transaction. */
 const resultHint = (result: ShownResult) => (result.quoteUrl === null ? 'Say "view transaction", or "done".' : 'Say "view transaction", "view TDX quote", or "done".');
 
@@ -135,7 +137,7 @@ const PAGE_HELP = [
   'Show my bets',
   'Stop listening',
 ];
-const DIALOG_HELP = ['Close · Done', 'Try again', 'View transaction', 'View TDX quote', 'Stop listening'];
+const DIALOG_HELP = ['Close · Done', 'Try again', 'Back', 'Minimize · Maximize', 'View transaction', 'View TDX quote', 'Stop listening'];
 
 /** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
@@ -165,9 +167,9 @@ export function VoiceBar({
   const shownResult = useShownResult();
   const resultRef = useRef(shownResult);
   resultRef.current = shownResult;
-  const retryOffered = useRetryOffered();
-  const retryRef = useRef(retryOffered);
-  retryRef.current = retryOffered;
+  const shownCard = useShownCard();
+  const cardRef = useRef(shownCard);
+  cardRef.current = shownCard;
   const visible = useTabVisible();
   /** The finished sentences, oldest first, and the sentence that the visitor says now. */
   const [said, setSaid] = useState<SaidSentence[]>([]);
@@ -243,13 +245,35 @@ export function VoiceBar({
         open(result && result.quoteUrl, 'This dialog shows no TDX quote.');
         return;
       }
+      const card = cardRef.current;
       if (retryRequest(text)) {
         setStatus(pressTryAgain() ? null : { text: 'This dialog has no "Try again" now.', isProblem: true });
         return;
       }
-      if (!closeRequest(text)) setStatus({ text: result !== null ? resultHint(result) : retryRef.current ? RETRY_HINT : CLOSE_HINT, isProblem: false });
-      else if (closeNewestDialog()) setStatus(null);
-      else setStatus({ text: 'The dialog cannot close while the Wallet works. Say "close" on its result.', isProblem: true });
+      // The corner controls of the Wallet's card. The Wallet presses them, in its own frame.
+      const cardCommand = card === null ? null : cardRequest(text);
+      if (card !== null && cardCommand !== null) {
+        if (cardCommand === 'maximize') {
+          if (card.restore) card.restore();
+          setStatus(card.restore ? null : { text: 'The card is not minimized.', isProblem: true });
+          return;
+        }
+        // A check has no Back, and the card takes no press while it is minimized.
+        const cannot = card.restore !== null ? MINIMIZED_HINT : cardCommand === 'back' && card.stage === 'checking' ? 'The card has no Back while the Wallet checks.' : null;
+        if (cannot === null) card.press(cardCommand);
+        setStatus(cannot === null ? null : { text: cannot, isProblem: true });
+        return;
+      }
+      if (!closeRequest(text)) {
+        setStatus({ text: result !== null ? resultHint(result) : card?.restore ? MINIMIZED_HINT : card?.canRetry ? RETRY_HINT : CLOSE_HINT, isProblem: false });
+        return;
+      }
+      if (closeNewestDialog()) setStatus(null);
+      // The card waits for a press: its own Close ends it, and the dialog with it.
+      else if (card !== null && card.stage !== 'checking' && card.restore === null) {
+        card.press('close');
+        setStatus(null);
+      } else setStatus({ text: 'The dialog cannot close while the Wallet works. Say "close" on its result.', isProblem: true });
       return;
     }
     const run = async () => {
@@ -386,9 +410,11 @@ export function VoiceBar({
         : hold === 'dialog'
           ? shownResult !== null
             ? resultHint(shownResult)
-            : retryOffered
-              ? RETRY_HINT
-              : CLOSE_HINT
+            : shownCard?.restore
+              ? MINIMIZED_HINT
+              : shownCard?.canRetry
+                ? RETRY_HINT
+                : CLOSE_HINT
           : 'Say: "show me controversial posts", or "what can I say?".';
 
   // The hint goes under the typed field, and under the words while a hold is on. With no words,

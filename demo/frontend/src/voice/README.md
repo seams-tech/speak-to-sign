@@ -85,6 +85,24 @@ that opens a signing step waits for the end of the sentence.
 - While the sentence is not finished, the page already brings the post of a note or a bet into
   view.
 
+## Commands for the Wallet's card
+
+The Wallet's voice card is in the Wallet's frame, so the page cannot press its
+buttons. The Wallet presses them for the page (`onControls` of `WalletStep`,
+Wallet 0.70.6), and the dialog gives the bar the card (`showCard` in
+`hold.ts`).
+
+- "Try again" presses the card's own "Try again" or Record: after a recording
+  with no speech, and on a failed check ("The words did not match").
+- "Back", "minimize" and "close" press the card's corner controls. "Maximize"
+  shows a minimized card again.
+- No command presses another action. "Confirm with passkey" and "Done" stay
+  for the person: the Wallet runs only the press that starts a recording.
+- The Wallet runs a press as a click: only while the whole card is in view
+  and nothing covers it.
+- The bar is paused only while the card's microphone records. While the card
+  waits for a press, checks or shows a result, the bar listens.
+
 ## Limits
 
 - The browser sends the command audio to its own speech service. The audio of

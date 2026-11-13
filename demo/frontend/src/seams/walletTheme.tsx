@@ -128,7 +128,7 @@ function walletColors(base: Record<string, string>, p: PagePalette): Record<stri
 
     // The voice card: the line in X blue, its echoes in a lighter and a deeper blue, and no
     // Beam (the glow at the card's foot; `none` needs voice-capture 0.69.1 or later, which the
-    // Wallet 0.70.5 has).
+    // Wallet 0.70.6 has).
     voiceLine: p.accent,
     voiceEcho: p.echo,
     voiceEchoDeep: p.echoDeep,

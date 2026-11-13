@@ -7,8 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
 import { commandRequest, decideCommand, helpRequest, myBetsRequest, readScores, retryRequest, stopRequest, wordsDecide, ruleScores, spokenNoteText, spokenScroll, spokenSide, spokenUsdc, topRequest, type CommandScores, type Screen } from '../src/voice/command.ts';
-import { closeRequest, offerRetry, pressTryAgain, quoteUrlOf, transactionHashOf, viewQuoteRequest, viewTransactionRequest } from '../src/voice/hold.ts';
-import { cardTries, type VoiceCard } from '../src/signer/voiceCard.ts';
+import { cardRequest, closeRequest, pressTryAgain, quoteUrlOf, showCard, transactionHashOf, viewQuoteRequest, viewTransactionRequest, type CardPress } from '../src/voice/hold.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
 const USDC = 1_000_000n;
@@ -283,39 +282,21 @@ test('"view TDX quote" opens the record of the verifier call that the Wallet res
   assert.equal(quoteUrlOf(undefined), null);
 });
 
-test('"try again" on the Wallet card sends the request again, and only the newest try settles it', async () => {
-  // The Wallet's card is in the Wallet's frame. While it shows a failed check, the host of the
-  // card offers a retry, and "try again" runs it in place of a button of the page.
-  let retries = 0;
-  offerRetry(() => {
-    retries += 1;
-  });
+test('"try again", "back", "minimize" and "maximize" act on the Wallet card that the dialog shows', () => {
+  // The Wallet's card is in the Wallet's frame. The dialog gives the bar the card, and "try
+  // again" presses the card's own button, through the Wallet, in place of a button of the page.
+  const pressed: CardPress[] = [];
+  const card = { stage: 'waiting' as const, canRetry: true, restore: null, press: (control: CardPress) => void pressed.push(control) };
+  showCard(card);
   assert.equal(pressTryAgain(), true);
-  assert.equal(retries, 1);
-  offerRetry(null);
+  assert.deepEqual(pressed, ['retry']);
+  showCard(null);
 
-  // One request, two tries. The card of the first try ends when the second try starts, so the
-  // first call rejects as cancelled. That is not the result of the request.
-  const card = {} as VoiceCard;
-  const calls: { resolve: (value: string) => void; reject: (cause: Error) => void }[] = [];
-  const send = () => new Promise<string>((resolve, reject) => calls.push({ resolve, reject }));
-  const settled: string[] = [];
-  const nextTry = cardTries(send, (result) => settled.push(`result ${result}`), (cause) => settled.push(`error ${String(cause)}`));
-
-  const first = nextTry();
-  const firstSent = first.send(card);
-  const second = nextTry();
-  assert.deepEqual([first.number, first.newest(), second.number, second.newest()], [1, false, 2, true]);
-  const secondSent = second.send(card);
-  calls[0].reject(new Error('cancelled'));
-  await assert.rejects(firstSent, /cancelled/);
-  assert.deepEqual(settled, []);
-  calls[1].resolve('sent');
-  assert.equal(await secondSent, 'sent');
-  assert.deepEqual(settled, ['result sent']);
-
-  // With one try, its error is the error of the request.
-  const failing = cardTries(() => Promise.reject(new Error('refused')), () => settled.push('result'), (cause) => settled.push(String(cause)));
-  await assert.rejects(failing().send(card), /refused/);
-  assert.deepEqual(settled, ['result sent', 'Error: refused']);
+  for (const text of ['Back', 'go back', 'Okay, go back please']) assert.equal(cardRequest(text), 'back', text);
+  for (const text of ['Minimize', 'minimise the card', 'hide it', 'Please minimize this']) assert.equal(cardRequest(text), 'minimize', text);
+  for (const text of ['Maximize', 'maximise the card', 'restore it', 'bring it back', 'show the card again', 'open the wallet']) assert.equal(cardRequest(text), 'maximize', text);
+  // The words of a sentence that signs are no command, and no words confirm or approve.
+  for (const text of ['Send two NEAR to alice.testnet', 'confirm', 'confirm with passkey', 'approve', 'post presents internal event as breaking news without source or date', 'I will be back tomorrow with the source', '']) {
+    assert.equal(cardRequest(text), null, text);
+  }
 });

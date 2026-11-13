@@ -11,6 +11,7 @@ import type { WalletStepProgress } from '@seams/wallet/react';
 import { BrandMark } from './BrandMark';
 
 const STAGE_TEXT: Record<WalletStepProgress['stage'], string> = {
+  waiting: 'Waiting for you…',
   recording: 'Listening…',
   checking: 'Checking what you said…',
   result: 'Done',

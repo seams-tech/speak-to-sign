@@ -12,12 +12,21 @@
 // - `theme=dark`: Lights out.
 // - `account=long`: the `transaction` caption names the full 64-character account.
 // - `norecord`: do not wait for a recording (for a browser with no microphone).
+// - `voice`: the voice bar is on the page, and it gets the card as the Wallet dialog gives it
+//   (showCard). "Try again", "back", "minimize", "maximize" and "close" then press the card's
+//   own controls through its `remote` hook. After "Try again" the card records again, and the
+//   failed check shows again.
+// - `play` (with `voice`): for a browser with no microphone. The page plays the speech
+//   recognition (`window.__say('try again')` is one spoken sentence) and gives the card a silent
+//   microphone, so a recording ends as "too brief or quiet", with "Try again" on the prompt.
 // The page sets `data-flow-ready` on <html> when the view shows.
 
-import { StrictMode, useEffect, useRef } from 'react';
+import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Modal } from '../components/Modal';
 import type { ThemeName } from '../showcase/theme';
+import { showCard, useHoldVoice, type CardPress, type ShownCard } from '../voice/hold';
+import { VoiceBar } from '../voice/VoiceBar';
 import { cardThemeVariables } from './cardTheme';
 import '../styles.css';
 
@@ -140,14 +149,70 @@ function walletView(name: Exclude<View, 'prompt'>): unknown {
         headline: 'The words did not match',
         caption: copy.heard,
         detail: 'Read the sentence again, word for word.',
-        action: { label: 'Try again' },
+        action: { label: 'Try again', retry: true },
         line: ['done', 'done', 'fail', 'skip', 'skip', 'skip'] satisfies Segment[],
       };
   }
 }
 
+const WITH_VOICE = params.has('voice');
+
+if (WITH_VOICE && params.has('play')) playMicrophone();
+
+/** A speech recognition that hears what `__say` gives it, and a microphone with no sound. */
+function playMicrophone(): void {
+  type Played = { onresult: ((event: unknown) => void) | null; onaudiostart: (() => void) | null };
+  let listening: Played | null = null;
+  class PlayedRecognition {
+    lang = '';
+    continuous = false;
+    interimResults = false;
+    onresult: ((event: unknown) => void) | null = null;
+    onerror: ((event: { error: string }) => void) | null = null;
+    onaudiostart: (() => void) | null = null;
+    onend: (() => void) | null = null;
+    start(): void {
+      listening = this;
+      setTimeout(() => this.onaudiostart?.(), 0);
+    }
+    abort(): void {
+      if (listening === this) listening = null;
+    }
+  }
+  const scope = window as unknown as { SpeechRecognition: unknown; webkitSpeechRecognition: unknown; __say: (text: string) => void };
+  scope.SpeechRecognition = PlayedRecognition;
+  scope.webkitSpeechRecognition = PlayedRecognition;
+  scope.__say = (text) => listening?.onresult?.({ resultIndex: 0, results: { length: 1, 0: { isFinal: true, 0: { transcript: text } } } });
+  const silence = async (): Promise<MediaStream> => {
+    const context = new AudioContext();
+    const out = context.createMediaStreamDestination();
+    context.createGain().connect(out);
+    return out.stream;
+  };
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: silence, enumerateDevices: async () => [], addEventListener: () => undefined, removeEventListener: () => undefined } });
+}
+
 function Preview() {
   const host = useRef<HTMLDivElement>(null);
+  // The card's state for the voice bar, as WalletDialog keeps it for the Wallet's card.
+  const [stage, setStage] = useState<ShownCard['stage'] | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const [pressed, setPressed] = useState<string | null>(null);
+  // The card shows the failed check, with its "Try again".
+  const [failed, setFailed] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const press = useRef<((control: CardPress) => boolean) | null>(null);
+  useHoldVoice(WITH_VOICE && stage === 'recording' ? 'recording' : null);
+  useEffect(() => {
+    if (!WITH_VOICE || stage === null || pressed !== null) return undefined;
+    showCard({
+      stage,
+      canRetry: stage === 'waiting' || failed,
+      restore: minimized ? () => setMinimized(false) : null,
+      press: (control) => void press.current?.(control),
+    });
+    return () => showCard(null);
+  }, [stage, minimized, pressed, failed]);
   useEffect(() => {
     const parent = host.current;
     if (!parent) return;
@@ -166,9 +231,19 @@ function Preview() {
         sentence: copy.sentence,
         signal: stop.signal,
         detector: 'level',
-        autoStart: true,
+        // With `norecord` and a view, no recording runs under the view.
+        autoStart: view === 'prompt' || !params.has('norecord'),
         ...(copy.context ? { context: copy.context } : {}),
-        frame: { parent, controls: 'back_and_close', minimized: () => undefined, progressed: () => undefined },
+        frame: {
+          parent,
+          controls: 'back_and_close',
+          minimized: (hidden: boolean) => setMinimized(hidden),
+          progressed: (progress: { stage: ShownCard['stage'] }) => setStage(progress.stage),
+          pressed: (control: string) => setPressed(control),
+          remote: (run: (control: CardPress) => boolean) => {
+            press.current = run;
+          },
+        },
       });
       const recorded = surface.record();
       if (view === 'prompt') {
@@ -178,8 +253,15 @@ function Preview() {
       // `norecord`: a browser with no microphone (a headless check) shows the view at once.
       if (!params.has('norecord')) await recorded;
       else void recorded.catch(() => undefined);
-      void surface.show(walletView(view));
       document.documentElement.dataset.flowReady = 'true';
+      // As the Wallet does: "Try again" on a failed check records again, then the check shows.
+      for (;;) {
+        setFailed(view === 'failure');
+        const choice = await surface.show(walletView(view));
+        setFailed(false);
+        if (choice !== 'action' || view !== 'failure' || stop.signal.aborted) return;
+        await surface.record();
+      }
     })();
     return () => stop.abort();
   }, []);
@@ -190,7 +272,14 @@ function Preview() {
       <h2 id="flow-title" className="sr-only">
         Voice card
       </h2>
-      <div ref={host} className="card-preview-host" style={{ ...cardThemeVariables(theme), padding: '8px 0' }} data-theme={theme} />
+      <div
+        ref={host}
+        className="card-preview-host"
+        style={{ ...cardThemeVariables(theme), padding: '8px 0', visibility: minimized ? 'hidden' : undefined }}
+        data-theme={theme}
+      />
+      {pressed !== null && <p className="muted small">The card ended: the person pressed {pressed}.</p>}
+      {WITH_VOICE && <VoiceBar on={voiceOn} onToggle={setVoiceOn} screen={() => ({ posts: [], focusedPostId: null })} onCommand={() => null} onTarget={() => undefined} />}
     </Modal>
   );
 }

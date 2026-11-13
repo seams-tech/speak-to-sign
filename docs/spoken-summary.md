@@ -62,8 +62,9 @@ words in the person's mouth.
 5. For another fault, it asks one second time. That request names the broken
    rule or the word.
 6. If the second reply still has a wrong character, it keeps the letters of
-   each word. A number that stands alone holds a value, so it does not go:
-   the result is then `summary_not_speakable`.
+   each word ("@city" becomes "city"). A quantity holds a value, so it does
+   not go: a number alone, or a word that starts with a digit or a currency
+   sign ("10km", "$40m", "2nd"). The result is then `summary_not_speakable`.
 
 ### Why code repairs the reply
 

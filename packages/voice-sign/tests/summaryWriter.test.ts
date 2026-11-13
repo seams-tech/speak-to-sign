@@ -94,6 +94,11 @@ test('another broken rule gets a second request that names the rule, and two bro
 test('after two replies with a wrong character, the letters of each word stay; a number alone fails', async () => {
   const kept = model(['Ask @city about it', 'Ask @city about it']);
   assert.deepEqual(await writeSummary(kept.config, NOTE), { ok: true, summary: 'Ask city about it' });
+  // A quantity with a unit or an ending keeps its value: its letters alone would drop it.
+  for (const quantity of ['10km', '$40m', '2nd', '1990s']) {
+    const reply = `The road is ${quantity} long`;
+    assert.deepEqual(await writeSummary(model([reply, reply]).config, NOTE), { ok: false, code: 'summary_not_speakable' }, quantity);
+  }
   const alone = model(['The city closes 2 lanes', 'The city closes 2 lanes']);
   assert.deepEqual(await writeSummary(alone.config, NOTE), { ok: false, code: 'summary_not_speakable' });
 });

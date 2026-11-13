@@ -105,6 +105,8 @@ test('a new prepare ends an older request that only prepare started', async () =
   // An empty text asks nothing.
   page.summaries.prepare('   ');
   assert.equal(page.asked.length, 4);
+  assert.deepEqual(await page.summaries.get('  '), { ok: false, code: 'summary_not_speakable' });
+  assert.equal(page.asked.length, 4);
 });
 
 test('a summary that a person cannot say is a failure, and it is not kept', async () => {

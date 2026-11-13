@@ -76,6 +76,11 @@ const BROKEN_RULE: Readonly<Record<SummaryRefusal, string>> = {
 };
 
 const LETTERS_ONLY = /^[A-Za-z]+$/;
+/**
+ * A word that starts with a digit or a currency sign is a quantity: "10km", "$40m", "2nd",
+ * "1990s". Its letters alone ("km", "m", "nd", "s") would drop the value, so it is never repaired.
+ */
+const QUANTITY = /^[0-9$€£¥]/;
 /** A name with a number in it, such as "COP31" or "G20": letters, with digits after or between them. */
 const NAME_WITH_NUMBER = /^[A-Za-z]+[0-9]+[A-Za-z]*$/;
 
@@ -127,8 +132,9 @@ type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
  *   it in 3 of 3 replies. The writer keeps the letters of such a name at once ("COP"), with no
  *   second request, which would add about 0.5 s.
  * - Another broken rule gets one second request, which names the rule or the word.
- * - If the second reply breaks the letter rule too, the writer keeps the letters of each word.
- *   A number that stands alone still fails: `summary_not_speakable`.
+ * - If the second reply breaks the letter rule too, the writer keeps the letters of each word
+ *   ("@city" is "city"). A quantity still fails with `summary_not_speakable`: a number alone, or
+ *   a word that starts with a digit or a currency sign ("10km", "$40m").
  */
 export async function writeSummary(
   config: SummaryWriterConfig,
@@ -158,7 +164,7 @@ export async function writeSummary(
     last = summary;
     messages.push({ role: 'assistant', content: reply.content }, { role: 'user', content: brokenRule(refusal, summary) });
   }
-  const repaired = lettersOnly(last, () => true);
+  const repaired = lettersOnly(last, (word) => !QUANTITY.test(word));
   return repaired === null ? { ok: false, code: 'summary_not_speakable' } : { ok: true, summary: repaired };
 }
 

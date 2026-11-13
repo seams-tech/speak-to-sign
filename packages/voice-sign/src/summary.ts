@@ -102,11 +102,13 @@ export function createSummarySource(options: SummarySourceOptions): SummarySourc
       void current(text).request;
     },
     get(text, signal) {
+      if (signal?.aborted) return Promise.reject(signal.reason);
+      // No text has no summary: nothing is asked, as in `prepare`.
+      if (text.trim() === '') return Promise.resolve({ ok: false, code: 'summary_not_speakable' });
       const entry = current(text);
       entry.wanted = true;
       const { request } = entry;
       if (!signal) return request;
-      if (signal.aborted) return Promise.reject(signal.reason);
       return new Promise<SummaryResult>((resolve, reject) => {
         const abort = () => reject(signal.reason);
         signal.addEventListener('abort', abort, { once: true });

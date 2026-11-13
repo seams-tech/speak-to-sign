@@ -184,7 +184,9 @@ function Preview() {
     return () => stop.abort();
   }, []);
   return (
-    <Modal labelledBy="flow-title" onClose={() => undefined} locked>
+    // Bare, as on the site: there the dialog takes the size of the Wallet's card and has no
+    // surface of its own while the card shows (WalletDialog, `pinned`), so the card is the only layer.
+    <Modal labelledBy="flow-title" onClose={() => undefined} locked bare>
       <h2 id="flow-title" className="sr-only">
         Voice card
       </h2>

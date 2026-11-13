@@ -80,8 +80,8 @@ You need a browser with passkeys and a microphone.
 
 | Item       | Link                                             |
 | ---------- | ------------------------------------------------ |
-| Demo video | TODO: the owner adds the link to the demo video. |
-| X post     | TODO: the owner adds the link to the X post.     |
+| Demo video | [The demo video](https://x.com/lowerarchy/status/2121206041337835883), in the first post of the thread on X. It is one take of 1 min 50 s. |
+| X post     | [The thread on X](https://x.com/lowerarchy/status/2121206041337835883): the demo, how it works, a refusal, and other uses. |
 
 ## Why it is useful
 

@@ -21,8 +21,8 @@ only.
 | --- | --- |
 | Try it | <https://speak-to-sign.pages.dev/>, on a laptop with a microphone. It takes about 2 minutes. |
 | Judges | [`JUDGES.md`](JUDGES.md): the short path to see it work and to check each claim. |
-| Demo video | TODO: the owner adds the link to the demo video. |
-| X post | TODO: the owner adds the link to the X post. |
+| Demo video | [The demo video](https://x.com/lowerarchy/status/2121206041337835883), in the first post of the thread on X. It is one take of 1 min 50 s. |
+| X post | [The thread on X](https://x.com/lowerarchy/status/2121206041337835883): the demo, how it works, a refusal, and other uses. |
 | AI reviewers | [`AGENTS.md`](AGENTS.md): the read order and the facts that are easy to miss. |
 
 ## Contents

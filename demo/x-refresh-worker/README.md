@@ -21,8 +21,9 @@ Cloudflare account of the site:
 cd demo/frontend && pnpm exec wrangler deploy --config ../x-refresh-worker/wrangler.toml
 ```
 
-Deployed on 2026-11-11 with the owner's yes, from `dev` c52f1ae (wrangler 4.160.0,
-version `6bb78c54-8986-44b6-a90d-7b806821dabf`, schedule `0 */8 * * *`). It has no
+Deployed on 2026-11-13 with the owner's yes, from `dev` 36e7f5c (wrangler 4.158.0,
+version `560eef83-6a0b-43d5-8cb1-2a80e0d4c702`, schedule `0 */4 * * *`). The first deploy was on
+2026-11-11, with the schedule `0 */8 * * *`. It has no
 `workers.dev` URL (`workers_dev = false`): it has no fetch handler, so that URL only
 answered 500. A local run of the handler (`wrangler dev --test-scheduled`, then
 `/__scheduled`) logged `x-refresh: 200, 8 posts kept, stale false`.

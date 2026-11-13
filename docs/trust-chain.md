@@ -75,11 +75,11 @@ to the gateway that it checked. The details are in the
 - The Seams staging server (a transfer, a note, a rating) still calls
   0.13.0. That version sends the audio to NEAR AI over TLS and checks nothing
   about NEAR AI.
-- The stored result of the check on OutLayer is from an earlier build of the
-  check, with `dcap-qvl`, which ran the full check there on 2026-11-12. The
-  worker's own quote check runs on OutLayer when that result is 6 hours old.
-  From a laptop, it passed against NEAR AI and Intel (the live tests of the
-  crate), and the tests compare it with `dcap-qvl`.
+- The worker's own quote check runs on OutLayer. On 2026-11-13 the stored
+  result was more than 6 hours old, and the next `verify` call made a new
+  check: the report of NEAR AI, Intel's collateral and the two quote checks
+  took 1.6 s, the check passed, and the call gave `accept`. The tests
+  compare this check with `dcap-qvl`.
 - The live state is in [`deployed-state.md`](deployed-state.md).
 
 **The design.**

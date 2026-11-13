@@ -14,7 +14,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import type { Screen, VoiceCommand } from './command';
-import { closeNewestDialog, closeRequest, useVoiceHold } from './hold';
+import { transactionUrl } from '../config';
+import { closeNewestDialog, closeRequest, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -54,6 +55,8 @@ const COMMAND_PHRASES = [
   'previous post',
   'go back',
   'scroll to',
+  'scroll down a little bit',
+  'scroll up a little bit',
   'this post',
   'controversial',
   'open markets',
@@ -95,6 +98,7 @@ function useTabVisible(): boolean {
 
 /** The bar's line while a dialog is open. */
 const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
+const RESULT_HINT = 'Say "view transaction", or "close".';
 
 /** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
@@ -121,6 +125,9 @@ export function VoiceBar({
   const hold = useVoiceHold();
   const holdRef = useRef(hold);
   holdRef.current = hold;
+  const shownTransaction = useShownTransaction();
+  const transactionRef = useRef(shownTransaction);
+  transactionRef.current = shownTransaction;
   const visible = useTabVisible();
   /** The finished sentences, oldest first, and the sentence that the visitor says now. */
   const [said, setSaid] = useState<SaidSentence[]>([]);
@@ -170,7 +177,18 @@ export function VoiceBar({
       if (!final) return;
       // The page's own rule, with no classifier: no time to show.
       setTiming(null);
-      if (!closeRequest(text)) setStatus({ text: CLOSE_HINT, isProblem: false });
+      if (viewTransactionRequest(text)) {
+        const hash = transactionRef.current;
+        if (hash === null) setStatus({ text: 'This dialog shows no transaction.', isProblem: true });
+        else {
+          // A new tab from spoken words has no click behind it, so the browser can stop it.
+          const tab = window.open(transactionUrl(hash), '_blank');
+          if (tab) tab.opener = null;
+          setStatus(tab ? null : { text: 'The browser stopped the new tab. Allow pop-ups for this site.', isProblem: true });
+        }
+        return;
+      }
+      if (!closeRequest(text)) setStatus({ text: transactionRef.current === null ? CLOSE_HINT : RESULT_HINT, isProblem: false });
       else if (closeNewestDialog()) setStatus(null);
       else setStatus({ text: 'The dialog cannot close while the Wallet works. Say "close" on its result.', isProblem: true });
       return;
@@ -303,7 +321,9 @@ export function VoiceBar({
       : stopReason !== null
         ? (STOP_REASONS[stopReason] ?? 'The microphone stopped. Type the command.')
         : hold === 'dialog'
-          ? CLOSE_HINT
+          ? shownTransaction === null
+            ? CLOSE_HINT
+            : RESULT_HINT
           : 'Say: "show me controversial posts".';
 
   // The hint goes under the typed field, and under the words while a hold is on. With no words,

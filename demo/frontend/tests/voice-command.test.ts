@@ -6,8 +6,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
-import { commandRequest, decideCommand, readScores, ruleScores, spokenSide, spokenUsdc, type CommandScores, type Screen } from '../src/voice/command.ts';
-import { closeRequest } from '../src/voice/hold.ts';
+import { commandRequest, decideCommand, readScores, ruleScores, spokenScroll, spokenSide, spokenUsdc, type CommandScores, type Screen } from '../src/voice/command.ts';
+import { closeRequest, transactionHashOf, viewTransactionRequest } from '../src/voice/hold.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
 const USDC = 1_000_000n;
@@ -97,6 +97,25 @@ test('a rating goes to the named note, and a move needs no post', () => {
   assert.deepEqual(decideCommand({ ...NONE, goTo: 0.9 }, SCREEN, ''), { kind: 'no_target', action: 'go' });
 });
 
+test('a small scroll comes from the words, and it keeps the post', () => {
+  assert.equal(spokenScroll('Now scroll down just a little bit'), 'down');
+  assert.equal(spokenScroll('Scroll up a bit.'), 'up');
+  assert.equal(spokenScroll('go down half a page'), 'down');
+  assert.equal(spokenScroll('Scroll down slightly'), 'down');
+  // "Scroll down" alone is the next post, and a bet is not a scroll.
+  assert.equal(spokenScroll('Scroll down.'), null);
+  assert.equal(spokenScroll('Bet a little bit on yes'), null);
+  assert.equal(spokenScroll('This note is a bit down on the facts'), null);
+  const run = (transcript: string) => decideCommand(ruleScores(commandRequest(transcript, SCREEN)), SCREEN, transcript);
+  assert.deepEqual(run('Now scroll down just a little bit'), { kind: 'scroll', to: 'down' });
+  assert.deepEqual(run('Scroll up a little.'), { kind: 'scroll', to: 'up' });
+  assert.deepEqual(run('Scroll down.'), { kind: 'move', to: 'next' });
+  // The classifier reads "scroll down" as the next post: the words win.
+  assert.deepEqual(decideCommand({ ...NONE, move: { next: 0.95, previous: 0 } }, SCREEN, 'scroll down a little bit'), { kind: 'scroll', to: 'down' });
+  // A named post wins over the small scroll.
+  assert.deepEqual(run('Scroll down a little to the third post.'), { kind: 'go', postId: 30 });
+});
+
 test('spokenUsdc reads digits and words, in whole cents', () => {
   const cases: [string, bigint | null][] = [
     ['bet $1 on no', USDC],
@@ -178,6 +197,20 @@ test('the controversy score counts the ratio, the rating split and the market ba
   assert.equal(controversy(post('0', '0'), undefined, market(5n, 5n)), 1);
   assert.equal(controversy(post('0', '0'), undefined, market(5n, 5n, 'resolved')), 0);
   assert.equal(controversy(post('1K', '1K'), note(1, 1), market(1n, 3n)), 2.5);
+});
+
+test('"view transaction" is a short sentence, and the hash comes from each result form', () => {
+  for (const text of ['View transaction', 'view the transaction.', 'Now open the transaction', 'Okay, show me the transaction', 'View transaction please']) {
+    assert.equal(viewTransactionRequest(text), true, text);
+  }
+  for (const text of ['transaction', 'I view this transaction as a mistake in the long history of the bank', 'close', 'view the quote', 'write a note about the transaction', '']) {
+    assert.equal(viewTransactionRequest(text), false, text);
+  }
+  assert.equal(transactionHashOf({ result: { transactionHash: 'A1' } }), 'A1');
+  assert.equal(transactionHashOf({ transactionHash: 'B2' }), 'B2');
+  assert.equal(transactionHashOf({ transactionId: 'C3' }), 'C3');
+  assert.equal(transactionHashOf({ ok: false, error: 'refused' }), null);
+  assert.equal(transactionHashOf(undefined), null);
 });
 
 test('closeRequest takes only a short sentence that asks to close', () => {

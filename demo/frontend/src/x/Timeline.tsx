@@ -15,7 +15,7 @@ import { useBetVoice } from '../market/SayBet';
 import { marketContext } from '../market/noteContext';
 import type { NoteMarket } from '../market/types';
 import type { Note } from '../notes/types';
-import { MAX_SCREEN_POSTS, type Screen, type TimelineTab, type VoiceCommand } from '../voice/command';
+import { MAX_SCREEN_POSTS, type Screen, type ScrollTo, type TimelineTab, type VoiceCommand } from '../voice/command';
 import { VoiceBar } from '../voice/VoiceBar';
 import { controversy } from './controversy';
 import { X_POSTS_LINE } from './xPosts';
@@ -114,6 +114,30 @@ function scrollParent(element: HTMLElement): HTMLElement | null {
 /** Brings a post's card to the centre of the view, where it is "this one" for a voice command. */
 function focusCard(postId: number) {
   document.getElementById(postCardId(postId))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/** A smaller scroll than this is not worth a move: the card is at its end. */
+const MIN_SCROLL_PX = 24;
+
+/**
+ * Scrolls the timeline by half of its view, for "scroll down a little bit". It stops where the
+ * focused card would leave the line across the middle of the view, so "this one" stays the same
+ * post. `inTimeline` is an element of the timeline. False when the card has no more to show
+ * that way.
+ */
+function scrollALittle(to: ScrollTo, focusedPostId: number | null, inTimeline: HTMLElement | null): boolean {
+  const scroller = inTimeline ? scrollParent(inTimeline) : null;
+  let distance = (scroller?.clientHeight ?? window.innerHeight) / 2;
+  const card = focusedPostId === null ? null : document.getElementById(postCardId(focusedPostId));
+  if (card) {
+    const line = viewCentre(card);
+    const { top, bottom } = card.getBoundingClientRect();
+    // The card is "this one" while its bottom is below the line and its top is not.
+    distance = Math.min(distance, to === 'down' ? bottom - line - 1 : line - top);
+  }
+  if (distance < MIN_SCROLL_PX) return false;
+  (scroller ?? window).scrollBy({ top: to === 'down' ? distance : -distance, behavior: 'smooth' });
+  return true;
 }
 
 /** The height of the line across the middle of the part of the view where `element` scrolls. */
@@ -261,6 +285,10 @@ export function Timeline() {
       if (!target) return command.to === 'next' ? 'This is the last post.' : 'This is the first post.';
       focusCard(target.post.id);
       return null;
+    }
+    if (command.kind === 'scroll') {
+      if (scrollALittle(command.to, focusedPostId, timelineTop.current)) return null;
+      return command.to === 'down' ? 'This is the end of this post. Say "next post".' : 'This is the top of this post. Say "previous post".';
     }
     if (command.kind === 'go') {
       const target = spoken.find((candidate) => candidate.post.id === command.postId);

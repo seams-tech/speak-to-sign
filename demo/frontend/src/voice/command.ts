@@ -1,7 +1,7 @@
 // Voice commands of the notes app: what the visitor can ask for, what the page tells the
 // classifier about the screen, and how the classifier's scores become one command.
 //
-// A command only moves the page: it changes the tab, moves to the next post, opens the write
+// A command only moves the page: it changes the tab, moves to the next post, scrolls a little, opens the write
 // dialog, the rating dialog or the bet sheet, or starts a new market. It signs nothing. A note or a bet is still signed by the spoken request in the Seams
 // Wallet, where the verifier checks the voice and the words. So a wrong command cannot sign.
 //
@@ -19,12 +19,16 @@ export const NOTE_RATINGS: readonly NoteRating[] = ['helpful', 'somewhat_helpful
 export type MoveTo = 'next' | 'previous';
 export const MOVES: readonly MoveTo[] = ['next', 'previous'];
 
+export type ScrollTo = 'down' | 'up';
+
 export type VoiceCommand =
   | { kind: 'show'; tab: TimelineTab }
   /** To the post after or before the focused post. It becomes "this one". */
   | { kind: 'move'; to: MoveTo }
   /** To one post that the sentence names: "scroll to the first post". It becomes "this one". */
   | { kind: 'go'; postId: number }
+  /** Half of the view up or down: "scroll down a little bit". "This one" stays the same post. */
+  | { kind: 'scroll'; to: ScrollTo }
   | { kind: 'write_note'; postId: number }
   /** `amount` in USDC base units. Null: the bet sheet's own amount. */
   | { kind: 'bet'; postId: number; side: BetSide; amount: bigint | null }
@@ -122,6 +126,10 @@ export function decideCommand(scores: CommandScores, screen: Screen, transcript:
     const post = namedPost();
     return post ? { kind: 'go', postId: post.postId } : { kind: 'no_target', action: 'go' };
   };
+  // The words decide a small scroll, as they decide the amount and the side of a bet: to a
+  // classifier, "scroll down a little" is "the next post". A named post still wins.
+  const little = spokenScroll(transcript);
+  if (little !== null && !namedPost()) return { kind: 'scroll', to: little };
   const actions: { score: number; command: () => VoiceCommand }[] = [
     ...TIMELINE_TABS.map((tab) => ({ score: scores.show[tab], command: (): VoiceCommand => ({ kind: 'show', tab }) })),
     // "Scroll down to the first post" names its post: the direction does not count then.
@@ -228,6 +236,19 @@ const NO_WORDS = /\b(no|nope|knowing)\b/i;
 export function spokenSide(text: string): BetSide | null {
   const yes = YES_WORDS.test(text);
   return yes === NO_WORDS.test(text) ? null : yes ? 'yes' : 'no';
+}
+
+const SCROLL_WAY = /\b(?:scroll|move|go|page)\b.*?\b(down|up)\b/i;
+const A_LITTLE = /\b(?:a (?:little|tiny|wee)(?: bit)?|a bit|a tad|a touch|slightly|half (?:a|the) page)\b/i;
+
+/**
+ * The direction of a small scroll: "scroll down a little bit", "now scroll up just a bit", "go
+ * down half a page". Null for a sentence with no such words, and for "scroll down" alone, which
+ * is the next post.
+ */
+export function spokenScroll(text: string): ScrollTo | null {
+  const way = SCROLL_WAY.exec(text)?.[1]?.toLowerCase();
+  return way !== undefined && A_LITTLE.test(text) ? (way as ScrollTo) : null;
 }
 
 /** Reads the answer of POST /api/voice-command. Null when it is not a set of scores. */

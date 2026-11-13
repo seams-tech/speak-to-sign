@@ -48,6 +48,15 @@ that opens a signing step waits for the end of the sentence.
 - "This one" is the post at the centre of the view. It has a faint blue tint. If
   the centre is between two posts, "this one" is the next post (the lower
   one). "Next post" and "scroll to the third post" bring a post to the centre.
+- While a dialog shows the result of a transaction ("Note posted"), "view
+  transaction" opens that transaction on the explorer in a new tab. The card
+  with the "View transaction" link is in the Wallet's frame, so the page opens
+  the same transaction itself. The browser can stop a new tab that no click
+  asked for: allow pop-ups for the site.
+- "Scroll down a little bit" and "scroll up a little bit" move the page by half
+  of the view. The page stops before "this one" becomes another post, so a long
+  post shows its note and its market, and stays "this one". The page's own
+  words rule decides this command, with no call to the classifier.
 - 8 posts have a number, in a grey chip at the right of the post's head. Their
   notes have their own numbers ("Note 2"), so "the second note" is the second
   note on the screen. The numbers stay while "this one" is among the 8 posts.

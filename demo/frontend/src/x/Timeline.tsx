@@ -16,6 +16,7 @@ import { marketContext } from '../market/noteContext';
 import type { NoteMarket } from '../market/types';
 import type { Note } from '../notes/types';
 import { MAX_SCREEN_POSTS, type Screen, type ScrollTo, type TimelineTab, type VoiceCommand } from '../voice/command';
+import { NEW_TAB_STOPPED, openInNewTab } from '../voice/hold';
 import { VoiceBar } from '../voice/VoiceBar';
 import { controversy } from './controversy';
 import { X_POSTS_LINE } from './xPosts';
@@ -285,6 +286,12 @@ export function Timeline() {
       if (!target) return command.to === 'next' ? 'This is the last post.' : 'This is the first post.';
       focusCard(target.post.id);
       return null;
+    }
+    if (command.kind === 'view_transaction') {
+      // The newest transaction that the page shows: the first link of "Signed by voice".
+      const link = document.querySelector<HTMLAnchorElement>('.xt-side a.tx-link') ?? document.querySelector<HTMLAnchorElement>('a.tx-link');
+      if (!link) return 'No transaction is on the screen.';
+      return openInNewTab(link.href) ? null : NEW_TAB_STOPPED;
     }
     if (command.kind === 'scroll') {
       if (scrollALittle(command.to, focusedPostId, timelineTop.current)) return null;

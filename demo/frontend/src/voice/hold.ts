@@ -11,6 +11,7 @@
 //   the card and the dialog.
 
 import { useEffect, useSyncExternalStore } from 'react';
+import { plainWords, viewTransactionRequest } from './command.ts';
 
 export type HoldKind = 'dialog' | 'recording';
 
@@ -81,21 +82,19 @@ export function transactionHashOf(result: unknown): string | null {
   return typeof hash === 'string' && hash !== '' ? hash : null;
 }
 
-// "View transaction", "open the transaction", "show me the transaction": a short sentence.
-const VIEW_TRANSACTION = /^(?:(?:ok|okay|please|now|just|and)\s+)*(?:view|open|show|see|click|go to)\b(?:\s+[a-z']+){0,3}\s+transaction\b(?:\s+[a-z']+){0,2}$/;
+export { viewTransactionRequest };
 
-/** True when a sentence only asks to see the transaction of the dialog. */
-export function viewTransactionRequest(text: string): boolean {
-  return VIEW_TRANSACTION.test(plainWords(text));
+/**
+ * Opens a page in a new tab. False when the browser stopped it: a new tab from spoken words has
+ * no click behind it, so a browser that does not allow pop-ups for the site stops it.
+ */
+export function openInNewTab(url: string): boolean {
+  const tab = window.open(url, '_blank');
+  if (tab) tab.opener = null;
+  return tab !== null;
 }
 
-function plainWords(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z'\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+export const NEW_TAB_STOPPED = 'The browser stopped the new tab. Allow pop-ups for this site.';
 
 // "Close", "close this post", "cancel", "never mind": a short sentence that only asks to close.
 // A speech-to-text model can write "close" as "clothes".

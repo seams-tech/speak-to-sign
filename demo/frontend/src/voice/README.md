@@ -53,6 +53,8 @@ that opens a signing step waits for the end of the sentence.
   with the "View transaction" link is in the Wallet's frame, so the page opens
   the same transaction itself. The browser can stop a new tab that no click
   asked for: allow pop-ups for the site.
+- With no dialog open, "view transaction" or "click the transaction link"
+  opens the newest transaction of "Signed by voice" in the right column.
 - "Scroll down a little bit" and "scroll up a little bit" move the page by half
   of the view. The page stops before "this one" becomes another post, so a long
   post shows its note and its market, and stays "this one". The page's own

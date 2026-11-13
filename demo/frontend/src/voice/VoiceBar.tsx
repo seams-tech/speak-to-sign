@@ -15,7 +15,7 @@ import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import type { Screen, VoiceCommand } from './command';
 import { transactionUrl } from '../config';
-import { closeNewestDialog, closeRequest, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
+import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -56,6 +56,8 @@ const COMMAND_PHRASES = [
   'go back',
   'scroll to',
   'scroll down a little bit',
+  'view transaction',
+  'click the transaction link',
   'scroll up a little bit',
   'this post',
   'controversial',
@@ -180,12 +182,7 @@ export function VoiceBar({
       if (viewTransactionRequest(text)) {
         const hash = transactionRef.current;
         if (hash === null) setStatus({ text: 'This dialog shows no transaction.', isProblem: true });
-        else {
-          // A new tab from spoken words has no click behind it, so the browser can stop it.
-          const tab = window.open(transactionUrl(hash), '_blank');
-          if (tab) tab.opener = null;
-          setStatus(tab ? null : { text: 'The browser stopped the new tab. Allow pop-ups for this site.', isProblem: true });
-        }
+        else setStatus(openInNewTab(transactionUrl(hash)) ? null : { text: NEW_TAB_STOPPED, isProblem: true });
         return;
       }
       if (!closeRequest(text)) setStatus({ text: transactionRef.current === null ? CLOSE_HINT : RESULT_HINT, isProblem: false });

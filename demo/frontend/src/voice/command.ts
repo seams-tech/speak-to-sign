@@ -29,6 +29,8 @@ export type VoiceCommand =
   | { kind: 'go'; postId: number }
   /** Half of the view up or down: "scroll down a little bit". "This one" stays the same post. */
   | { kind: 'scroll'; to: ScrollTo }
+  /** The newest transaction on the page, on the explorer: "click the transaction link". */
+  | { kind: 'view_transaction' }
   | { kind: 'write_note'; postId: number }
   /** `amount` in USDC base units. Null: the bet sheet's own amount. */
   | { kind: 'bet'; postId: number; side: BetSide; amount: bigint | null }
@@ -130,6 +132,7 @@ export function decideCommand(scores: CommandScores, screen: Screen, transcript:
   // classifier, "scroll down a little" is "the next post". A named post still wins.
   const little = spokenScroll(transcript);
   if (little !== null && !namedPost()) return { kind: 'scroll', to: little };
+  if (viewTransactionRequest(transcript)) return { kind: 'view_transaction' };
   const actions: { score: number; command: () => VoiceCommand }[] = [
     ...TIMELINE_TABS.map((tab) => ({ score: scores.show[tab], command: (): VoiceCommand => ({ kind: 'show', tab }) })),
     // "Scroll down to the first post" names its post: the direction does not count then.
@@ -249,6 +252,28 @@ const A_LITTLE = /\b(?:a (?:little|tiny|wee)(?: bit)?|a bit|a tad|a touch|slight
 export function spokenScroll(text: string): ScrollTo | null {
   const way = SCROLL_WAY.exec(text)?.[1]?.toLowerCase();
   return way !== undefined && A_LITTLE.test(text) ? (way as ScrollTo) : null;
+}
+
+/** A sentence in lowercase letters and single spaces, with no punctuation. */
+export function plainWords(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z'\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// "View transaction", "open the transaction", "click the transaction link on the right column".
+const VIEW_TRANSACTION = /^(?:(?:ok|okay|please|now|just|and)\s+)*(?:view|open|show|see|click|press|go to)\b(?:\s+[a-z']+){0,3}\s+transaction\b(?:\s+[a-z']+){0,6}$/;
+
+/** True when a sentence only asks to see a transaction: the words decide, as for a small scroll. */
+export function viewTransactionRequest(text: string): boolean {
+  return VIEW_TRANSACTION.test(plainWords(text));
+}
+
+/** True when the words alone decide the command, so it needs no classifier. */
+export function wordsDecide(text: string): boolean {
+  return spokenScroll(text) !== null || viewTransactionRequest(text);
 }
 
 /** Reads the answer of POST /api/voice-command. Null when it is not a set of scores. */

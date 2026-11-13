@@ -200,12 +200,15 @@ test('the controversy score counts the ratio, the rating split and the market ba
 });
 
 test('"view transaction" is a short sentence, and the hash comes from each result form', () => {
-  for (const text of ['View transaction', 'view the transaction.', 'Now open the transaction', 'Okay, show me the transaction', 'View transaction please']) {
+  for (const text of ['View transaction', 'view the transaction.', 'Now open the transaction', 'Okay, show me the transaction', 'View transaction please', 'Click the transaction link on the right column', 'click the transaction link']) {
     assert.equal(viewTransactionRequest(text), true, text);
   }
   for (const text of ['transaction', 'I view this transaction as a mistake in the long history of the bank', 'close', 'view the quote', 'write a note about the transaction', '']) {
     assert.equal(viewTransactionRequest(text), false, text);
   }
+  // With no dialog, the same words are a command of the page, and the classifier's scores do not count.
+  assert.deepEqual(decideCommand(NONE, SCREEN, 'Click the transaction link on the right column'), { kind: 'view_transaction' });
+  assert.deepEqual(decideCommand({ ...NONE, writeNote: 0.9 }, SCREEN, 'view transaction'), { kind: 'view_transaction' });
   assert.equal(transactionHashOf({ result: { transactionHash: 'A1' } }), 'A1');
   assert.equal(transactionHashOf({ transactionHash: 'B2' }), 'B2');
   assert.equal(transactionHashOf({ transactionId: 'C3' }), 'C3');

@@ -1,7 +1,7 @@
 // Asks the Pages Function for the scores of a spoken sentence (JEV), and makes the command.
 // When the route does not answer, the page's own word rules give the scores.
 
-import { commandRequest, decideCommand, readScores, ruleScores, spokenScroll, type Screen, type VoiceCommand } from './command';
+import { commandRequest, decideCommand, readScores, ruleScores, wordsDecide, type Screen, type VoiceCommand } from './command';
 
 export interface Classified {
   command: VoiceCommand;
@@ -12,8 +12,8 @@ export interface Classified {
 
 export async function classify(transcript: string, screen: Screen, signal?: AbortSignal): Promise<Classified> {
   const request = commandRequest(transcript, screen);
-  // The words alone decide a small scroll, so it needs no call to the classifier.
-  if (spokenScroll(request.transcript) !== null) {
+  // The words alone decide a small scroll and "view transaction", so they need no call to the classifier.
+  if (wordsDecide(request.transcript)) {
     return { command: decideCommand(ruleScores(request), screen, transcript), by: 'rules', ms: 0 };
   }
   const started = performance.now();

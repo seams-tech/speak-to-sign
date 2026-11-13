@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test';
 const speech = path.resolve(import.meta.dirname, '../voice-capture/tests/fixtures/speech-then-silence.wav');
 const PORT = 8795;
 
-// The example application of this repository (`examples/voice-confirm`) in Chromium, with a fake
+// The example application of this repository (`example/`) in Chromium, with a fake
 // microphone that plays a speech fixture, and with the example's fake verifier. It runs the
 // browser entry point, the capture library and the server entry point together. Build the three
 // packages first.
@@ -26,7 +26,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'node ../../examples/voice-confirm/server.mjs',
+    command: 'node example/server.mjs',
     env: { FAKE_VERIFIER: '1', PORT: String(PORT) },
     url: `http://localhost:${PORT}/api/actions`,
     reuseExistingServer: false,

@@ -19,6 +19,7 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   speaker_unavailable: 'The speaker check did not answer.',
   storage: 'The verifier storage failed.',
   transcriber_unavailable: 'The transcription service did not answer.',
+  transcriber_not_attested: 'The verifier could not check the TEE of the transcription service. Try again.',
   amount_not_speakable: 'The amount must be whole hundredths of NEAR, from 0.01 to 1,000,000.',
   receiver_not_speakable:
     'The receiver must be a named NEAR account that you can say, not an implicit (64-hex) account.',

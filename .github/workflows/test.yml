@@ -191,7 +191,7 @@ jobs:
           pnpm test
           pnpm build
       # The browser tests record the WAV fixture through Chromium's fake microphone. The
-      # voice-sign test runs examples/voice-confirm with FAKE_VERIFIER=1.
+      # voice-sign test runs packages/voice-sign/example with FAKE_VERIFIER=1.
       - name: Install Chromium
         working-directory: packages/voice-capture
         run: pnpm exec playwright install --with-deps chromium

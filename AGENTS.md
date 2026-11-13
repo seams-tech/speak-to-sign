@@ -30,6 +30,10 @@ before, and it is the baseline, not hackathon work. See
    testnet, and where it differs from the source.
 6. [`docs/README.md`](docs/README.md): the index of the other specs.
 
+The folder tree is in [README.md, "Repository"](README.md#repository). The
+README next to each part gives its details: the verifier, each library, each
+contract and the demo site.
+
 ## How to check it
 
 - [JUDGES.md, "Check it from a terminal"](JUDGES.md#check-it-from-a-terminal)
@@ -70,10 +74,10 @@ before, and it is the baseline, not hackathon work. See
    to the Phala speaker service (a TDX VM, its key pinned from its
    attestation) and to Whisper. Verifier 0.14.1, the active version, checks
    the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the worker,
-   and sends the audio to Whisper only sealed to the checked gateway. Two
-   paths have no such check: verifier 0.13.0, which the Seams staging server
-   still calls, and the `venice` build, which the demo route selects while
-   NEAR AI Whisper is down (Venice AI has no TEE).
+   and sends the audio to Whisper only sealed to the checked gateway. One
+   path has no such check: the `venice` build, which the Seams staging server
+   and the demo route select while NEAR AI Whisper is down (Venice AI has no
+   TEE).
    ([trust chain](docs/trust-chain.md#the-near-ai-check),
    [deployed state](docs/deployed-state.md#the-verifier))
 9. **On chain, the notes contract, the market and the multisig check each
@@ -81,18 +85,22 @@ before, and it is the baseline, not hackathon work. See
    used verdict, so a bot with a plain NEAR key outside Seams Wallet cannot
    skip the voice rule over RPC. The Wallet guards actions that have no
    receiver contract code, such as native NEAR transfers
-   (`examples/speak-to-pay`).
+   (`demo/speak-to-pay`).
    ([deployed state](docs/deployed-state.md#the-contracts),
    [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict))
 10. **The active verifier is 0.14.1.** The Seams staging server (a transfer, a
-    note, a rating) still calls 0.13.0 by its `version_key`. The demo route
-    for a spoken bet and the multisig page calls 0.14.1, or 0.14.1+venice
-    while NEAR AI Whisper is down. ([deployed state](docs/deployed-state.md#the-verifier))
-11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.69.2 on npm, and
+    note, a rating, a bet) and the demo route of the multisig page call it.
+    Both call 0.14.1+venice while NEAR AI Whisper is down.
+    ([deployed state](docs/deployed-state.md#the-verifier))
+11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.70.0 on npm, and
     the voice libraries are separate npm packages.
     ([judge-questions 10](docs/judge-questions.md#10-can-it-live-after-the-hackathon))
-12. **What is not done** is listed in [JUDGES.md, "Not covered"](JUDGES.md#not-covered)
-    and in [deployed state, "Checks that are in progress"](docs/deployed-state.md#checks-that-are-in-progress).
+12. **What is not done.** [JUDGES.md, "Not covered"](JUDGES.md#not-covered)
+    is the short list. The full list of the trusted parties is in
+    [trust chain, "Who is trusted, not verified"](docs/trust-chain.md#who-is-trusted-not-verified),
+    and the threat model says what is left for each attacker. The checks that
+    did not ship yet are in
+    [deployed state, "Checks that are in progress"](docs/deployed-state.md#checks-that-are-in-progress).
 
 ## If you change this repository
 
@@ -100,5 +108,11 @@ before, and it is the baseline, not hackathon work. See
   drifts.
 - When a live fact changes (a deploy, a new verifier version, a check that
   ships), update `docs/deployed-state.md` first.
+- Do not change a statement to an older verifier version. The docs describe
+  0.14.1. An older version stays only in the version history of
+  `crates/voice-verifier/README.md` and in a measurement that compares
+  versions.
+- Do not keep a plan or a work log in `docs/`. When the work ships, move its
+  facts to the document or the README that owns them, and delete the plan.
 - Write in ASD-STE100 Simplified Technical English: short sentences, active
   voice, one idea in each sentence.

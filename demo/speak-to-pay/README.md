@@ -35,7 +35,7 @@ create a new wallet here and enroll your voice again.
 You need Node 22 or later and pnpm 10.
 
 ```bash
-cd examples/speak-to-pay
+cd demo/speak-to-pay
 pnpm install
 cp .env.example .env.local   # then set VITE_SEAMS_PUBLISHABLE_KEY
 pnpm dev                     # http://localhost:5280
@@ -101,7 +101,7 @@ An `approved` result has the transaction hash and the times of each stage.
 ## Versions
 
 Keep `@seams/wallet` and `@seams/voiceid` at one version, and at the version
-that the Wallet origin runs (0.69.2 here). Speak-to-Sign is a part of
+that the Wallet origin runs (0.70.0 here). Speak-to-Sign is a part of
 `@seams/wallet`: it has no package of its own. The Wallet refuses an app whose
 Wallet protocol is another one, and the page then asks you to upgrade.
 

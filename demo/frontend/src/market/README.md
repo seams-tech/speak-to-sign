@@ -2,9 +2,9 @@
 
 A small parimutuel bet strip for a community note, and its bet sheet. JEV
 decides each market. The JEV prediction market contract
-(`demo/contracts/jev-prediction-market/`) is the real data source
+(`demo/contracts/jev-prediction-market/`) is the data source of the site
 (`contractSource.ts`). `mockSource.ts` fills the same interface for the
-preview.
+preview page.
 
 See it with mock data:
 
@@ -89,44 +89,19 @@ The Wallet's confirm step gets its own title and text for each action
 `math.ts` `payout()` is the same rule as the contract. The contract decides
 the payout. The UI only estimates it before the resolution.
 
-## Wire it into the notes app
+## Where the strip is mounted
 
-1. Make one source for the page, for example in `App.tsx` or in the demo
-   context:
+The timeline's card (`src/x/Timeline.tsx`) mounts `<NoteMarketStrip>` for a
+note, with the source of `useMarketSource()`. Its `openBet` prop opens the
+bet sheet when a click on the card asks for it.
 
-   ```tsx
-   import { createMockMarketSource } from './market/mockSource';
-   const marketSource = createMockMarketSource({ noteIds: [/* contested notes */] });
-   ```
-
-   Replace it with the contract source (see below) when the contract is on
-   testnet.
-
-2. In `src/components/NotesBox.tsx`, add the strip as the last row of
-   `NoteCard`, after the rate row:
-
-   ```tsx
-   import { NoteMarketStrip } from '../market/NoteMarket';
-
-   // in NoteCard, inside the card, after the RateRow / OwnNoteRow line:
-   {!compact && <NoteMarketStrip noteId={note.id} source={marketSource} account={account} onSignIn={openSignIn} />}
-   ```
-
-   - `account` and `openSignIn` come from `useDemo()`. `NoteCard` already reads
-     `account` there.
-   - `onSignIn` opens the page's sign-in dialog. The strip calls it when a
-     signed-out reader presses "Bet yes", "Bet no", "Open a market" or "Ask
-     JEV now", and runs that action after the sign-in. It can return
-     `Promise<boolean>`: true when the visitor can act (signed in and funded).
-     Keep the strip mounted while the sign-in dialog shows.
-   - The strip renders nothing when the note has no market. Most notes have
-     none, so the strip is safe on every card.
-   - The strip stops click propagation, so a click on it does not open the
-     card.
-
-3. The timeline's card (`src/x/Timeline.tsx`) mounts the strip for a note of
-   this app. Its `openBet` prop opens the bet sheet when a click on the card
-   asks for it.
+- `onSignIn` opens the page's sign-in. The strip calls it when a signed-out
+  reader presses "Bet yes", "Bet no", "Open a market" or "Ask JEV now", and
+  runs that action after the sign-in. It can return `Promise<boolean>`: true
+  when the visitor can act (signed in and funded).
+- The strip renders nothing when the note has no market and the source cannot
+  open one. So the strip is safe on every card.
+- The strip stops click propagation, so a click on it does not open the card.
 
 ## The contract source
 
@@ -168,7 +143,7 @@ local sandbox with seeded markets for a check before the deploy.
 
 ### Spoken bets
 
-A bet is a spoken request of the Seams Wallet (0.69.2):
+A bet is a spoken request of the Seams Wallet (0.70.0):
 `seams.near.spoken.bet` in `marketSigner.ts`. The Wallet card shows
 the sentence ("bet zero point five usdc yes on market nine") and records it.
 The verifier checks the voice and the words. The Wallet then sends the token's

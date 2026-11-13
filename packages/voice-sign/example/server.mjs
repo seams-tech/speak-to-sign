@@ -9,8 +9,8 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createSpeakToSign, VerifierCallError } from '../../packages/voice-sign/dist/server.js';
-import { audioDigest, confirmationRequest, VERDICT_DOMAIN } from '../../packages/voice-verdict/dist/index.js';
+import { createSpeakToSign, VerifierCallError } from '../dist/server.js';
+import { audioDigest, confirmationRequest, VERDICT_DOMAIN } from '../../voice-verdict/dist/index.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const FAKE = process.env.FAKE_VERIFIER === '1';
@@ -147,7 +147,7 @@ async function readJson(request) {
 }
 
 /** The files of the page, and the two packages that the page loads with no bundler. */
-const packages = fileURLToPath(new URL('../../packages/', import.meta.url));
+const packages = fileURLToPath(new URL('../../', import.meta.url));
 const FOLDERS = {
   '/voice-sign/': path.join(packages, 'voice-sign/dist/'),
   '/voice-capture/': path.join(packages, 'voice-capture/dist/'),

@@ -12,7 +12,7 @@ and calls two services. The Wallet signs only with a valid verdict.
 ```mermaid
 flowchart LR
   subgraph Device["Owner's device"]
-    App["App page<br/>demo/frontend, examples/speak-to-pay"]
+    App["App page<br/>demo/frontend, demo/speak-to-pay"]
     Plugin["Speak-to-Sign flow<br/>a part of @seams/wallet"]
     Core["Seams Wallet core<br/>pins the verdict key"]
     Mic["VoiceID prompt<br/>records 16 kHz WAV"]
@@ -69,7 +69,7 @@ flowchart TB
   PM["demo/contracts/jev-prediction-market<br/>checks the verdict on chain"]
   WT["seams-wallet<br/>TypeScript port and verdict check"]
   PL["Speak-to-Sign flow<br/>in @seams/wallet (seams-wallet)"]
-  FE["demo/frontend and examples/speak-to-pay"]
+  FE["demo/frontend and demo/speak-to-pay"]
 
   SI --> Vec
   SI -->|links| VV
@@ -305,7 +305,7 @@ signed". The project owner can add a version that signs any verdict.
 **The TDX quote of the call names the build.** The first 32 bytes of the
 report data are the task hash over the WASM hash, the input hash, the output
 hash, the caller, the project and the time
-([standalone-library.md](standalone-library.md), section 4.3). The verdict
+([the `voice-verdict` README](../packages/voice-verdict/README.md#the-tdx-quote-of-a-call-optional)). The verdict
 is in the output. So the chain is: verdict, output, task hash, quote, Intel;
 and WASM hash, reproducible build, source. The key is not in this chain.
 
@@ -432,7 +432,7 @@ recording. Grey boxes hold no audio.
 | 4. OutLayer coordinator | OutLayer's API and its call record | Sealed |
 | 5. Verifier | The OutLayer worker, inside its TEE | Plain, only for this run |
 | 6a. Speaker service | A Phala dstack confidential VM (Intel TDX) | Plain, sent over TLS |
-| 6b. NEAR AI Whisper | NEAR AI Cloud | 0.14.1 (active): sealed to the checked gateway. 0.12.0 and 0.13.0: plain, sent over TLS |
+| 6b. NEAR AI Whisper | NEAR AI Cloud | Sealed to the gateway whose TDX quote the verifier checked |
 | 7. Verdict | Back through the same servers | No audio |
 
 What is kept after a run:
@@ -462,15 +462,13 @@ Limits:
   runs in a TDX VM, and the verifier pins its key from its TDX attestation.
   For NEAR AI, verifier 0.14.1 (the active version) checks the Intel TDX
   quotes of NEAR AI's gateway and of Whisper inside the worker, and sends the
-  recording only sealed to the key of the checked gateway. Verifier 0.13.0,
-  which the Seams staging server still calls, sends it over TLS and does not
-  check NEAR AI. The `venice` build sends it to Venice AI, which has no TEE;
-  see [`trust-chain.md`](trust-chain.md#the-near-ai-check).
+  recording only sealed to the key of the checked gateway. The path with no
+  such check is in [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **The request is not secret.** The Wallet sends the request fields in plain
   text, and the verdict names the heard words.
 - **The project owner.** A new verifier version of the same OutLayer project
   gets the audio key. The OutLayer access rule "One build only" limits the
   key to one WASM hash; it is not set.
 - **Older Wallets.** `@seams/wallet` 0.66.0 on npm sends a plain WAV.
-  `@seams/wallet` 0.69.2, which the demo pins, has the seal
+  `@seams/wallet` 0.70.0, which the demo pins, has the seal
   (`audio_sealed_b64`).

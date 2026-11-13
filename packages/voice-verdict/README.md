@@ -15,7 +15,7 @@ in a Cloudflare Worker.
 | Sealed audio | `sealAudio`, `readAudioKeyOutput` | Seals a recording to the verifier's audio key before it leaves the device, and checks the verifier's `audio_key` answer against the verdict key that you pin |
 
 A complete application is in
-[`examples/voice-confirm`](../../examples/voice-confirm).
+[`packages/voice-sign/example`](../voice-sign/example).
 
 A verdict is the answer of the Speak-to-Sign verifier to one question: did
 the enrolled owner say the sentence of this request? The verifier signs the
@@ -344,10 +344,10 @@ it later. OutLayer stores only the hashes.
 A valid verdict proves that the holder of the verifier key signed this
 result for this request digest. The verdict holds no TDX quote: the quote of
 the call is a second, optional proof (see above). Neither proves that the
-voice was live: a good voice clone can pass. The transcript comes from
-NEAR AI with no signature, so the quote covers the verifier and not the
-speech-to-text model. The plan for
-these limits is in [`docs/standalone-library.md`](../../docs/standalone-library.md).
+voice was live. The transcript comes from NEAR AI with no signature of the
+model, so the quote covers the verifier and not the speech-to-text model.
+Each limit, and what stops each attacker, is in
+[`docs/threat-model.md`](../../docs/threat-model.md).
 
 The Rust crate with the same check is in
 [`crates/voice-verdict`](../../crates/voice-verdict).

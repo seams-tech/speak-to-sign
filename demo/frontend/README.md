@@ -1,12 +1,14 @@
 # Speak-to-Sign demo site
 
-This folder builds two pages, live on NEAR testnet:
+This folder builds two pages on one origin, `https://speak-to-sign.pages.dev`,
+live on NEAR testnet. Both use the same Seams project, so one wallet works on
+both.
 
 - `/` (`index.html`): Community Notes. A hero says what a spoken approval is
   and has the setup steps. The notes app is on a sheet under the hero. The
   page style follows the Seams Wallet site. Its code is in `src/showcase/`
-  (`main.tsx`, `NotesPage.tsx`, and `live.tsx` for the notes app with its
-  signer).
+  ([the page](src/showcase/README.md)) and `src/x/`
+  ([the posts and the timeline](src/x/README.md)).
 - `/multisig/` (`multisig/index.html`): the spoken multisig, version 3.0.0 of
   `../contracts/voice-multisig` (`config.multisigContract`,
   `VITE_MULTISIG_CONTRACT`). A signer types a transfer and reads it aloud; each
@@ -16,13 +18,14 @@ This folder builds two pages, live on NEAR testnet:
 
 ## The voice route (`/api/voice-verify`)
 
-The spoken bet of the note market and the multisig page record the microphone
-in the page (`src/voice/recorder.ts`): a 16 kHz mono PCM16 WAV of at most 8 s.
-The page sends it to `/api/voice-verify` (`functions/api/voice-verify.ts`),
-which calls the OutLayer verifier. The route takes only three request kinds:
-`market_bet` (verifier 0.8.0 or later), `multisig_propose` and
-`multisig_confirm` (0.6.0 or later). The route needs the six
-`VOICE_OUTLAYER_*` variables (see Settings). They take effect at the next
+The multisig page records the microphone in the page
+(`src/voice/recorder.ts`): a 16 kHz mono PCM16 WAV of at most 8 s. The page
+sends it to `/api/voice-verify` (`functions/api/voice-verify.ts`), which calls
+the OutLayer verifier. The route takes only three request kinds:
+`multisig_propose`, `multisig_confirm` and `market_bet`. The site does not use
+`market_bet`: a bet, a note and a rating are spoken requests of the Seams
+Wallet, and the Wallet calls the Seams verify route. Only the dev page
+`/market-preview.html?voice` sends `market_bet`. The route needs the `VOICE_OUTLAYER_*` variables (see Settings). They take effect at the next
 Pages deploy.
 
 **Why the same OutLayer payment key.** Over HTTPS, OutLayer derives the
@@ -76,52 +79,42 @@ not each pay for a transcription.
 
 ## Community Notes
 
-A Community Notes page in the light style of X. You post a note and rate a
-note with your voice, through Seams Speak-to-Sign. Testnet only. The post is
-a real case that got a Community Note on X: the viral claim of 24 Oct 2026 that
-Claude Code found 145,763 deleted iPhone photos. The posts from X are about
-science, technology, business or politics. Posts about sport, entertainment,
-health, war, crime or adult content do not show.
+A Community Notes page in the style of X. You post a note and rate a note
+with your voice, through Seams Speak-to-Sign. Testnet only. The posts are real
+posts from X where people asked for a Community Note. They are about science,
+technology, business or politics. Posts about sport, entertainment, health,
+war, crime or adult content do not show.
 
 - **Say a command.** In the voice bar, you say what to do, for example "bet
-  one dollar on no on the second note". JEV, an AI classifier
-  (`functions/api/voice-command.ts`), turns the words into a command: the
+  one dollar on no on the second note". JEV, an AI classifier (`functions/api/voice-command.ts`,
+  [the voice commands](src/voice/README.md)), turns the words into a command: the
   post, the side and the amount. The command opens the bet sheet, a note or
   a rating. JEV never proposes or signs a payment. You approve the exact bet
   when you say its sentence.
 - **Post a note.** NEAR AI drafts the note for each post, and you can change
   it. The write dialog says "Drafted by NEAR AI" under a note that the model
-  wrote. NEAR AI suggests a summary of 12 words or fewer. You read the summary aloud in the Seams Wallet card. The attested
+  wrote. The Seams server writes a summary of 12 words or fewer. You read
+  the summary aloud in the Seams Wallet card. The attested
   verifier checks the speaker and the words. Then the Seams Wallet signs
   `add_note` on the notes contract from your own NEAR account, with no
   confirm tap.
 - **Rate a note.** You say "this note is helpful", "this note is somewhat
   helpful" or "this note is not helpful". The Wallet signs `rate_note`.
 
-Pitch words: **Biometric CAPTCHA** is the voice gate. **Spoken Lease** is the
-signed output: one call, for a short time.
-
-Pitch sentence, for the X post: "Speak-to-Sign turns speech into a Confidential
-Voice Intent. Your audio is sealed in the browser and opens only inside a TEE,
-which signs who spoke and what they said."
-
 There is no mock. Every note and rating is a real transaction on NEAR testnet,
 signed by the real Seams Wallet after the real verifier accepts your voice.
 
-The site has two pages on one origin, `https://speak-to-sign.pages.dev`:
-Community Notes at `/` (`index.html`) and the spoken multisig at `/multisig/`
-(`multisig/index.html`). Both use the same Seams project, so one wallet works
-on both.
-
 ## What must be live
 
-| Part                     | Where                                                        | Status on 12 Nov 2026                                  |
-| ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
-| Notes contract           | `notes.seams-v1.testnet` (`../contracts/community-notes/`)             | Deployed.                                              |
-| Seams Wallet host        | `https://staging.sign.seams.sh`                              | Must be 0.69.2 (iframe protocol 25.0.0). Speak-to-Sign is a part of the Wallet. |
-| Seams server (gateway)   | `https://staging.api.wallet.seams.sh`, route `/speak-to-sign/v1/verify` | Verifier 0.13.0 (version key `1b777154…`, not the active version): it opens sealed recordings, and JEV checks the summary of a note. |
-| Seams Wallet SDK         | `@seams/wallet`, `@seams/voiceid`                            | This page pins 0.69.2. It has no plugin package.       |
-| Seams project            | Staging Seams Console: publishable key `seams-voice-intents` | Allows the Pages origin, `https://localhost:5443` and `https://localhost:8443`. |
+The notes contract, the Seams Wallet host, the Seams server and the verifier.
+[`docs/deployed-state.md`](../../docs/deployed-state.md) lists each one with its
+version and the command that checks it. Two facts belong to this page:
+
+- `package.json` pins the versions of `@seams/wallet`, `@seams/voiceid` and
+  `@seams/voice-verdict`. The Wallet host must run the same version.
+- The Seams project is in the staging Seams Console, with the publishable key
+  `seams-voice-intents`. It allows the Pages origin, `https://localhost:5443`
+  and `https://localhost:8443`.
 
 ## Run it locally
 
@@ -240,7 +233,7 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_VOICE_AUDIO_KEY`              | none: recordings go as plain WAVs     |
 
 With `VITE_VOICE_AUDIO_KEY` (standard base64 of the verifier's 32-byte audio
-key), the note market seals each recording to the
+key), the multisig page seals each recording to the
 verifier before it leaves the browser (`src/voiceRoute.ts`). The verify route
 and OutLayer's coordinator then carry only ciphertext. This needs verifier
 0.12.0 or later and the OutLayer secret `PROTECTED_AUDIO_KEY`. To print the
@@ -275,14 +268,14 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `X_ELIGIBLE_TOPICS` | Optional. The subjects that `/api/x/eligible-posts` shows, as a comma list. Default `science,technology,business,politics`. `all` turns the filter off. The filter needs a JEV key: `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`. |
 | `VOICE_OUTLAYER_BASE_URL` | For `/api/voice-verify`. The OutLayer API, for example `https://testnet-api.outlayer.ai` (`*.outlayer.fastnear.com` is retired). |
 | `VOICE_OUTLAYER_PROJECT` | `owner/project` of the verifier, as in the Seams staging verify route. |
-| `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of a verifier version with `market_bet` and the multisig kinds (0.8.0 or later; 0.12.0 or later for sealed recordings). |
+| `VOICE_OUTLAYER_VERSION_KEY` | The WASM hash of the verifier version that the route calls. |
 | `VOICE_OUTLAYER_VENICE_VERSION_KEY` | Optional. The WASM hash of the `venice` build of the same verifier. See "The speech-to-text service" above. |
 | `VOICE_OUTLAYER_PAYMENT_KEY` | Secret. The OutLayer payment key of the Seams staging verify route. Another key finds no voice templates. |
 | `VOICE_OUTLAYER_SECRETS_PROFILE` | The secrets profile of the Seams staging verify route. |
 | `VOICE_OUTLAYER_SECRETS_ACCOUNT_ID` | The secrets account of the Seams staging verify route. |
 
 Without the `VOICE_OUTLAYER_*` variables, `/api/voice-verify` answers 503 with
-the names of the missing variables, and the bet form shows that text.
+the names of the missing variables, and the multisig page shows that text.
 
 ## How the page talks to the Wallet
 
@@ -291,7 +284,7 @@ the names of the missing variables, and the bet form shows that text.
   key, VoiceID, and Speak-to-Sign on testnet. The SDK derives the passkey
   RP ID (the Wallet host) and the Router A/B signing worker from the Wallet origin.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
-- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.69.2, `seams.near.spoken`):
+- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.70.0, `seams.near.spoken`):
   - `requestNote` → `seams.near.spoken.note({ walletSession, contract, postId, text })`
   - `requestRating` → `seams.near.spoken.rating({ walletSession, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.setAuthMethodEnabled` when the owner turned VoiceID off
@@ -311,190 +304,6 @@ the names of the missing variables, and the bet form shows that text.
 numbers. After a sent result, the page reads the post again until the new note
 or the new counts show.
 
-## Posts that can get a note: `/api/x/eligible-posts`
-
-`functions/api/x/eligible-posts.ts` takes `GET` and answers
-`{ posts, fetchedAtMs, stale }` or `{ error }`. The posts come from the X API's
-AI Note Writer endpoint `GET /2/notes/search/posts_eligible_for_notes`: posts
-where people on X asked for a Community Note. The route always calls X in test
-mode and never sends a note to X.
-
-- **Account.** The keys must belong to an X account that is enrolled as an AI
-  Note Writer (<https://communitynotes.x.com/guide/en/api/overview>). The route
-  signs with OAuth 1.0a (`functions/lib/oauth1.ts`).
-- **Cost.** X bills each post ($0.005) and each author ($0.010) that it
-  returns, once for each UTC day. The route keeps one snapshot and asks X again
-  only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults (10 posts, each 8
-  hours), one call costs $0.15 at most, one day $0.45 and one week $3.15.
-  With the 30 posts a call that `wrangler.toml` sets, one call costs $0.45 at
-  most, one day $1.35 and one week $9.45. The budget is $5 to $10 a week. The route cannot enforce it: set a spend
-  limit in the X console, and bind `X_CACHE` so that all Cloudflare locations
-  share one snapshot.
-- **Snapshot.** `wrangler.toml` binds the KV namespace
-  `seams-voice-intents-x-cache` as `X_CACHE`: one copy for all Cloudflare
-  locations. Without the binding (local runs), the snapshot is in the Cache
-  API, one copy for each location.
-- **Failure.** If X fails, the route serves the old snapshot with
-  `stale: true` and waits 60 s before the next call. Without a snapshot it
-  answers 502. Without keys it answers 503.
-- **Subject filter.** The posts are about what people on X dispute, so most
-  are about politics or war. JEV sorts each new post once into one of
-  `sport`, `science`, `technology`, `business`, `entertainment`, `health`,
-  `politics`, `war`, `crime`, `adult` and `other`: one choice question for
-  each post, 20 posts in one call (`functions/lib/topicFilter.ts`). The route
-  gives only the posts with a subject in `X_ELIGIBLE_TOPICS`, each with its
-  `topic`. The default is `science`, `technology`, `business` and `politics`.
-  Sport, entertainment and health are not in it since 2026-11-12: most of
-  their posts were of low quality (match numbers, rumours about famous people,
-  medical claims). The route applies the list to the stored snapshot too, so a
-  change of the list shows at once, without a call to X. A post that JEV gives no answer for, or a subject with a probability
-  under 0.5, is `other`. If JEV fails, the refresh fails: no post shows without
-  a subject. Without a JEV key (`TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`) the
-  route answers 503, unless `X_ELIGIBLE_TOPICS` is `all`. On the 13 posts of
-  2026-11-12, JEV gave the subject of the earlier chat model to 12, in 1.1 s.
-- **Draft notes.** A NEAR AI chat model (`NEAR_AI_MODEL`) writes the draft of
-  a Community Note for each shown post (`functions/lib/noteDrafts.ts`).
-  The Seams server writes the spoken summary from the note. The write dialog starts with the draft and
-  types it in, so a visitor only presses the button and speaks. The model
-  cannot check a fact, so the draft says what the post leaves out (a source,
-  a date, a fair comparison) and adds no fact of its own. The prompt gives
-  the date, so the model does not call an event of this year "future". A
-  draft with a link or a note over 280 characters is not used: the post then
-  gets the careful template of its subject (`fallbackDraft` in
-  `src/x/noteDrafts.ts`). Each draft has a mark, `source`: `model` or
-  `template`. A model draft is final. A template is not: each refresh sends
-  the newest 24 posts with a template to the model again (3 batches of 8).
-  After 3 answers with no valid note for a post, its template is final. A
-  failed call (no key, no credit, a timeout) counts no try, and it gets one
-  more try at once. After 60 s of draft calls, no new call starts. On
-  2026-11-12 at 16:00 UTC, one call of three got no answer, and its 8 posts,
-  the newest, kept a template until the next refresh. The write dialog
-  says "Drafted by NEAR AI" only under a model draft, until the visitor
-  changes the note. The five example posts have hand-written drafts, with
-  no mark.
-  Before 2026-11-13 a template was final at once. The model then also wrote
-  a spoken sentence (`SAY n:`), and often left out its number. The parser then
-  found no sentence and dropped the whole draft, so 19 of the 22 live posts
-  kept a template.
-- **Collection.** About 1 post in 2 passes the default filter: of the 90
-  posts that JEV sorted until 2026-11-12, 46 had an allowed subject (39
-  politics, 4 business, 3 technology). The snapshot therefore keeps the passed
-  posts of earlier calls, newest first, up to `X_ELIGIBLE_KEEP` (600). It grows
-  by the new passed posts of each call. `wrangler.toml` sets 30 posts a call
-  (20 before 2026-11-12), so that the smaller list of subjects gives about as
-  many shown posts as before. X gives many posts of the last call again, so a
-  call adds fewer than 15 posts.
-- **Schedule.** Pages Functions have no schedule: a visitor's request makes
-  the call when the snapshot is old (at the TTL less 10 minutes, or less a
-  tenth of a short TTL). The Worker `../x-refresh-worker` asks every 8 hours,
-  so the posts come also when no one visits. Deploy it with the owner's
-  approval (its README).
-- **Pages.** `?offset=<n>&limit=<n>` (1 to 50) gives `limit` posts from
-  `offset` (0 is the newest), with `total` and `nextOffset` (null at the
-  end). Without `limit` the answer has all the posts. The timeline loads 5
-  posts (`X_PAGE_SIZE`), then the next 5 when the visitor scrolls to the end
-  of the timeline, above the voice bar. A spinner shows meanwhile, for at
-  least 0.6 s (`loadMoreXPosts`).
-- **Checks.** The route drops posts that X marks as sensitive. It checks each
-  field of X's answer, and keeps only image URLs on `twimg.com`.
-
-Each post is `{ id, text, createdAt, lang, url, author, media, metrics, topic, draft }`
-(`XPost` in `src/x/types.ts`), and `draft` is `{ text, source, modelTries }`
-(`modelTries` only for a template). The tests are in
-`tests/x-eligible-posts.test.ts`, with a fake X API. A local run against the
-real X API on 10 Nov 2026 gave 10 English posts, from 2 hours to 2 days old.
-X took the `tweet.fields` name. Of 20 posts, 5 passed the filter of that day (2
-sport, 1 science, 1 technology, 1 entertainment). The model put the posts on
-Gaza, vaccines, politicians and crime numbers in their own subjects.
-
-## The Community Notes page as one app
-
-`src/showcase/NotesPage.tsx` is the page at `/`. It has three layers:
-
-- **The nav**, the one bar of the page, 44 pixels high: at the left one pill
-  with the name and the gradient picker; at the right GitHub, one pill with
-  three links ("Built on NEAR", NEAR AI and OutLayer), and the Seams pill, in
-  the same glass pills. The Seams pill opens the sign-in (signed out) or the
-  Wallet's settings drawer (signed in); in a build with no Seams key, it is a
-  link to wallet.seams.sh. Its
-  content is as wide as the notes app's layout (1220 pixels), so its two
-  ends line up with the app's edges. It stays at the top and has no ground of its own: it lies over the
-  top of the hero. When the sheet covers the hero, that strip of the hero
-  stays in sight, so the nav keeps the hero's gradient. The notes app's own top line is hidden on this page. When
-  the sheet covers the hero, the setup steps show in the nav, until every
-  step is done. The next step is the primary action: a white pill with a
-  black button. A done step is a green check, and a later step is glass.
-  A screen narrower than 1200 pixels shows only the next step.
-- **The hero**, about voice signatures, on a moving grain field of the Seams
-  site: the title, one sentence, and the setup
-  steps as one strip (`#setup`). The field is the `GrainField` of
-  seams-monorepo (`packages/grain-field-ts`, copied into
-  `src/showcase/grain/`): one WebGL shader that smooths a 12 × 12 colour
-  grid, flows it and adds grain. The page has two themes, and each has
-  one of the site's gradients: Light mode (Apricot Beam) and
-  Dark mode (Onyx Black, with X's black, Lights out). The theme picker
-  (`ThemePicker.tsx`, `theme.ts`), in the nav's brand pill, is a round button with a picture of the field. It opens a menu of
-  three choices, each with a picture: the two themes, and System (the default), which follows the
-  system's light or dark setting (`prefers-color-scheme`) and changes when it changes.
-  The arrow keys change the theme as they move.
-  The choice stays in this browser (`localStorage`), and `?theme=light`,
-  `?theme=dark` or `?theme=system` picks one for a link. The page puts the theme (light or dark)
-  on the root element as `data-theme`. The
-  dark colours are tokens in `src/styles.css`, for the notes app, its dialogs
-  and the sheet; the hero and the nav do not change. A light field gets a soft dark shade
-  on the left (`--field-scrim`), so the white text stays readable. NEAR's N
-  mark (`nearMarks.tsx`, as on tatchi.xyz) lies big and faint over the field
-  at the right, turned 30 degrees, behind the hero's text.
-- **The sheet**, with the notes app in the page itself, not in a window. The
-  sheet has the theme's plain ground (white in Light mode), also at the sides
-  of the app.
-
-The page is the one scroll area. The hero stays in place, and the sheet moves
-up over it like paper. While the sheet covers it, the hero goes back a little,
-blurs and dims (`--cover`, set from the scroll position). The same scroll then
-goes on down the feed: on this page the notes app does not scroll itself
-(`.ss-sheet .notes-app` in `showcase.css`), so one gesture is enough. The
-app's sticky parts (the tabs, the navigation, the right column) stick under
-the nav, and the phone's bottom bar sticks to the bottom of the screen. The
-scroll area (`.ss-scroll`) starts under the nav, and the field is a layer of
-its own behind the nav and the hero (`.ss-ground`). So nothing that scrolls
-can come behind the nav, with no script: the nav always shows the field, and
-the scroll area's round top corners are the sheet's corners at the nav. A post
-that opens starts at the top of the sheet.
-
-The app opens on the timeline. Its right column (`src/x/VoiceFeed.tsx`) has a
-search box for the look only, and "Signed by voice": the newest notes with the sentence that each
-author said, shown only when there is a note. "Home" in the app's navigation opens the timeline.
-
-## The timeline
-
-`src/x/Timeline.tsx` lists the posts from `/api/x/eligible-posts`. It is the
-app's one view: a post has no page of its own, and every hash shows the timeline
-(an old link to `#/notes/post/<id>` too).
-
-- **A card** shows the post, its note and the note's market. The visitor acts
-  on the card itself: "Write a note" opens the write dialog over the
-  timeline, and "Bet" opens the market strip's bet sheet. A long note shows
-  two lines and a "Show more" control. A note has its rating line ("Rate
-  it", or the visitor's rating) on the card. A click on the card itself
-  opens the strip's bet sheet while the market takes bets, and otherwise
-  the write dialog.
-  "Signed by voice" in the right column brings a note's card into view.
-- **Tabs.** "For you" shows all posts. "Open markets" and "Settled" show the
-  posts with a market in that state.
-- **Post ids.** An X post id has 64 bits, and the Seams Wallet refuses a post
-  id above 2^53 - 1. `notePostId` in `src/x/xPosts.ts` drops the lowest 10
-  bits of the X id. That number is the `post_id` in the notes contract.
-- **Lookup.** `toPost` turns an X post into a `Post` of the app, and
-  `registerPosts` in `src/data/posts.ts` adds it to `findPost`. The write
-  dialog and the text that JEV reads (`marketContext`) then work for it
-  without a change.
-- **Without the route.** `pnpm dev` without the function server shows the
-  five example posts of `src/x/fixture.ts`. A build shows no posts and the
-  line "The posts from X are not available now."
-- `/timeline-preview.html` is the first design mock, with example notes and
-  markets. It is dev only.
-
 ## The spoken summary of a note
 
 The page gives the Seams Wallet only the note (`spoken.note({ contract, postId, text })`).
@@ -512,8 +321,8 @@ It gives no summary, so it cannot choose the words that the author says:
    to the TDX quote of the OutLayer call. Its Done closes the card, and the
    page's dialog closes with it. The page shows no result of its own.
 
-This needs the Seams Wallet with iframe protocol 25.0.0 and verifier 0.13.0
-(see `docs/note-summary-plan.md`).
+The verifier README says how the check works and who writes the summary:
+[Note summary check](../../crates/voice-verifier/README.md#note-summary-check).
 
 ## Deploy to Cloudflare Pages
 
@@ -533,7 +342,7 @@ pnpm exec wrangler pages secret put NEAR_AI_API_KEY --project-name speak-to-sign
 pnpm exec wrangler pages secret put FAUCET_PRIVATE_KEY --project-name speak-to-sign
 ```
 
-For the spoken bet, set the six `VOICE_OUTLAYER_*` variables the same way
+For the multisig page, set the `VOICE_OUTLAYER_*` variables the same way
 (`wrangler pages secret put VOICE_OUTLAYER_PAYMENT_KEY …`), with the values of
 the Seams staging verify route.
 
@@ -552,7 +361,7 @@ allow it (CORS and the project's allowed origins), and also
 
 Build with `demo/frontend/.env.production.local` (or the environment) set to the key of
 the project that allows the Pages origin. Do not deploy
-`../../examples/speak-to-pay` to the same project: that would replace the
+`../speak-to-pay` to the same project: that would replace the
 whole site with the Speak to pay page.
 
 The routes `/api/voice-command` and `/api/x/eligible-posts` spend NEAR AI credit.
@@ -572,14 +381,19 @@ For a public link, add a Cloudflare rate-limiting rule on them (and on
 | `functions/api/faucet.ts`        | The testnet faucet: one `drip` transaction for an account. |
 | `src/faucet/nearTx.ts`           | A small NEAR signer for the functions (Borsh, WebCrypto Ed25519). |
 | `src/voice/recorder.ts`, `wav.ts` | The microphone recorder and the verifier's WAV.            |
-| `functions/api/voice-verify.ts`  | Sends a `market_bet`, `multisig_propose` or `multisig_confirm` voice check to the OutLayer verifier. |
+| `functions/api/voice-verify.ts`  | Sends a voice check of the multisig page (`multisig_propose`, `multisig_confirm`) to the OutLayer verifier. |
 | `src/multisig/`                  | The spoken multisig page: views, verifier call, Wallet calls, the page. |
 | `functions/lib/http.ts`          | The parts that the functions share: same origin, body size, JSON. |
 | `tests/`                         | Unit tests (`pnpm test`).                                  |
+| `src/showcase/`                  | The page at `/`: the nav, the hero, the sheet, the themes ([README](src/showcase/README.md)). |
+| `src/x/`                         | The posts from X, the timeline and the draft notes ([README](src/x/README.md)). |
+| `src/market/`                    | The note market strip and its bet sheet ([README](src/market/README.md)). |
+| `src/voice/` (other files)       | The voice bar and the voice commands ([README](src/voice/README.md)). |
+| `src/dev/`, `*-preview.html`     | Dev pages, not in the build: `/market-preview.html` (the market with mock data), `/timeline-preview.html` (the first design mock), `/card-flow-preview.html` and `/card-minimize-preview.html` (the Wallet voice card from the local `packages/voice-capture` build). |
 
 ## Design rules
 
-- The look copies X's light theme: icon rail, "Post" header, post card, the
+- The look copies X: its light theme in Light mode and Lights out in Dark mode. It has the icon rail, "Post" header, post card, the
   notes box, the "Do you find this helpful? Rate it" row, the modals and the
   blue toast.
 - No X logo or wordmark. The logo slot holds a neutral icon.

@@ -32,7 +32,7 @@ Seams Wallet has its own Speak-to-Sign flow, inside `@seams/wallet`. Its plugin 
 `@seams/wallet-voice-sign` (up to 0.66.0 `@seams/speak-to-sign`) is no longer developed. This library needs no wallet.
 
 A complete application is in
-[`examples/voice-confirm`](../../examples/voice-confirm).
+[`example/`](example/).
 
 ## What you need
 
@@ -180,8 +180,6 @@ is the authority for the enrollment of each owner.
 
 ## Limits
 
-- The voice proves that the enrolled person said the sentence. It does not
-  prove that the voice was live: a good voice clone can pass.
 - The speech-to-text model (NEAR AI) gives its text with no signature. The
   TDX quote covers the verifier, not that model.
 - English only.
@@ -201,6 +199,6 @@ pnpm test:browser
 ```
 
 `pnpm test` runs the server side against a fake verifier that signs with a
-test key. `pnpm test:browser` opens `examples/voice-confirm` in Chromium with
+test key. `pnpm test:browser` opens `example/` in Chromium with
 a fake microphone: it enrolls a voice and confirms an action, from the
 recording to the checked verdict.

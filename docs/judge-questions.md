@@ -74,7 +74,7 @@ with both can do much more harm than a voice clone.
   `verify_refuses_other_words_and_uses_the_audio` in
   `crates/voice-verifier/tests/ops/verify.rs`.
 - The device binding of VoiceID: `packages/voiceid/src/README.md` of
-  [`seams-wallet` at 0.69.2](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/voiceid/src/README.md).
+  [`seams-wallet` at 0.70.0](https://github.com/seams-tech/seams-wallet/blob/35649a05b7378e674a3980966cb217fbddd31a6f/packages/voiceid/src/README.md).
 
 **Not done.** On the person's own device, with the Wallet unlocked and in an
 attacker's hands (or under malware), a good clone can pass for a NEAR
@@ -158,8 +158,8 @@ other path can approve a note, a rating, a bet or a multisig approval.
 **Short answer.** Today the Wallet and the contracts pin the verdict key of
 the verifier. The active verifier is a reproducible build of this repo: check
 3 of [`JUDGES.md`](../JUDGES.md#check-it-from-a-terminal) builds it in
-Docker and reads the same SHA-256 on OutLayer. The demo calls verifier 0.13.0
-through the Seams staging server, and check 3 builds that version too. The
+Docker and reads the same SHA-256 on OutLayer. The Seams staging server
+and the demo route call that version. The
 speaker key of the Phala service comes from its TDX attestation (`SPEAKER_PINNED_KEY_HEX` in
 `crates/voice-verifier/src/config.rs`).
 
@@ -167,7 +167,7 @@ speaker key of the Phala service comes from its TDX attestation (`SPEAKER_PINNED
 layer does the job that only it can do. Off chain, the Seams verify route and
 threshold co-signer check the TDX quote with zero quote gas or chain bloat,
 and guard actions that have no receiver contract code (native NEAR transfers in
-`examples/speak-to-pay`). On chain, `notes`, `pm-notes` and `voice-multisig` check the 64-byte
+`demo/speak-to-pay`). On chain, `notes`, `pm-notes` and `voice-multisig` check the 64-byte
 ed25519 verdict signature so that a bot with a plain NEAR key outside Seams
 Wallet cannot post a note, rate a note, place a bet or approve a proposal over
 RPC without speaking. See
@@ -210,13 +210,12 @@ record three short clips, and press the faucet, which sends 0.2 NEAR and 2
 testnet USDC to the new account. Then follow
 [See it in 2 minutes](../JUDGES.md#see-it-in-2-minutes).
 
-A verdict usually takes about 2 s. On 2026-11-11, the OutLayer delay went
-above 90 s.
+A verdict usually takes about 2 s.
 
 ## 10. Can it live after the hackathon?
 
 **Short answer.** Speak-to-Sign is a feature of a wallet that existed before
-the hackathon. Seams Wallet ships it in `@seams/wallet` 0.69.2 on npm as an
+the hackathon. Seams Wallet ships it in `@seams/wallet` 0.70.0 on npm as an
 experimental, testnet-only feature. The voice libraries are separate npm
 packages for any app: `@seams/voice-capture`, `@seams/voice-verdict` and
 `@seams/voice-sign`.
@@ -234,7 +233,5 @@ run".
 Phala speaker service, whose key it pins from its attestation, and to NEAR
 AI. Verifier 0.14.1, the active version, checks the TDX quotes of NEAR AI's
 gateway and of Whisper, and sends the recording only sealed to the checked
-gateway. The Seams staging server still calls verifier 0.13.0, which does
-not check NEAR AI's attestation (see
-[`trust-chain.md`](trust-chain.md#the-near-ai-check)). There is no mainnet
+gateway (see [`trust-chain.md`](trust-chain.md#the-near-ai-check)). There is no mainnet
 date yet.

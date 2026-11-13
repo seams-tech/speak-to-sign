@@ -51,8 +51,8 @@ Later tags, with their own sections in `crates/voice-verifier/README.md`:
 Tag 10 is for an application owner (`app:<id>`) and has no network and no
 NEAR account: `{owner, context, payload_sha256, summary}`. The operation
 `select` takes 2 to 16 candidate requests and signs a verdict for the one
-that the owner said. The plan for use with no wallet is in
-[`standalone-library.md`](standalone-library.md).
+that the owner said. The library for use with no wallet is
+[`@seams/voice-sign`](../packages/voice-sign/README.md).
 
 The types hold the grammar rules, so `render` cannot fail:
 
@@ -347,7 +347,7 @@ the job that only it can do:
 - **Off chain (the Seams verify route and threshold co-signer).** It checks the
   TDX quote (`wasm_hash` binding) and the verdict before it co-signs, with 0 gas
   and 0 bytes on chain (see section 9.1). It also guards actions that have no
-  contract code on the receiver, such as a native NEAR transfer (`examples/speak-to-pay`) or a
+  contract code on the receiver, such as a native NEAR transfer (`demo/speak-to-pay`) or a
   general transaction.
 - **On chain (`notes`, `pm-notes` and `voice-multisig`).** A wallet guards only
   its own users. A bot with a plain NEAR key outside Seams Wallet can call a
@@ -406,7 +406,7 @@ The plugin gets no signing context, key or session. It can only call the
 scoped core operations `openPrompt`, `receiverExists`, `verify`,
 `summarizeNote`, `payWithVerdict`, `signNoteWithVerdict`,
 `signMessageWithVerdict` and `authorizeEnrollment`
-(`SpeakToSignHostOperations` in `hostPlugin.ts`, Wallet 0.69.2).
+(`SpeakToSignHostOperations` in `hostPlugin.ts`, Wallet 0.70.0).
 
 ## 10. Multisig requests
 
@@ -460,6 +460,10 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
 
 ## 11. Trust limits
 
+This section is a short list. [`trust-chain.md`](trust-chain.md) is the home
+of each limit and its state, and [`threat-model.md`](threat-model.md) says
+what each attacker can do with it.
+
 - **OutLayer.** The TEE run of the pinned code, the storage, the signing key
   and the NEAR AI secret. If the TEE or its governance fails, a verdict means
   nothing.
@@ -473,10 +477,7 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
   and to Whisper. Verifier 0.14.1 (the active version) checks the Intel TDX
   quotes of NEAR AI's gateway and of Whisper, and sends the WAV only sealed
   to the checked gateway. The code of NEAR AI's VMs and the link from its
-  gateway to Whisper stay trusted. Verifier 0.12.0 and 0.13.0 send the WAV
-  to NEAR AI over HTTPS and do not check NEAR AI's attestation; the Seams
-  staging server still calls 0.13.0. The `venice` build sends the WAV to
-  Venice AI, which has no TEE; see
+  gateway to Whisper stay trusted. The path with no such check is in
   [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **NEAR AI.** The transcript has no signature. A false transcript can pass
   the word check.
@@ -504,4 +505,4 @@ accounts approved with plain signed calls) was deleted on 2026-11-12.
 | Word decision | `crates/voice-verifier/src/words.rs` |
 | Plugin files | `seams-wallet`: `packages/wallet/src/core/transactionFeatures/` |
 | Voice multisig contract | `demo/contracts/voice-multisig/README.md` |
-| Deployed accounts and versions | The "Testnet facts" table of the root `README.md` |
+| Deployed accounts and versions | [`deployed-state.md`](deployed-state.md) |

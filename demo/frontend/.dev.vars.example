@@ -11,7 +11,7 @@ FAUCET_PRIVATE_KEY=
 FAUCET_ACCOUNT=
 # Optional, for /api/faucet. The default is https://test.rpc.fastnear.com.
 NEAR_RPC_URL=
-# The voice route /api/voice-verify (the spoken bet). Use the OutLayer settings of the Seams staging
+# The voice route /api/voice-verify (the multisig page). Use the OutLayer settings of the Seams staging
 # verify route: the payment key decides where the voice templates are and which key signs.
 VOICE_OUTLAYER_BASE_URL=
 VOICE_OUTLAYER_PROJECT=

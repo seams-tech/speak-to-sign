@@ -107,7 +107,7 @@ function walletView(name: Exclude<View, 'prompt'>): unknown {
             { label: 'Voice', value: 'matched 10d3ca…25f5' },
             { label: 'Words', value: flow === 'note' ? 'matched the summary' : 'matched the sentence' },
             ...(flow === 'note' ? [{ label: 'Summary', value: 'fits the note (JEV)' }] : []),
-            { label: 'Verdict', value: 'signed by the OutLayer verifier 0.13.0' },
+            { label: 'Verdict', value: 'signed by the OutLayer verifier 0.14.1' },
           ],
           link: { text: 'View TDX quote', href: 'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877' },
         },

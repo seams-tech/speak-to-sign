@@ -17,7 +17,7 @@ const fixture = JSON.parse(
   readFileSync(new URL('./fixtures/outlayer_attestation_testnet.json', import.meta.url), 'utf8'),
 ) as { input: unknown; output: Record<string, unknown>; record: AttestationRecord };
 const { record, output, input } = fixture;
-/** Verifier 0.5.2, the active version on testnet at the time (`docs/testnet-facts.md`). */
+/** Verifier 0.5.2, the active version on testnet at the time (`crates/voice-verifier/README.md`, "Versions"). */
 const WASM_0_5_2 = '96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5';
 const good = { record, output, acceptedWasmHashes: [WASM_0_5_2] };
 

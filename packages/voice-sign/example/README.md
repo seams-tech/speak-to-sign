@@ -28,15 +28,15 @@ means these checks passed:
 Build the three packages one time:
 
 ```sh
-(cd ../../packages/voice-verdict && pnpm install && pnpm build)
+(cd ../../voice-verdict && pnpm install && pnpm build)
 ```
 
 ```sh
-(cd ../../packages/voice-capture && pnpm install && pnpm build)
+(cd ../../voice-capture && pnpm install && pnpm build)
 ```
 
 ```sh
-(cd ../../packages/voice-sign && pnpm install && pnpm build)
+(cd .. && pnpm install && pnpm build)
 ```
 
 ```sh
@@ -94,5 +94,3 @@ that you check.
   of its call (it needs `OUTLAYER_VERSION_KEY`).
 - The page has no login. A real application takes the user id from its
   session, not from a text field.
-- The voice proves that the enrolled person said the sentence. It does not
-  prove that the voice was live: a good voice clone can pass.

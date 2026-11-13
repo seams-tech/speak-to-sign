@@ -169,11 +169,11 @@ for that note, and gives `request_mismatch` for the
 and signs nothing. With the verdict of the note, core signs one transaction:
 `add_note` on the notes contract with the note's `post_id`, `text` and
 `summary`, the `verdict_json` and `signature_b64` of the verdict, 30 Tgas and
-a deposit of `0`. That code is in the Wallet, the dependency (0.69.2):
+a deposit of `0`. That code is in the Wallet, the dependency (0.70.0):
 `signNoteWithVerdict` in
-[`packages/wallet/src/core/transactionFeatures/hostOperations.ts`](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L197),
+[`packages/wallet/src/core/transactionFeatures/hostOperations.ts`](https://github.com/seams-tech/seams-wallet/blob/35649a05b7378e674a3980966cb217fbddd31a6f/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L197),
 and its test in
-[`tests/unit/speakToSignHost.unit.test.ts`](https://github.com/seams-tech/seams-wallet/blob/e9fdc65ae8ae269499dfce423412e446a87d3f0d/tests/unit/speakToSignHost.unit.test.ts#L1118).
+[`tests/unit/speakToSignHost.unit.test.ts`](https://github.com/seams-tech/seams-wallet/blob/35649a05b7378e674a3980966cb217fbddd31a6f/tests/unit/speakToSignHost.unit.test.ts#L1168).
 
 ## 4. The notes contract
 

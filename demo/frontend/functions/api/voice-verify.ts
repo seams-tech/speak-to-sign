@@ -5,10 +5,11 @@
 // chooseTranscriber). The answer names the service in the header X-Speech-To-Text, and the
 // verdict of a Venice call has a `verifier` that ends in "+venice".
 //
-// Runs the OutLayer voice verifier for the spoken bet of the note market and for the spoken
-// multisig page (/multisig/), with the demo's own OutLayer payment key, the way the Seams verify
-// route does (/speak-to-sign/v1/verify). It takes only the `verify` op with the request kind
-// `market_bet` (verifier 0.8.0 or later), `multisig_propose` or `multisig_confirm` (0.6.0 or later).
+// Runs the OutLayer voice verifier for the spoken multisig page (/multisig/), with the demo's own
+// OutLayer payment key, the way the Seams verify route does (/speak-to-sign/v1/verify). It takes
+// only the `verify` op with the request kind `multisig_propose`, `multisig_confirm` or
+// `market_bet`. On the site, a bet is a spoken request of the Seams Wallet, so only the dev page
+// /market-preview.html?voice sends `market_bet`.
 //
 // The Seams route checks that the caller owns `owner`; this route cannot. The verifier still
 // checks the voice against the owner's template, and the contract checks that the owner signs
@@ -64,8 +65,9 @@ const MAX_BODY_BYTES = 400 * 1024;
  */
 const TIMEOUT_MS = 60_000;
 /**
- * The spoken bet of the note market, and the two kinds of the spoken multisig: a new transfer
- * (the verifier keeps it and its salt) and a confirmation of a stored proposal from memory.
+  * The two kinds of the spoken multisig: a new transfer (the verifier keeps it and its salt) and
+ * a confirmation of a stored proposal from memory. `market_bet` is only for the dev page
+ * /market-preview.html?voice: on the site, a bet is a spoken request of the Seams Wallet.
  */
 const REQUEST_KINDS: readonly string[] = ['market_bet', 'multisig_propose', 'multisig_confirm'];
 /**

@@ -70,6 +70,7 @@ that opens a signing step waits for the end of the sentence.
   that the speech service is busy.
 - With no speech recognition (Firefox, or a refused microphone), the bar
   takes a typed command.
-- With no answer from the route, word rules in `command.ts` know the three
-  sentences above (`ruleScores`).
+- With no answer from the route, word rules in `command.ts` read the sentence
+  (`ruleScores`). They know only the demo's sentences: they are a fallback,
+  not a second classifier.
 - The route needs `TYPESAFE_API_KEY` or `NEAR_AI_API_KEY`.

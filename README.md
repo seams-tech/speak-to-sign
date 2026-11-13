@@ -9,6 +9,11 @@ does the wallet sign. The contract checks the verifier's signed verdict again
 on chain. So a changed web page or a prompt-injected agent cannot make you
 sign a call that you did not say.
 
+We call this a **Confidential Voice Intent**: Speak-to-Sign turns speech
+into a signed intent. Your device seals the recording to a key that exists
+only inside the verifier's TEE, and the TEE signs who spoke and what they
+said.
+
 Speak-to-Sign is an entry for the NEAR hackathon. It runs on NEAR testnet
 only.
 
@@ -44,7 +49,7 @@ voice verifier also approves payments and multisig transfers.
 | Post a community note | A short summary of the note. | The verifier, Wallet core, and the contract `notes.seams-v1.testnet` |
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
-| Pay someone (the example [`examples/speak-to-pay`](examples/speak-to-pay/), which you run on your machine) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
+| Pay someone (the page [`demo/speak-to-pay`](demo/speak-to-pay/), which you run on your machine) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
 | Approve a multisig transfer (`/multisig/` of the demo site) | "Approve proposal 3: send 0.1 NEAR to seams-faucet.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 
 In the voice bar, JEV, an AI classifier, turns your words into a command (the
@@ -174,8 +179,8 @@ key of the checked gateway, so the server that ends the TLS connection sees
 only ciphertext ([details](docs/trust-chain.md#the-near-ai-check)). The quote
 check is our own small TDX verifier, with no large library: the whole worker
 is 495,774 bytes, less than the version before it. While NEAR AI's Whisper
-is down, the verifier uses Whisper on Venice AI, which has no TEE
-([state](docs/deployed-state.md#the-verifier)).
+is down, the Seams staging server and the demo route select the `venice`
+build on Venice AI, which has no TEE ([state](docs/deployed-state.md#the-verifier)).
 
 The formats and the rules are in
 [`docs/voice-intents-spec.md`](docs/voice-intents-spec.md).
@@ -276,13 +281,14 @@ The key is bound to the project, and the Wallet and the contracts pin it.
 
 The verifier gets the heard words from Whisper on NEAR AI by default: 0.14.1
 is the active version. NEAR AI's Whisper gave no reply for about 2.5 hours on
-2026-11-12. For such an outage, the demo route selects the `venice` build,
+2026-11-12. For such an outage, the Seams staging server and the demo route select
+the `venice` build,
 which uses Whisper on Venice AI, until NEAR AI answers again.
 
 | Version | State | WASM that runs | On chain |
 | --- | --- | --- | --- |
-| 0.14.1 | The default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. | [`1e7c6968…8a5c`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c.wasm) | Added: [`AJ6excNh…Bki9`](https://testnet.nearblocks.io/txns/AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9) |
-| 0.14.1+venice | Only while NEAR AI's Whisper is down: Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. | [`344b8b47…d3c8`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8.wasm) | Added: [`7spkQGnf…u8ip`](https://testnet.nearblocks.io/txns/7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip). Made active: [`HTQ5QvR1…CYX7`](https://testnet.nearblocks.io/txns/HTQ5QvR187yiKCA9KUYeFh1PHmZUQWJggaenCkxoCYX7) |
+| 0.14.1 | Active, the default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. | [`1e7c6968…8a5c`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c.wasm) | Added: [`AJ6excNh…Bki9`](https://testnet.nearblocks.io/txns/AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9). Made active: [`GnXazq3d…c6rC`](https://testnet.nearblocks.io/txns/GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC) |
+| 0.14.1+venice | Not active (only while NEAR AI's Whisper is down): Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. | [`344b8b47…d3c8`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8.wasm) | Added: [`7spkQGnf…u8ip`](https://testnet.nearblocks.io/txns/7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip) |
 
 The name of each WASM file is its SHA-256, and OutLayer uses that hash as the
 version key. To check it, download the file and run `shasum -a 256` on it, or
@@ -293,8 +299,8 @@ OutLayer's own guide to the check of a TEE run is
 
 [`docs/deployed-state.md`](docs/deployed-state.md) says what is live now, where
 it differs from the source, and the command that checks each part.
-[`docs/testnet-facts.md`](docs/testnet-facts.md) has each version with its
-hash and its transactions.
+The [verifier README](crates/voice-verifier/README.md#versions) has each
+version with its hash and its transactions.
 
 ## Trust limits
 
@@ -311,7 +317,7 @@ is not done.
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **Seams Wallet.** Seams Wallet is an embedded wallet with threshold signing. It existed before the hackathon, and Speak-to-Sign uses it as a dependency. The device and the Seams co-signer sign each call jointly, so neither can sign alone. A native NEAR payment has no contract that checks the verdict: the Wallet and the co-signer guard it, and above 10 NEAR the verifier asks for a passkey too.
 - **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/judge-questions.md`](docs/judge-questions.md), question 2). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check and no fresh words, and only a NEAR transfer above 10 NEAR also needs a passkey.
-- **Synthetic voices (future work).** The verifier does not detect synthetic speech yet, so a text-to-speech voice can enroll and pass. It also does not refuse one voice on many accounts. The detection of synthetic speech is planned as future work.
+- **Synthetic voices (future work).** The verifier does not detect synthetic speech yet, so a text-to-speech voice can enroll and pass. It also does not refuse one voice on many accounts. The detection of synthetic speech is future work: an anti-spoofing model that we can add to the TEE, next to the speaker check.
 
 ## Baseline and hackathon work
 
@@ -345,19 +351,17 @@ speak-to-sign/
 ├── packages/                       npm libraries for an application with no wallet
 │   ├── voice-capture/              records one spoken sentence in the browser
 │   ├── voice-verdict/              checks a signed verdict; seals a recording
-│   └── voice-sign/                 record, call the verifier, check the verdict
-├── demo/
+│   └── voice-sign/                 record, call the verifier, check the verdict;
+│                                   example/ is a Web2 page and server with no wallet
+├── demo/                           the demo: the site, its contracts and its worker
 │   ├── frontend/                   the demo site: notes, the market, /multisig/
 │   ├── contracts/
 │   │   ├── community-notes/        notes.seams-v1.testnet
 │   │   ├── jev-prediction-market/  pm-notes.seams-v1.testnet, with its resolver
 │   │   ├── voice-multisig/         the voice-only multisig, and its live run
 │   │   └── faucet/                 seams-faucet.testnet
+│   ├── speak-to-pay/               pay a NEAR account by voice; you run it on your machine
 │   └── x-refresh-worker/           a scheduled worker that gets new posts from X
-├── examples/
-│   ├── speak-to-pay/               pay a NEAR account by voice
-│   └── voice-confirm/              a Web2 page and server with no wallet
-├── research/gate0/                 feasibility and latency probes: evidence, not product
 ├── docs/                           the specs; docs/README.md is the index
 └── scripts/                        site.mjs starts the demo site (pnpm site)
 ```

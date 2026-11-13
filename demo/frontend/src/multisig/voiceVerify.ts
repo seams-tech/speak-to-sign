@@ -101,6 +101,7 @@ const REASONS: Record<string, string> = {
   speaker_unavailable: 'The speaker check service did not answer. Try again.',
   storage: 'The verifier could not read or write its record. Try again.',
   transcriber_unavailable: 'The speech-to-text service did not answer. Try again.',
+  transcriber_not_attested: 'The verifier could not check the TEE of the speech-to-text service. Try again.',
 };
 
 function reasonText(reason: string, detail: string | null): string {

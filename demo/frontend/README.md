@@ -284,7 +284,7 @@ the names of the missing variables, and the multisig page shows that text.
   key, VoiceID, and Speak-to-Sign on testnet. The SDK derives the passkey
   RP ID (the Wallet host) and the Router A/B signing worker from the Wallet origin.
 - `src/signer/notesSigner.ts` is the seam. The UI codes only against it.
-- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.70.4, `seams.near.spoken`):
+- `src/signer/seamsSigner.ts` fills it with the typed SDK calls (0.70.5, `seams.near.spoken`):
   - `requestNote` → `seams.near.spoken.note({ walletSession, contract, postId, text })`
   - `requestRating` → `seams.near.spoken.rating({ walletSession, contract, noteId, rating })`
   - `enableVoice` → `seams.registration.setAuthMethodEnabled` when the owner turned VoiceID off

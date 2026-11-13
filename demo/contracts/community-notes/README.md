@@ -289,11 +289,11 @@ all eleven `NoteView` fields (with `hidden`).
 
 All three steps are complete:
 
-1. Wallet 0.69.0+ (0.70.0 in the demo) puts `verdict_json` and `signature_b64`
+1. Wallet 0.69.0+ (0.70.1 in the demo) puts `verdict_json` and `signature_b64`
    in the arguments of `add_note` and `rate_note`, as it does in the `msg` of a
    bet (`SPOKEN_KINDS` in `packages/shared-ts/src/speakToSign/spokenKinds.ts`
    of the Wallet, and the co-signer's check of these calls).
-2. The demo page pins `@seams/wallet` 0.70.0.
+2. The demo page pins `@seams/wallet` 0.70.1.
 3. Commit `119ef0e` was deployed on 2026-11-12 without an init call
    (transaction `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse`).
    `get_voice_config` returns `{"required":true,...}`.

@@ -15,6 +15,8 @@ const GONE_LIMIT_MS = 400;
 export interface WalletCard {
   /** The card's size, from the moment it has one. It stays after the card is gone. */
   size: WalletStepSize | null;
+  /** The card is on the screen: from the moment it has a size until it is gone. */
+  entered: boolean;
   /** The card is fully painted: it covers the dialog's own surface. */
   shown: boolean;
   /** The step events for the card's call or component. */
@@ -26,6 +28,7 @@ export interface WalletCard {
 export function useWalletCard(): WalletCard {
   const [size, setSize] = useState<WalletStepSize | null>(null);
   const [shown, setShown] = useState(false);
+  const [entered, setEntered] = useState(false);
   // The card has a size and has not left the screen.
   const live = useRef(false);
   const waiting = useRef<(() => void)[]>([]);
@@ -35,6 +38,7 @@ export function useWalletCard(): WalletCard {
     live.current = false;
     window.clearTimeout(timer.current);
     setShown(false);
+    setEntered(false);
     for (const then of waiting.current.splice(0)) then();
   }, []);
 
@@ -43,7 +47,10 @@ export function useWalletCard(): WalletCard {
       // The SDK shows the card in the next frame, so the dialog takes the card's size now.
       onEnter: (next) => {
         live.current = true;
-        flushSync(() => setSize(next));
+        flushSync(() => {
+          setSize(next);
+          setEntered(true);
+        });
       },
       onResize: (next) => flushSync(() => setSize(next)),
       // The card's fade-in is over.
@@ -66,5 +73,5 @@ export function useWalletCard(): WalletCard {
     [gone],
   );
 
-  return { size, shown, events, afterCard };
+  return { size, entered, shown, events, afterCard };
 }

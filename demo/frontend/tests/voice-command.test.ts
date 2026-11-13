@@ -275,7 +275,7 @@ test('"view TDX quote" opens the record of the verifier call that the Wallet res
   assert.equal(viewTransactionRequest('View TDX quote'), false);
   const url = 'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877';
   assert.equal(quoteUrlOf({ kind: 'approved', result: { transactionHash: 'A1' }, attestationUrl: url }), url);
-  // A Wallet before 0.70.3 gives no link, and OutLayer can give none.
+  // A Wallet before 0.70.4 gives no link, and OutLayer can give none.
   assert.equal(quoteUrlOf({ kind: 'approved', result: { transactionHash: 'A1' } }), null);
   assert.equal(quoteUrlOf({ attestationUrl: null }), null);
   assert.equal(quoteUrlOf({ attestationUrl: 'javascript:alert(1)' }), null);

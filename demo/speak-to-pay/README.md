@@ -101,7 +101,7 @@ An `approved` result has the transaction hash and the times of each stage.
 ## Versions
 
 Keep `@seams/wallet` and `@seams/voiceid` at one version, and at the version
-that the Wallet origin runs (0.70.2 here). Speak-to-Sign is a part of
+that the Wallet origin runs (0.70.4 here). Speak-to-Sign is a part of
 `@seams/wallet`: it has no package of its own. The Wallet refuses an app whose
 Wallet protocol is another one, and the page then asks you to upgrade.
 

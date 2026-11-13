@@ -55,7 +55,7 @@ that opens a signing step waits for the end of the sentence.
   asked for: allow pop-ups for the site.
 - In the same state, "view TDX quote" opens the OutLayer record of the verifier
   call, with its TDX quote: the card's "View TDX quote" link. The Wallet gives
-  the page this link in its result (`attestationUrl`) from Seams Wallet 0.70.3.
+  the page this link in its result (`attestationUrl`) from Seams Wallet 0.70.4.
   With an older Wallet, the bar says that the dialog shows no TDX quote.
 - "Try again" presses the dialog's own **Try again** after a failure, and
   "done" closes a dialog, as "close" does.

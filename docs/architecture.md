@@ -470,5 +470,5 @@ Limits:
   gets the audio key. The OutLayer access rule "One build only" limits the
   key to one WASM hash; it is not set.
 - **Older Wallets.** `@seams/wallet` 0.66.0 on npm sends a plain WAV.
-  `@seams/wallet` 0.70.2, which the demo pins, has the seal
+  `@seams/wallet` 0.70.4, which the demo pins, has the seal
   (`audio_sealed_b64`).

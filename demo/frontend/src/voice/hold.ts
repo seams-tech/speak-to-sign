@@ -11,7 +11,7 @@
 //   the card and the dialog.
 
 import { useEffect, useSyncExternalStore } from 'react';
-import { plainWords, viewTransactionRequest } from './command.ts';
+import { plainWords, retryRequest, viewTransactionRequest } from './command.ts';
 
 export type HoldKind = 'dialog' | 'recording';
 
@@ -82,7 +82,19 @@ export function transactionHashOf(result: unknown): string | null {
   return typeof hash === 'string' && hash !== '' ? hash : null;
 }
 
-export { viewTransactionRequest };
+export { retryRequest, viewTransactionRequest };
+
+/**
+ * Presses "Try again" in the newest open dialog that has it, as a click does. False when no
+ * dialog shows that button. The Wallet's own card is in the Wallet's frame: its buttons are
+ * not the page's.
+ */
+export function pressTryAgain(): boolean {
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')];
+  const button = buttons.reverse().find((candidate) => !candidate.disabled && candidate.textContent?.trim().toLowerCase() === 'try again');
+  button?.click();
+  return button !== undefined;
+}
 
 /**
  * Opens a page in a new tab. False when the browser stopped it: a new tab from spoken words has
@@ -96,9 +108,9 @@ export function openInNewTab(url: string): boolean {
 
 export const NEW_TAB_STOPPED = 'The browser stopped the new tab. Allow pop-ups for this site.';
 
-// "Close", "close this post", "cancel", "never mind": a short sentence that only asks to close.
+// "Close", "close this post", "cancel", "never mind", "done": a short sentence that only asks to close.
 // A speech-to-text model can write "close" as "clothes".
-const CLOSE = /^(?:(?:ok|okay|please|now|just)\s+)*(?:close|clothes|cancel|dismiss|exit|quit|never\s*mind)\b(?:\s+[a-z']+){0,3}$/;
+const CLOSE = /^(?:(?:ok|okay|please|now|just)\s+)*(?:close|clothes|cancel|dismiss|exit|quit|done|never\s*mind)\b(?:\s+[a-z']+){0,3}$/;
 
 /** True when a sentence only asks to close the dialog. */
 export function closeRequest(text: string): boolean {

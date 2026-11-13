@@ -293,6 +293,10 @@ export function Timeline() {
       if (!link) return 'No transaction is on the screen.';
       return openInNewTab(link.href) ? null : NEW_TAB_STOPPED;
     }
+    if (command.kind === 'top') {
+      timelineTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return null;
+    }
     if (command.kind === 'scroll') {
       if (scrollALittle(command.to, focusedPostId, timelineTop.current)) return null;
       return command.to === 'down' ? 'This is the end of this post. Say "next post".' : 'This is the top of this post. Say "previous post".';
@@ -306,10 +310,19 @@ export function Timeline() {
     if (command.kind === 'no_target') {
       const needs = { rate: 'A rating', bet: 'A bet', open_market: 'A market' } as const;
       if (command.action === 'go') return 'Say which post: "scroll to the second post".';
+      if (command.action === 'note_text') return 'That post has no note on the screen.';
       return command.action === 'write_note' ? 'That post is not on the screen.' : `${needs[command.action]} needs a note. That note is not on the screen.`;
     }
     const card = spoken.find((candidate) => candidate.post.id === command.postId);
     if (!card) return 'That post is not on the screen.';
+    if (command.kind === 'note_text') {
+      // The note's own button holds its state: a click on it opens or closes the text.
+      const more = document.getElementById(postCardId(card.post.id))?.querySelector<HTMLButtonElement>('.xt-more');
+      if (!more) return card.note ? 'The whole note is on the screen.' : 'That post has no note.';
+      if ((more.getAttribute('aria-expanded') === 'true') !== command.open) more.click();
+      more.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return null;
+    }
     showCard(card.post.id);
     if (command.kind === 'write_note') {
       openWrite(card.post.id, { autoSign: true });

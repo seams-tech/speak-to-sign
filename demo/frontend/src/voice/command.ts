@@ -31,6 +31,10 @@ export type VoiceCommand =
   | { kind: 'scroll'; to: ScrollTo }
   /** The newest transaction on the page, on the explorer: "click the transaction link". */
   | { kind: 'view_transaction' }
+  /** To the top of the timeline: "scroll to the top". */
+  | { kind: 'top' }
+  /** The whole text of the note of a post, or its short form again: "show more", "show less". */
+  | { kind: 'note_text'; postId: number; open: boolean }
   | { kind: 'write_note'; postId: number }
   /** `amount` in USDC base units. Null: the bet sheet's own amount. */
   | { kind: 'bet'; postId: number; side: BetSide; amount: bigint | null }
@@ -39,7 +43,7 @@ export type VoiceCommand =
   /** A new prediction market on the note of a post. */
   | { kind: 'open_market'; postId: number }
   /** The sentence asks for a note, a rating, a bet or a market, and the screen has no post or note that it can mean. */
-  | { kind: 'no_target'; action: 'go' | 'write_note' | 'rate' | 'bet' | 'open_market' }
+  | { kind: 'no_target'; action: 'go' | 'write_note' | 'rate' | 'bet' | 'open_market' | 'note_text' }
   | { kind: 'none' };
 
 /** One post of the timeline, as the classifier reads it. */
@@ -133,6 +137,12 @@ export function decideCommand(scores: CommandScores, screen: Screen, transcript:
   const little = spokenScroll(transcript);
   if (little !== null && !namedPost()) return { kind: 'scroll', to: little };
   if (viewTransactionRequest(transcript)) return { kind: 'view_transaction' };
+  if (topRequest(transcript) && !namedPost()) return { kind: 'top' };
+  const noteText = spokenNoteText(transcript);
+  if (noteText !== null) {
+    const post = notedPost();
+    return post ? { kind: 'note_text', postId: post.postId, open: noteText === 'open' } : { kind: 'no_target', action: 'note_text' };
+  }
   const actions: { score: number; command: () => VoiceCommand }[] = [
     ...TIMELINE_TABS.map((tab) => ({ score: scores.show[tab], command: (): VoiceCommand => ({ kind: 'show', tab }) })),
     // "Scroll down to the first post" names its post: the direction does not count then.
@@ -271,9 +281,42 @@ export function viewTransactionRequest(text: string): boolean {
   return VIEW_TRANSACTION.test(plainWords(text));
 }
 
+const START = String.raw`^(?:(?:ok|okay|please|now|just|and|then)\s+)*`;
+
+// "Scroll to the top", "go back to the top", "take me to the beginning". Not "the top post".
+const TOP = new RegExp(String.raw`${START}(?:scroll|go|jump|move|take me|back)\b(?:\s+[a-z']+){0,4}\s+(?:top|beginning|start)\b(?:\s+[a-z']+){0,3}$`);
+
+/** True when a sentence only asks for the top of the timeline. */
+export function topRequest(text: string): boolean {
+  const words = plainWords(text);
+  return TOP.test(words) && !/\b(?:post|note|market)s?\b/.test(words);
+}
+
+// "Show more", "read the note", "show me the whole note" open the text. "Show less" closes it.
+const NOTE_OPEN = new RegExp(String.raw`${START}(?:show|read|see|open|expand)\s+(?:me\s+)?(?:more|(?:the|this|that)\s+(?:(?:whole|full|entire|first|second|third|fourth|fifth|sixth|seventh|eighth)\s+|rest of the\s+)?(?:community\s+)?note)\b(?:\s+[a-z']+){0,4}$`);
+const NOTE_CLOSE = new RegExp(String.raw`${START}(?:show less|(?:collapse|shorten|fold)\s+(?:the|this|that)\s+(?:community\s+)?note)\b(?:\s+[a-z']+){0,3}$`);
+
+/**
+ * "open" when a sentence only asks for the whole text of a note, "close" when it asks for the
+ * short form again, else null. "Show me more controversial posts" is not about a note.
+ */
+export function spokenNoteText(text: string): 'open' | 'close' | null {
+  const words = plainWords(text);
+  if (/\b(?:posts?|markets?|bets?)\b/.test(words)) return null;
+  return NOTE_CLOSE.test(words) ? 'close' : NOTE_OPEN.test(words) ? 'open' : null;
+}
+
+// "Try again", "retry", "do it again": a short sentence, for a dialog that failed.
+const RETRY = new RegExp(String.raw`${START}(?:(?:(?:lets|let's)\s+)?(?:try|do|say)(?:\s+(?:it|that|this))?\s+again|retry)\b(?:\s+[a-z']+){0,2}$`);
+
+/** True when a sentence only asks to try again. */
+export function retryRequest(text: string): boolean {
+  return RETRY.test(plainWords(text));
+}
+
 /** True when the words alone decide the command, so it needs no classifier. */
 export function wordsDecide(text: string): boolean {
-  return spokenScroll(text) !== null || viewTransactionRequest(text);
+  return spokenScroll(text) !== null || viewTransactionRequest(text) || topRequest(text) || spokenNoteText(text) !== null;
 }
 
 /** Reads the answer of POST /api/voice-command. Null when it is not a set of scores. */

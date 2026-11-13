@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
-import { commandRequest, decideCommand, readScores, ruleScores, spokenScroll, spokenSide, spokenUsdc, type CommandScores, type Screen } from '../src/voice/command.ts';
+import { commandRequest, decideCommand, readScores, retryRequest, ruleScores, spokenNoteText, spokenScroll, spokenSide, spokenUsdc, topRequest, type CommandScores, type Screen } from '../src/voice/command.ts';
 import { closeRequest, transactionHashOf, viewTransactionRequest } from '../src/voice/hold.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
@@ -216,9 +216,37 @@ test('"view transaction" is a short sentence, and the hash comes from each resul
   assert.equal(transactionHashOf(undefined), null);
 });
 
+test('"try again", "show more" and "scroll to the top" come from the words', () => {
+  const run = (transcript: string) => decideCommand(ruleScores(commandRequest(transcript, SCREEN)), SCREEN, transcript);
+  for (const text of ['Try again', 'try again.', 'Okay, try it again', 'Retry', "Let's try again", 'do that again please']) assert.equal(retryRequest(text), true, text);
+  for (const text of ['I will try again tomorrow to find the source of this claim', 'again', 'write the note again and again and again today', '']) assert.equal(retryRequest(text), false, text);
+
+  for (const text of ['Scroll to the top', 'go back to the top', 'Now scroll back up to the top', 'take me to the beginning']) assert.equal(topRequest(text), true, text);
+  for (const text of ['Scroll to the top post', 'this is the top story of the day', 'top']) assert.equal(topRequest(text), false, text);
+  assert.deepEqual(run('Scroll to the top.'), { kind: 'top' });
+  assert.deepEqual(run('Scroll up to the first post'), { kind: 'go', postId: 10 });
+
+  assert.equal(spokenNoteText('Show more'), 'open');
+  assert.equal(spokenNoteText('read the note'), 'open');
+  assert.equal(spokenNoteText('Show me the whole note please'), 'open');
+  assert.equal(spokenNoteText('Show less.'), 'close');
+  assert.equal(spokenNoteText('collapse the note'), 'close');
+  assert.equal(spokenNoteText('Show me more controversial posts'), null);
+  assert.equal(spokenNoteText('show me the open markets'), null);
+  assert.equal(spokenNoteText('write a note'), null);
+  // "This one" is post 20, which has no note. Post 10 has one.
+  assert.deepEqual(run('Show more'), { kind: 'no_target', action: 'note_text' });
+  assert.deepEqual(decideCommand(NONE, { ...SCREEN, focusedPostId: 10 }, 'Show more'), { kind: 'note_text', postId: 10, open: true });
+  assert.deepEqual(decideCommand(NONE, { ...SCREEN, focusedPostId: 10 }, 'show less'), { kind: 'note_text', postId: 10, open: false });
+  assert.deepEqual(run('Read the second note.'), { kind: 'note_text', postId: 30, open: true });
+  // The other commands stay as they are.
+  assert.deepEqual(run('Show me controversial posts.'), { kind: 'show', tab: 'controversial' });
+  assert.deepEqual(run('Next post.'), { kind: 'move', to: 'next' });
+});
+
 test('closeRequest takes only a short sentence that asks to close', () => {
   // A speech-to-text model can write "modal" as "Moodle": a close sentence counts by its first word.
-  for (const text of ['close', 'Close this post.', 'close the dialog', 'Close the Moodle', 'okay close it', 'Cancel', 'never mind', 'Clothes this post']) {
+  for (const text of ['close', 'Close this post.', 'close the dialog', 'Close the Moodle', 'okay close it', 'Cancel', 'never mind', 'Clothes this post', 'Done', 'okay done']) {
     assert.equal(closeRequest(text), true, text);
   }
   for (const text of ['I am close to the stadium', 'write a note on this post', 'this post is close to the truth', 'close this post and bet one dollar on no', '']) {

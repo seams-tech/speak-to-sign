@@ -15,7 +15,7 @@ import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import type { Screen, VoiceCommand } from './command';
 import { transactionUrl } from '../config';
-import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
+import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useShownTransaction, useVoiceHold, viewTransactionRequest } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -57,6 +57,12 @@ const COMMAND_PHRASES = [
   'scroll to',
   'scroll down a little bit',
   'view transaction',
+  'try again',
+  'done',
+  'show more',
+  'show less',
+  'read the note',
+  'scroll to the top',
   'click the transaction link',
   'scroll up a little bit',
   'this post',
@@ -100,7 +106,7 @@ function useTabVisible(): boolean {
 
 /** The bar's line while a dialog is open. */
 const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
-const RESULT_HINT = 'Say "view transaction", or "close".';
+const RESULT_HINT = 'Say "view transaction", or "done".';
 
 /** A line under the words: a command that could not run, or a sentence with no command. */
 interface Status {
@@ -183,6 +189,10 @@ export function VoiceBar({
         const hash = transactionRef.current;
         if (hash === null) setStatus({ text: 'This dialog shows no transaction.', isProblem: true });
         else setStatus(openInNewTab(transactionUrl(hash)) ? null : { text: NEW_TAB_STOPPED, isProblem: true });
+        return;
+      }
+      if (retryRequest(text)) {
+        setStatus(pressTryAgain() ? null : { text: 'This dialog has no "Try again" now.', isProblem: true });
         return;
       }
       if (!closeRequest(text)) setStatus({ text: transactionRef.current === null ? CLOSE_HINT : RESULT_HINT, isProblem: false });

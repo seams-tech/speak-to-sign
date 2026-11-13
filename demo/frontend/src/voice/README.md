@@ -53,6 +53,11 @@ that opens a signing step waits for the end of the sentence.
   with the "View transaction" link is in the Wallet's frame, so the page opens
   the same transaction itself. The browser can stop a new tab that no click
   asked for: allow pop-ups for the site.
+- "Try again" presses the dialog's own **Try again** after a failure, and
+  "done" closes a dialog, as "close" does.
+- "Show more" or "read the note" opens the whole text of the note of "this
+  one", or of a named note ("read the second note"). "Show less" closes it.
+- "Scroll to the top" goes to the top of the timeline.
 - With no dialog open, "view transaction" or "click the transaction link"
   opens the newest transaction of "Signed by voice" in the right column.
 - "Scroll down a little bit" and "scroll up a little bit" move the page by half

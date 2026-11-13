@@ -18,7 +18,7 @@ import { IconMicrophone, IconMicrophoneOff } from '@tabler/icons-react';
 import { classify } from './classify';
 import { helpRequest, stopRequest, type Screen, type VoiceCommand } from './command';
 import { transactionUrl } from '../config';
-import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useShownResult, useVoiceHold, viewQuoteRequest, viewTransactionRequest, type ShownResult } from './hold';
+import { closeNewestDialog, closeRequest, NEW_TAB_STOPPED, openInNewTab, pressTryAgain, retryRequest, useRetryOffered, useShownResult, useVoiceHold, viewQuoteRequest, viewTransactionRequest, type ShownResult } from './hold';
 import { canListen, deviceSpeech, installDeviceSpeech, listen, type DeviceSpeech, type ListenMode } from './listen';
 import { MAX_SAID, Transcript, type SaidSentence } from './Transcript';
 import './voice.css';
@@ -114,6 +114,8 @@ function useTabVisible(): boolean {
 
 /** The bar's line while a dialog is open. */
 const CLOSE_HINT = 'A dialog is open. Say "close" to close it.';
+/** The bar's line while the Wallet's card shows a failed check. */
+const RETRY_HINT = 'Say "try again", or "close".';
 /** The bar's line while the Wallet's card shows the result of a transaction. */
 const resultHint = (result: ShownResult) => (result.quoteUrl === null ? 'Say "view transaction", or "done".' : 'Say "view transaction", "view TDX quote", or "done".');
 
@@ -163,6 +165,9 @@ export function VoiceBar({
   const shownResult = useShownResult();
   const resultRef = useRef(shownResult);
   resultRef.current = shownResult;
+  const retryOffered = useRetryOffered();
+  const retryRef = useRef(retryOffered);
+  retryRef.current = retryOffered;
   const visible = useTabVisible();
   /** The finished sentences, oldest first, and the sentence that the visitor says now. */
   const [said, setSaid] = useState<SaidSentence[]>([]);
@@ -242,7 +247,7 @@ export function VoiceBar({
         setStatus(pressTryAgain() ? null : { text: 'This dialog has no "Try again" now.', isProblem: true });
         return;
       }
-      if (!closeRequest(text)) setStatus({ text: result === null ? CLOSE_HINT : resultHint(result), isProblem: false });
+      if (!closeRequest(text)) setStatus({ text: result !== null ? resultHint(result) : retryRef.current ? RETRY_HINT : CLOSE_HINT, isProblem: false });
       else if (closeNewestDialog()) setStatus(null);
       else setStatus({ text: 'The dialog cannot close while the Wallet works. Say "close" on its result.', isProblem: true });
       return;
@@ -379,9 +384,11 @@ export function VoiceBar({
       : stopReason !== null
         ? (STOP_REASONS[stopReason] ?? 'The microphone stopped. Type the command.')
         : hold === 'dialog'
-          ? shownResult === null
-            ? CLOSE_HINT
-            : resultHint(shownResult)
+          ? shownResult !== null
+            ? resultHint(shownResult)
+            : retryOffered
+              ? RETRY_HINT
+              : CLOSE_HINT
           : 'Say: "show me controversial posts", or "what can I say?".';
 
   // The hint goes under the typed field, and under the words while a hold is on. With no words,

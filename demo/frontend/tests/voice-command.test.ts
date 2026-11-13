@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { jevCommandRequest, readJevCommand, screenText } from '../functions/lib/jevCommand.ts';
 import { commandRequest, decideCommand, helpRequest, myBetsRequest, readScores, retryRequest, stopRequest, wordsDecide, ruleScores, spokenNoteText, spokenScroll, spokenSide, spokenUsdc, topRequest, type CommandScores, type Screen } from '../src/voice/command.ts';
-import { closeRequest, quoteUrlOf, transactionHashOf, viewQuoteRequest, viewTransactionRequest } from '../src/voice/hold.ts';
+import { closeRequest, offerRetry, pressTryAgain, quoteUrlOf, transactionHashOf, viewQuoteRequest, viewTransactionRequest } from '../src/voice/hold.ts';
+import { cardTries, type VoiceCard } from '../src/signer/voiceCard.ts';
 import { controversy, countOf } from '../src/x/controversy.ts';
 
 const USDC = 1_000_000n;
@@ -280,4 +281,41 @@ test('"view TDX quote" opens the record of the verifier call that the Wallet res
   assert.equal(quoteUrlOf({ attestationUrl: null }), null);
   assert.equal(quoteUrlOf({ attestationUrl: 'javascript:alert(1)' }), null);
   assert.equal(quoteUrlOf(undefined), null);
+});
+
+test('"try again" on the Wallet card sends the request again, and only the newest try settles it', async () => {
+  // The Wallet's card is in the Wallet's frame. While it shows a failed check, the host of the
+  // card offers a retry, and "try again" runs it in place of a button of the page.
+  let retries = 0;
+  offerRetry(() => {
+    retries += 1;
+  });
+  assert.equal(pressTryAgain(), true);
+  assert.equal(retries, 1);
+  offerRetry(null);
+
+  // One request, two tries. The card of the first try ends when the second try starts, so the
+  // first call rejects as cancelled. That is not the result of the request.
+  const card = {} as VoiceCard;
+  const calls: { resolve: (value: string) => void; reject: (cause: Error) => void }[] = [];
+  const send = () => new Promise<string>((resolve, reject) => calls.push({ resolve, reject }));
+  const settled: string[] = [];
+  const nextTry = cardTries(send, (result) => settled.push(`result ${result}`), (cause) => settled.push(`error ${String(cause)}`));
+
+  const first = nextTry();
+  const firstSent = first.send(card);
+  const second = nextTry();
+  assert.deepEqual([first.number, first.newest(), second.number, second.newest()], [1, false, 2, true]);
+  const secondSent = second.send(card);
+  calls[0].reject(new Error('cancelled'));
+  await assert.rejects(firstSent, /cancelled/);
+  assert.deepEqual(settled, []);
+  calls[1].resolve('sent');
+  assert.equal(await secondSent, 'sent');
+  assert.deepEqual(settled, ['result sent']);
+
+  // With one try, its error is the error of the request.
+  const failing = cardTries(() => Promise.reject(new Error('refused')), () => settled.push('result'), (cause) => settled.push(String(cause)));
+  await assert.rejects(failing().send(card), /refused/);
+  assert.deepEqual(settled, ['result sent', 'Error: refused']);
 });

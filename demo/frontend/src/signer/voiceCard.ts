@@ -3,7 +3,7 @@
 // shows in the Wallet's own modal, on top of the page.
 
 import type { AnchoredWalletPresentation } from '@seams/wallet';
-import { holdVoice } from '../voice/hold';
+import { holdVoice } from '../voice/hold.ts';
 
 /** The card's place over an element of the host's dialog, and the card's events. */
 export type VoiceCard = AnchoredWalletPresentation;
@@ -14,6 +14,47 @@ export type VoiceCardPlace = { presentation?: VoiceCard };
 export interface VoiceCardHost {
   /** Shows the step of the card, calls `send` with the card's place, and gives its result. */
   show<T>(send: (card: VoiceCard) => Promise<T>): Promise<T>;
+}
+
+/** One try of a request, with its own card. */
+export interface CardTry<T> {
+  /** 1 for the first try. */
+  number: number;
+  /** Sends the request with the card's place. */
+  send(card: VoiceCard): Promise<T>;
+  /** False when a newer try took over: the host ended the card of this try for it. */
+  newest(): boolean;
+}
+
+/**
+ * The tries of one request. The result makes the next try. Each try sends the request again with
+ * a new card, and the host ends the card of the try before it. So only the newest try settles
+ * the request: an older try ends as cancelled, and that is not the result of the request.
+ */
+export function cardTries<T>(
+  send: (card: VoiceCard) => Promise<T>,
+  resolve: (result: T) => void,
+  reject: (cause: unknown) => void,
+): () => CardTry<T> {
+  let count = 0;
+  return () => {
+    const number = ++count;
+    const newest = () => number === count;
+    return {
+      number,
+      newest,
+      send: async (card) => {
+        try {
+          const result = await send(card);
+          if (newest()) resolve(result);
+          return result;
+        } catch (cause) {
+          if (newest()) reject(cause);
+          throw cause;
+        }
+      },
+    };
+  };
 }
 
 /** The open hosts, newest last. The newest one shows the card. */

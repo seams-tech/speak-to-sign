@@ -1,8 +1,9 @@
 // What the command listener may hear while other parts of the page are open.
 //
 // - An open dialog holds it as `dialog`: the bar then hears only "close" (closeRequest), which
-//   closes the newest dialog, and "view transaction" (viewTransactionRequest) and "view TDX
-//   quote" (viewQuoteRequest), when the Wallet's card shows the result of a transaction. The
+//   closes the newest dialog, "view transaction" (viewTransactionRequest) and "view TDX
+//   quote" (viewQuoteRequest), when the Wallet's card shows the result of a transaction, and
+//   "try again" (retryRequest), when the Wallet's card or the dialog shows a failed try. The
 //   rest of what the visitor says to a dialog is not a command.
 // - A recording holds it as `recording`: the Seams Wallet's voice card, or the page's own bet
 //   recorder, records the sentence that signs. The bar then does not listen at all, so it takes
@@ -111,12 +112,37 @@ export function viewQuoteRequest(text: string): boolean {
 
 export { retryRequest, viewTransactionRequest };
 
+let cardRetry: (() => void) | null = null;
+
 /**
- * Presses "Try again" in the newest open dialog that has it, as a click does. False when no
- * dialog shows that button. The Wallet's own card is in the Wallet's frame: its buttons are
- * not the page's.
+ * Sets what "try again" does while the Wallet's card shows a failed check ("The words did not
+ * match"), and null when that card goes. The card is in the Wallet's frame, so the page cannot
+ * press its "Try again": the host of the card sends the request again, with a new card.
+ */
+export function offerRetry(retry: (() => void) | null): void {
+  if (retry === cardRetry) return;
+  cardRetry = retry;
+  listeners.forEach((listener) => listener());
+}
+
+/** True while the Wallet's card shows a failed check that "try again" can send again. */
+export function useRetryOffered(): boolean {
+  return useSyncExternalStore((listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }, () => cardRetry !== null);
+}
+
+/**
+ * Does "Try again". The Wallet's card is above the dialog, so its retry comes first. Without
+ * one, it presses "Try again" in the newest open dialog that has it, as a click does. False
+ * when nothing can try again.
  */
 export function pressTryAgain(): boolean {
+  if (cardRetry) {
+    cardRetry();
+    return true;
+  }
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')];
   const button = buttons.reverse().find((candidate) => !candidate.disabled && candidate.textContent?.trim().toLowerCase() === 'try again');
   button?.click();

@@ -23,6 +23,8 @@ export interface WalletCard {
   events: WalletStepEvents;
   /** Runs `then` when the card is gone from the screen. With no card, it runs at once. */
   afterCard(then: () => void): void;
+  /** The host ended the card and takes no more events of it: the card is gone now. */
+  ended(): void;
 }
 
 export function useWalletCard(): WalletCard {
@@ -73,5 +75,5 @@ export function useWalletCard(): WalletCard {
     [gone],
   );
 
-  return { size, entered, shown, events, afterCard };
+  return { size, entered, shown, events, afterCard, ended: gone };
 }

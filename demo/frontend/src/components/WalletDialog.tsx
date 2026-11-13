@@ -13,12 +13,17 @@
 // The voice card has Minimize. While the card is minimized, the dialog is out of sight too (it
 // keeps its place, so the card's anchor does not move), and a pill on the page shows the card's
 // progress. A click on the pill, or the card's result, brings both back.
+//
+// "Try again" by voice: the card of a failed check ("The words did not match") has its own "Try
+// again", but it is in the Wallet's frame, and the page cannot press it. So the dialog offers a
+// retry of its own to the voice bar: it ends that card and sends the same request again, with a
+// new card. The request's caller sees one request, and gets the result of the newest try.
 
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { WalletStep, type WalletStepProgress } from '@seams/wallet/react';
 import { DemoContext } from '../demoContext';
-import { hostVoiceCard, type VoiceCard } from '../signer/voiceCard';
-import { showResult, useHoldVoice } from '../voice/hold';
+import { cardTries, hostVoiceCard, type CardTry, type VoiceCard } from '../signer/voiceCard';
+import { offerRetry, showResult, useHoldVoice } from '../voice/hold';
 import { CardPill } from './CardPill';
 import { Modal, RESIZE_MS, useDialogHeight, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
@@ -64,9 +69,11 @@ export function WalletDialog({
   // an empty step for the seconds before the card looked like a blank dialog.
   // After that it keeps the card's step until the request ends, as before (also while the card is
   // minimized, or for the moment between the card's exit and the request's end).
-  const cardSeen = useRef<number | null>(null);
-  if (call && voiceCard.entered) cardSeen.current = call.id;
-  const cardUp = call !== null && cardSeen.current === call.id;
+  // A new try of the request has a new card, so the dialog's own step shows again until then.
+  const attempt = call?.attempt ?? null;
+  const cardSeen = useRef<CardTry<unknown> | null>(null);
+  if (attempt && voiceCard.entered) cardSeen.current = attempt;
+  const cardUp = attempt !== null && cardSeen.current === attempt;
   const view = signingIn ? 'signin' : cardUp ? 'voice' : 'main';
   // The voice bar stays off while the card can record: from its start until it checks or shows
   // its result. Its result ("Note posted", "The words did not match") can close by voice or
@@ -76,6 +83,40 @@ export function WalletDialog({
   // A dialog that closes on the card's result takes its transaction with it.
   useEffect(() => () => showResult(null), []);
   const cardResult = stage === 'result';
+  // The try whose request has its result or its error. Until then the request waits in the card.
+  const [settled, setSettled] = useState<CardTry<unknown> | null>(null);
+  // The card shows a result, and the request still waits: the check failed, and the card has
+  // "Try again". The voice bar's "try again" then starts a new try.
+  const failed = call !== null && cardResult && settled !== attempt;
+  const { ended: cardEnded } = voiceCard;
+  useEffect(() => {
+    if (!failed || !call) return undefined;
+    // The stage of a signed request can come a moment before its result.
+    const timer = window.setTimeout(
+      () =>
+        offerRetry(() => {
+          offerRetry(null);
+          showResult(null);
+          closeAfterCard.current = false;
+          setMinimized(null);
+          setProgress(null);
+          // The card of this try ends with its step, and the dialog takes no more events of it.
+          cardEnded();
+          call.retry();
+        }),
+      RETRY_AFTER_MS,
+    );
+    return () => {
+      window.clearTimeout(timer);
+      offerRetry(null);
+    };
+  }, [failed, call, cardEnded]);
+  // An event of the card of an older try does nothing: that card ended for the newest try.
+  const ofThisTry =
+    <A extends unknown[]>(run: ((...args: A) => void) | undefined) =>
+    (...args: A) => {
+      if (attempt?.newest()) run?.(...args);
+    };
 
   // The sign-in ends (signed in, Back, Escape): its menu goes, and with it a card that still
   // shows. The dialog's own step returns when the card is gone.
@@ -121,20 +162,29 @@ export function WalletDialog({
           </MorphView>
         )}
       </Morph>
-      {call && (
+      {call && attempt && (
         <div className="card-layer">
           <WalletStep
-            key={call.id}
+            // Each try is a new step: the card of the try before it ends when its step unmounts.
+            key={`${call.id}:${attempt.number}`}
             surface={{
               kind: 'speak_to_sign',
               // The request's own caller handles its result and its error.
               send: (card) =>
-                call
+                attempt
                   .send(card)
-                  // The card now shows its result: "view transaction" and "view TDX quote" open its links.
-                  .then((result) => showResult(result))
-                  .catch(() => undefined)
-                  .finally(() =>
+                  .then((result) => {
+                    if (!attempt.newest()) return;
+                    setSettled(attempt);
+                    // The card now shows its result: "view transaction" and "view TDX quote" open its links.
+                    showResult(result);
+                  })
+                  .catch(() => {
+                    if (attempt.newest()) setSettled(attempt);
+                  })
+                  .finally(() => {
+                    // The card of an older try ended for a new try: the request goes on.
+                    if (!attempt.newest()) return;
                     voiceCard.afterCard(() => {
                       showResult(null);
                       // A card that ends while it is minimized (an error) brings the dialog back.
@@ -145,19 +195,22 @@ export function WalletDialog({
                         closeAfterCard.current = false;
                         onClose();
                       }
-                    }),
-                  ),
+                    });
+                  }),
             }}
             chrome="back_and_close"
             minimize
             transition={VOICE_CARD_TRANSITION}
-            {...voiceCard.events}
-            onClose={() => {
+            onEnter={ofThisTry(voiceCard.events.onEnter)}
+            onResize={ofThisTry(voiceCard.events.onResize)}
+            onReady={ofThisTry(voiceCard.events.onReady)}
+            onExit={ofThisTry(voiceCard.events.onExit)}
+            onClose={ofThisTry(() => {
               closeAfterCard.current = true;
-            }}
-            onMinimize={(restore) => setMinimized({ restore })}
-            onRestore={() => setMinimized(null)}
-            onProgress={setProgress}
+            })}
+            onMinimize={ofThisTry((restore: () => void) => setMinimized({ restore }))}
+            onRestore={ofThisTry(() => setMinimized(null))}
+            onProgress={ofThisTry(setProgress)}
           />
         </div>
       )}
@@ -174,6 +227,12 @@ export function WalletDialog({
  */
 const VOICE_CARD_TRANSITION = { enterDelayMs: RESIZE_MS, fadeInMs: 120, fadeOutMs: 120 } as const;
 
+/**
+ * The time that the card shows a result while its request waits, before "try again" by voice
+ * counts. A signed request gives its result in that time, and it has no retry.
+ */
+const RETRY_AFTER_MS = 400;
+
 /** The page's hosted sign-in, when the page has one (the market preview has none). */
 function useHostedSignIn(): { signingIn: boolean; end: (signedIn: boolean) => void } {
   const demo = useContext(DemoContext);
@@ -185,8 +244,13 @@ function useHostedSignIn(): { signingIn: boolean; end: (signedIn: boolean) => vo
 /** One request whose voice card the dialog shows now. */
 interface CardCall {
   id: number;
-  /** Sends the request with the card's place. The request's caller gets the same result. */
-  send: (card: VoiceCard) => Promise<unknown>;
+  /**
+   * The try of the request that the dialog shows now. It sends the request with the card's
+   * place, and the request's caller gets the result of the newest try.
+   */
+  attempt: CardTry<unknown>;
+  /** Starts a new try of the request, with a new card. The dialog ends the card of this try. */
+  retry: () => void;
   /** The card is gone: the dialog returns to its own step. */
   end: () => void;
 }
@@ -206,22 +270,24 @@ function useVoiceCardHost(): CardCall | null {
       show: (send) =>
         new Promise((resolve, reject) => {
           const id = nextCallId++;
-          unsent = reject;
-          setCall({
-            id,
-            send: async (card) => {
-              unsent = null;
-              try {
-                const result = await send(card);
-                resolve(result);
-                return result;
-              } catch (cause) {
-                reject(cause);
-                throw cause;
-              }
-            },
-            end: () => setCall((current) => (current?.id === id ? null : current)),
-          });
+          const nextTry = cardTries(send, resolve, reject);
+          const start = () => {
+            unsent = reject;
+            const attempt = nextTry();
+            setCall({
+              id,
+              attempt: {
+                ...attempt,
+                send: (card: VoiceCard) => {
+                  unsent = null;
+                  return attempt.send(card);
+                },
+              },
+              retry: start,
+              end: () => setCall((current) => (current?.id === id ? null : current)),
+            });
+          };
+          start();
         }),
     });
     return () => {

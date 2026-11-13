@@ -13,7 +13,7 @@ section 9.1 (each checker). The live state is in
 | # | Link | What proves it | Who checks the proof | State |
 | --- | --- | --- | --- | --- |
 | 1 | The device seals the recording | HPKE to the verifier's audio key. The owner and the operation are in the `aad`. | Only a run of this OutLayer project gets the private audio key (`PROTECTED_AUDIO_KEY`, made in the OutLayer keystore). The Wallet pins the public key. | Live |
-| 2 | The verifier runs in a TEE (OutLayer, Intel TDX) | The TDX quote of each call. Its report data binds the WASM hash, the input and the output, and the verdict is in the output. | The Seams verify route, against the pinned WASM hash. It refuses with `attestation_<code>`. | Live on the Seams staging server since 2026-11-12 (Seams Wallet 0.70.0, `seams-wallet` `35649a05b`, `speakToSignAttestation.ts`). A spoken request through it with a real voice is not recorded yet. |
+| 2 | The verifier runs in a TEE (OutLayer, Intel TDX) | The TDX quote of each call. Its report data binds the WASM hash, the input and the output, and the verdict is in the output. | The Seams verify route, against the pinned WASM hash. It refuses with `attestation_<code>`. | Live on the Seams staging server since 2026-11-12 (Seams Wallet 0.70.0, `seams-wallet` `35649a05b`, `speakToSignAttestation.ts`). |
 | 3 | The verifier is this source | The reproducible build: Docker gives the same SHA-256 as the OutLayer version | Anyone: JUDGES.md check 3 | Live |
 | 4 | The speaker check runs in a TEE (Phala dstack CVM, Intel TDX) | The service signs each embedding with a key from its TDX attestation | The verifier pins that key (`SPEAKER_PINNED_KEY_HEX`), after a check of the attestation on 2026-11-07 | Live |
 | 5 | The transcript comes from a TEE (NEAR AI Cloud, Whisper large-v3) | The Intel TDX quotes of NEAR AI's gateway and of its Whisper VM, each with a fresh nonce of the verifier. The gateway's quote names the gateway key, and that key signs the key to which the verifier seals each recording (Oblivious HTTP). So only the gateway's TDX VM opens the request, and the sealed reply comes from that VM. | The verifier, from 0.14.0: it checks both quotes with Intel's collateral, at least each 6 hours, before it sends a recording. It refuses with `transcriber_not_attested`. | **Live in verifier 0.14.1, the active version.** The Seams staging server and the demo route call it. See [The NEAR AI check](#the-near-ai-check). |
@@ -53,8 +53,6 @@ section 9.1 (each checker). The live state is in
   See [The NEAR AI check](#the-near-ai-check).
 - **Venice AI**, while NEAR AI Whisper is down and the Seams staging server
   or the demo route selects the `venice` build: for the audio and for the transcript. It has no TEE.
-
-<a id="why-the-near-ai-check-is-not-shipped"></a>
 
 ## The NEAR AI check
 

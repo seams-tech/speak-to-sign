@@ -98,9 +98,7 @@ contract and the demo site.
 12. **What is not done.** [JUDGES.md, "Not covered"](JUDGES.md#not-covered)
     is the short list. The full list of the trusted parties is in
     [trust chain, "Who is trusted, not verified"](docs/trust-chain.md#who-is-trusted-not-verified),
-    and the threat model says what is left for each attacker. The checks that
-    did not ship yet are in
-    [deployed state, "Checks that are in progress"](docs/deployed-state.md#checks-that-are-in-progress).
+    and the threat model says what is left for each attacker.
 
 ## If you change this repository
 

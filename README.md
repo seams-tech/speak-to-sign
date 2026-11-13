@@ -93,7 +93,7 @@ flowchart LR
   end
 
   subgraph Seams["Seams servers"]
-    Route["Verify route<br/>calls the verifier<br/>over HTTPS"]
+    Route["Verify route<br/>checks the TDX quote<br/>of the verifier call"]
   end
 
   subgraph OutLayer["OutLayer TEE (Intel TDX)"]
@@ -203,15 +203,13 @@ multisig, the trust boundaries and the path of the audio.
 - **AI drafts and routes, and you approve.** NEAR AI drafts the note, and JEV
   routes your command. Neither can approve a call. Only your spoken sentence
   can.
-- **One sentence is the approval, checked at two layers.** Off chain, Wallet
-  core and the Seams co-signer check the verdict before they sign: the pinned
-  key, the signature, the expiry and the request digest. They guard native
-  NEAR transfers. On chain, `notes`, `pm-notes` and `voice-multisig` check the
-  ed25519 verdict again, so a bot with a plain NEAR key cannot skip the voice
-  step over RPC
+- **One sentence is the approval, checked at two layers.** Off chain, the
+  Seams verify route checks the TDX quote of the verifier call against the
+  pinned WASM hash at 0 gas, and Wallet core and the Seams co-signer check the
+  verdict before they sign. They guard native NEAR transfers. On chain,
+  `notes`, `pm-notes` and `voice-multisig` check the ed25519 verdict again, so
+  a bot with a plain NEAR key cannot skip the voice step over RPC
   ([who checks the verdict](docs/voice-intents-spec.md#9-who-checks-the-verdict)).
-  A check of the verifier's TDX quote in the Seams verify route is built, and
-  its deploy is in progress ([state](docs/deployed-state.md#checks-that-are-in-progress)).
 - **A voice clone alone signs nothing.** It works only on the person's own
   device, with the Wallet unlocked (see [Trust limits](#trust-limits)).
 

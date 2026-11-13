@@ -182,8 +182,12 @@ try {
   and Close are hidden. A press calls `minimized(true)` and does not end the card: you hide
   the card, and the recording and the check go on. The card calls `minimized(false)` when it
   needs the person again: on a result, and when a recording needs another try.
-  `frame.progressed({ stage, done, total })` tells you each new stage (`recording`,
+  `frame.progressed({ stage, done, total })` tells you each new stage (`waiting`, `recording`,
   `checking`, `result`), so you can show the progress of a hidden card.
+- `frame.remote(press)` gives a host (such as voice commands) `press(control)` for `'retry'`,
+  `'minimize'`, `'back'` or `'close'`. It returns `false` when that control is not shown. On a
+  result, `action: { label, retry: true }` lets `'retry'` trigger the action and start the next
+  recording without a second press on Record; `press` never triggers a non-retry action.
 - `VoicePrompt`, `PhraseCard`, `VoiceRibbon` and `VoiceVisual` are exported for a host that
   makes its own surfaces.
 

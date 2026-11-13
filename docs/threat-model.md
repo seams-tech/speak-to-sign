@@ -129,8 +129,7 @@ the audio key.
 **What stops it.** The Seams verify route checks the TDX quote of each call
 against the pinned WASM hash before it returns a verdict, so another build
 cannot approve a signature through the Seams server (`seams-wallet` commit
-`0b297e976`; see [deployed-state.md](deployed-state.md#checks-that-are-in-progress)
-for its deploy).
+`0b297e976`; [deployed-state.md](deployed-state.md#the-wallet-and-the-site)).
 
 **What is left.** A verdict from a call that skips the verify route gets the
 key check only, for example a caller that does not use the Seams Wallet (see

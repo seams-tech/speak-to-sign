@@ -63,6 +63,8 @@ test('a name with a number in it keeps its letters at once, with no second reque
   const other = model(['The film is in 3D', 'The film is in three D']);
   assert.deepEqual(await writeSummary(other.config, NOTE), { ok: true, summary: 'The film is in three D' });
   assert.equal(other.calls.length, 2);
+  // A number inside a name does not read the same in words, so the request asks to leave it out.
+  assert.match(other.calls[1]!.body.messages.at(-1)!.content, /The word "3D".*without the number in that word, or use plain words/);
 });
 
 test('a number alone, or another wrong character, gets a second request that names the word', async () => {
@@ -71,6 +73,8 @@ test('a number alone, or another wrong character, gets a second request that nam
   assert.equal(number.calls.length, 2);
   const second = number.calls[1]!.body.messages.at(-1)!.content;
   assert.match(second, /^The word "2" has a character that is not a letter/);
+  // A number alone reads the same in words.
+  assert.match(second, /Write that number as words\./);
 
   const handle = model(['Ask @city about it', 'Ask the city about it']);
   assert.deepEqual(await writeSummary(handle.config, NOTE), { ok: true, summary: 'Ask the city about it' });
@@ -92,6 +96,22 @@ test('after two replies with a wrong character, the letters of each word stay; a
   assert.deepEqual(await writeSummary(kept.config, NOTE), { ok: true, summary: 'Ask city about it' });
   const alone = model(['The city closes 2 lanes', 'The city closes 2 lanes']);
   assert.deepEqual(await writeSummary(alone.config, NOTE), { ok: false, code: 'summary_not_speakable' });
+});
+
+test('a signal of the caller ends the request to the model', async () => {
+  const stop = new AbortController();
+  const signals: (AbortSignal | null | undefined)[] = [];
+  const config: SummaryWriterConfig = {
+    apiKey: KEY,
+    fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
+      signals.push(init?.signal);
+      stop.abort();
+      init?.signal?.throwIfAborted();
+      return Response.json({});
+    }) as typeof fetch,
+  };
+  assert.deepEqual(await writeSummary(config, NOTE, { signal: stop.signal }), { ok: false, code: 'summary_unreachable' });
+  assert.equal(signals[0]?.aborted, true);
 });
 
 test('a model failure has a fixed code, with no upstream text', async () => {

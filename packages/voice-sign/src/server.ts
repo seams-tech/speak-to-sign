@@ -25,7 +25,13 @@ import {
 import { callVerifierWithAttestation, type VerifierConfig, type VerifyOutput } from './client.ts';
 
 export { callVerifier, callVerifierWithAttestation, relayToVerifier, VerifierCallError } from './client.ts';
-export { DEFAULT_SUMMARY_MODEL, writeSummary, type SummaryWriterConfig, type WrittenSummary } from './summaryWriter.ts';
+export {
+  DEFAULT_SUMMARY_MODEL,
+  writeSummary,
+  type SummaryWriterConfig,
+  type WriteSummaryOptions,
+  type WrittenSummary,
+} from './summaryWriter.ts';
 export type { IntentSpec } from '@seams/voice-verdict';
 export type {
   DetectOutput,

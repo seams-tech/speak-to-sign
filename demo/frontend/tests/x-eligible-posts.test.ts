@@ -153,13 +153,13 @@ test('readSettings needs all four keys and clamps the optional values', () => {
   assert.equal(readSettings({}), 'no-keys');
   assert.equal(readSettings({ ...ENV, X_ACCESS_TOKEN_SECRET: ' ' }), 'no-keys');
   const defaults = settingsOf({ ...ENV, X_ELIGIBLE_TTL_SECONDS: undefined });
-  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang, defaults?.maxKept], [10, 28_800_000, null, MAX_KEPT_POSTS]);
+  assert.deepEqual([defaults?.maxResults, defaults?.ttlMs, defaults?.lang, defaults?.maxKept], [10, 14_400_000, null, MAX_KEPT_POSTS]);
   assert.equal(settingsOf({ ...ENV, X_ELIGIBLE_KEEP: '5' })?.maxKept, 10);
   assert.equal(settingsOf({ ...ENV, X_ELIGIBLE_KEEP: '90000' })?.maxKept, 2_000);
   const set = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '500', X_ELIGIBLE_TTL_SECONDS: '5', X_ELIGIBLE_LANG: ' JA ' });
   assert.deepEqual([set?.maxResults, set?.ttlMs, set?.lang], [100, 60_000, 'ja']);
   const bad = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '-3', X_ELIGIBLE_TTL_SECONDS: 'soon', X_ELIGIBLE_LANG: 'feed_size:xxl' });
-  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [10, 28_800_000, null]);
+  assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [10, 14_400_000, null]);
 });
 
 test('parseEligiblePosts keeps the good posts and checks every field', () => {
@@ -637,8 +637,8 @@ test('the route answers a page of the kept posts with the total and the next off
   assert.equal(x.calls.length, 0);
 });
 
-test('a request of the schedule every 8 hours gets new posts, also when it comes a minute early', async () => {
-  const TTL = 8 * 3_600_000;
+test('a request of the schedule every 4 hours gets new posts, also when it comes a minute early', async () => {
+  const TTL = 4 * 3_600_000;
   assert.equal(refreshAgeMs(TTL), TTL - 600_000);
   const store = fakeStore({ fetchedAtMs: T0, posts: parseEligiblePosts(X_BODY), failedAtMs: null, topics: {} });
   const x = fakeX([ok({ data: [{ id: '5', text: 'New post.' }] })]);

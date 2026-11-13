@@ -17,7 +17,7 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2026-11-01"
 
 # One snapshot of /api/x/eligible-posts for all Cloudflare locations, so that the route calls X
-# three times a day in all (namespace "seams-voice-intents-x-cache").
+# six times a day in all (namespace "seams-voice-intents-x-cache").
 [[kv_namespaces]]
 binding = "X_CACHE"
 id = "1a59a845916b4d119b037adeb871ab6c"
@@ -30,6 +30,6 @@ id = "2857303a21af46678ef1de86a270caee"
 
 [vars]
 # Posts for each call to X (the route's default is 10). X bills each post and author that it
-# returns: 30 posts cost $0.45 a call at most. Many posts of a call repeat the last call's, and
+# returns: 30 posts cost $0.45 a call at most, and the route calls X each 4 hours. Many posts of a call repeat the last call's, and
 # about half of the new posts pass the subject filter (science, technology, business, politics).
 X_ELIGIBLE_MAX = "30"

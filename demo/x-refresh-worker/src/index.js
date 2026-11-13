@@ -1,5 +1,5 @@
 // The scheduled request of the X posts snapshot. The route (demo/frontend/functions/api/x/
-// eligible-posts.ts) decides whether to call X: it calls when the snapshot is about 8 hours old,
+// eligible-posts.ts) decides whether to call X: it calls when the snapshot is about 4 hours old,
 // and answers from the snapshot otherwise. This Worker only makes sure that a request comes.
 // It sends no key: the route needs none from it, and it answers one post (limit=1).
 

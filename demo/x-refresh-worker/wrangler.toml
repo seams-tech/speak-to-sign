@@ -1,5 +1,5 @@
 # A scheduled Worker for the Speak-to-Sign demo site: it asks the site's X posts route every
-# 8 hours, so the route adds the new posts of X to its snapshot also when no one visits. See
+# 4 hours, so the route adds the new posts of X to its snapshot also when no one visits. See
 # README.md. Deploy it only with the owner's approval.
 name = "seams-voice-intents-x-refresh"
 main = "src/index.js"
@@ -10,8 +10,9 @@ workers_dev = false
 preview_urls = false
 
 [triggers]
-# 00:00, 08:00 and 16:00 UTC. The route calls X when its snapshot is about 8 hours old.
-crons = ["0 */8 * * *"]
+# 00:00, 04:00, 08:00, 12:00, 16:00 and 20:00 UTC. The route calls X when its snapshot is
+# about 4 hours old.
+crons = ["0 */4 * * *"]
 
 [vars]
 SITE_URL = "https://speak-to-sign.pages.dev"

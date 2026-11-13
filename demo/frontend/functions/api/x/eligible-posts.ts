@@ -9,12 +9,12 @@
 //
 // X bills each post and each author that it returns. The route therefore keeps one snapshot for
 // every visitor and asks X again only when the snapshot is older than X_ELIGIBLE_TTL_SECONDS
-// (8 hours). If X fails, the route serves the old snapshot.
+// (4 hours). If X fails, the route serves the old snapshot.
 //
 // The snapshot keeps the posts (up to MAX_KEPT_POSTS, newest first), so it grows by the new posts
-// of each call: with 10 posts a call and a call every 8 hours, about 60 posts after two days.
+// of each call: with 10 posts a call and a call every 4 hours, about 120 posts after two days.
 // A visitor's request makes the call when the snapshot is old; a scheduled Worker
-// (demo/x-refresh-worker) asks every 8 hours, so the posts come also when no one visits. The
+// (demo/x-refresh-worker) asks every 4 hours, so the posts come also when no one visits. The
 // timeline reads the posts in pages: `limit` posts (1 to 50) from `offset` (0 is the newest).
 // Without `limit`, the answer has all the posts.
 //
@@ -45,7 +45,7 @@ export interface Env {
   X_ELIGIBLE_MAX?: string;
   /** Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. */
   X_ELIGIBLE_KEEP?: string;
-  /** Optional. The age at which the route asks X again. Default 28800 (8 hours), minimum 60. */
+  /** Optional. The age at which the route asks X again. Default 14400 (4 hours), minimum 60. */
   X_ELIGIBLE_TTL_SECONDS?: string;
   /** Optional. A language code such as "ja", or "all". X's default is English. */
   X_ELIGIBLE_LANG?: string;
@@ -109,7 +109,7 @@ const X_URL = 'https://api.x.com/2/notes/search/posts_eligible_for_notes';
 const DEFAULT_MAX = 10;
 // The demo needs some fresh posts each day, not a live feed. Three calls a day of 10 posts cost
 // $0.45 a day at most, which keeps a week below the budget of $5 to $10.
-const DEFAULT_TTL_SECONDS = 8 * 3_600;
+const DEFAULT_TTL_SECONDS = 4 * 3_600;
 const MIN_TTL_SECONDS = 60;
 /** After a failed call, the route waits this long before it asks X again. */
 export const RETRY_AFTER_FAILURE_MS = 60_000;

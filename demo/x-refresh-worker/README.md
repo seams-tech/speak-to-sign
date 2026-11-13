@@ -3,10 +3,10 @@
 The Community Notes timeline shows posts from X that can get a note. The route
 `/api/x/eligible-posts` (`../frontend/functions/api/x/eligible-posts.ts`) keeps
 one snapshot of them in KV and asks X for new posts when the snapshot is
-about 8 hours old. Cloudflare Pages Functions have no schedule, so without
-visitors the route never asks. This Worker sends one request to the route at
-00:00, 08:00 and 16:00 UTC. With 30 posts each time (`X_ELIGIBLE_MAX` in the
-site's `wrangler.toml`), the snapshot can grow by up to 180 posts in two days.
+about 4 hours old. Cloudflare Pages Functions have no schedule, so without
+visitors the route never asks. This Worker sends one request to the route
+each 4 hours, from 00:00 UTC. With 30 posts each time (`X_ELIGIBLE_MAX` in the
+site's `wrangler.toml`), the snapshot can grow by up to 360 posts in two days.
 A post that X gives again counts once, and the subject filter leaves out about
 half of the posts, so a call adds fewer than 15.
 

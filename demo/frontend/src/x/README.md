@@ -17,10 +17,12 @@ mode and never sends a note to X.
   signs with OAuth 1.0a (`functions/lib/oauth1.ts`).
 - **Cost.** X bills each post ($0.005) and each author ($0.010) that it
   returns, once for each UTC day. The route keeps one snapshot and asks X again
-  only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults (10 posts, each 8
-  hours), one call costs $0.15 at most, one day $0.45 and one week $3.15.
+  only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults (10 posts, each 4
+  hours), one call costs $0.15 at most, one day $0.90 and one week $6.30.
   With the 30 posts a call that `wrangler.toml` sets, one call costs $0.45 at
-  most, one day $1.35 and one week $9.45. The budget is $5 to $10 a week. The route cannot enforce it: set a spend
+  most, one day $2.70 and one week $18.90. These are the highest costs: X
+  gives many posts of the last call again, and it bills a post only once a
+  day. The route cannot enforce a budget: set a spend
   limit in the X console, and bind `X_CACHE` so that all Cloudflare locations
   share one snapshot.
 - **Snapshot.** `wrangler.toml` binds the KV namespace
@@ -69,7 +71,7 @@ mode and never sends a note to X.
   call adds fewer than 15 posts.
 - **Schedule.** Pages Functions have no schedule: a visitor's request makes
   the call when the snapshot is old (at the TTL less 10 minutes, or less a
-  tenth of a short TTL). The Worker `demo/x-refresh-worker` asks every 8 hours,
+  tenth of a short TTL). The Worker `demo/x-refresh-worker` asks every 4 hours,
   so the posts come also when no one visits. Deploy it with the owner's
   approval (its README).
 - **Pages.** `?offset=<n>&limit=<n>` (1 to 50) gives `limit` posts from

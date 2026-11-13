@@ -14,7 +14,7 @@
 // keeps its place, so the card's anchor does not move), and a pill on the page shows the card's
 // progress. A click on the pill, or the card's result, brings both back.
 
-import { useContext, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { WalletStep, type WalletStepProgress } from '@seams/wallet/react';
 import { DemoContext } from '../demoContext';
 import { hostVoiceCard, type VoiceCard } from '../signer/voiceCard';
@@ -24,6 +24,14 @@ import { Modal, RESIZE_MS, useDialogHeight, type ModalHandle } from './Modal';
 import { Morph, MorphView } from './Morph';
 import { SignInStep } from './SignInModal';
 import { useWalletCard } from './useWalletCard';
+
+/**
+ * True while a request waits for its Wallet card: the Wallet makes the card (for a note, the
+ * Seams server writes the summary first, in 1 to 3 s). The dialog keeps its own step on the
+ * screen for that time, and the step's voice button says that the card comes. Outside a
+ * WalletDialog it is false.
+ */
+export const CardWaitContext = createContext(false);
 
 export function WalletDialog({
   titleId,
@@ -52,7 +60,14 @@ export function WalletDialog({
   const [minimized, setMinimized] = useState<{ restore: () => void } | null>(null);
   const [progress, setProgress] = useState<WalletStepProgress | null>(null);
   const stepTitleId = useId();
-  const view = signingIn ? 'signin' : call ? 'voice' : 'main';
+  // The dialog changes to the card's step when the card has a size, not when the request starts:
+  // an empty step for the seconds before the card looked like a blank dialog.
+  // After that it keeps the card's step until the request ends, as before (also while the card is
+  // minimized, or for the moment between the card's exit and the request's end).
+  const cardSeen = useRef<number | null>(null);
+  if (call && voiceCard.entered) cardSeen.current = call.id;
+  const cardUp = call !== null && cardSeen.current === call.id;
+  const view = signingIn ? 'signin' : cardUp ? 'voice' : 'main';
   // The voice bar stays off while the card can record: from its start until it checks or shows
   // its result. Its result ("Note posted", "The words did not match") can close by voice or
   // Escape: the dialog closes, and the card ends with it.
@@ -88,19 +103,19 @@ export function WalletDialog({
       locked={(locked || call !== null) && !signingIn && !cardResult}
       handle={handle}
       onOutside={signingIn ? () => leaveSignIn(false) : undefined}
-      pinned={call ? voiceCard.size : null}
+      pinned={cardUp ? voiceCard.size : null}
       minimized={minimized !== null}
     >
       <Morph view={view} flex>
         <MorphView name="main" keep>
-          {children}
+          <CardWaitContext.Provider value={call !== null && !cardUp}>{children}</CardWaitContext.Provider>
         </MorphView>
         {signingIn && (
           <MorphView name="signin" bare>
             <SignInStep titleId={stepTitleId} card={signInCard} ended={signInEnded} onLeave={leaveSignIn} />
           </MorphView>
         )}
-        {call && (
+        {cardUp && (
           <MorphView name="voice" bare>
             <VoiceCardStep titleId={stepTitleId} height={voiceHeight} shown={voiceCard.shown} />
           </MorphView>

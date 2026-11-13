@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { IconBan, IconCoins, IconMicrophone, IconPlugConnectedX, IconUser, IconX } from '@tabler/icons-react';
 import type { DemoState, PrepareStep } from '../demoContext';
 import type { NotesSigner, SignResult } from '../signer/notesSigner';
 import { Morph } from './Morph';
+import { CardWaitContext } from './WalletDialog';
 
 /** `preparing`: a step before the voice runs first (sign in, set up the voice, testnet funds). */
 export type SignPhase =
@@ -146,14 +147,26 @@ export function SpeakStep(props: SpeakStepProps) {
 function SpeakButton(props: SpeakStepProps & { phase: Exclude<SignPhase, { state: 'done' }> }) {
   const { phase } = props;
   const step = phase.state === 'preparing' ? PREPARE_VIEW[phase.step] : null;
-  const live = phase.state === 'pending';
+  // The request is with the Wallet. Until its card is on the screen, the button says so.
+  const cardWait = useContext(CardWaitContext);
+  const waiting = phase.state === 'pending' && cardWait;
+  const live = phase.state === 'pending' && !cardWait;
   const busy = phase.state !== 'idle';
   // The key of the words and icon: new ones fade in when it changes.
-  const swap = phase.state === 'preparing' ? `preparing-${phase.step}` : phase.state;
+  const swap = phase.state === 'preparing' ? `preparing-${phase.step}` : waiting ? 'waiting' : phase.state;
 
-  const title = step ? step.title : live ? 'Speak in the Seams Wallet card' : props.buttonLabel;
+  const waitText = props.sentence ? 'One moment.' : 'It writes the short sentence that you read aloud.';
+  const title = step
+    ? step.title
+    : waiting
+      ? 'Opening the Seams Wallet card'
+      : live
+        ? 'Speak in the Seams Wallet card'
+        : props.buttonLabel;
   const text = step ? (
     step.text
+  ) : waiting ? (
+    waitText
   ) : live ? (
     props.sentence ? (
       <>
@@ -169,7 +182,13 @@ function SpeakButton(props: SpeakStepProps & { phase: Exclude<SignPhase, { state
   );
   // Read out when the button turns to a step or the wait. The button keeps the focus.
   const say = props.sentence ? `Click Record, then say: ${props.sentence}` : 'Read the sentence on the card aloud.';
-  const status = step ? `${step.title}. ${step.text}` : live ? `Speak in the Seams Wallet card. ${say}` : '';
+  const status = step
+    ? `${step.title}. ${step.text}`
+    : waiting
+      ? `Opening the Seams Wallet card. ${waitText}`
+      : live
+        ? `Speak in the Seams Wallet card. ${say}`
+        : '';
 
   return (
     <div className="speak">
@@ -187,7 +206,7 @@ function SpeakButton(props: SpeakStepProps & { phase: Exclude<SignPhase, { state
           <b>{title}</b>
           <span className="muted">{text}</span>
         </span>
-        {step && <span className="spinner" aria-hidden="true" />}
+        {(step || waiting) && <span className="spinner" aria-hidden="true" />}
       </button>
       <span className="sr-only" role="status">
         {status}

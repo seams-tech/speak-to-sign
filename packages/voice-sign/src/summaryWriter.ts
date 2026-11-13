@@ -1,6 +1,12 @@
 /**
  * Writes the summary that a person says aloud to approve a text, with a chat model.
  *
+ * The result is a draft, not a checked result, unlike `confirm` and `select` of this package. No
+ * signature covers it. The verifier checks that the spoken words are the summary. Only for a
+ * community note does it also check that the summary fits the text (JEV, in the TEE). For any
+ * other request, the person who reads the sentence is the one check of its meaning: show the
+ * text with the sentence.
+ *
  * Your server writes the summary, not the page: a page that gives the summary can put other
  * words in the person's mouth. The verifier then checks the spoken words against the summary,
  * and for a community note it checks that the summary gives the main point of the note.
@@ -31,6 +37,11 @@ export interface SummaryWriterConfig {
   /** Default: 10,000 ms for each request to the model. */
   timeoutMs?: number;
   fetch?: typeof fetch;
+}
+
+export interface WriteSummaryOptions {
+  /** Ends the requests to the model, for example when the caller of your route went away. */
+  signal?: AbortSignal;
 }
 
 export type WrittenSummary =
@@ -76,7 +87,15 @@ const NAME_WITH_NUMBER = /^[A-Za-z]+[0-9]+[A-Za-z]*$/;
 function brokenRule(refusal: SummaryRefusal, summary: string): string {
   const word = refusal === 'character' ? summary.split(' ').find((candidate) => !LETTERS_ONLY.test(candidate)) : undefined;
   if (word === undefined) return `${BROKEN_RULE[refusal]} Write it again and follow every rule.`;
-  return `The word ${JSON.stringify(word)} has a character that is not a letter from A to Z. Write the sentence again with that word in letters only: write its number as words, or leave the number out. Follow every rule.`;
+  // A number alone reads the same in words ("31" is "thirty one"). A number inside a name does
+  // not: speech-to-text writes a said "three D" or "cop thirty one" as "3D" or "COP31" again,
+  // and the verifier then reads its digits one by one. So such a name loses its number.
+  const fix = /^[0-9]+$/.test(word)
+    ? 'Write that number as words.'
+    : /[A-Za-z]/.test(word) && /[0-9]/.test(word)
+      ? 'Write the sentence again without the number in that word, or use plain words for the thing.'
+      : 'Write the sentence again with that word in letters only.';
+  return `The word ${JSON.stringify(word)} has a character that is not a letter from A to Z. ${fix} Follow every rule.`;
 }
 
 /**
@@ -111,7 +130,11 @@ type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
  * - If the second reply breaks the letter rule too, the writer keeps the letters of each word.
  *   A number that stands alone still fails: `summary_not_speakable`.
  */
-export async function writeSummary(config: SummaryWriterConfig, text: string): Promise<WrittenSummary> {
+export async function writeSummary(
+  config: SummaryWriterConfig,
+  text: string,
+  options: WriteSummaryOptions = {},
+): Promise<WrittenSummary> {
   const subject = config.subject ?? { name: 'text', short: 'text' };
   const label = subject.short.charAt(0).toUpperCase() + subject.short.slice(1);
   const messages: ChatMessage[] = [
@@ -123,7 +146,7 @@ export async function writeSummary(config: SummaryWriterConfig, text: string): P
   ];
   let last = '';
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    const reply = await askModel(config, messages);
+    const reply = await askModel(config, messages, options.signal);
     if (!reply.ok) return reply;
     const summary = cleanReply(reply.content);
     const refusal = summaryRefusal(summary);
@@ -142,7 +165,9 @@ export async function writeSummary(config: SummaryWriterConfig, text: string): P
 async function askModel(
   config: SummaryWriterConfig,
   messages: readonly ChatMessage[],
+  signal: AbortSignal | undefined,
 ): Promise<{ ok: true; content: string } | Extract<WrittenSummary, { ok: false }>> {
+  const deadline = AbortSignal.timeout(config.timeoutMs ?? SUMMARY_TIMEOUT_MS);
   let response: Response;
   try {
     response = await (config.fetch ?? fetch)(config.chatUrl ?? NEAR_AI_CHAT_URL, {
@@ -156,7 +181,7 @@ async function askModel(
         // Qwen 3 models think first unless this is off: slow, and often no text. Others ignore it.
         chat_template_kwargs: { enable_thinking: false },
       }),
-      signal: AbortSignal.timeout(config.timeoutMs ?? SUMMARY_TIMEOUT_MS),
+      signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
     });
   } catch {
     return { ok: false, code: 'summary_unreachable' };

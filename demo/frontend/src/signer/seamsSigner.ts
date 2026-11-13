@@ -1,4 +1,4 @@
-// The real signer: Seams Wallet Speak-to-Sign (SDK 0.70.1, `seams.near.spoken`).
+// The real signer: Seams Wallet Speak-to-Sign (SDK 0.70.2, `seams.near.spoken`).
 //
 // requestNote and requestRating run one spoken request in the Wallet iframe (its card shows in the
 // page's open dialog, src/signer/voiceCard.ts). For a note, the Seams server writes a short
@@ -13,7 +13,7 @@ import { isCancelError, isUserRejection } from './rejection';
 import { inVoiceCard } from './voiceCard';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-/** The typed spoken requests and the enrollment: `seams.near.spoken` (Wallet 0.70.1). */
+/** The typed spoken requests and the enrollment: `seams.near.spoken` (Wallet 0.70.2). */
 type Spoken = NonNullable<Seams['near']['spoken']>;
 /** The result of a spoken call that sends a transaction. */
 export type SpokenSent = SpeakToSignResult<SpeakToSignSentTransaction, string>;
@@ -59,6 +59,14 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     // The Seams server writes the summary, and the Wallet card shows it under the note.
     requestNote: ({ postId, text }) =>
       run((spoken, id) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, ...place }))),
+
+    // A warm-up of the Wallet (`seams.near.spoken.prepare`, Wallet 0.70.2). Its failure is no
+    // error of the page: the request that follows does the same steps itself.
+    prepareNote(text) {
+      if (!walletId) return;
+      const warmUp = seams.near.spoken?.prepare({ walletSession: walletId, note: { text } });
+      void warmUp?.catch(() => undefined);
+    },
 
     requestRating: ({ noteId, rating }) =>
       run((spoken, id) => inVoiceCard((place) => spoken.rating({ walletSession: id, contract, noteId, rating, ...place }))),

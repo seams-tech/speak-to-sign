@@ -85,16 +85,50 @@ test('an aborted get ends only its own wait', async () => {
   await assert.rejects(page.summaries.get('note', stop.signal), /closed/);
 });
 
+test('a new prepare ends an older request that only prepare started', async () => {
+  const page = source();
+  page.summaries.prepare('The bridge is clo');
+  page.summaries.prepare('The bridge is closed');
+  assert.deepEqual(page.stopped, ['The bridge is clo']);
+  // A request that a get waits for stays, and so does a kept summary.
+  const waited = page.summaries.get('The bridge is closed');
+  page.summaries.prepare('The bridge is closed for a week');
+  assert.deepEqual(page.stopped, ['The bridge is clo']);
+  page.answer('The bridge is closed');
+  await waited;
+  page.answer('The bridge is closed for a week');
+  await page.summaries.get('The bridge is closed for a week');
+  page.summaries.prepare('Another note');
+  assert.deepEqual(page.stopped, ['The bridge is clo']);
+  await page.summaries.get('The bridge is closed');
+  assert.deepEqual(page.asked, ['The bridge is clo', 'The bridge is closed', 'The bridge is closed for a week', 'Another note']);
+  // An empty text asks nothing.
+  page.summaries.prepare('   ');
+  assert.equal(page.asked.length, 4);
+});
+
+test('a summary that a person cannot say is a failure, and it is not kept', async () => {
+  const page = source();
+  const first = page.summaries.get('note');
+  page.answer('note', { ok: true, summary: 'It costs 5 dollars' });
+  assert.deepEqual(await first, { ok: false, code: 'summary_not_speakable' });
+  const second = page.summaries.get('note');
+  assert.deepEqual(page.asked, ['note', 'note']);
+  page.answer('note', { ok: true, summary: 'It costs five dollars' });
+  assert.deepEqual(await second, { ok: true, summary: 'It costs five dollars' });
+});
+
 test('the source keeps at most maxEntries texts, and forget ends a request', async () => {
   const page = source({ maxEntries: 2 });
-  page.summaries.prepare('a');
-  page.summaries.prepare('b');
-  page.summaries.prepare('c');
+  // Each text has a waiter, so only the limit ends a request.
+  void page.summaries.get('a');
+  void page.summaries.get('b');
+  void page.summaries.get('c');
   // The oldest one went, and its request stopped.
   assert.deepEqual(page.stopped, ['a']);
-  page.summaries.prepare('b');
-  page.summaries.prepare('a');
-  // "b" was kept, so only "a" asked again; "a" is the third text, so "b", now the oldest, went.
+  void page.summaries.get('b');
+  void page.summaries.get('a');
+  // "b" was in flight, so only "a" asked again; "a" is the third text, so "b", now the oldest, went.
   assert.deepEqual(page.asked, ['a', 'b', 'c', 'a']);
   assert.deepEqual(page.stopped, ['a', 'b']);
   page.summaries.forget('c');

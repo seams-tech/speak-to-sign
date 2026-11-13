@@ -32,6 +32,12 @@ export interface NotesSigner {
    * Wallet card. On accept, the Wallet signs `add_note`.
    */
   requestNote(input: { postId: number; text: string }): Promise<SignResult>;
+  /**
+   * Tells the Wallet that a note with this text comes soon: the Wallet loads its Speak-to-Sign
+   * code and asks the Seams server for the summary now, so the card of `requestNote` shows
+   * sooner. It shows nothing and signs nothing. A signer with no such step leaves it out.
+   */
+  prepareNote?(text: string): void;
   /** The owner says the sentence for `rating`. On accept, the Wallet signs `rate_note`. */
   requestRating(input: { noteId: number; rating: Rating }): Promise<SignResult>;
 }

@@ -7,8 +7,10 @@
  * page asks early (`prepare`), and the press finds the summary (`get`).
  *
  * The source keeps one summary for each exact text. So the summary that the person saw is the
- * one of the next try, and a changed text gets its own summary. This file has no dependency.
+ * one of the next try, and a changed text gets its own summary. It keeps only a summary that a
+ * person can say (`summaryRefusal` of `@seams/voice-verdict`, its one import).
  */
+import { summaryRefusal } from '@seams/voice-verdict';
 
 /** A written summary, or a fixed code of the failure. */
 export type SummaryResult = { ok: true; summary: string } | { ok: false; code: string };
@@ -25,11 +27,16 @@ export interface SummarySourceOptions {
 }
 
 export interface SummarySource {
-  /** Starts the request for `text`, unless a summary is kept or in flight. It never throws. */
+  /**
+   * Starts the request for `text`, unless a summary is kept or in flight. It never throws, and
+   * an empty text does nothing. It ends an older request that only `prepare` started and that
+   * no `get` waits for: a person who edits a text leaves one request, not one for each pause.
+   */
   prepare(text: string): void;
   /**
    * The summary of `text`: the kept one, the one in flight, or a new request. A failure is not
-   * kept, so the next call asks again. Aborting `signal` ends only this call's wait: the request
+   * kept, so the next call asks again. A summary that breaks a rule of `summaryRefusal` is a
+   * failure with the code `summary_not_speakable`. Aborting `signal` ends only this call's wait: the request
    * goes on for another caller.
    */
   get(text: string, signal?: AbortSignal): Promise<SummaryResult>;
@@ -37,7 +44,15 @@ export interface SummarySource {
   forget(text?: string): void;
 }
 
-type Entry = { request: Promise<SummaryResult>; startedAtMs: number; stop: AbortController };
+type Entry = {
+  request: Promise<SummaryResult>;
+  startedAtMs: number;
+  stop: AbortController;
+  /** The request has its answer. */
+  settled: boolean;
+  /** A `get` asked for this text. Such a request stays when a later `prepare` comes. */
+  wanted: boolean;
+};
 
 export function createSummarySource(options: SummarySourceOptions): SummarySource {
   const lifeMs = options.lifeMs ?? 5 * 60_000;
@@ -51,12 +66,15 @@ export function createSummarySource(options: SummarySourceOptions): SummarySourc
     const request = options
       .write(text, stop.signal)
       .catch((): SummaryResult => ({ ok: false, code: 'summary_unreachable' }))
-      .then((result) => {
+      .then((written): SummaryResult => {
+        const result: SummaryResult =
+          written.ok && summaryRefusal(written.summary) !== null ? { ok: false, code: 'summary_not_speakable' } : written;
+        entry.settled = true;
         // Only a summary stays. After a failure, the next call asks again.
         if (!result.ok && entries.get(text) === entry) entries.delete(text);
         return result;
       });
-    const entry: Entry = { request, startedAtMs: now(), stop };
+    const entry: Entry = { request, startedAtMs: now(), stop, settled: false, wanted: false };
     entries.delete(text);
     entries.set(text, entry);
     while (entries.size > maxEntries) {
@@ -74,10 +92,19 @@ export function createSummarySource(options: SummarySourceOptions): SummarySourc
 
   return {
     prepare(text) {
+      if (text.trim() === '') return;
+      // The text changed: a request for an older text that nobody waits for has no use.
+      for (const [other, entry] of entries) {
+        if (other === text || entry.settled || entry.wanted) continue;
+        entry.stop.abort();
+        entries.delete(other);
+      }
       void current(text).request;
     },
     get(text, signal) {
-      const { request } = current(text);
+      const entry = current(text);
+      entry.wanted = true;
+      const { request } = entry;
       if (!signal) return request;
       if (signal.aborted) return Promise.reject(signal.reason);
       return new Promise<SummaryResult>((resolve, reject) => {

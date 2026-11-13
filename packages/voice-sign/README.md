@@ -17,7 +17,7 @@ It has three entry points:
 | --- | --- | --- |
 | `@seams/voice-sign/browser` | The page | `recordSentence`: one sentence as the WAV of the verifier |
 | `@seams/voice-sign/server` | Your server | `enroll`, `confirm`, `select`, `transcribe`, `detect`: each result is checked. `writeSummary`: the sentence that a person says for a long text |
-| `@seams/voice-sign/summary` | The page | `createSummarySource`: asks for a summary early and keeps it. No dependency |
+| `@seams/voice-sign/summary` | The page | `createSummarySource`: asks for a summary early and keeps it. It needs no `@seams/voice-capture` |
 
 Install it with the libraries that your code imports:
 
@@ -201,13 +201,18 @@ if (!written.ok) return refuse(written.code);
   Another broken rule gets one second request.
 - A failure has a fixed code: `summary_unreachable`, `summary_failed` or
   `summary_not_speakable`.
-- The summary is a proposal. The verifier checks the spoken words against
-  it. For a community note, the verifier also checks that the summary gives
-  the main point of the note.
+- `writeSummary(config, text, { signal })` ends the request to the model
+  when `signal` aborts, for example when the caller of your route went away.
+- The summary is a draft, not a checked result, unlike the results of
+  `confirm` and `select`. No signature covers it. The verifier checks that
+  the spoken words are the summary. Only for a community note does it also
+  check that the summary gives the main point of the note. For any other
+  request, the person who reads the sentence is the one check of its
+  meaning, so show the text with the sentence.
 
 The request takes time, so ask before the person presses the button.
-`@seams/voice-sign/summary` keeps the summaries of a page. It has no
-dependency.
+`@seams/voice-sign/summary` keeps the summaries of a page. Its one import is
+the rule check of `@seams/voice-verdict`.
 
 ```ts
 import { createSummarySource } from '@seams/voice-sign/summary';
@@ -224,7 +229,11 @@ const result = await summaries.get(noteText); // at the press: kept, in flight, 
 - The source keeps one summary for each exact text, for 5 minutes
   (`lifeMs`), and at most 8 texts (`maxEntries`). So a second try shows the
   same sentence, and a changed text gets its own summary.
-- A failure is not kept: the next call asks again.
+- A failure is not kept: the next call asks again. A summary that breaks a
+  rule of `summaryRefusal` is a failure (`summary_not_speakable`).
+- A new `prepare` ends an older request that only `prepare` started and
+  that no `get` waits for. So a person who edits a text leaves one request,
+  not one for each pause.
 - `forget()` removes the kept summaries, for example at a sign-out.
 
 Seams Wallet uses both parts: its server route calls `writeSummary`, and

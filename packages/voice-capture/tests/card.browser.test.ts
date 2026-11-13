@@ -557,6 +557,51 @@ test('a result with a receipt shows its rows between the caption and the detail,
   expect(shown.link).toEqual(['View TDX quote', 'https://testnet-api.outlayer.ai/attestations/by-call/1', '_blank']);
 });
 
+test('a caption with a word of 64 characters breaks inside the card, and no row leaves the card', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto(`${origin}/example/`);
+  const shown = await page.evaluate(async () => {
+    const module = '/browser/card.js';
+    const { openPhraseCard } = await import(module);
+    const surface = openPhraseCard({ sentence: 'Create a prediction market on this note', signal: new AbortController().signal, detector: 'level', autoStart: true });
+    await surface.record();
+    void surface.show({
+      kind: 'result',
+      label: '',
+      headline: 'Transaction sent',
+      // An implicit NEAR account has no place to break a line.
+      caption: 'To 3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520df9b1a4c7e55',
+      receipt: {
+        title: 'TEE receipt',
+        source: 'Intel TDX · OutLayer',
+        rows: [{ label: 'Verdict', value: 'signed by the OutLayer verifier 0.14.1' }],
+        link: { text: 'View TDX quote', href: 'https://testnet-api.outlayer.ai/attestations/by-call/1' },
+      },
+      detail: 'Checked and sent in 11.6 s ·',
+      link: { text: 'View transaction', href: 'https://testnet.nearblocks.io/txns/abc' },
+      action: { label: 'Done' },
+      line: 'seal',
+    });
+    const card = document.querySelector<HTMLElement>('.seams-voiceid-prompt')!;
+    while (card.dataset.phraseView !== 'result') await new Promise((resolve) => setTimeout(resolve, 50));
+    const frame = card.getBoundingClientRect();
+    const outside = (selector: string) => {
+      const box = card.querySelector(selector)!.getBoundingClientRect();
+      return Math.max(0, Math.round(box.right - frame.right), Math.round(frame.left - box.left));
+    };
+    const caption = card.querySelector<HTMLElement>('.seams-voiceid-caption')!;
+    return {
+      card: Math.round(frame.width),
+      outside: ['.seams-voiceid-caption', '.seams-voiceid-receipt', '.seams-voiceid-receipt-source', '.seams-voiceid-primary'].map(outside),
+      captionLines: Math.round(caption.getBoundingClientRect().height / parseFloat(getComputedStyle(caption).lineHeight)),
+    };
+  });
+  // Before, the grid column grew to the width of the account, and the receipt and the button
+  // were about 97 px wider than the card.
+  expect(shown.outside).toEqual([0, 0, 0, 0]);
+  expect(shown.captionLines).toBeGreaterThan(1);
+});
+
 test('a form card shows the Record button in place of the voice line until it records', async ({ page }) => {
   await page.goto(`${origin}/example/`);
   const result = await page.evaluate(async () => {

@@ -71,7 +71,7 @@ The moderator of the notes contract is `voice-multisig.seams-v1.testnet`.
 
 | Item | Live | Notes |
 | --- | --- | --- |
-| Wallet SDK | `@seams/wallet` 0.70.5 on `staging.sign.seams.sh`, `test.sign.seams.sh` and `sign.seams.sh` since 2026-11-13 (`/wallet-assets.manifest.json` of each origin) | Pinned in `demo/frontend/package.json`; source [`seams-wallet` at 0.70.5](https://github.com/seams-tech/seams-wallet/tree/d3780b4a1913f5bc1d9cb146d8ca442953a935a1) |
+| Wallet SDK | `@seams/wallet` 0.70.6 on `staging.sign.seams.sh`, `test.sign.seams.sh` and `sign.seams.sh` since 2026-11-13 (`/wallet-assets.manifest.json` of each origin) | Pinned in `demo/frontend/package.json`; source [`seams-wallet` at 0.70.6](https://github.com/seams-tech/seams-wallet/tree/66d831e007dd4d5faee6c189251d2d1463e2eebc) |
 | Demo site | https://speak-to-sign.pages.dev, deployed on 2026-11-13 from `dev` at commit `36e7f5c` (Pages deployment `b89331e3`). It pins the Wallet SDK 0.70.6 | Voice commands press the Wallet card's "Try again", Back, Minimize and Close; they need a Wallet host at 0.70.6, and the row above names the host's version. It has the spoken multisig page `/multisig/`, and the route that selects NEAR AI or Venice AI for each voice check. Its posts timeline shows only posts about science, technology, business and politics. Check: `curl -s https://speak-to-sign.pages.dev/api/near-ai-status` gives the state of NEAR AI and of its Whisper. |
 
 ## Checks that are in progress

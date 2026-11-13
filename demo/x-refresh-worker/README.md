@@ -5,10 +5,9 @@ The Community Notes timeline shows posts from X that can get a note. The route
 one snapshot of them in KV and asks X for new posts when the snapshot is
 about 4 hours old. Cloudflare Pages Functions have no schedule, so without
 visitors the route never asks. This Worker sends one request to the route
-each 4 hours, from 00:00 UTC. With 30 posts each time (`X_ELIGIBLE_MAX` in the
-site's `wrangler.toml`), the snapshot can grow by up to 360 posts in two days.
-A post that X gives again counts once, and the subject filter leaves out about
-half of the posts, so a call adds fewer than 15.
+each 4 hours, from 00:00 UTC. The route asks for 100 posts each time
+(`X_ELIGIBLE_MAX` in the site's `wrangler.toml`). About 45 of them are new, and
+the subject filter leaves out about half of the posts, so a call adds about 20.
 
 The Worker sends no key and the route needs none from it: the route makes the
 call to X only when the snapshot is old, so extra requests cost nothing.

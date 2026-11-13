@@ -19,10 +19,12 @@ mode and never sends a note to X.
   returns, once for each UTC day. The route keeps one snapshot and asks X again
   only after `X_ELIGIBLE_TTL_SECONDS`. With the defaults (10 posts, each 4
   hours), one call costs $0.15 at most, one day $0.90 and one week $6.30.
-  With the 30 posts a call that `wrangler.toml` sets, one call costs $0.45 at
-  most, one day $2.70 and one week $18.90. These are the highest costs: X
-  gives many posts of the last call again, and it bills a post only once a
-  day. The route cannot enforce a budget: set a spend
+  With the 100 posts a call that `wrangler.toml` sets, one call costs $1.50 at
+  most, one day $9.00 and one week $63. These are the highest costs: X gives
+  many posts of the last call again, and it bills a post only once a day. On
+  13 Nov 2026, 100 posts were the last 9 hours of X's list. At that rate about
+  260 posts enter the list in a day, and a day costs about $5. The route cannot
+  enforce a budget: set a spend
   limit in the X console, and bind `X_CACHE` so that all Cloudflare locations
   share one snapshot.
 - **Snapshot.** `wrangler.toml` binds the KV namespace
@@ -65,10 +67,18 @@ mode and never sends a note to X.
   changes the note. The five example posts have hand-written drafts, with
   no mark.
 
-- **Collection.** About 1 post in 2 passes the default filter. The snapshot therefore keeps the passed
-  posts of earlier calls, newest first, up to `X_ELIGIBLE_KEEP` (600). It grows
-  by the new passed posts of each call. `wrangler.toml` sets 30 posts a call, so that the list of subjects gives enough shown posts. X gives many posts of the last call again, so a
-  call adds fewer than 15 posts.
+- **Collection.** About 1 post in 2 passes the default filter. The snapshot
+  therefore keeps the passed posts of earlier calls, newest first, up to
+  `X_ELIGIBLE_KEEP` (600). It grows by the new passed posts of each call.
+  `wrangler.toml` sets 100 posts a call, the most that X gives. About 45 posts
+  enter X's list in 4 hours, so a call misses none, and it adds about 20 shown
+  posts.
+- **Older posts.** X's list goes back further than one call: each answer has
+  a `next_token` for the next page, which has older posts. `X_ELIGIBLE_CALLS`
+  (1 to 10, default 1) sets the calls of one refresh. A value above 1 is for
+  one refresh that fills the snapshot with older posts: X bills each page
+  again on each day that the route reads it. If a later page fails, the posts
+  of the pages before it stay.
 - **Schedule.** Pages Functions have no schedule: a visitor's request makes
   the call when the snapshot is old (at the TTL less 10 minutes, or less a
   tenth of a short TTL). The Worker `demo/x-refresh-worker` asks every 4 hours,

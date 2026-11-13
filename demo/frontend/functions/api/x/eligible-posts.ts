@@ -9,7 +9,9 @@
 //
 // X bills each post and each author that it returns. The route therefore keeps one snapshot for
 // every visitor and asks X again only when the snapshot is older than X_ELIGIBLE_TTL_SECONDS
-// (4 hours). If X fails, the route serves the old snapshot.
+// (4 hours). If X fails, the route serves the old snapshot. One call gives the newest posts of
+// X's list (X_ELIGIBLE_MAX, 100 at most). X_ELIGIBLE_CALLS sets more calls for one refresh: each
+// more call takes the next page of the list, which has older posts.
 //
 // The snapshot keeps the posts (up to MAX_KEPT_POSTS, newest first), so it grows by the new posts
 // of each call: with 10 posts a call and a call every 4 hours, about 120 posts after two days.
@@ -43,6 +45,11 @@ export interface Env {
   X_ACCESS_TOKEN_SECRET?: string;
   /** Optional. Posts for each call to X, 1 to 100. Default 10. */
   X_ELIGIBLE_MAX?: string;
+  /**
+   * Optional. Calls to X for one refresh, 1 to 10. Default 1. Each call after the first takes the
+   * next page of X's list: older posts.
+   */
+  X_ELIGIBLE_CALLS?: string;
   /** Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. */
   X_ELIGIBLE_KEEP?: string;
   /** Optional. The age at which the route asks X again. Default 14400 (4 hours), minimum 60. */
@@ -88,6 +95,8 @@ export interface SnapshotStore {
 export interface Settings {
   keys: OAuth1Keys;
   maxResults: number;
+  /** The most calls to X for one refresh: the pages of X's list that it reads. */
+  maxCalls: number;
   /** The most posts that the snapshot keeps. */
   maxKept: number;
   ttlMs: number;
@@ -107,6 +116,8 @@ export interface Deps {
 
 const X_URL = 'https://api.x.com/2/notes/search/posts_eligible_for_notes';
 const DEFAULT_MAX = 10;
+/** The most calls to X for one refresh (X_ELIGIBLE_CALLS): 1,000 posts at most, $15. */
+export const MAX_CALLS = 10;
 // The demo needs some fresh posts each day, not a live feed. Three calls a day of 10 posts cost
 // $0.45 a day at most, which keeps a week below the budget of $5 to $10.
 const DEFAULT_TTL_SECONDS = 4 * 3_600;
@@ -118,6 +129,7 @@ const KEEP_SECONDS = 7 * 24 * 3_600;
 const TIMEOUT_MS = 15_000;
 const MAX_TEXT_CHARS = 4_000;
 const MAX_MEDIA = 4;
+const MAX_TOKEN_CHARS = 1_000;
 const STORE_KEY = 'x-eligible-posts-v2';
 /**
  * The most posts in the snapshot (X_ELIGIBLE_KEEP changes it), and the most subjects that it
@@ -318,6 +330,7 @@ export function readSettings(env: Env): Settings | 'no-keys' | 'no-filter-key' {
   return {
     keys: { consumerKey, consumerSecret, token, tokenSecret },
     maxResults: clampInteger(env.X_ELIGIBLE_MAX, DEFAULT_MAX, 1, 100),
+    maxCalls: clampInteger(env.X_ELIGIBLE_CALLS, 1, 1, MAX_CALLS),
     maxKept: clampInteger(env.X_ELIGIBLE_KEEP, MAX_KEPT_POSTS, 10, MAX_KEEP_SETTING),
     ttlMs: clampInteger(env.X_ELIGIBLE_TTL_SECONDS, DEFAULT_TTL_SECONDS, MIN_TTL_SECONDS, KEEP_SECONDS) * 1_000,
     lang: /^[a-z]{2,3}$/.test(lang) ? lang : null,
@@ -341,49 +354,83 @@ function clampInteger(value: string | undefined, fallback: number, minimum: numb
 }
 
 type FetchResult = { ok: true; posts: XPost[] } | { ok: false; error: string };
+type PageResult = { ok: true; posts: XPost[]; nextToken: string | null } | { ok: false; error: string; status: number | null };
 
 /**
- * One call to X. The X docs name the post fields `tweet.fields` in the Community Notes guide and
- * `post.fields` in the OpenAPI spec, so a 400 answer to the first name gets one try with the
- * other name.
+ * The X docs name the post fields `tweet.fields` in the Community Notes guide and `post.fields`
+ * in the OpenAPI spec.
+ */
+const FIELD_NOUNS = ['tweet', 'post'] as const;
+type FieldNoun = (typeof FIELD_NOUNS)[number];
+
+/**
+ * The posts of one refresh: the first page of X's list, then its next pages (older posts) up to
+ * `maxCalls` calls. A 400 answer to the first field name gets one try with the other name. If
+ * the first page fails, the refresh fails. If a later page fails, the posts of the pages before
+ * it stay: X billed them already.
  */
 export async function fetchEligiblePosts(settings: Settings, deps: Pick<Deps, 'fetch' | 'now' | 'nonce'>): Promise<FetchResult> {
-  let last: FetchResult = { ok: false, error: 'no call' };
-  for (const noun of ['tweet', 'post'] as const) {
-    const params: Record<string, string> = {
-      test_mode: 'true',
-      max_results: String(settings.maxResults),
-      [`${noun}.fields`]: `author_id,created_at,lang,public_metrics,possibly_sensitive,attachments,note_${noun}`,
-      expansions: 'author_id,attachments.media_keys',
-      'user.fields': 'name,username,profile_image_url,verified',
-      'media.fields': 'type,url,preview_image_url,alt_text',
-    };
-    if (settings.lang) params.post_selection = `feed_lang:${settings.lang}`;
-    let response: Response;
-    try {
-      const authorization = await oauth1Header('GET', X_URL, params, settings.keys, deps.nonce(), Math.floor(deps.now() / 1_000));
-      response = await deps.fetch(`${X_URL}?${queryString(params)}`, {
-        headers: { Authorization: authorization, Accept: 'application/json' },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch (error) {
-      return { ok: false, error: `the request failed: ${error instanceof Error ? error.message : 'unknown'}` };
+  let noun: FieldNoun = FIELD_NOUNS[0];
+  let page: PageResult = { ok: false, error: 'no call', status: null };
+  for (noun of FIELD_NOUNS) {
+    page = await fetchPage(settings, deps, noun, null);
+    if (page.ok || page.status !== 400) break;
+  }
+  if (!page.ok) return { ok: false, error: page.error };
+
+  const posts = new Map(page.posts.map((post) => [post.id, post]));
+  for (let call = 2; call <= settings.maxCalls && page.nextToken !== null; call += 1) {
+    const next: PageResult = await fetchPage(settings, deps, noun, page.nextToken);
+    if (!next.ok) {
+      console.warn(`eligible-posts: call ${call} to X: ${next.error}`);
+      break;
     }
-    if (response.ok) {
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
-        return { ok: false, error: 'the answer of X is not JSON' };
-      }
-      return { ok: true, posts: parseEligiblePosts(body) };
-    }
+    for (const post of next.posts) if (!posts.has(post.id)) posts.set(post.id, post);
+    page = next;
+  }
+  return { ok: true, posts: [...posts.values()] };
+}
+
+/** One call to X: the first page of its list, or the page of a `next_token`. */
+async function fetchPage(settings: Settings, deps: Pick<Deps, 'fetch' | 'now' | 'nonce'>, noun: FieldNoun, paginationToken: string | null): Promise<PageResult> {
+  const params: Record<string, string> = {
+    test_mode: 'true',
+    max_results: String(settings.maxResults),
+    [`${noun}.fields`]: `author_id,created_at,lang,public_metrics,possibly_sensitive,attachments,note_${noun}`,
+    expansions: 'author_id,attachments.media_keys',
+    'user.fields': 'name,username,profile_image_url,verified',
+    'media.fields': 'type,url,preview_image_url,alt_text',
+  };
+  if (settings.lang) params.post_selection = `feed_lang:${settings.lang}`;
+  if (paginationToken !== null) params.pagination_token = paginationToken;
+  let response: Response;
+  try {
+    const authorization = await oauth1Header('GET', X_URL, params, settings.keys, deps.nonce(), Math.floor(deps.now() / 1_000));
+    response = await deps.fetch(`${X_URL}?${queryString(params)}`, {
+      headers: { Authorization: authorization, Accept: 'application/json' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (error) {
+    return { ok: false, error: `the request failed: ${error instanceof Error ? error.message : 'unknown'}`, status: null };
+  }
+  if (!response.ok) {
     // The body can name the fault (no credits, not a note writer). It never holds our keys.
     const detail = (await response.text().catch(() => '')).slice(0, 300);
-    last = { ok: false, error: `X answered ${response.status}: ${detail}` };
-    if (response.status !== 400) break;
+    return { ok: false, error: `X answered ${response.status}: ${detail}`, status: response.status };
   }
-  return last;
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { ok: false, error: 'the answer of X is not JSON', status: response.status };
+  }
+  return { ok: true, posts: parseEligiblePosts(body), nextToken: nextTokenOf(body) };
+}
+
+/** The token of the next page of X's list, or null at its end. */
+function nextTokenOf(body: unknown): string | null {
+  const token = isRecord(body) && isRecord(body.meta) ? body.meta.next_token : null;
+  return typeof token === 'string' && token !== '' && token.length <= MAX_TOKEN_CHARS ? token : null;
 }
 
 // ---- The answer of X. It is input from another service, so each field is checked. ----

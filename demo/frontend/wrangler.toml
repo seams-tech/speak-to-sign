@@ -10,8 +10,8 @@
 # functions/api/x/eligible-posts.ts needs the secrets X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN and
 # X_ACCESS_TOKEN_SECRET (the OAuth 1.0a keys of a Community Notes AI Note Writer account).
 # Its subject filter (JEV) needs TYPESAFE_API_KEY or NEAR_AI_API_KEY, unless X_ELIGIBLE_TOPICS is "all".
-# Optional: X_ELIGIBLE_MAX, X_ELIGIBLE_TTL_SECONDS, X_ELIGIBLE_LANG, X_ELIGIBLE_TOPICS and a KV
-# binding X_CACHE.
+# Optional: X_ELIGIBLE_MAX, X_ELIGIBLE_CALLS, X_ELIGIBLE_TTL_SECONDS, X_ELIGIBLE_LANG,
+# X_ELIGIBLE_TOPICS and a KV binding X_CACHE.
 name = "speak-to-sign"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-11-01"
@@ -29,7 +29,9 @@ binding = "FAUCET_LIMITS"
 id = "2857303a21af46678ef1de86a270caee"
 
 [vars]
-# Posts for each call to X (the route's default is 10). X bills each post and author that it
-# returns: 30 posts cost $0.45 a call at most, and the route calls X each 4 hours. Many posts of a call repeat the last call's, and
-# about half of the new posts pass the subject filter (science, technology, business, politics).
-X_ELIGIBLE_MAX = "30"
+# Posts for each call to X: 100, the most that X gives (the route's default is 10). The route
+# calls X each 4 hours. About 45 posts enter X's list in 4 hours, so 100 posts a call miss none.
+# X bills each post and author that it returns, once a day: about $5 a day (src/x/README.md,
+# "Cost"). About half of the new posts pass the subject filter (science, technology, business,
+# politics).
+X_ELIGIBLE_MAX = "100"

@@ -261,7 +261,8 @@ in the Cloudflare Pages project for the live site. Never commit `.dev.vars`.
 | `NEAR_RPC_URL`    | Optional, for `/api/faucet`. Default `https://test.rpc.fastnear.com`. |
 | `X_API_KEY`, `X_API_SECRET` | Secret. The OAuth 1.0a Consumer Key and secret of the X app of a Community Notes AI Note Writer account. Required for `/api/x/eligible-posts`. |
 | `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` | Secret. The OAuth 1.0a Access Token and secret of the same account. Required. A Bearer Token does not work on this endpoint. |
-| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10; `wrangler.toml` sets 30. |
+| `X_ELIGIBLE_MAX`  | Optional. Posts for each call to X, 1 to 100. Default 10; `wrangler.toml` sets 100. |
+| `X_ELIGIBLE_CALLS` | Optional. Calls to X for one refresh, 1 to 10. Default 1. Each call after the first reads the next page of X's list, which has older posts. |
 | `X_ELIGIBLE_KEEP` | Optional. The most posts that the snapshot keeps, 10 to 2000. Default 600. |
 | `X_ELIGIBLE_TTL_SECONDS` | Optional. The route asks X again after this time. Default 14400 (4 hours), minimum 60. |
 | `X_ELIGIBLE_LANG` | Optional. A language code such as `ja`, or `all`. X's default is English. |

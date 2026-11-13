@@ -6,6 +6,7 @@ import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
 import {
   handleEligiblePosts,
+  MAX_CALLS,
   MAX_DRAFTS_PER_REFRESH,
   MAX_KEPT_POSTS,
   MAX_MODEL_TRIES,
@@ -160,6 +161,7 @@ test('readSettings needs all four keys and clamps the optional values', () => {
   assert.deepEqual([set?.maxResults, set?.ttlMs, set?.lang], [100, 60_000, 'ja']);
   const bad = settingsOf({ ...ENV, X_ELIGIBLE_MAX: '-3', X_ELIGIBLE_TTL_SECONDS: 'soon', X_ELIGIBLE_LANG: 'feed_size:xxl' });
   assert.deepEqual([bad?.maxResults, bad?.ttlMs, bad?.lang], [10, 14_400_000, null]);
+  assert.deepEqual([defaults?.maxCalls, settingsOf({ ...ENV, X_ELIGIBLE_CALLS: '3' })?.maxCalls, settingsOf({ ...ENV, X_ELIGIBLE_CALLS: '99' })?.maxCalls, settingsOf({ ...ENV, X_ELIGIBLE_CALLS: '0' })?.maxCalls], [1, 3, MAX_CALLS, 1]);
 });
 
 test('parseEligiblePosts keeps the good posts and checks every field', () => {
@@ -284,6 +286,41 @@ test('a 400 answer gets one more try with the post.fields name', async () => {
   const twice = fakeX([new Response('bad', { status: 400 }), new Response('bad', { status: 400 })]);
   assert.equal((await handleEligiblePosts(get(), ENV, deps(twice, fakeStore()))).status, 502);
   assert.equal(twice.calls.length, 2);
+});
+
+test('one refresh makes one call to X by default, and X_ELIGIBLE_CALLS reads the next pages of the list', async () => {
+  const page = (ids: string[], nextToken?: string) => ok({ data: ids.map((id) => ({ id, text: `Post ${id}.` })), meta: nextToken ? { next_token: nextToken } : {} });
+  const idsOf = async (response: Response) => ((await response.json()) as { posts: { id: string }[] }).posts.map((post) => post.id).sort();
+
+  // The default: one call, also when X names a next page.
+  const one = fakeX([page(['1', '2'], 'TOKEN-1')]);
+  assert.deepEqual(await idsOf(await handleEligiblePosts(get(), ENV, deps(one, fakeStore()))), ['1', '2']);
+  assert.equal(one.calls.length, 1);
+  assert.equal(one.calls[0]!.url.searchParams.get('pagination_token'), null);
+
+  // Three calls: each takes the token of the page before it. A post of two pages shows once.
+  const three = fakeX([page(['1', '2'], 'TOKEN-1'), page(['2', '3'], 'TOKEN-2'), page(['4'], 'TOKEN-3')]);
+  assert.deepEqual(await idsOf(await handleEligiblePosts(get(), { ...ENV, X_ELIGIBLE_CALLS: '3' }, deps(three, fakeStore()))), ['1', '2', '3', '4']);
+  assert.deepEqual(three.calls.map((call) => call.url.searchParams.get('pagination_token')), [null, 'TOKEN-1', 'TOKEN-2']);
+  assert.ok(three.calls.every((call) => call.url.searchParams.get('test_mode') === 'true' && call.authorization.startsWith('OAuth ')));
+
+  // The list ends: no more call.
+  const short = fakeX([page(['1'], 'TOKEN-1'), page(['2'])]);
+  assert.deepEqual(await idsOf(await handleEligiblePosts(get(), { ...ENV, X_ELIGIBLE_CALLS: '5' }, deps(short, fakeStore()))), ['1', '2']);
+  assert.equal(short.calls.length, 2);
+
+  // A later page fails: the posts of the pages before it stay, and the refresh is good.
+  const broken = fakeX([page(['1'], 'TOKEN-1'), new Response('{"title":"UsageCapExceeded"}', { status: 429 })]);
+  const store = fakeStore();
+  const response = await handleEligiblePosts(get(), { ...ENV, X_ELIGIBLE_CALLS: '3' }, deps(broken, store));
+  assert.deepEqual([await idsOf(response), store.current()?.failedAtMs], [['1'], null]);
+  assert.equal(broken.calls.length, 2);
+
+  // The post.fields name of a 400 answer stays for the next pages.
+  const renamed = fakeX([new Response('bad', { status: 400 }), page(['1'], 'TOKEN-1'), page(['2'])]);
+  assert.deepEqual(await idsOf(await handleEligiblePosts(get(), { ...ENV, X_ELIGIBLE_CALLS: '2' }, deps(renamed, fakeStore()))), ['1', '2']);
+  assert.ok(renamed.calls[2]!.url.searchParams.get('post.fields')?.includes('note_post'));
+  assert.equal(renamed.calls[2]!.url.searchParams.get('pagination_token'), 'TOKEN-1');
 });
 
 // ---- The subject filter ----

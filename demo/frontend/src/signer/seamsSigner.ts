@@ -60,7 +60,7 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     requestNote: ({ postId, text }) =>
       run((spoken, id) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, ...place }))),
 
-    // A warm-up of the Wallet (`seams.near.spoken.prepare`, Wallet 0.70.2 and later). Its failure is no
+    // A warm-up of the Wallet (`seams.near.spoken.prepare`). Its failure is no
     // error of the page: the request that follows does the same steps itself.
     prepareNote(text) {
       if (!walletId) return;

@@ -94,8 +94,8 @@ export function transactionHashOf(result: unknown): string | null {
 }
 
 /**
- * The OutLayer record of the verifier call in the result of a Wallet request (`attestationUrl`,
- * from Seams Wallet 0.70.4), with its TDX quote. Null when the result has none.
+ * The OutLayer record of the verifier call in the result of a Wallet request (`attestationUrl`),
+ * with its TDX quote. Null when the result has none.
  */
 export function quoteUrlOf(result: unknown): string | null {
   const url = typeof result === 'object' && result !== null ? (result as Record<string, unknown>).attestationUrl : null;

@@ -40,7 +40,7 @@ and a rating have no passkey step at any size.
   enrollment needs a NEP-413 signature by a full-access key of the owner.
 
 **Evidence.** Spec section 6; `packages/voiceid/src/README.md` of
-[`seams-wallet` at 0.70.6](https://github.com/seams-tech/seams-wallet/blob/66d831e007dd4d5faee6c189251d2d1463e2eebc/packages/voiceid/src/README.md).
+[`seams-wallet` at 0.71.0](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/packages/voiceid/src/README.md).
 
 **What is left.** Nothing, while the attacker does not have the device. See 4
 and 5.

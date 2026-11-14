@@ -440,7 +440,7 @@ The plugin gets no signing context, key or session. It can only call the
 scoped core operations `openPrompt`, `receiverExists`, `verify`,
 `summarizeNote`, `payWithVerdict`, `signNoteWithVerdict`,
 `signMessageWithVerdict` and `authorizeEnrollment`
-(`SpeakToSignHostOperations` in `hostPlugin.ts`, Wallet 0.71.0).
+(`SpeakToSignHostOperations` in `hostPlugin.ts`, Wallet 0.72.0).
 
 ## 10. Multisig requests
 

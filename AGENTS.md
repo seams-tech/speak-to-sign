@@ -94,7 +94,7 @@ contract and the demo site.
     note, a rating, a bet) and the demo route of the multisig page call it.
     Both call 0.15.0+venice while NEAR AI Whisper is down.
     ([deployed state](docs/deployed-state.md#the-verifier))
-11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.71.0 on npm, and
+11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.72.0 on npm, and
     the voice libraries are separate npm packages.
     ([JUDGES.md, "Questions a judge asks"](JUDGES.md#questions-a-judge-asks))
 12. **What is not done.** [JUDGES.md, "Not covered"](JUDGES.md#not-covered)

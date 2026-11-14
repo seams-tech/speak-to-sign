@@ -52,9 +52,9 @@ The terms:
   code runs in it.
 - **The request digest** is the SHA-256 hash of the exact call. The verdict
   holds it.
-- **Wallet core** is the npm dependency `@seams/wallet` 0.71.0, which the
+- **Wallet core** is the npm dependency `@seams/wallet` 0.72.0, which the
   demo pins in `demo/frontend/package.json`. Its source is
-  [`seams-wallet` at 0.71.0](https://github.com/seams-tech/seams-wallet/tree/a761e385ce244dfa6854e10073a08ca04de802b5).
+  [`seams-wallet` at 0.72.0](https://github.com/seams-tech/seams-wallet/tree/754d03f02523e79358f755fb3969afce430dc259).
   Every command below needs only this repo.
 
 ## See it in 2 minutes
@@ -269,7 +269,7 @@ nothing checks who spoke, or binds the words to the call.
   - Builds that anyone can repeat. The verifier and the demo contracts are
     reproducible builds, and SourceScan verified the contracts.
 - **Life after the hackathon.** Seams Wallet ships Speak-to-Sign in
-  `@seams/wallet` 0.71.0 on npm as an experimental, testnet-only feature.
+  `@seams/wallet` 0.72.0 on npm as an experimental, testnet-only feature.
   The voice libraries are separate npm packages for any app:
   `@seams/voice-capture`, `@seams/voice-verdict` and `@seams/voice-sign`.
 
@@ -393,7 +393,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | A voice payment above 10 NEAR needs a passkey too (`step_up`). | `verify_steps_up_above_ten_near`; spec 7.3 |
 | The verifier signs fixed verdict vectors that the Wallet tests also read. A verdict expires after 120 s. | `tests/signed_vector.rs` of the verifier (`testdata/signed_verdict_v2.json`); `VERDICT_TTL_MS` in `src/config.rs`; spec section 8 |
 | A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
-| With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.71.0: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L199) and its [test](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/tests/unit/speakToSignHost.unit.test.ts#L1168) |
+| With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.72.0: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/754d03f02523e79358f755fb3969afce430dc259/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L199) and its [test](https://github.com/seams-tech/seams-wallet/blob/754d03f02523e79358f755fb3969afce430dc259/tests/unit/speakToSignHost.unit.test.ts#L1168) |
 | The notes contract takes a note or a rating only with its own verdict: the key, the outcome, the expiry and the digest. Each verdict counts once. On testnet, `get_voice_config` of `notes.seams-v1.testnet` gives `"required":true`. | `check_spoken` in `demo/contracts/community-notes/src/lib.rs`; `src/tests.rs` and `spoken_notes_in_the_sandbox` in `sandbox/tests/sandbox.rs` |
 | The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig-3.seams-v1.testnet`, and proposal 1 ran there on 2026-11-14. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |
@@ -438,10 +438,10 @@ The proof from the git history:
   TZ=UTC git -C speak-to-sign log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' | sort | head -1 | cut -c1-100
   ```
 - **The diff of Seams Wallet in the window.** The last commit before the
-  window is `620794d9` (2026-10-18). The diff from it to Wallet 0.71.0, the
+  window is `620794d9` (2026-10-18). The diff from it to Wallet 0.72.0, the
   version that the demo pins, is
-  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...a761e385ce244dfa6854e10073a08ca04de802b5>.
-  Most of these 810 commits are general Wallet work. The Speak-to-Sign paths
+  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...754d03f02523e79358f755fb3969afce430dc259>.
+  Most of these 813 commits are general Wallet work. The Speak-to-Sign paths
   (`packages/voiceid` and `packages/wallet/src/core/transactionFeatures`) are
   new files only: 58 files, 8,660 added lines.
 

@@ -346,8 +346,8 @@ hackathon. It is the baseline, not hackathon work.
 - [`JUDGES.md`, "Scope of the hackathon work"](JUDGES.md#scope-of-the-hackathon-work)
   says which part is which, with the proof from the git history.
 - The diff of Seams Wallet in the window, up to the version that the demo
-  pins (0.71.0):
-  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...a761e385ce244dfa6854e10073a08ca04de802b5>.
+  pins (0.72.0):
+  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...754d03f02523e79358f755fb3969afce430dc259>.
   The Speak-to-Sign paths in it are new files only.
 
 ## Repository

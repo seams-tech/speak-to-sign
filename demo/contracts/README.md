@@ -4,7 +4,7 @@
 | ------ | -------- | --------------- |
 | [`community-notes/`](community-notes/) | community notes and ratings, with 0 deposit | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) |
 | [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (version 3.0.0, 2 of 2 signers) | [`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract) |
-| [`voice-multisig-factory/`](voice-multisig-factory/) | creates a voice multisig for a visitor: an account that uses the global voice-multisig code | not on testnet yet |
+| [`voice-multisig-factory/`](voice-multisig-factory/) | creates a voice multisig for a visitor: an account that uses the global voice-multisig code (version 3.1.0) | [`voice-multisig-factory.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-factory.seams-v1.testnet/contract) |
 | [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
 | [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 
@@ -28,7 +28,7 @@ computer. It uses NEAR's standard build, `cargo near build reproducible-wasm`
 ./reproducible.sh check community-notes   # build the recorded commit again and compare
 ```
 
-With no contract name, the script does all four. On a Mac with Apple silicon,
+With no contract name, the script does all five. On a Mac with Apple silicon,
 Docker runs the x86_64 image under emulation, and one contract takes 1 to
 2.5 minutes. To install cargo-near, see
 <https://github.com/near/cargo-near#installation>.
@@ -70,6 +70,9 @@ rebase.
 `notes.seams-v1.testnet` runs the build of commit `119ef0e` (version 1.1.0,
 with the voice rule) since 2026-11-12. `voice-multisig-3.seams-v1.testnet`
 runs the build of commit `99231f6` (version 3.0.0) since 2026-11-14. The
+factory `voice-multisig-factory.seams-v1.testnet` and the global voice-multisig
+code (version 3.1.0, code hash `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX`)
+run the builds of commit `ad9b9d8` since 2026-11-14. The
 note market and the faucet run the builds of `777b844` since 2026-11-11. SourceScan built
 each contract again and got the same code hash, so NearBlocks shows each one
 as verified on its contract page.
@@ -78,6 +81,8 @@ as verified on its contract page.
 | --------------------------- | ---------------------------------------------- | ---------------------------------------------- |
 | `notes.seams-v1.testnet` (commit `119ef0e`, 2026-11-12, no init call) | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` | `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse` |
 | `voice-multisig-3.seams-v1.testnet` (commit `99231f6`, 2026-11-14, deploy with `new`) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` | `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m` |
+| `voice-multisig-factory.seams-v1.testnet` (commit `ad9b9d8`, 2026-11-14, deploy with `new`) | `JBt7zAY8Jr5CpN6PQH6WxkwMp1QV1A4KrKmJ4B4VDjpK` | `687iHX1iqYUjjmuWM8fm7mLkakoAaSLNwfRcmSFs53M3` |
+| The global voice-multisig code (commit `ad9b9d8`, 2026-11-14) | `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX` | `GYb8gPmbrNnXeE9K86rMzKkNP9zdeeMGXZrqRs8MUQBt` |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` | `88qJEJPcSpay99MSV4ZVecp88XasDfD3zSv27Cgk6Zx6` |
 | `seams-faucet.testnet`      | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` | `7uczvTN3tAhD4sw3G7VwFWL1xJXH1gkaLMjXjyrwVq4k` |
 

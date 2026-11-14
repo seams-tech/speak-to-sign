@@ -6,15 +6,15 @@ visitor cannot propose or approve there. With the factory, a visitor creates
 a 2 of 2 multisig with one other person, and both try it by voice. Testnet
 only.
 
-The factory is not on testnet yet. "Deploy to testnet" gives the steps.
+The factory is on `voice-multisig-factory.seams-v1.testnet` since 2026-11-14 (see "Deployed code").
 
 ## Design
 
 - **Global code.** The voice-multisig WASM is on chain one time, as global
   code under its code hash (NEP-591). Each multisig account uses that code
   and holds no code of its own. A normal deploy of the 214 KB code costs
-  about 2.15 NEAR of storage for each account. An account that uses the
-  global code needs 271 bytes after `new`, about 0.003 NEAR.
+  about 2.14 NEAR of storage for each account. An account that uses the
+  global code needs 271 bytes after `new` with 2 signers, about 0.003 NEAR.
 - **One receipt.** `create` makes the account `m<N>.<factory>` with four
   actions in one receipt: create the account, send it the attached NEAR, use
   the global code, and call `new` with the signers, the threshold and the
@@ -98,11 +98,11 @@ Measured in the nearcore 2.14.0 sandbox
 | ---- | ----- |
 | `new` of the factory | 1.57 Tgas |
 | `create`, with the multisig's `new` and the callback | 13.9 Tgas |
-| Storage of a new multisig | 271 bytes |
+| Storage of a new multisig with 2 signers | 271 bytes |
 | Global deploy of the multisig code | 0.0001 NEAR for each byte, burnt one time: 10 times the storage price |
 
-The global deploy of the local build (258,967 bytes) burnt 25.92 NEAR in the
-sandbox. The reproducible build is smaller.
+On testnet, the global deploy of the reproducible build (214,146 bytes)
+cost 21.42 NEAR, and the `create` of the first multisig burnt 13.9 Tgas.
 
 ## Build and test
 
@@ -136,7 +136,8 @@ name.
 
 ## Deploy to testnet
 
-Each step waits for the owner's go-ahead.
+The steps below are the record of the deploy of 2026-11-14 and the way to
+deploy again. Each step waits for the owner's go-ahead.
 
 1. Make the reproducible builds of the multisig and of the factory from a
    commit on `dev` (cargo-near 0.22.0, Docker), commit both
@@ -148,24 +149,26 @@ Each step waits for the owner's go-ahead.
 
 2. Publish the multisig WASM as global code under its hash. Any account can
    sign this transaction. The chain burns 0.0001 NEAR for each byte of the
-   WASM, about 21.5 NEAR:
+   WASM: 21.42 NEAR for 214,146 bytes. Tx
+   `GYb8gPmbrNnXeE9K86rMzKkNP9zdeeMGXZrqRs8MUQBt`:
 
    ```bash
-   near contract deploy-as-global use-file ../voice-multisig/res/voice_multisig.wasm as-global-hash seams-faucet.testnet network-config testnet sign-with-legacy-keychain send
+   near contract deploy-as-global use-file ../voice-multisig/res/voice_multisig.wasm as-global-hash seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. Create the factory account. 3 NEAR covers the factory code (about 1.6
-   NEAR):
+3. Create the factory account. 2 NEAR covers the factory code (about 1.34
+   NEAR). Tx `J6ABP9zGKjpnZUAhCR48ro48Znw6Nxm4Mv8ZA1eheatK`:
 
    ```bash
-   near account create-account fund-myself voice-multisig-factory.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+   near account create-account fund-myself voice-multisig-factory.seams-v1.testnet '2 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
 4. Deploy the factory with the code hash of step 2 (the SHA-256 of the
-   multisig WASM, in base58) and the verifier key:
+   multisig WASM, in base58) and the verifier key. Tx
+   `687iHX1iqYUjjmuWM8fm7mLkakoAaSLNwfRcmSFs53M3`:
 
    ```bash
-   near contract deploy voice-multisig-factory.seams-v1.testnet use-file res/voice_multisig_factory.wasm with-init-call new json-args '{"code_hash":"<code hash>","verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
+   near contract deploy voice-multisig-factory.seams-v1.testnet use-file res/voice_multisig_factory.wasm with-init-call new json-args '{"code_hash":"3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX","verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
    ```
 
 5. Read the config:
@@ -174,6 +177,35 @@ Each step waits for the owner's go-ahead.
    near contract call-function as-read-only voice-multisig-factory.seams-v1.testnet get_config json-args '{}' network-config testnet now
    ```
 
+6. Create one multisig as a test. Tx
+   `CtseRyUxxtt3Vy2fxLGH1Wyj5nAH5qbi8RVCfPRFCpnq` created
+   `m1.voice-multisig-factory.seams-v1.testnet` with one signer, `seams-v1.testnet`:
+
+   ```bash
+   near contract call-function as-transaction voice-multisig-factory.seams-v1.testnet create json-args '{"signers":["seams-v1.testnet"],"threshold":1}' prepaid-gas '100.0 Tgas' attached-deposit '0.05 NEAR' sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
 The demo page reads `get_config` of the factory account
 (`VITE_MULTISIG_FACTORY`). It shows the "Create your own multisig" form only
 when that call answers.
+
+## Deployed code
+
+`voice-multisig-factory.seams-v1.testnet` runs version 1.0.0 since
+2026-11-14: the reproducible build of commit `ad9b9d8` (133,733 bytes,
+SHA-256 `ff6049b434738ec1e1c1dba1bedf649d10ffbfefc0d6745263cb69dfca321220`,
+code hash `JBt7zAY8Jr5CpN6PQH6WxkwMp1QV1A4KrKmJ4B4VDjpK`). Its `get_config`
+names the global code `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX` and the
+verifier key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
+
+The global code `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX` is the
+reproducible build of voice-multisig 3.1.0 at the same commit (see
+[the multisig README](../voice-multisig/README.md#reproducible-build)).
+
+To check a multisig of the factory, read its account. `global_contract_hash`
+is the code hash above, `code_hash` is `1111…1111` (no code of its own), and
+the key list is empty:
+
+```bash
+near account view-account-summary m1.voice-multisig-factory.seams-v1.testnet network-config testnet now
+```

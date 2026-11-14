@@ -292,18 +292,21 @@ git and cargo-near 0.22.0.
 ../reproducible.sh check voice-multisig   # builds the recorded commit again and compares
 ```
 
-The build of 12 Nov 2026 of version 3.0.0 is the code on
-`voice-multisig-3.seams-v1.testnet` (see "Deployed code").
+Two builds are on testnet. The build of version 3.1.0 is the global code
+that each multisig of the factory uses. The build of version 3.0.0 is the
+code on `voice-multisig-3.seams-v1.testnet` (see "Deployed code").
 
-| Item               | Value |
-| ------------------ | ----- |
-| Commit             | `99231f6660ce7fb8823a4796918bff10a8a8b323` (on `dev`) |
-| Size               | 214,166 bytes |
-| SHA-256            | `ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb` |
-| Code hash (base58) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
+| Item               | Version 3.1.0, the global code | Version 3.0.0, on `voice-multisig-3` |
+| ------------------ | ------------------------------ | ------------------------------------ |
+| Commit (on `dev`)  | `ad9b9d8649ff722f8f546dcb13c2eb61e50e6139` | `99231f6660ce7fb8823a4796918bff10a8a8b323` |
+| Size               | 214,146 bytes | 214,166 bytes |
+| SHA-256            | `26ce3a7343f205a1eaa0d14a57202ba1a189a4db62e4870e4fbce07f8c2c470c` | `ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb` |
+| Code hash (base58) | `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX` | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
 
-`reproducible.sha256` holds the same commit and SHA-256. Both sandbox tests
-pass with this WASM (`VOICE_MULTISIG_WASM=res/voice_multisig.wasm`).
+`reproducible.sha256` holds the commit and the SHA-256 of the 3.1.0 build,
+and `../reproducible.sh check voice-multisig` builds that commit again. To
+build the 3.0.0 code again, run `cargo near build reproducible-wasm` in a
+clone at commit `99231f6`.
 SourceScan built the commit again and got the same code hash, so NearBlocks
 shows the code as verified at
 <https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract>.
@@ -481,6 +484,11 @@ Facts of this proposal:
   is on chain. So the run used `bob.testnet`.
 
 ## Deployed code
+
+Version 3.1.0 is on testnet as global code since 2026-11-14, under the code
+hash `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX` (tx
+`GYb8gPmbrNnXeE9K86rMzKkNP9zdeeMGXZrqRs8MUQBt`). Each multisig that the
+factory `voice-multisig-factory.seams-v1.testnet` creates uses it.
 
 `voice-multisig-3.seams-v1.testnet` runs version 3.0.0 since 2026-11-14: the
 reproducible build of commit `99231f6` (214,166 bytes, SHA-256

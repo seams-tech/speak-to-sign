@@ -59,11 +59,13 @@ In the voice bar, JEV, an AI classifier, turns your words into a command (the
 post, the side and the amount) and opens the correct sheet. JEV never
 proposes or signs a payment. You approve the exact call when you say it.
 
-The spoken multisig is for its 2 signers, not for a visitor, and you do not
-need it to try the demo. As evidence that it works: on 2026-11-14 two signers
-proposed, approved and executed one transfer by voice, and no verdict on
-chain holds the spoken words
+The demo multisig is for its 2 signers. As evidence that it works: on
+2026-11-14 two signers proposed, approved and executed one transfer by
+voice, and no verdict on chain holds the spoken words
 ([the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet)).
+To try the spoken multisig, you need a second person: on
+[`/multisig/`](https://speak-to-sign.pages.dev/multisig/) you create a 2 of 2
+multisig with them.
 
 ## Try it in 2 minutes
 
@@ -268,11 +270,12 @@ as verified.
 | -------- | --------------- | ------ | ------------------ |
 | Community notes | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) | [`demo/contracts/community-notes/`](demo/contracts/community-notes/) at commit `119ef0e` | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` |
 | Voice multisig (version 3.0.0, voice only, 2 of 2 signers) | [`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig/`](demo/contracts/voice-multisig/) at commit `99231f6` | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
+| Voice multisig factory (creates a multisig for a visitor, on the global voice-multisig code `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX`) | [`voice-multisig-factory.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-factory.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig-factory/`](demo/contracts/voice-multisig-factory/) at commit `ad9b9d8` | `JBt7zAY8Jr5CpN6PQH6WxkwMp1QV1A4KrKmJ4B4VDjpK` |
 | Note market | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) | [`demo/contracts/jev-prediction-market/`](demo/contracts/jev-prediction-market/) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` |
 | Faucet | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) | [`demo/contracts/faucet/`](demo/contracts/faucet/) | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` |
 
 The signers of the voice multisig have enrolled voices, and the demo page
-`/multisig/` uses it. Its live run of 2026-11-14 with verifier 0.15.0 is in
+`/multisig/` shows it first. Its live run of 2026-11-14 with verifier 0.15.0 is in
 [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
 
 The deploy transactions and the way to build each contract again are in

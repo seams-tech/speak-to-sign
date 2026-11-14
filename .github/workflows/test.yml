@@ -127,7 +127,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        contract: [community-notes, faucet, jev-prediction-market, voice-multisig]
+        contract: [community-notes, faucet, jev-prediction-market, voice-multisig, voice-multisig-factory]
     steps:
       - uses: actions/checkout@v6
         with:

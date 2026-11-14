@@ -9,7 +9,7 @@
 #                                           <contract>/reproducible.sha256
 #                                           names again, and compare the SHA-256
 #
-# With no contract name, the script does all four contracts.
+# With no contract name, the script does all five contracts.
 #
 # `cargo near build reproducible-wasm` (NEP-330) builds the contract in the
 # Docker image that `[package.metadata.near.reproducible_build]` in its
@@ -25,7 +25,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=$(git rev-parse --show-toplevel)
-ALL=(community-notes faucet jev-prediction-market voice-multisig)
+ALL=(community-notes faucet jev-prediction-market voice-multisig voice-multisig-factory)
 CARGO_NEAR_VERSION=0.22.0
 
 usage() {

@@ -22,6 +22,7 @@
 // verify refuses `template_missing`, and the verdicts carry a key that the contract does not pin.
 
 import { isObject } from '../../src/guards.ts';
+import { OUTLAYER_TIMEOUT_TEXT, VERIFIER_TIMEOUT } from '../../src/verifierTimeout.ts';
 import { json, readBoundedText, refuseOtherOrigin } from '../lib/http.ts';
 import { chooseTranscriber, statusForChoice, type Transcriber } from '../lib/nearAiStatus.ts';
 
@@ -116,10 +117,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     });
   } catch (cause) {
     const timedOut = cause instanceof DOMException && cause.name === 'TimeoutError';
-    const error = timedOut
-      ? 'OutLayer timed out: the verifier did not answer in time. Your recording is not the cause. Try again in a minute.'
-      : 'The verifier is not reachable.';
-    return json({ error }, 502);
+    // The code lets the page link to OutLayer's list of executions (src/verifierTimeout.ts).
+    return json(timedOut ? { error: OUTLAYER_TIMEOUT_TEXT, code: VERIFIER_TIMEOUT } : { error: 'The verifier is not reachable.' }, 502);
   }
   if (!response.ok) return json({ error: outlayerFailure(response.status) }, 502);
   const output = readOutlayerOutput(await response.text());

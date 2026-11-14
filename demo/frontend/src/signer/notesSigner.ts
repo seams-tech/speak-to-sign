@@ -42,8 +42,11 @@ export interface NotesSigner {
   requestRating(input: { noteId: number; rating: Rating }): Promise<SignResult>;
 }
 
-/** The result of one setup step, in plain words. */
-export type SetupOutcome = { kind: 'done' | 'cancelled' | 'failed'; message: string };
+/**
+ * The result of one setup step, in plain words. `toasted`: the page already showed this failure
+ * as a toast, so the caller adds no second note of it.
+ */
+export type SetupOutcome = { kind: 'done' | 'cancelled' | 'failed'; message: string; toasted?: true };
 
 /** The Wallet setup steps after sign-in. Sign-in itself is the Wallet's own menu. */
 export interface SignerSetup {

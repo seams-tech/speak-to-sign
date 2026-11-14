@@ -115,7 +115,7 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
     const result = await setUpVoice(signer, account, setBusy);
     setBusy(null);
     // A closed Wallet window needs no note: the step shows "Set up" again.
-    if (result.kind === 'failed') setVoiceError(result.message);
+    if (result.kind === 'failed' && !result.toasted) setVoiceError(result.message);
     // `action: undefined` drops the faucet toast's link if this toast takes its place.
     if (result.kind === 'done') toast('Your voice is set up', { id: SETUP_TOAST, action: undefined });
     onChanged();

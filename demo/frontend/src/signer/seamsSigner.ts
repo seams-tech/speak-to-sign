@@ -8,6 +8,8 @@
 
 import type { SpeakToSignEnrollmentResult, SpeakToSignResult, SpeakToSignSentTransaction } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
+import { toastOutlayerTimeout } from '../components/Toasts';
+import { isVerifierTimeout, OUTLAYER_TIMEOUT_TEXT } from '../verifierTimeout';
 import { enrollRefusalText, withDetail } from './enrollment';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 import { isCancelError, isUserRejection } from './rejection';
@@ -147,7 +149,9 @@ export function contractReason(error: string): string {
 /** One spoken request that sends a transaction, as a result for the page. */
 export async function spokenRequest(seams: Seams, walletId: string, call: () => Promise<SpokenSent>): Promise<SignResult> {
   try {
-    return toSignResult(await afterUnlock(seams, walletId, call));
+    const result = await afterUnlock(seams, walletId, call);
+    if (result.kind === 'unavailable' && isVerifierTimeout(result)) toastOutlayerTimeout();
+    return toSignResult(result);
   } catch (cause) {
     return closedByOwner(cause) ? { kind: 'cancelled' } : { kind: 'unavailable', reason: walletErrorText(cause) };
   }
@@ -176,7 +180,9 @@ async function enrollOnce(spoken: Spoken, walletId: string): Promise<SetupOutcom
     case 'cancelled':
       return { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
     case 'unavailable':
-      return { kind: 'failed', message: unavailableText(result) };
+      if (!isVerifierTimeout(result)) return { kind: 'failed', message: unavailableText(result) };
+      toastOutlayerTimeout();
+      return { kind: 'failed', message: OUTLAYER_TIMEOUT_TEXT, toasted: true };
   }
 }
 
@@ -234,9 +240,7 @@ const UNAVAILABLE: Record<string, string> = {
 
 /** The text of an `unavailable` result. A route timeout (`verifier_timeout`) names OutLayer. */
 export function unavailableText(result: { reason: string; detail?: string }): string {
-  if (result.reason === 'verifier_unavailable' && result.detail === 'verifier_timeout') {
-    return 'OutLayer timed out: the verifier did not answer in time. Your recording is not the cause. Try again in a minute.';
-  }
+  if (isVerifierTimeout(result)) return OUTLAYER_TIMEOUT_TEXT;
   return withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail);
 }
 

@@ -25,6 +25,7 @@ import { useSeams } from '@seams/wallet/react';
 import { BrandMark } from '../components/BrandMark';
 import { NearAiWarning } from '../components/NearAiWarning';
 import { SignInModal } from '../components/SignInModal';
+import { toastOutlayerTimeout } from '../components/Toasts';
 import { accountUrl, config, shortAccount, shortHash, transactionUrl } from '../config';
 import { KeylessOnboarding, SeamsOnboarding } from '../showcase/Onboarding';
 import { SeamsSettingsPill } from '../showcase/SeamsSettingsPill';
@@ -508,7 +509,10 @@ function ProposeForm({ context, proposalId }: { context: Context; proposalId: nu
       wav,
     );
     if (check.kind === 'refused') return setStep({ kind: 'refused', check });
-    if (check.kind === 'unavailable') return setStep({ kind: 'failed', message: check.reason });
+    if (check.kind === 'unavailable') {
+      if (check.timedOut) toastOutlayerTimeout();
+      return setStep({ kind: 'failed', message: check.reason });
+    }
     if (!check.opening) return setStep({ kind: 'failed', message: 'The verifier gave no opening for this proposal.' });
     // Keep the opening before the Wallet step: without it the proposal can never execute.
     const opening: Opening = { receiver: to, amount_yocto: amount.yocto, salt_hex: check.opening.saltHex, commitment_hex: check.opening.commitmentHex };
@@ -654,7 +658,10 @@ function ApproveByVoice({ context, proposal }: { context: Context; proposal: Pro
       wav,
     );
     if (check.kind === 'refused') return setStep({ kind: 'refused', check });
-    if (check.kind === 'unavailable') return setStep({ kind: 'failed', message: check.reason });
+    if (check.kind === 'unavailable') {
+      if (check.timedOut) toastOutlayerTimeout();
+      return setStep({ kind: 'failed', message: check.reason });
+    }
     setStep({ kind: 'signing' });
     const result = await context.signer.approve({ proposalId: proposal.id, verdictJson: check.verdict.verdictJson, signatureB64: check.verdict.signatureB64 });
     if (result.kind === 'sent' || result.kind === 'refused') {

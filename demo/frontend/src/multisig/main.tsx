@@ -5,6 +5,7 @@ import '@fontsource/hanken-grotesk/700.css';
 import '@seams/wallet/react/styles';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Toasts } from '../components/Toasts';
 import { buildSeamsConfig } from '../seams/seamsConfig';
 import { ThemedSeamsProvider } from '../seams/walletTheme';
 import { MultisigPage } from './MultisigPage';
@@ -26,5 +27,6 @@ createRoot(root).render(
     ) : (
       <MultisigPage seams={false} />
     )}
+    <Toasts theme="light" />
   </StrictMode>,
 );

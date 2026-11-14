@@ -8,6 +8,7 @@
 // scripts/audio-key.mjs checked its signature against the verdict key.
 
 import { AUDIO_KEY_BYTES, sealAudio } from '@seams/voice-verdict';
+import { VERIFIER_TIMEOUT } from './verifierTimeout.ts';
 import { base64 } from './voice/wav.ts';
 
 /** The verifier's audio key (32 bytes), or null if this build has none. Node tests have no `env`. */
@@ -36,7 +37,16 @@ export async function verifyInput(
   return { op: 'verify', owner, request, contacts: [], ...audio };
 }
 
-export type VerifierAnswer<Output> = { kind: 'output'; output: Output } | { kind: 'unavailable'; reason: string };
+/** No output of the verifier. `timedOut`: the route gave up on OutLayer (verifierTimeout.ts). */
+export type VerifierUnavailable = { kind: 'unavailable'; reason: string; timedOut?: true };
+
+export type VerifierAnswer<Output> = { kind: 'output'; output: Output } | VerifierUnavailable;
+
+/** An answer of the route that is not a verifier output: its error text, and its timeout code. */
+export function routeFailure(status: number, body: { error?: unknown; code?: unknown } | null): VerifierUnavailable {
+  const reason = typeof body?.error === 'string' ? body.error : `The verify route answered ${status}.`;
+  return body?.code === VERIFIER_TIMEOUT ? { kind: 'unavailable', reason, timedOut: true } : { kind: 'unavailable', reason };
+}
 
 /** Sends one recording of the request's sentence to the verifier. */
 export async function callVerifier<Output extends object>(
@@ -55,10 +65,7 @@ export async function callVerifier<Output extends object>(
   } catch {
     return { kind: 'unavailable', reason: 'The page could not reach the voice verifier.' };
   }
-  const body = (await response.json().catch(() => null)) as (Output & { error?: unknown }) | null;
-  if (!response.ok || body === null) {
-    const reason = typeof body?.error === 'string' ? body.error : `The verify route answered ${response.status}.`;
-    return { kind: 'unavailable', reason };
-  }
+  const body = (await response.json().catch(() => null)) as (Output & { error?: unknown; code?: unknown }) | null;
+  if (!response.ok || body === null) return routeFailure(response.status, body);
   return { kind: 'output', output: body };
 }

@@ -4,7 +4,7 @@
 // output unchanged: `verdict_json` (the signed bytes, a string), `signature_b64`, and for an
 // accepted proposal the `multisig` opening (base64url commitment and salt).
 
-import { callVerifier } from '../voiceRoute.ts';
+import { callVerifier, type VerifierUnavailable } from '../voiceRoute.ts';
 import { hexOfBase64Url } from './intent.ts';
 
 export type MultisigVoiceRequest =
@@ -25,7 +25,7 @@ export type VoiceCheck =
    * the contract refuses too; the page can send it as a record.
    */
   | { kind: 'refused'; reason: string; code: string; heard?: string; signed?: SignedVerdict }
-  | { kind: 'unavailable'; reason: string };
+  | VerifierUnavailable;
 
 interface VerifyOutput {
   kind?: string;

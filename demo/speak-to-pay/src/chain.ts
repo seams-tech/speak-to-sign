@@ -2,18 +2,22 @@
    owner's balance straight from NEAR RPC. Spoken payments go from the owner's
    own account through the Wallet. */
 
-export const DEFAULT_RECEIVER = 'seams-v1.testnet';
+export const DEFAULT_RECEIVER = 'seams-faucet.testnet';
 export const RECEIPT_BASE_URL = 'https://testnet.nearblocks.io/txns/';
 export const FAUCET_URL = 'https://docs.near.org/getting-started/faucet';
 
 const YOCTO_PER_NEAR = 10n ** 24n;
 const STORAGE_YOCTO_PER_BYTE = 10n ** 19n;
-/** The default 1 NEAR payment and the gas of one transfer (under 0.0001 NEAR), with a margin. */
-export const PAYMENT_NEED_YOCTO = 1_010_000_000_000_000_000_000_000n;
+/** The default 0.1 NEAR payment and the gas of one transfer (under 0.0001 NEAR), with a margin. */
+export const PAYMENT_NEED_YOCTO = 110_000_000_000_000_000_000_000n;
 const MAX_SPOKEN_HUNDREDTHS = 100_000_000n;
 
 export type SpokenAmount =
   | Readonly<{ ok: true; amount: string }>
+  | Readonly<{ ok: false; message: string }>;
+
+export type FaucetReply =
+  | Readonly<{ ok: true; transactionHash: string }>
   | Readonly<{ ok: false; message: string }>;
 
 type RpcReply = Readonly<{ result?: unknown; error?: unknown }>;
@@ -65,6 +69,29 @@ export function formatNear(value: bigint): string {
   const fraction = ((magnitude % YOCTO_PER_NEAR) / 10n ** 20n).toString().padStart(4, '0');
   const trimmed = fraction.replace(/0+$/, '');
   return `${sign}${whole}${trimmed ? `.${trimmed}` : ''} NEAR`;
+}
+
+/** Asks the demo faucet (`/api/faucet`) to send 0.2 NEAR and 2 USDC once to `accountId`. */
+export async function requestDemoFaucet(accountId: string): Promise<FaucetReply> {
+  let response: Response;
+  try {
+    response = await fetch('/api/faucet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId }),
+    });
+  } catch {
+    return { ok: false, message: 'The demo faucet is not reachable.' };
+  }
+  const body: unknown = await response.json().catch(() => null);
+  if (response.ok && isRecord(body) && typeof body.transactionHash === 'string') {
+    return { ok: true, transactionHash: body.transactionHash };
+  }
+  const message =
+    isRecord(body) && typeof body.error === 'string'
+      ? body.error
+      : `The demo faucet answered HTTP ${response.status}.`;
+  return { ok: false, message };
 }
 
 /** The verifier speaks whole hundredths of NEAR from 0.01 to 1,000,000. */

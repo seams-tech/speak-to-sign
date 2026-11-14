@@ -1,16 +1,27 @@
 // Builds the site for a deploy into dist/: the Community Notes page at / and the spoken
-// multisig at /multisig/ (one Vite build, two HTML pages). It stops when the Seams key is
-// missing, because a site built without the key cannot reach the Wallet.
+// multisig at /multisig/ (one Vite build, two HTML pages). It stops when the Seams settings are
+// missing, because a site built without them cannot register or reach a Wallet.
 import { spawnSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { copyFileSync, existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 
 const demo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+if (
+  !existsSync(join(demo, '.env.production.local')) &&
+  !existsSync(join(demo, '.env.local')) &&
+  existsSync(join(demo, '.env.example'))
+) {
+  copyFileSync(join(demo, '.env.example'), join(demo, '.env.local'));
+}
+
 const seamsEnv = loadEnv('production', demo, 'VITE_SEAMS_');
-if (!seamsEnv.VITE_SEAMS_PUBLISHABLE_KEY) {
-  console.error('VITE_SEAMS_PUBLISHABLE_KEY is not set. Put it in demo/frontend/.env.production.local or demo/frontend/.env.local.');
+if (!seamsEnv.VITE_SEAMS_PUBLISHABLE_KEY || !seamsEnv.VITE_SEAMS_PROJECT_ENVIRONMENT_ID) {
+  console.error(
+    'VITE_SEAMS_PUBLISHABLE_KEY and VITE_SEAMS_PROJECT_ENVIRONMENT_ID must be set in demo/frontend/.env.production.local or demo/frontend/.env.local.',
+  );
   process.exit(1);
 }
 

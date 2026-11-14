@@ -50,11 +50,15 @@ voice verifier also approves payments and multisig transfers.
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
 | Pay someone (the page [`demo/speak-to-pay`](demo/speak-to-pay/), which you run on your machine) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
-| Approve a multisig transfer (`/multisig/` of the demo site) | "Approve proposal 3: send 0.1 NEAR to seams-faucet.testnet" | The verifier, and the voice multisig contract. On 2026-11-12 two persons proposed, approved and executed one transfer by voice: [the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 
 In the voice bar, JEV, an AI classifier, turns your words into a command (the
 post, the side and the amount) and opens the correct sheet. JEV never
 proposes or signs a payment. You approve the exact call when you say it.
+
+The spoken multisig is for its 2 signers, not for a visitor, and you do not
+need it to try the demo. As evidence that it works: on 2026-11-12 two persons
+proposed, approved and executed one transfer by voice
+([the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet)).
 
 ## Try it in 2 minutes
 
@@ -74,9 +78,11 @@ You need a browser with passkeys and a microphone.
    the reason and the words that the verifier heard. Nothing is signed.
 
 [`JUDGES.md`, "See it in 2 minutes"](JUDGES.md#see-it-in-2-minutes) has each
-step with the voice commands. To run the site on your own computer, use
-`pnpm site`; [`demo/frontend/README.md`](demo/frontend/README.md) says what
-it needs.
+step with the voice commands. To run the demo on your own computer with no
+account and no secret key, run `pnpm site` (the notes app) or
+`pnpm pay` (Speak to pay): see
+[`demo/frontend/README.md`](demo/frontend/README.md#run-it-locally) and
+[`demo/speak-to-pay/README.md`](demo/speak-to-pay/README.md#1-run-it-locally).
 
 ## How it works
 
@@ -361,7 +367,7 @@ speak-to-sign/
 │   ├── speak-to-pay/               pay a NEAR account by voice; you run it on your machine
 │   └── x-refresh-worker/           a scheduled worker that gets new posts from X
 ├── docs/                           the specs; docs/README.md is the index
-└── scripts/                        site.mjs starts the demo site (pnpm site)
+└── scripts/                        site.mjs starts the demo apps (pnpm site, pnpm pay)
 ```
 
 Most folders have a README of their own with the details.

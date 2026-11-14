@@ -10,7 +10,7 @@ They run the tests that hold the binding rules, and they read the live
 testnet state. Each
 expected output below comes from a run on 2026-11-12 on macOS 15.7.1 (arm64)
 with rustc 1.97.1, Node 24.18.0, pnpm 11.11.0 and jq 1.7.1, in a fresh clone
-of `dev`. Times, the order of test lines, and the hashes in
+of `dev`. The outputs of steps 2 and 3 are from a run on 2026-11-14. Times, the order of test lines, and the hashes in
 `target/debug/deps/` paths can be different on your computer.
 
 You need:
@@ -63,27 +63,35 @@ Step 3 checks the digest of each of these requests again, in TypeScript.
 (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (140 tests). The 16-digit hex suffix of each verifier test binary
+Expected (200 tests). The 16-digit hex suffix of each verifier test binary
 depends on the folder of your clone, so yours can differ; the test names and
 counts do not.
 
 ```text
-     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-2d5b7edcafc2248c)
-test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
-     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-90ff6f1c87da1f08)
+     Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-b547c026a37514f2)
+test result: ok. 82 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-5b7aadd805855bfc)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/detect_live.rs (target/debug/deps/detect_live-380b27f77660075d)
+     Running tests/detect_live.rs (target/debug/deps/detect_live-3bf632f4f866f524)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-d105d7cc1e84ceb8)
+     Running tests/enrollment_vectors.rs (target/debug/deps/enrollment_vectors-3eeff615d59dd181)
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/ops/main.rs (target/debug/deps/ops-ed4a686ad062a087)
-test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s
-     Running tests/signed_intent_vector.rs (target/debug/deps/signed_intent_vector-c299357e8f904bdf)
+     Running tests/nearai_attestation.rs (target/debug/deps/nearai_attestation-b5c88c5621892d21)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/nearai_attestation_live.rs (target/debug/deps/nearai_attestation_live-288fea02a7debbda)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/signed_transcript_vector.rs (target/debug/deps/signed_transcript_vector-b50544f54788ca35)
+     Running tests/ohttp_live.rs (target/debug/deps/ohttp_live-82c5588630b815c8)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/signed_vector.rs (target/debug/deps/signed_vector-f21b9e98197b8f11)
+     Running tests/ops/main.rs (target/debug/deps/ops-4916f2ccac0b9c21)
+test result: ok. 95 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+     Running tests/signed_intent_vector.rs (target/debug/deps/signed_intent_vector-d2f0b2f87b8def72)
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/signed_transcript_vector.rs (target/debug/deps/signed_transcript_vector-b4c33083db6f6d19)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/signed_vector.rs (target/debug/deps/signed_vector-69c5eb89cd4b10e6)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/tdx_quote.rs (target/debug/deps/tdx_quote-d4c9165a836447fa)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.79s
    Doc-tests seams_voice_verifier
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
@@ -99,6 +107,7 @@ transcript. Each test checks the ed25519 signature of the verdict.
 Expected (in any order):
 
 ```text
+test notes::a_note_is_not_signed_without_the_near_ai_key ... ok
 test notes::a_rating_has_no_summary_check ... ok
 test notes::a_note_is_not_signed_without_the_answer_of_jev ... ok
 test notes::the_words_are_checked_before_the_summary ... ok
@@ -106,13 +115,14 @@ test notes::a_note_is_signed_only_if_its_summary_gives_its_main_point ... ok
 test notes::verify_accepts_a_spoken_rating_with_exact_words ... ok
 test notes::note_inputs_that_are_not_speakable_are_unsupported ... ok
 test notes::verify_accepts_a_spoken_note_summary ... ok
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 74 filtered out; finished in 0.93s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 87 filtered out; finished in 1.41s
 ```
 
 From verifier 0.13.0, the verifier also asks JEV whether the summary gives
-the main point of the note, after the word check. Four of these tests check
-that rule: a note is not signed without the answer of JEV, or with a summary
-that misses the main point, and a rating has no summary check.
+the main point of the note, after the word check. Five of these tests check
+that rule: a note is not signed without the NEAR AI key, without the answer
+of JEV, or with a summary that misses the main point. The words are checked
+before the summary, and a rating has no summary check.
 
 `verify_accepts_a_spoken_note_summary` uses the summary "The bridge stays
 open, only one lane closes." It checks these transcripts:
@@ -148,7 +158,7 @@ earlier Wallet has its own copy of the check.
 (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')
 ```
 
-Expected (56 tests in all):
+Expected (58 tests in all):
 
 ```text
 ✔ a step-up verdict passes only on request
@@ -157,7 +167,7 @@ Expected (56 tests in all):
 ✔ a verdict that expires further ahead than one life is not yet valid
 ✔ a verdict for another sentence
 ✔ a verdict for one community note does not pass for another note
-ℹ pass 56
+ℹ pass 58
 ℹ fail 0
 ```
 

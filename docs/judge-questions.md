@@ -107,8 +107,11 @@ signer's mouth.
   `one_recording_for_two_signers_fails` in
   `demo/contracts/voice-multisig/src/tests.rs`.
 
-**Not done.** No multisig proposal has run on testnet yet, and the demo site
-has no page for the multisig.
+**Not done.** The signers of `voice-multisig` are fixed at `new`: a
+voice-approved change of the signers does not exist yet. A 2-of-2 transfer ran
+on `voice-multisig-2.seams-v1.testnet` (`/multisig/` on the demo site), while
+`voice-multisig.seams-v1.testnet` has no proposal yet
+([`docs/deployed-state.md`](deployed-state.md#the-contracts)).
 
 ## 4. Where is the agent? Does JEV approve payments?
 

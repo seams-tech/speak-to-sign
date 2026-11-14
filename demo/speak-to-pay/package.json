@@ -6,6 +6,7 @@
   "description": "Pay a named NEAR testnet account by voice with Seams Speak-to-Sign.",
   "scripts": {
     "dev": "vite",
+    "dev:https": "caddy run --config Caddyfile --adapter caddyfile",
     "build": "vite build",
     "preview": "vite preview --port 5280",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",

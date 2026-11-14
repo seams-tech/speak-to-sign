@@ -1,0 +1,17 @@
+# Local HTTPS for Speak to pay. Passkeys in the Seams Wallet iframe need the app on trusted HTTPS.
+# Caddy's local CA signs the certificate (`tls internal`). Run `caddy trust` once on this machine.
+{
+	admin off
+	auto_https disable_redirects
+	default_bind 127.0.0.1
+	log {
+		level ERROR
+	}
+}
+
+# https://localhost:5443 → the Vite dev server (pnpm dev, port 5280), with hot reload.
+localhost:5443 {
+	tls internal
+	encode gzip
+	reverse_proxy localhost:5280
+}

@@ -9,39 +9,42 @@ not use real funds.
 The page has four steps:
 
 0. Sign in to your Seams Wallet with a passkey, or create a wallet.
-1. Set up your voice: read three short phrases and confirm one signed message. The same
-   recordings turn on VoiceID on this device and enroll your voice with the verifier.
-2. Check that your NEAR account has testnet NEAR.
+1. Check that your NEAR account has testnet NEAR (or press **Get 0.2 NEAR from the demo faucet**). A new wallet is an implicit account, so funding puts its key on testnet before enrollment.
+2. Set up your voice: read three short phrases and confirm one signed message. The same recordings turn on VoiceID on this device and enroll your voice with the verifier.
 3. Type an amount and a receiver, then click **Pay by voice** and read the sentence.
 
-## 1. Set up a Seams project
+## 1. Run it locally
 
-The Seams Wallet accepts sign-in only from the origins of your project.
+You need Node 24, pnpm 10 or later (`corepack enable`), and Caddy (`brew install caddy`, then `caddy trust` once). You do not need a Seams account or a secret key.
 
-1. In the Seams Console of the staging deployment, create a project with a
-   NEAR testnet environment.
-2. Add the origins of this page to the environment:
-   - `http://localhost:5280` for `pnpm dev`.
-   - Your Cloudflare Pages origin, for example `https://speak-to-sign.pages.dev`,
-     and your custom domain if you add one.
-3. Copy the publishable key of the environment. A publishable key is public,
-   but it works only from the origins of step 2.
+From the root of the repository:
 
-A wallet belongs to one project. If you used Speak-to-Sign in another project,
-create a new wallet here and enroll your voice again.
+```bash
+pnpm pay         # installs packages, copies .env.example to .env.local, starts Vite and Caddy
+```
 
-## 2. Run it locally
+Open https://localhost:5443. Passkeys in the Wallet iframe require trusted HTTPS (`https://localhost:5443`), which the demo's Seams project allows. Because `pnpm site` and `pnpm pay` share `https://localhost:5443` and the same Seams project, one wallet and voice enrollment work on both. Stop `pnpm site` before you run `pnpm pay`.
 
-You need Node 22 or later and pnpm 10.
+To start Vite and Caddy in separate terminals instead:
 
 ```bash
 cd demo/speak-to-pay
 pnpm install
-cp .env.example .env.local   # then set VITE_SEAMS_PUBLISHABLE_KEY
-pnpm dev                     # http://localhost:5280
+pnpm dev         # Vite on http://localhost:5280 (/api/* → speak-to-sign.pages.dev)
+pnpm dev:https   # Caddy on https://localhost:5443 → 5280
 ```
 
-The port is fixed, because the project must allow the exact origin.
+## 2. Set up a Seams project of your own
+
+To run the page on your machine, skip this section: `.env.example` has the public publishable key and environment ID of the demo's Seams project.
+
+A deploy on your own domain needs a project of its own, because the Seams Wallet accepts sign-in only from the origins of a project. The staging Seams Console, which serves the Speak-to-Sign verify route, is at <https://staging.console.seams.sh> (production is at <https://console.wallet.seams.sh>):
+
+1. Sign in with Google or GitHub and create a project with a NEAR testnet environment.
+2. Add your HTTPS origins to the environment: `https://localhost:5443` for local runs, and your Cloudflare Pages origin or custom domain.
+3. Copy both the publishable key and the project environment ID into `.env.local` or `.env.production.local`.
+
+A wallet belongs to one project. If you create a new project, create a new wallet there and enroll your voice again.
 
 ## 3. Deploy to Cloudflare Pages
 
@@ -62,8 +65,8 @@ The `VITE_*` settings are read at build time.
 
 | Variable                            | Default                               | Meaning                                                 |
 | ----------------------------------- | ------------------------------------- | ------------------------------------------------------- |
-| `VITE_SEAMS_PUBLISHABLE_KEY`        | none, required                        | The publishable key of your Seams project environment.  |
-| `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | empty                                 | Optional cross-check of the key's environment.          |
+| `VITE_SEAMS_PUBLISHABLE_KEY`        | in `.env.example`, required           | The publishable key of your Seams project environment.  |
+| `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | in `.env.example`, required           | The environment ID of the same Seams project.           |
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       | The hosted Seams Wallet.                                |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` | The Seams Gateway, which also serves the verify route.  |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       | NEAR testnet RPC for the balance check.                 |

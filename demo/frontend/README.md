@@ -12,7 +12,9 @@ both.
 - `/multisig/` (`multisig/index.html`): the spoken multisig, version 3.0.0 of
   `../contracts/voice-multisig` (`config.multisigContract`,
   `VITE_MULTISIG_CONTRACT`). A signer types a transfer and reads it aloud; each
-  other signer says it from memory; the proposer's browser executes it. The
+  other signer says it from memory; the proposer's browser executes it. Every
+  visitor sees the signers and the proposals, but only a signer of the
+  multisig can propose or approve. The
   Seams Wallet signs `propose`, `approve` and `execute` with its normal confirm
   step. Its code is in `src/multisig/` (`MultisigPage.tsx`).
 
@@ -118,59 +120,57 @@ version and the command that checks it. Two facts belong to this page:
 
 ## Run it locally
 
-You need Node 22 or later and pnpm 10.
+You need Node 24, pnpm 10 or later (`corepack enable`), and Caddy (`brew install caddy`, then `caddy trust` once). You do not need an account or a secret key.
+
+Start the site and its HTTPS proxy with one command, from the root of the repository:
 
 ```bash
-cd demo/frontend
-pnpm install
-cp .dev.vars.example .dev.vars   # then set NEAR_AI_API_KEY in .dev.vars
-cp .env.example .env.local       # then set the VITE_SEAMS_* key and environment (ask the project owner)
+pnpm site        # installs the packages if needed, starts Vite and Caddy, prints https://localhost:5443
 ```
 
-Start the functions, the page and the HTTPS proxy with one command, from the root of the
-repository:
+`pnpm site` (`scripts/site.mjs`) needs no key step:
+
+- If `demo/frontend/.env.local` is missing, `pnpm site` and `pnpm dev` copy `.env.example` to `.env.local`. That file holds the public publishable key and environment ID of the demo's Seams project, and the verifier's public audio key (`VITE_VOICE_AUDIO_KEY`).
+- When `demo/frontend/.dev.vars` is missing or empty, Vite sends `/api/*` to the live demo API at `https://speak-to-sign.pages.dev`. Every part works on a fresh clone: the posts from X, the draft notes, JEV in the voice bar, the testnet faucet (3 accounts per IP address), and the voice check of `/multisig/` (for a signer of the multisig).
+- When you copy `.dev.vars.example` to `.dev.vars` and set keys of your own, `pnpm site` also starts `wrangler pages dev` on port 8788, and Vite sends `/api/*` there instead.
+
+Each local `/api/*` route in `wrangler` needs these keys in `.dev.vars` (only when you run `wrangler` yourself):
+
+| Route | Keys in `.dev.vars` |
+| --- | --- |
+| Draft notes and JEV (`/api/voice-command`, `/api/near-ai-status`) | `NEAR_AI_API_KEY` from NEAR AI Cloud (and optional `TYPESAFE_API_KEY`). |
+| Posts from X (`/api/x/eligible-posts`) | The four `X_*` OAuth 1.0a keys. Without them, local `wrangler` serves sample posts (`src/x/fixture.ts`). |
+| Faucet (`/api/faucet`) | `FAUCET_PRIVATE_KEY` of `seams-faucet.testnet`. |
+| Multisig voice check (`/api/voice-verify`) | The `VOICE_OUTLAYER_*` values of the Seams staging verify route. |
+
+The publishable key and environment ID in `.env.example` are public: the live site ships them. They belong to a Development environment on testnet, and they work only from the origins of the demo project (`https://speak-to-sign.pages.dev`, `https://localhost:5443` and `https://localhost:8443`). A site on another origin needs a project of its own. Sign in to the staging Seams Console (<https://staging.console.seams.sh>) with Google or GitHub, make a project, and add the origin to its publishable key. Production Seams Console is at <https://console.wallet.seams.sh>.
+
+`pnpm site` uses a server that runs already on its port, starts Vite with `--force` (so a new SDK version always replaces Vite's cached copy), and Ctrl+C stops the servers that it started. Stop `pnpm pay` before you run `pnpm site`, because both use `https://localhost:5443`. To run the servers one by one in `demo/frontend/`:
 
 ```bash
-pnpm site        # installs the packages if needed, starts all three, prints the address to open
+pnpm dev:api     # optional: wrangler pages dev on http://localhost:8788 (needs .dev.vars)
 ```
 
-`pnpm site` (`scripts/site.mjs`) uses a server that runs already on its port, starts Vite with
-`--force` (so a new SDK version always replaces Vite's cached copy), and Ctrl+C stops the
-servers that it started. To run them one by one instead, each in its own terminal:
-
 ```bash
-pnpm dev:api     # wrangler pages dev on http://localhost:8788 (the functions under functions/api/)
-```
-
-```bash
-pnpm dev         # Vite on http://localhost:5173, sends /api/* to port 8788
+pnpm dev         # Vite on http://localhost:5173 (/api/* → 8788 with .dev.vars, else speak-to-sign.pages.dev)
 ```
 
 ```bash
 pnpm dev:https   # Caddy: https://localhost:5443 → 5173, https://localhost:8443 → 8788
 ```
 
-Open https://localhost:5443 for the Community Notes page. Passkeys in the Wallet iframe need the app on
-trusted HTTPS: on plain `http://localhost` the Wallet says "Passkeys require
-trusted HTTPS for the app and wallet". Caddy signs the certificates with its
-local CA (`tls internal`). If the browser does not trust it yet, run
-`caddy trust` once (it asks for your password).
+Open https://localhost:5443 for the Community Notes page, and https://localhost:5443/multisig/ for the spoken multisig. Passkeys in the Wallet iframe need the app on trusted HTTPS: on plain `http://localhost` the Wallet says "Passkeys require trusted HTTPS for the app and wallet". Caddy signs the certificates with its local CA (`tls internal`). If the browser does not trust it yet, run `caddy trust` once (it asks for your password).
 
-The Seams key allows only its listed origins. Add `https://localhost:5443`
-(dev) and `https://localhost:8443` (built site) to the key in the staging Seams
-Console. Without a publishable key, the page shows the notes, and the setup
-panel says that the key is missing.
+Without the Seams key and environment ID, the page shows the posts, and the setup panel says which setting is missing.
 
-To run the whole site as Cloudflare Pages runs it (both pages and the function):
+To run the built site as Cloudflare Pages runs it (with `.dev.vars`):
 
 ```bash
 pnpm build:site   # demo/frontend/ into dist/
 pnpm preview      # http://localhost:8788
 ```
 
-`build:site` (`scripts/build-site.mjs`) stops if `VITE_SEAMS_PUBLISHABLE_KEY`
-is not set. Then it runs the same build as `pnpm build`.
-The seal code (`sealAudio`) comes from `@seams/voice-verdict` on npm.
+`build:site` (`scripts/build-site.mjs`) copies `.env.example` to `.env.local` when no env file exists, and stops if `VITE_SEAMS_PUBLISHABLE_KEY` or `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` is empty. Then it runs the same build as `pnpm build`. The seal code (`sealAudio`) comes from `@seams/voice-verdict` on npm.
 
 To sign in on the built site, open it through Caddy at https://localhost:8443
 (`pnpm dev:https`), not at `http://localhost:8788`.
@@ -222,15 +222,15 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 
 | Variable                            | Default                               |
 | ----------------------------------- | ------------------------------------- |
-| `VITE_SEAMS_PUBLISHABLE_KEY`        | none: required for the Wallet         |
-| `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | none: optional cross-check            |
+| `VITE_SEAMS_PUBLISHABLE_KEY`        | in `.env.example`: required for the Wallet |
+| `VITE_SEAMS_PROJECT_ENVIRONMENT_ID` | in `.env.example`: required for the Wallet |
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
 | `VITE_MULTISIG_CONTRACT`            | `voice-multisig-2.seams-v1.testnet`   |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
-| `VITE_VOICE_AUDIO_KEY`              | none: recordings go as plain WAVs     |
+| `VITE_VOICE_AUDIO_KEY`              | in `.env.example`: seals recordings on `/multisig/` |
 
 With `VITE_VOICE_AUDIO_KEY` (standard base64 of the verifier's 32-byte audio
 key), the multisig page seals each recording to the

@@ -151,7 +151,8 @@ export function SetupSteps({ status, account, signer, walletConfigured, onSignIn
       </ol>
       {!walletConfigured && (
         <p className="side-note side-error" role="alert">
-          This build has no Seams publishable key. Set <code>VITE_SEAMS_PUBLISHABLE_KEY</code> and build again.
+          This build has no Seams settings. Set <code>VITE_SEAMS_PUBLISHABLE_KEY</code> and{' '}
+          <code>VITE_SEAMS_PROJECT_ENVIRONMENT_ID</code>, then build again.
         </p>
       )}
       {signedIn && account && <FundsNote account={account} funds={funds} />}

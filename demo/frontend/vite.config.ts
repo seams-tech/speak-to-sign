@@ -1,11 +1,30 @@
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const DEMO_DIR = import.meta.dirname;
+const LIVE_API_ORIGIN = 'https://speak-to-sign.pages.dev';
+
+// Makes .env.local from .env.example when missing, so `pnpm dev` works after `git clone`.
+if (!existsSync(path.join(DEMO_DIR, '.env.local')) && existsSync(path.join(DEMO_DIR, '.env.example'))) {
+  copyFileSync(path.join(DEMO_DIR, '.env.example'), path.join(DEMO_DIR, '.env.local'));
+}
+
+/** True when `.dev.vars` exists and holds at least one `KEY=VALUE` line. */
+function hasDevVars(file: string): boolean {
+  if (!existsSync(file)) return false;
+  return /^[^#\s=]+=\S+/m.test(readFileSync(file, 'utf8'));
+}
+
+const apiTarget =
+  process.env.VITE_API_TARGET?.trim() ||
+  (hasDevVars(path.join(DEMO_DIR, '.dev.vars')) ? 'http://localhost:8788' : LIVE_API_ORIGIN);
+
 // Two pages: Community Notes at / (index.html) and the spoken multisig at /multisig/
-// (multisig/index.html). `pnpm dev` serves both with hot reload. `/api/*` goes to the Pages
-// Function that `pnpm dev:api` runs with wrangler on port 8788.
+// (multisig/index.html). `pnpm dev` serves both with hot reload. With `.dev.vars`, `/api/*` goes
+// to the local Pages Function on port 8788; without `.dev.vars`, it goes to the live demo API.
 export default defineConfig({
   plugins: [react(), localVoiceCapture()],
   build: {
@@ -13,8 +32,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rolldownOptions: {
       input: {
-        notes: path.resolve(import.meta.dirname, 'index.html'),
-        multisig: path.resolve(import.meta.dirname, 'multisig/index.html'),
+        notes: path.resolve(DEMO_DIR, 'index.html'),
+        multisig: path.resolve(DEMO_DIR, 'multisig/index.html'),
       },
     },
   },
@@ -22,9 +41,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8788',
+        target: apiTarget,
+        changeOrigin: true,
         // The function refuses other origins. In dev the page and the
-        // function have different ports, so the proxy drops the Origin header.
+        // function have different origins, so the proxy drops the Origin header.
         configure: (proxy) => {
           proxy.on('proxyReq', (request) => request.removeHeader('origin'));
         },

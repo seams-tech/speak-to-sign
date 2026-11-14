@@ -20,14 +20,17 @@ function read(value: string | undefined): string {
 
 export function readSettings(): Settings {
   const publishableKey = read(import.meta.env.VITE_SEAMS_PUBLISHABLE_KEY);
-  if (!publishableKey) return { kind: 'missing', names: ['VITE_SEAMS_PUBLISHABLE_KEY'] };
   const projectEnvironmentId = read(import.meta.env.VITE_SEAMS_PROJECT_ENVIRONMENT_ID);
+  const missing: string[] = [];
+  if (!publishableKey) missing.push('VITE_SEAMS_PUBLISHABLE_KEY');
+  if (!projectEnvironmentId) missing.push('VITE_SEAMS_PROJECT_ENVIRONMENT_ID');
+  if (missing.length > 0) return { kind: 'missing', names: missing };
   const seamsConfig: SeamsConfigsInput = {
     ...seamsTestnetConfig({
       walletOrigin: read(import.meta.env.VITE_SEAMS_WALLET_ORIGIN) || DEFAULT_WALLET_ORIGIN,
       relayerUrl: read(import.meta.env.VITE_SEAMS_RELAYER_URL) || DEFAULT_RELAYER_URL,
       publishableKey,
-      ...(projectEnvironmentId ? { projectEnvironmentId } : {}),
+      projectEnvironmentId,
       chains: [{ network: 'near-testnet' }],
     }),
     /* The SDK derives the passkey RP ID (the Wallet host) and the Router A/B

@@ -1,26 +1,41 @@
 #!/usr/bin/env node
-// `pnpm site`: starts the demo site on this machine in one step.
+// Starts a demo app on this machine in one step:
+// - `pnpm site`: the Community Notes and spoken multisig site (`demo/frontend`, Vite on 5173).
+// - `pnpm pay`: the Speak to pay page (`demo/speak-to-pay`, Vite on 5280).
 //
-// 1. Installs the packages of demo/frontend when they are missing.
-// 2. Starts three servers, each only when its port is free (a server that runs already is used):
-//    - the API: the Pages Functions with wrangler, http://localhost:8788
-//    - the page: Vite with hot reload, http://localhost:5173 (sends /api/* to 8788). `--force`
-//      builds Vite's package cache again, so a new SDK version is always the one that runs.
-//    - HTTPS: Caddy, https://localhost:5443 → 5173. Passkeys in the Wallet iframe need HTTPS.
+// 1. Installs the packages of the app when they are missing, and makes .env.local from
+//    .env.example when it is missing (the public settings of the demo's Seams project).
+// 2. Starts each needed server when its port is free:
+//    - the API (`pnpm site` with `.dev.vars` only): wrangler on http://localhost:8788. Without
+//      `.dev.vars`, Vite sends `/api/*` to https://speak-to-sign.pages.dev.
+//    - the page: Vite with hot reload (`--force` rebuilds Vite's package cache).
+//    - HTTPS: Caddy, https://localhost:5443 → Vite. Passkeys in the Wallet iframe need HTTPS.
 // 3. Prints the address to open. Ctrl+C stops the servers that it started.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const demo = join(root, 'demo', 'frontend');
+const payMode = process.argv.includes('--pay');
+const appName = payMode ? 'demo/speak-to-pay' : 'demo/frontend';
+const label = payMode ? 'pay' : 'site';
+const thisCommand = payMode ? 'pnpm pay' : 'pnpm site';
+const otherCommand = payMode ? 'pnpm site' : 'pnpm pay';
+const pagePort = payMode ? 5280 : 5173;
+const otherPagePort = payMode ? 5173 : 5280;
+const demo = join(root, ...appName.split('/'));
 
 const COLORS = { api: 35, page: 36, https: 33 };
-const say = (text) => console.log(`\x1b[1m[site]\x1b[0m ${text}`);
+const say = (text) => console.log(`\x1b[1m[${label}]\x1b[0m ${text}`);
+
+function hasDevVars(file) {
+  if (!existsSync(file)) return false;
+  return /^[^#\s=]+=\S+/m.test(readFileSync(file, 'utf8'));
+}
 
 /** True when something listens on the port (IPv4 or IPv6 localhost). */
 function listening(port) {
@@ -77,29 +92,52 @@ process.on('SIGTERM', () => stop(0));
 
 // 1. Packages.
 if (!hasCommand('pnpm')) {
-  say('pnpm is missing. Run `corepack enable`, then `pnpm site` again.');
+  say(`pnpm is missing. Run \`corepack enable\`, then \`${thisCommand}\` again.`);
   process.exit(1);
 }
 if (!existsSync(join(demo, 'node_modules'))) {
-  say('Installing the packages of demo/frontend…');
+  say(`Installing the packages of ${appName}…`);
   const install = spawnSync('pnpm', ['install', '--frozen-lockfile'], { cwd: demo, stdio: 'inherit' });
   if (install.status !== 0) process.exit(install.status ?? 1);
 }
 
-// Keys. The site starts without them, with less to do.
+// Public Seams settings. Both .env.example files hold the public key and environment ID of the demo project.
 if (!existsSync(join(demo, '.env.local'))) {
-  say('No demo/frontend/.env.local: the page cannot reach the Seams Wallet. Copy .env.example and set VITE_SEAMS_PUBLISHABLE_KEY.');
+  copyFileSync(join(demo, '.env.example'), join(demo, '.env.local'));
+  say(`Made ${appName}/.env.local from .env.example: it has the public settings of the demo's Seams project.`);
 }
-if (!existsSync(join(demo, '.dev.vars'))) {
-  say('No demo/frontend/.dev.vars: the API runs without its keys (no X posts, no JEV). Copy .dev.vars.example to set them.');
+
+const explicitTarget = process.env.VITE_API_TARGET?.trim() ?? '';
+const localApi =
+  !payMode &&
+  (explicitTarget
+    ? explicitTarget.includes('localhost:8788') || explicitTarget.includes('127.0.0.1:8788')
+    : hasDevVars(join(demo, '.dev.vars')));
+
+if (!payMode && !localApi) {
+  say('No keys in demo/frontend/.dev.vars: Vite sends /api/* to https://speak-to-sign.pages.dev.');
 }
 
 // 2. Servers.
-const plan = [
-  { name: 'api', port: 8788, command: 'pnpm', args: ['exec', 'wrangler', 'pages', 'dev', 'public', '--port', '8788'] },
-  { name: 'page', port: 5173, command: 'pnpm', args: ['exec', 'vite', '--port', '5173', '--strictPort', '--force'] },
-];
 const https = hasCommand('caddy');
+if (https && (await listening(5443)) && !(await listening(pagePort))) {
+  const otherBusy = (await listening(otherPagePort)) || (payMode && (await listening(8443)));
+  if (otherBusy) {
+    say(`Port 5443 is in use by \`${otherCommand}\`. Stop it first (Ctrl+C), then run \`${thisCommand}\`.`);
+    process.exit(1);
+  }
+}
+
+const plan = [];
+if (localApi) {
+  plan.push({ name: 'api', port: 8788, command: 'pnpm', args: ['exec', 'wrangler', 'pages', 'dev', 'public', '--port', '8788'] });
+}
+plan.push({
+  name: 'page',
+  port: pagePort,
+  command: 'pnpm',
+  args: ['exec', 'vite', '--port', String(pagePort), '--strictPort', '--force'],
+});
 if (https) plan.push({ name: 'https', port: 5443, command: 'caddy', args: ['run', '--config', 'Caddyfile', '--adapter', 'caddyfile'] });
 
 for (const server of plan) {
@@ -116,7 +154,9 @@ plan.forEach((server, index) => {
 if (https) {
   say('Open \x1b[1mhttps://localhost:5443\x1b[0m (first time on this machine: run `caddy trust` once).');
 } else {
-  say('Open \x1b[1mhttp://localhost:5173\x1b[0m. To sign in with a passkey, install Caddy (`brew install caddy`, then `caddy trust`) and run `pnpm site` again.');
+  say(
+    `Open \x1b[1mhttp://localhost:${pagePort}\x1b[0m. To sign in with a passkey, install Caddy (\`brew install caddy\`, then \`caddy trust\`) and run \`${thisCommand}\` again.`,
+  );
 }
 if (children.length === 0) {
   say('All servers ran already. Nothing to stop.');

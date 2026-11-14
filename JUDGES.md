@@ -78,6 +78,15 @@ You need a browser with passkeys and a microphone.
    card shows the reason and the words that the verifier heard. Nothing is
    signed.
 
+To run the demo on your machine after `git clone`, run `pnpm site` (Community
+Notes) or `pnpm pay` (Speak to pay). You need Node 24, pnpm (`corepack
+enable`), and Caddy (`brew install caddy`, then `caddy trust` once for HTTPS
+passkeys at `https://localhost:5443`). You need no account and no secret key:
+`.env.example` holds the public Seams staging settings, and Vite proxies
+`/api/*` to `https://speak-to-sign.pages.dev` when `.dev.vars` is absent. See
+[`demo/frontend/README.md`](demo/frontend/README.md#run-it-locally) and
+[`demo/speak-to-pay/README.md`](demo/speak-to-pay/README.md#1-run-it-locally).
+
 | Item       | Link                                             |
 | ---------- | ------------------------------------------------ |
 | Demo video | [The demo video](https://x.com/lowerarchy/status/2121206041337835883), in the first post of the thread on X. It is one take of 1 min 50 s. |
@@ -163,6 +172,10 @@ by voice on `voice-multisig-2.seams-v1.testnet`, which runs the same build.
 Each transaction holds the signed verdict. The contract then executed the
 transfer of 0.1 NEAR. The transactions are in
 [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
+
+**For a judge:** you do not need the page `/multisig/`. Only the 2 signers
+of the multisig can propose or approve there. The live run above is the
+evidence that it works.
 
 **Not done:**
 
@@ -251,7 +264,8 @@ You need `git`, `curl`, `jq`, Rust from rustup (it installs the pinned
 toolchains), Node 24 with pnpm (`corepack enable`) for check 2, and Docker for
 check 3. Run each command from
 the folder that holds the clone. The `# See:` line above each command is the
-result of a run on 2026-11-12 (macOS, arm64).
+result of a run on 2026-11-12 (macOS, arm64). The test counts of checks 1 and
+2 are from a run on 2026-11-14.
 
 ```bash
 git clone https://github.com/seams-tech/speak-to-sign
@@ -262,9 +276,9 @@ git clone https://github.com/seams-tech/speak-to-sign
    ```bash
    # See: 9 "ok" lines, 39 passed. The golden vectors match the code.
    (cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep 'test result')
-   # See: 9 "ok" lines, 140 passed.
+   # See: 13 "ok" lines, 200 passed.
    (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep 'test result')
-   # See: 7 notes:: tests ok, the summary rules of docs/terminal-checks.md step 2.
+   # See: 8 notes:: tests ok, the summary rules of docs/terminal-checks.md step 2.
    (cd speak-to-sign/crates/voice-verifier && cargo test --test ops notes:: 2>&1 | grep '^test')
    # See: 47 passed.
    (cd speak-to-sign/demo/contracts/community-notes && cargo test -p community-notes 2>&1 | grep 'test result')
@@ -282,7 +296,7 @@ git clone https://github.com/seams-tech/speak-to-sign
    signature, the fields, the expiry, and the request and sentence digests.
 
    ```bash
-   # See: 6 lines that start with "✔ a", then "ℹ pass 56" and "ℹ fail 0".
+   # See: 6 lines that start with "✔ a", then "ℹ pass 58" and "ℹ fail 0".
    # One line: "a verdict for one community note does not pass for another note".
    (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')
    ```

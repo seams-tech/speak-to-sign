@@ -14,7 +14,7 @@ const TRANSFER_REFUSALS: Record<TransferRefusal, string> = {
   words: 'The words did not match the sentence.',
   audio_reused: 'The verifier already saw this audio.',
   audio_invalid: 'The verifier could not read the audio.',
-  template_missing: 'The verifier has no voice template for you. Do step 1 first.',
+  template_missing: 'The verifier has no voice template for you. Set up your voice first.',
   unsupported: 'The verifier does not support this request.',
   speaker_unavailable: 'The speaker check did not answer.',
   storage: 'The verifier storage failed.',
@@ -47,7 +47,7 @@ const ENROLLMENT_REFUSALS: Record<EnrollmentRefusal, string> = {
 
 const UNAVAILABLE: Record<SpeakToSignUnavailableReason, string> = {
   flow_not_available: 'This Wallet cannot start the flow.',
-  voiceid_unavailable: 'VoiceID is not on for this wallet. Do step 1 first.',
+  voiceid_unavailable: 'VoiceID is not on for this wallet. Set up your voice first.',
   verifier_unavailable: 'The Seams verify route did not answer.',
   not_submitted: 'The Wallet did not send the transaction. Nothing was paid.',
   submission_unknown: 'The transaction may have been sent. Check NearBlocks before you pay again.',

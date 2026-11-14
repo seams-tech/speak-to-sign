@@ -3,6 +3,8 @@
 // localStorage, because the Wallet does not say whether the verifier has a template.
 
 import { useEffect, useState } from 'react';
+import { onTestnetForVoice } from '../faucet/funds';
+import { NOT_ON_TESTNET } from './enrollment';
 import type { SetupOutcome, SignerSetup, SignerStatus } from './notesSigner';
 
 /**
@@ -56,6 +58,9 @@ export function useEnrolled(account: string | undefined): boolean {
  * One step and one set of recordings for the visitor: turn VoiceID back on if it was turned off,
  * then enroll. For a wallet without VoiceID, the enrollment turns it on, and the Wallet uses the
  * same three recordings for VoiceID and the verifier.
+ *
+ * An account that is not on testnet stops here, before the recordings: the verifier would refuse
+ * them, and each recording passes one time.
  */
 export async function setUpVoice(
   signer: SignerSetup,
@@ -64,6 +69,7 @@ export async function setUpVoice(
 ): Promise<SetupOutcome> {
   try {
     onPhase('voice');
+    if (!(await onTestnetForVoice(account))) return { kind: 'failed', message: NOT_ON_TESTNET };
     const voice = await signer.enableVoice();
     if (voice.kind !== 'done') return voice;
     onPhase('enroll');

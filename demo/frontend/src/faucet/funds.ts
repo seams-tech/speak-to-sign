@@ -8,6 +8,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { config } from '../config';
 import { isImplicitAccount } from '../guards';
 import { NOTE_GAS_NEED_YOCTO, readFreeBalance, readTokenBalance, USDC_NEED } from '../notes/nearAccount';
+import { verifierCanFind } from '../signer/enrollment';
 import { requestFaucet } from './client';
 
 export type FaucetState =
@@ -126,6 +127,30 @@ async function fill(account: string): Promise<boolean> {
     if (covers(await readFunds(account), 'bet')) return true;
   }
   return false;
+}
+
+/**
+ * True when the verifier can find `account` on testnet for a voice setup (signer/enrollment.ts).
+ * This waits for the answer of the faucet, not for the funds: after a drip, they land while the
+ * visitor records. An account with NEAR from another sender passes with no faucet.
+ */
+export async function onTestnetForVoice(account: string): Promise<boolean> {
+  let stop = () => {};
+  const sent = new Promise<void>((resolve) => {
+    const check = () => {
+      if (get(account).faucet.kind === 'sent') resolve();
+    };
+    listeners.add(check);
+    stop = () => listeners.delete(check);
+    check();
+  });
+  try {
+    // A run reads the balance first, so funds from another sender show here.
+    await Promise.race([ensureFunds(account), sent]);
+  } finally {
+    stop();
+  }
+  return verifierCanFind(get(account));
 }
 
 /** The visitor's "Try again" after a faucet failure. */

@@ -185,13 +185,16 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
    device. The same recordings enroll your voice with the verifier after you
    confirm one signed message (NEP-413) that names exactly them. The verifier
    stores this template in its TEE. The page remembers the enrollment in your
-   browser only, because the verifier has no status call.
+   browser only, because the verifier has no status call. The verifier reads
+   the key of the account on testnet, so the account must have NEAR first
+   (step 3). If it has none, and the faucet sent none, the page stops the
+   setup before the recordings and says so.
 3. **Testnet NEAR and USDC.** Each note or rating pays a little gas, and a bet
    on the note market pays USDC (1 USDC or more). After sign-in the page asks
    the demo's faucet (`/api/faucet`) by itself: in one transaction it sends
    0.2 NEAR and 2 USDC, once per account. A new wallet is an implicit account,
    and the faucet's NEAR puts it on testnet. Each network (IP address) gets the
-   faucet for 3 accounts. The faucet is a small contract on
+   faucet for 10 accounts in one day (UTC). The faucet is a small contract on
    `seams-faucet.testnet` (`../contracts/faucet/`). If the faucet refuses or is
    empty, the step links to the public NEAR and USDC (faucet.circle.com)
    faucets.

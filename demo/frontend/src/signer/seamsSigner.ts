@@ -8,6 +8,7 @@
 
 import type { SpeakToSignEnrollmentResult, SpeakToSignResult, SpeakToSignSentTransaction } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
+import { enrollRefusalText, withDetail } from './enrollment';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 import { isCancelError, isUserRejection } from './rejection';
 import { inVoiceCard } from './voiceCard';
@@ -171,7 +172,7 @@ async function enrollOnce(spoken: Spoken, walletId: string): Promise<SetupOutcom
     case 'enrolled':
       return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };
     case 'refused':
-      return { kind: 'failed', message: withDetail(ENROLL_REFUSALS[result.reason] ?? `The verifier refused (${result.reason}).`, result.detail) };
+      return { kind: 'failed', message: enrollRefusalText(result.reason, result.detail) };
     case 'cancelled':
       return { kind: 'cancelled', message: 'You closed a Wallet window. Nothing was enrolled.' };
     case 'unavailable':
@@ -231,29 +232,12 @@ const UNAVAILABLE: Record<string, string> = {
   submission_unknown: 'The transaction may have gone out. Check the explorer before you try again.',
 };
 
-const ENROLL_REFUSALS: Record<string, string> = {
-  quality: 'A recording was too short or too quiet.',
-  speaker: 'The three recordings do not sound like one speaker.',
-  audio_reused: 'A recording was used before.',
-  audio_invalid: 'The verifier could not read a recording.',
-  unsupported: 'The verifier does not support this request.',
-  speaker_unavailable: 'The speaker check service did not answer.',
-  storage: 'The verifier could not store the template.',
-  template_exists: 'Another enrollment changed the template at the same time.',
-  not_authorized: 'The signed message is not from a full-access key of this account.',
-  authorization_unavailable: 'The verifier could not read the access keys of this account.',
-};
-
 /** The text of an `unavailable` result. A route timeout (`verifier_timeout`) names OutLayer. */
 export function unavailableText(result: { reason: string; detail?: string }): string {
   if (result.reason === 'verifier_unavailable' && result.detail === 'verifier_timeout') {
     return 'OutLayer timed out: the verifier did not answer in time. Your recording is not the cause. Try again in a minute.';
   }
   return withDetail(UNAVAILABLE[result.reason] ?? `Not available (${result.reason}).`, result.detail);
-}
-
-function withDetail(text: string, detail: string | undefined): string {
-  return detail ? `${text} ${detail}` : text;
 }
 
 export function errorText(cause: unknown): string {

@@ -524,8 +524,8 @@ what each attacker can do with it.
 - **Voice clones.** A voice clone works only on the person's own device,
   with the Wallet unlocked: VoiceID runs in the Wallet's isolated iframe on
   that device, and the keys stay there. On another device, a clone alone
-  cannot unlock the Wallet (see [`judge-questions.md`](judge-questions.md),
-  question 2). An attacker needs that device in hand (or malware that
+  cannot unlock the Wallet (see
+  [`threat-model.md`](threat-model.md#1-a-remote-attacker-with-a-clone-of-the-owners-voice)). An attacker needs that device in hand (or malware that
   controls it) and an unlocked Wallet, and with those, the attacker can do
   much more harm than a voice clone. On that device, this build has no
   liveness check and no fresh words, and only a NEAR transfer above 10 NEAR

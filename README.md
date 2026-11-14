@@ -229,9 +229,9 @@ multisig, the trust boundaries and the path of the audio.
 **How it differs.** Many entries guard agent spending with caps, policies or
 an AI judge, and a large payment waits for a tap. Here the approval itself is
 the spoken exact call ([`JUDGES.md`, "How it differs"](JUDGES.md#how-it-differs)).
-[`docs/judge-questions.md`](docs/judge-questions.md) answers the doubts of a
-strict review: voice clones, a compromised page or agent, JEV, spend guards
-and who controls the verifier.
+[`JUDGES.md`, "Questions a judge asks"](JUDGES.md#questions-a-judge-asks)
+answers the doubts of a strict review: voice clones, a compromised page or
+agent, JEV, spend guards and who controls the verifier.
 
 ## Check it yourself
 
@@ -326,7 +326,7 @@ is not done.
 - **Sealed audio after the verifier.** The verifier sends the opened recording to two services: the speaker service (a Phala TDX VM, its key pinned from its attestation), and NEAR AI Whisper, sealed to the gateway whose TDX quote the verifier checked. While NEAR AI's Whisper is down, the `venice` build of the verifier sends the recording to Whisper on Venice AI over TLS. Venice has no TEE, so Venice can read that audio. Each verdict of that build says `+venice` in its `verifier` field.
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
 - **Seams Wallet.** Seams Wallet is an embedded wallet with threshold signing. It existed before the hackathon, and Speak-to-Sign uses it as a dependency. The device and the Seams co-signer sign each call jointly, so neither can sign alone. A native NEAR payment has no contract that checks the verdict: the Wallet and the co-signer guard it, and above 10 NEAR the verifier asks for a passkey too.
-- **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/judge-questions.md`](docs/judge-questions.md), question 2). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check and no fresh words, and only a NEAR transfer above 10 NEAR also needs a passkey.
+- **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/threat-model.md`](docs/threat-model.md#1-a-remote-attacker-with-a-clone-of-the-owners-voice)). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check and no fresh words, and only a NEAR transfer above 10 NEAR also needs a passkey.
 - **Synthetic voices (future work).** The verifier does not detect synthetic speech yet, so a text-to-speech voice can enroll and pass. It also does not refuse one voice on many accounts. The detection of synthetic speech is future work: an anti-spoofing model that we can add to the TEE, next to the speaker check.
 
 ## Baseline and hackathon work
@@ -341,10 +341,11 @@ Seams Wallet is a programmable embedded wallet that existed before the
 hackathon. It is the baseline, not hackathon work.
 
 - [`JUDGES.md`, "Scope of the hackathon work"](JUDGES.md#scope-of-the-hackathon-work)
-  says which part is which.
-- [`docs/hackathon-scope.md`](docs/hackathon-scope.md) gives the first commit
-  of each part, with the command that prints it, and the diff of the Wallet
-  in the window.
+  says which part is which, with the proof from the git history.
+- The diff of Seams Wallet in the window, up to the version that the demo
+  pins (0.71.0):
+  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...a761e385ce244dfa6854e10073a08ca04de802b5>.
+  The Speak-to-Sign paths in it are new files only.
 
 ## Repository
 

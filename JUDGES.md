@@ -222,16 +222,15 @@ nothing checks who spoke, or binds the words to the call.
 
 ## Questions a judge asks
 
-[`docs/judge-questions.md`](docs/judge-questions.md) answers each question
-with the evidence. In short:
-
 - **Voice can be cloned.** A clone alone gets nothing. The keys stay on the
   person's device, and voice unlock is bound to that device. A NEAR transfer
   above 10 NEAR also needs a passkey.
 - **A changed page or an injected agent** needs no clone, and it fails. The
   person must say the exact call aloud, and the verifier refuses other words.
 - **JEV approves nothing.** It classifies the spoken command and opens the
-  sheet. The person approves the exact call by voice.
+  sheet (`demo/frontend/functions/lib/jevCommand.ts`). The person approves
+  the exact call by voice, and the market contract checks the verdict of
+  each bet before it takes the USDC (`check_spoken_bet`).
 - **Spend guards** decide when a person must approve. Speak-to-Sign makes
   that approval show what the person meant.
 - **Who controls the verifier.** The verdict key names the OutLayer project,
@@ -246,6 +245,26 @@ with the evidence. In short:
 
   See [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict) and
   [spec 9.1](docs/voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote).
+- **What is new.** The parts exist one by one: smart speakers buy by voice
+  with a voice profile, phone banks use voice ID, and hardware wallets show
+  the transaction before a signature. The binding is new. The heard words
+  are bound to the digest of the exact call, an attested verifier checks the
+  voice and the words, and the Wallet and three contracts check the verdict.
+- **The hard part** is the design, not the size of the code:
+  - The words rule. A spoken summary can have one changed or dropped word,
+    but an added or dropped "not" is refused (spec 7.2).
+  - One chain of trust across two TEEs. The OutLayer verifier pins the key
+    of the Phala speaker service from its TDX attestation (spec 7.1).
+  - Sealed audio. The device seals each recording to the audio key of the
+    verifier, so the servers between them carry only ciphertext (spec 5.1).
+  - Replay protection. Each recording passes one time, also after a refusal
+    (spec 5).
+  - Builds that anyone can repeat. The verifier and the demo contracts are
+    reproducible builds, and SourceScan verified the contracts.
+- **Life after the hackathon.** Seams Wallet ships Speak-to-Sign in
+  `@seams/wallet` 0.71.0 on npm as an experimental, testnet-only feature.
+  The voice libraries are separate npm packages for any app:
+  `@seams/voice-capture`, `@seams/voice-verdict` and `@seams/voice-sign`.
 
 The checks of one verdict, in order:
 
@@ -401,8 +420,23 @@ The hackathon project is Speak-to-Sign. Seams Wallet is not a part of it.
   we added the Speak-to-Sign paths to `seams-wallet`: Wallet core checks the
   verdict and signs only the matching call. These paths are new files only.
 
-[`docs/hackathon-scope.md`](docs/hackathon-scope.md) gives the first commit
-of each part, and the diff of the Wallet in the window.
+The proof from the git history:
+
+- **This repository.** Each commit of the `dev` branch is in the window
+  (<https://github.com/seams-tech/speak-to-sign/commits/dev>). This command
+  prints the oldest commit, from a full clone with no `--depth`:
+
+  ```bash
+  # See: 2026-11-07 06:50 UTC 923e576 Add the spoken-intent crate …
+  TZ=UTC git -C speak-to-sign log --date=format-local:'%Y-%m-%d %H:%M' --format='%ad UTC %h %s' | sort | head -1 | cut -c1-100
+  ```
+- **The diff of Seams Wallet in the window.** The last commit before the
+  window is `620794d9` (2026-10-18). The diff from it to Wallet 0.71.0, the
+  version that the demo pins, is
+  <https://github.com/seams-tech/seams-wallet/compare/620794d9187c005e266292aea4d5b61a31d4a4d9...a761e385ce244dfa6854e10073a08ca04de802b5>.
+  Most of these 810 commits are general Wallet work. The Speak-to-Sign paths
+  (`packages/voiceid` and `packages/wallet/src/core/transactionFeatures`) are
+  new files only: 58 files, 8,660 added lines.
 
 ## Not covered
 
@@ -438,7 +472,9 @@ boundaries", spec section 11, and the READMEs of the contracts:
 - Each of the four demo contract accounts still has a full-access key. Its
   holder can deploy new code, or name another moderator of the notes
   contract.
-- Testnet only.
+- A mode with no screen, in which the page says the call aloud for the
+  person to repeat, is not built.
+- Testnet only. There is no mainnet date.
 
 ## Future improvements
 

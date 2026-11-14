@@ -19,16 +19,15 @@ before, and it is the baseline, not hackathon work. See
 
 ## Read in this order
 
-1. [`JUDGES.md`](JUDGES.md): the short guide, the checks and the claims.
-2. [`docs/judge-questions.md`](docs/judge-questions.md): the reasons behind
-   the design, as questions and answers.
-3. [`docs/threat-model.md`](docs/threat-model.md): each attacker, what stops
+1. [`JUDGES.md`](JUDGES.md): the short guide, the questions of a strict
+   review, the checks and the claims.
+2. [`docs/threat-model.md`](docs/threat-model.md): each attacker, what stops
    it and what is left.
-4. [`docs/trust-chain.md`](docs/trust-chain.md): each link from the
+3. [`docs/trust-chain.md`](docs/trust-chain.md): each link from the
    microphone to the signed call, and who checks it.
-5. [`docs/deployed-state.md`](docs/deployed-state.md): what is live on
+4. [`docs/deployed-state.md`](docs/deployed-state.md): what is live on
    testnet, and where it differs from the source.
-6. [`docs/README.md`](docs/README.md): the index of the other specs.
+5. [`docs/README.md`](docs/README.md): the index of the other specs.
 
 The folder tree is in [README.md, "Repository"](README.md#repository). The
 README next to each part gives its details: the verifier, each library, each
@@ -47,7 +46,7 @@ contract and the demo site.
 1. **Hands-free means no hands.** The person uses the app by voice. They do
    not type, and they do not click through an approval prompt. Reading the
    sentence on the screen is still hands-free.
-   ([judge-questions 1](docs/judge-questions.md#1-why-voice-is-a-passkey-not-enough))
+   ([JUDGES.md, use case 1](JUDGES.md#1-voice-agent-payments-and-hands-free-finance-the-spoken-sentence-is-the-approval))
 2. **A cloned voice alone signs nothing.** The key share of the Wallet stays on
    the device, voice unlock is bound to the device, and enrollment needs a
    full-access key of the account.
@@ -60,7 +59,7 @@ contract and the demo site.
 5. **JEV is a classifier, by design.** It turns a spoken command into the
    post, the side and the amount, and opens a sheet. It approves nothing; the
    person approves the exact call.
-   ([judge-questions 4](docs/judge-questions.md#4-where-is-the-agent-does-jev-approve-payments))
+   ([JUDGES.md, "Questions a judge asks"](JUDGES.md#questions-a-judge-asks))
 6. **It is the approval step that agent spend guards end with.** A spend guard
    decides when a person must approve; Speak-to-Sign makes that approval show
    what the person meant. ([JUDGES.md](JUDGES.md#how-it-differs))
@@ -97,7 +96,7 @@ contract and the demo site.
     ([deployed state](docs/deployed-state.md#the-verifier))
 11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.71.0 on npm, and
     the voice libraries are separate npm packages.
-    ([judge-questions 10](docs/judge-questions.md#10-can-it-live-after-the-hackathon))
+    ([JUDGES.md, "Questions a judge asks"](JUDGES.md#questions-a-judge-asks))
 12. **What is not done.** [JUDGES.md, "Not covered"](JUDGES.md#not-covered)
     is the short list. The full list of the trusted parties is in
     [trust chain, "Who is trusted, not verified"](docs/trust-chain.md#who-is-trusted-not-verified),

@@ -38,8 +38,9 @@ git clone https://github.com/seams-tech/speak-to-sign
 
 This repository is all that you need. Seams Wallet is a dependency from npm
 (`@seams/wallet`), and its repository is not part of these steps. Use a full
-clone (no `--depth`), because the dates in [`hackathon-scope.md`](hackathon-scope.md) come from
-the history.
+clone (no `--depth`), because the dates in
+[`JUDGES.md`, "Scope of the hackathon work"](../JUDGES.md#scope-of-the-hackathon-work)
+come from the history.
 
 ## 1. The sentence and the signed bytes
 

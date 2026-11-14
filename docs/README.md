@@ -8,7 +8,6 @@ link to it.
 
 | Document | Read it to learn |
 | --- | --- |
-| [`judge-questions.md`](judge-questions.md) | Why the design is as it is: why voice, voice clones, JEV, spend guards, what is new, and life after the hackathon. |
 | [`threat-model.md`](threat-model.md) | Each attacker, what stops it, the evidence, and what is left. |
 | [`trust-chain.md`](trust-chain.md) | Each link from the microphone to the signed call: what proves it, who checks it, and its state. It is the home of the trust limits. |
 
@@ -17,7 +16,6 @@ link to it.
 | Document | Read it to learn |
 | --- | --- |
 | [`voice-intents-spec.md`](voice-intents-spec.md) | The formats and the rules: requests, sentences, digests, sealed audio, enrollment, verification, the verdict, who checks it, and the multisig. |
-| [`spoken-summary.md`](spoken-summary.md) | The summary that a person says for a long text: who writes it, its rules, who checks it, how a page gets it early, and how Seams Wallet uses it. |
 | [`architecture.md`](architecture.md) | Diagrams of the parts and the flows. Section 8.1 records the decision about the verdict key and the TDX quote. Section 9 follows the audio. |
 
 ## What is live, and how to check it
@@ -26,7 +24,6 @@ link to it.
 | --- | --- |
 | [`deployed-state.md`](deployed-state.md) | What is live on testnet, where it differs from the source, and the command that checks each part. |
 | [`terminal-checks.md`](terminal-checks.md) | The checks that run in a terminal, with the whole output of each command. |
-| [`hackathon-scope.md`](hackathon-scope.md) | The first commit of each part, and the diff of the Wallet in the hackathon window. |
 
 ## Next to the code
 

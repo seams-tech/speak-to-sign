@@ -108,10 +108,8 @@ contract and the demo site.
   drifts.
 - When a live fact changes (a deploy, a new verifier version, a check that
   ships), update `docs/deployed-state.md` first.
-- Do not change a statement to an older verifier version. The docs describe
-  0.15.0. An older version stays only in the version history of
-  `crates/voice-verifier/README.md` and in a measurement that compares
-  versions.
+- Name only the current verifier version, 0.15.0. Do not keep a history of
+  older versions or of older deploys in a doc: git has that history.
 - Do not keep a plan or a work log in `docs/`. When the work ships, move its
   facts to the document or the README that owns them, and delete the plan.
 - Write in ASD-STE100 Simplified Technical English: short sentences, active

@@ -376,7 +376,7 @@ pinned WASM hash before it returns a verdict, and refuses with
 A recording is sealed on the owner's device and unsealed only inside the
 verifier's TEE. The servers between them carry ciphertext. After that, the
 verifier sends the opened recording to the two model services (see "Limits"
-below). Verifier 0.12.0 and later; the
+below). The
 rules are in section 5.1 of the specification.
 
 ```mermaid

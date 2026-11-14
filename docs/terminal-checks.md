@@ -119,7 +119,7 @@ test notes::verify_accepts_a_spoken_note_summary ... ok
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 87 filtered out; finished in 1.41s
 ```
 
-From verifier 0.13.0, the verifier also asks JEV whether the summary gives
+The verifier also asks JEV whether the summary gives
 the main point of the note, after the word check. Five of these tests check
 that rule: a note is not signed without the NEAR AI key, without the answer
 of JEV, or with a summary that misses the main point. The words are checked
@@ -292,8 +292,7 @@ Expected:
 
 The active version, which a caller gets when it sets no `version_key`, is
 `21af4130…`, verifier 0.15.0, since 2026-11-14 (`set_active_version` tx
-`859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`). Before, 0.14.1 (`1e7c6968…`) was
-active from 2026-11-12.
+`859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`).
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -c '{owner, active_version}'

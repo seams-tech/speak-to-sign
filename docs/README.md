@@ -29,7 +29,7 @@ link to it.
 
 | README | What it holds |
 | --- | --- |
-| [`crates/voice-verifier/README.md`](../crates/voice-verifier/README.md) | The verifier: each version with its hash and its transactions, the build, the inputs and each check. |
+| [`crates/voice-verifier/README.md`](../crates/voice-verifier/README.md) | The verifier: its live builds with their hashes and transactions, the build, the inputs and each check. |
 | `packages/*/README.md` | The three libraries for an application with no wallet. |
 | `demo/contracts/*/README.md` | Each contract and its deploys. |
 | [`demo/frontend/README.md`](../demo/frontend/README.md) | The demo site: how to run it, its settings and its deploy. |

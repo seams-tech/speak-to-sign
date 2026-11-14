@@ -235,8 +235,7 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 With `VITE_VOICE_AUDIO_KEY` (standard base64 of the verifier's 32-byte audio
 key), the multisig page seals each recording to the
 verifier before it leaves the browser (`src/voiceRoute.ts`). The verify route
-and OutLayer's coordinator then carry only ciphertext. This needs verifier
-0.12.0 or later and the OutLayer secret `PROTECTED_AUDIO_KEY`. To print the
+and OutLayer's coordinator then carry only ciphertext. This needs the OutLayer secret `PROTECTED_AUDIO_KEY`. To print the
 value, after a check of its signature against the verdict key that the
 contract pins:
 

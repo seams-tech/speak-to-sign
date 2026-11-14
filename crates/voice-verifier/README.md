@@ -14,87 +14,17 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.15.0 (`config::VERIFIER_VERSION`). The
-sections below say when a feature needs a later version than 0.3.1.
+The source on this branch is version 0.15.0 (`config::VERIFIER_VERSION`). Its
+two builds are on OutLayer:
 
-On 2026-11-12 the owner removed every version from the OutLayer project,
-except these two: 0.14.1 and 0.14.1+venice. On 2026-11-14 the owner added
-0.15.0 (active) and 0.15.0+venice. So a
-row of another version below is history: where it says "Not active" or
-"Added", that version is no longer on OutLayer, and a call with its key
-fails. The file of each version is still on FastFS. The removals are in
-"Versions removed from OutLayer" below.
-
-| Version | OutLayer version key (WASM SHA-256)                                | State                                                                                                                                                 |
-| ------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.3.0   | `09f4ce1b…` (330,322 bytes, commit `3dab63d`)                      | Replaced. Verdict v2, the policy step, the `AccountTransfer` request, NEP-413 enrollment and `template:v3:<owner>`. It removed the vault.             |
-| 0.3.1   | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | Replaced. 334,704 bytes, commit `446882b`. It adds the forgiving word check for a send sentence. |
-| 0.4.0   | `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | Built and added to the OutLayer project on 2026-11-09 (FastFS tx `GPzHTAuC2VADuGR46ks7Mij8oPcZ4xVW9h7VuEkyqfuh`, `add_version` tx `9k7qWvG1JcCVyfzRjWjbWsjdK5MjXwQQ7vh71rT8me7y`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `community_note` and `note_rating`. Transfers are unchanged. |
-| 0.5.1   | `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258` | Replaced on 2026-11-09 at 17:04 UTC (365,426 bytes, `build.sh --docker`, FastFS tx `A4zDd9E6sm1ZjSj3uVukTcTnoYZG83ntv1DqnS7A9w8R`, `add_version` tx `BGZ3QRPGaUzJ4x3Z7wcNq3yJ3xMYnAwS3rnPQfY69MTb`). It writes the used-audio mark during the requests (0.16–0.20 s off each `verify`) and times the responses between the storage calls. It includes the merge approvals of 0.5.0. The Mac build of the same source was `aae02d5e…`. |
-| 0.5.2   | `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5` | Active from 2026-11-09 at 17:04 UTC to 2026-11-11 (373,865 bytes, `build.sh --docker`, FastFS tx `7zwppPbVm5AMmFQ18m9dWCYax4mA4zTrHupVnuhQpFnD`, `add_version` tx `A81vUiuvEdsCyFKrFwzZdQe3gVfFTXuse5ue4Qi5g7L2`). No change in behaviour: the code is reorganised. The signed output is the same as 0.5.1, except the version. |
-| 0.6.0   | `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | Added to the OutLayer project on 2026-11-10 (396,771 bytes, `build.sh --docker`, FastFS tx `5VUpXWs653GegtePhTHYsc4TRUgzEXP5cKC2ZUmg4V9M`, `add_version` tx `EZjs5T1yY859sb2moQkjHYeFyyh8qLrXycV11YdKyqb4`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds `multisig_propose` and `multisig_confirm` for the voice multisig demo. The other kinds are unchanged, except the version in the verdict. |
-| 0.6.1   | `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | Added to the OutLayer project on 2026-11-10 (397,623 bytes, `build.sh --docker`, FastFS tx `7sWJVYsV1Fkdmq4sW1GDZRE47w89L64NJwfL38AoGh5Q`, `add_version` tx `81nFKGTvg2DBgcTW6YN2YfUF57qDS1bBcXsEK5qJCE51`). **Not active**: the voice multisig route of the demo selected it by `version_key`, until that route was removed on 2026-11-12. In a multisig proposal of a transfer, the send part gets the send-sentence forgiveness: "point" for "dot", "dash" left out or said as "hyphen", and the receiver matched by sound. A confirmation keeps the exact words. The other kinds are unchanged, except the version in the verdict. |
-| 0.7.0   | never built for OutLayer | It adds `multisig_hide_note` for the voice multisig page ("hide note N"); 0.8.0 and later have it. The other kinds are unchanged, except the version in the verdict. |
-| 0.8.0   | `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3` | Added to the OutLayer project on 2026-11-10 (421,745 bytes, `build.sh --docker`, FastFS tx `C7ANV9NzfpZYoJaJxc5kzZbCttg14RPhYC8syqv8pq85`, `add_version` tx `F8orYFRTJybc26s6Sa1L329HbLkRfDfqhoXDKAb7Roq7`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds the request kind `market_bet` (a spoken bet of the note market: "bet zero point five usdc yes on market nine"). The other kinds are unchanged, except the version in the verdict. |
-| 0.9.0   | `6725917bd01355f08bb402271dff6265c0d03650c1b1acf8d0992b2537d65ef1` | Added to the OutLayer project on 2026-11-10 (432,675 bytes, `build.sh --docker` from commit `072c616`, FastFS tx `8uY35daAbCWwiJ4ZWXDzFuPpTPybP21YPTPo6TEgiL4y`, `add_version` tx `4MziPaaCvU33cywvA8bvTc2NStJADcLWJYXsq7CCVu9h`). **Not active**: a call reaches it only if the caller sets `version_key`. It adds the general request kinds `transaction` (the receiver and the SHA-256 of the action bytes) and `signed_message` (the SHA-256 of the NEP-413 bytes), each with a spoken summary. The other kinds are unchanged, except the version in the verdict. Wallet 0.66.0 needs it for `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage`. |
-| 0.8.0 (standalone preview) | `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | A build of the branch `claude/standalone-library-3e4d17` at commit `21ad633`, before it took a new version number. It writes `0.8.0` in a verdict. It has the kinds of 0.8.0 and the general kinds of 0.9.0. It also adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`, and the variant `local-speaker`. Added to the OutLayer project on 2026-11-11 (458,081 bytes, `build.sh --docker`, commit `21ad633`, FastFS tx `GPDF3s9pNwA8rxu7pbRjjvtFbBEW7hc1Sz7H2Xf1Ryg`, `add_version` tx `BSFZLLgM5PQ4v5bS8MJC7VKe2fR7MZ4YEDVS4kYaEYwN`). **Not active**: a call reaches it only with `version_key`. |
-| 0.8.0 (standalone preview, `local-speaker`) | `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | The same source with ReDimNet inside the worker (8,266,175 bytes, `build.sh --local-speaker --docker`, commit `21ad633`). Added on 2026-11-11 (`add_version` tx `5R5SR8Fs3Rn8HXLUYuSGdy3BK6PnCCYCciNz5ScJ29KH`; the FastFS upload needed three tries, the first chunk of the third is `ENETpnXinnmVA8t3W8afbg4XDsi4AshNvaxsQpkkKzFm`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
-| 0.10.0  | `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb` | The source on this branch at commit `d3e02bc` (460,283 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `AVaXXBDYpERq5bNef7fAM7CF4HaZNeXuZpJiTr4jGEhw`, `add_version` tx `S4RvnDPMhkxkCoxHG8Rx9KtUyfSAstG4kmjj2BhaU4t`). **Not active.** It adds, for use with no wallet and no chain: the application owner (`app:<id>`), the request kind `confirmation`, the operations `select` and `transcribe`. For every summary kind it reads "$40" as "forty dollars", and one changed word is never a number word. |
-| 0.10.0 `local-speaker` | `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | The same source with ReDimNet inside the worker (`build.sh --local-speaker --docker`). Added on 2026-11-11 (first FastFS chunk tx `GRbHuHVDmf6Ya9YH8CRiexxCLxU1hCovjqEaDsrg7hx3`, `add_version` tx `6hQKZyNrVTbCY5V5GKYuFCh4SfZKWfdL3nwVqa3vjscq`). **Not active.** A call needs `version_key` and the header `X-Compute-Limit`. |
-| 0.11.0  | `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` | The source on this branch at commit `be35842` (507,649 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `E5DDUHW7UL9rehTyFQ4TQzsVphMi5rdeqeGxgvBNMQAa`, `add_version` tx `CkUMmoDiE7QmXZDzkzQgi8xB83iczem4T9s11kd9d9wL`). Was active from 2026-11-11 (`set_active_version` tx `69Y2qLzLeQ2WTN6UYAkA5iUqa4b1AtLCYrXPtaEoWUiy`) until 0.12.0 became active the same day. It adds the operation `detect`. |
-| 0.11.0 `local-speaker` | `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | The same source with ReDimNet inside the worker. Added on 2026-11-11 (first FastFS chunk tx `3sNi1vRtfdESuxJNpVSodvgwUueM9hqKibWWidpFgL6x`, `add_version` tx `2gdj8j7xAizq8daGu1WfnwhA6o87UQV8wRuBAK8caLxn`). **Not active.** |
-| 0.10.0 (sealed-audio preview) | `e322edae8c1497a4ecbc6f51ee67c9b25ef08cd48bcf2cd64fa7f5f6fba3af09` | A build of sealed audio on the older `dev` commit `1a8721b`, before the port to this branch (473,612 bytes, `build.sh --docker`, FastFS tx `9nYihYjxBS8F7i5qm1X1niTUvFu7bDQpc7WysaHxHWht`, `add_version` tx `2R6Y82H1dEmmFDiQqcYMntYQwnzbh8kn3sfLBxttJMom`). **Not active.** It writes `0.10.0` in a verdict and does not have `select`, `transcribe` or `detect`. It has `audio_key` and sealed audio for `verify` and `enroll`, with AES-256-GCM in place of ChaCha20-Poly1305, so a clip sealed for this source does not open there. Do not use it. |
-| 0.12.0  | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` | The source on this branch at commit `a816798` (536,004 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-11 (FastFS tx `3ZTwf8cWSAo4m8wNuvabsNynVwW3bcUZ4gfGB4n2MiuZ`, `add_version` tx `ByxnDTxpbs7pyDa4j6WahS7dpJYwGM4sLYSvvUx1cbai`). **Active** from 2026-11-11 (`set_active_version` tx `HBL4Uk7z4gwVDRJ8CncSsSe2YrXx85moYc7kvfYzHERc`) to 2026-11-12. **Removed** from the project on 2026-11-12 (`remove_version` tx `2XGQZT5GGJkoVbiCe34VaTZiPkaVDvFxHTLMnhscJVc4`). Before the switch, a test with plain audio gave the expected result for `enroll`, `verify` (the word check and the speaker check too), `select`, `transcribe` and `detect`, each with its TDX quote bound to this WASM. The `local-speaker` variant is not built. Adds sealed audio: `verify`, `enroll`, `select`, `transcribe` and `detect` take each recording in `audio_sealed_b64` (HPKE to the audio key, the OutLayer secret `PROTECTED_AUDIO_KEY`) in place of `audio_wav_b64`, and the new operation `audio_key` returns the audio public key with a signature of the verdict key. Plain audio works as before. See "Sealed audio" below. |
-| 0.13.0  | `1b7771544f3bcf5b3ba9e9bf3ac611f6abad21e7538f67b2666fd8aafc8cf930` | The source on this branch at commit `a4d6ce7` (548,960 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `7MFXux9gJQHPHBKJtGacMKgpa3AUfgFhyNNQrvHdLGBz`, `add_version` tx `5DVbadJ1CSwyxkdi5oRGjLvRtySvQQoD3umnkXzo9zB4`). **Removed** from the project on 2026-11-12 (`remove_version` tx `3AVPXQTpVkh7cwCvUyDRrN1fdrQ2QyJtSPec53mrWMZB`). The Seams staging server pinned it from Wallet 0.69.0 until 0.14.1 became active. A `community_note` request takes the note text (`note_text`, 1 to 280 characters) in place of `note_sha256_hex`, and the verifier calculates the SHA-256 itself. JEV checks that the summary gives the main point of the note; a fit below 600 thousandths refuses with `summary_mismatch`, and no answer refuses with `summary_check_unavailable`. A Wallet that sends `note_sha256_hex` gets `unsupported`, so the Wallet and this build go live together. See "Note summary check" below. |
-| 0.14.0 (first build, with `dcap-qvl`) | `2f8e75a3590e90518c344f4683a8912fd0876ab3f000981a002f1741b607ffb5` | The source at commit `6f0d43f` (1,038,333 bytes, `build.sh --docker` before the `wasm-opt` step). Added to the OutLayer project on 2026-11-12 (FastFS tx `12q7t1fcC2biqRRuKveo7LUWLREx3MfD2SSGN6tydxja`, `add_version` tx `CRbDmxzJWqLXCvwrfKGKdUWQ1UWJ6xm8FmKRYcuuojHa`). **Not active**, and no caller selects it. It checks NEAR AI's attestation and sends each recording to Whisper only sealed to the checked gateway (see "NEAR AI attestation"). In a test on 2026-11-12 its first call ran the check inside OutLayer (424.8 million instructions), and two later calls read the stored result (`tee_cached` 1, `tee` 63 and 189 ms). NEAR AI Whisper gave no reply during the test, so no call came to a verdict. Its load time is about 1.1 s above 0.13.0 (see "Size and load time"). **Removed from the OutLayer project on 2026-11-12** (`remove_version` tx `Akuxz76BL6H9CRZWEsR525dfYv3Um2SoFTcPtYUBGV9E`), so a call with this key fails. |
-| 0.14.0 (before the speech-to-text adapter) | Not on OutLayer | The source at commit `ab8f6bc` (494,721 bytes, sha256 `d265bf0588700be099c74e7c905f9b542004e95aad28fce8a2db71b4398a3416`, `build.sh --docker`). The same check as the first build, with the worker's own TDX quote check in place of `dcap-qvl`. It writes `0.14.0` in a verdict, as the first build does, so that text does not name one build. |
-| 0.14.0 | `b9a315b7a5f7c730437b432d860e6e5b8d8216a9e753eb66bd74d4c788849293` | The source at commit `454c76e`, with the speech-to-text adapter (495,707 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `EgHoTjLDS1NHMU5oYet9cGbW7Z8kKDd1qkmEGMEuTncK`, `add_version` tx `7JB9gA17Xn8LWkNB2iGyvuTnBhP6tP3Smi3UbqGUF29q`). **Removed** from the project on 2026-11-12 (`remove_version` tx `GCQXS8oMUiastKAv6u4cyrMBiK1w9huVpTvRtJZgGku9`), because 0.14.1 is the same worker with the `venice` fix. Before that, three `verify` calls got the checked gateway from the worker storage (`tee` 49 to 230 ms) and then no reply of NEAR AI Whisper, which was down. It writes `0.14.0`, as two earlier builds do. Use 0.14.1. |
-| 0.14.0+venice | `59ee371cac571d8ef611baf0d1f6f9a9a9b568f87f56f5d2e2a2a38e3b07fa66` | The `venice` build of commit `454c76e` (400,206 bytes, `build.sh --venice --docker`). Added on 2026-11-12 (FastFS tx `4uZrJVGTfht1kKHRrQxx45De3HnAeW4cXW8YGFYhsDBm`, `add_version` tx `Bnapmuj5E4kXxfpezSxXBVoaqK4b68gQ94mP5Ga8Rf2c`). **Removed from the OutLayer project on 2026-11-12** (`remove_version` tx `8qEVS3jc68r8WAaVGGoP7NpWp2etexeiwsw8GBMTBxX`), so a call with this key fails. The reason: it sends the file part as `audio/wav`, and Venice answers 422, so each call with words refuses with `transcriber_unavailable` (`transcriber: status_422`). |
-| 0.14.1 | `1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c` | The default build of commit `62cd438` (495,774 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `DSd4t1o5qmhVsexzQcGnTtKbKLs3NS7jAU2UfSK8xKzt`, `add_version` tx `AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9`). Active from 2026-11-12 (`set_active_version` tx `GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC`) to 2026-11-14. The Seams staging server and the demo route called it in that time. No caller uses it now. On that day, 6 of 6 `verify` calls on it gave `accept`, each with the recording sealed to the checked NEAR AI gateway (`tee_cached` 1); in turn with 0.13.0, its `time_ms` median was 3,119 against 3,523. It answers `audio_key` as `0.14.1`. The same behaviour as 0.14.0 `b9a315b7…`; the version number says that it is a build with the Venice fix. |
-| 0.14.1+venice | `344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8` | The `venice` build of commit `62cd438` (400,267 bytes, `build.sh --venice --docker`). Added on 2026-11-12 (FastFS tx `3GoiG3msinq45Hue3P2eBarsJ8KyGqcQqPaW2v8DzaR6`, `add_version` tx `7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip`). **Not active**: a call reaches it only with `version_key`. It sends the file part as `audio/x-wav`, which Venice accepts. See "Speech-to-text service". |
-| 0.15.0 | `21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9` | The default build of commit `a4c7b48` (495,848 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-14 (FastFS tx `ADpoV5KwXN5PALj8hG3aeNGsv399P5YFrEy6svmS92kP`, `add_version` tx `DP5ieNgwfqaZU2uPfDBZt6oRMhBSwb3mXhfRVaYeDSMw`). **Active** since 2026-11-14 (`set_active_version` tx `859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`): a call with no `version_key` runs it. The Seams staging server and the demo route call it. The one change from 0.14.1: a verdict has the heard words only in a refusal with the reason `words` (see "Signed verdict"). On 2026-11-14, one `verify` call on it gave an `accept` with `"heard":null` (speaker score 822), and one gave a `words` refusal with `"heard":"approve the weekly budget"`. It answers `audio_key` as `0.15.0`. |
+| Version | OutLayer version key (WASM SHA-256) | State |
+| ------- | ----------------------------------- | ----- |
+| 0.15.0 | `21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9` | The default build of commit `a4c7b48` (495,848 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-14 (FastFS tx `ADpoV5KwXN5PALj8hG3aeNGsv399P5YFrEy6svmS92kP`, `add_version` tx `DP5ieNgwfqaZU2uPfDBZt6oRMhBSwb3mXhfRVaYeDSMw`). **Active** since 2026-11-14 (`set_active_version` tx `859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`): a call with no `version_key` runs it. The Seams staging server and the demo route call it. A verdict has the heard words only in a refusal with the reason `words` (see "Signed verdict"). On 2026-11-14, one `verify` call on it gave an `accept` with `"heard":null` (speaker score 822), and one gave a `words` refusal with `"heard":"approve the weekly budget"`. It answers `audio_key` as `0.15.0`. |
 | 0.15.0+venice | `5f475dd26794bc09b1f1e157276a19800a4ed3f8df1184c004c49de54e3ffcdf` | The `venice` build of commit `a4c7b48` (400,341 bytes, `build.sh --venice --docker`). Added on 2026-11-14 (FastFS tx `GFMLppbgBrJGPXtEpD4veLZBHxFSwjaF9zFeBQL2WrxT`, `add_version` tx `HLbQGpe93sGmZaSSrKoezSFTD2pqYCZq8BB1ZRTYScvG`). **Not active**: a call reaches it only with `version_key`. On 2026-11-14, one `verify` call on it gave an `accept` with `"heard":null`, and one gave a `words` refusal with the heard words. See "Speech-to-text service". |
 
-Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
-`b0f53da4…bff3` and the two "standalone preview" builds. So that text does
-not name one build. Use the version key. On 2026-11-11 the active version of
-the project was still 0.5.2 (`96b79b51…d7e5`), and all three builds were in
-the version list (views `get_project` and `list_versions` of
-`outlayer.testnet`).
-
-The transaction hashes of the FastFS upload and of `add_version` for 0.4.0 are
-in the repository README.
-
-### Versions removed from OutLayer
-
-Each is a `remove_version` call of `seams-v1.testnet` on `outlayer.testnet`,
-on 2026-11-12. Three more removals of that day are in the rows of 0.14.0
-above.
-
-| Version key | Transaction |
-| --- | --- |
-| `ecc1c2c36a01e07e2431e8027496332c3ac8485b5226f71ae6edd57374387690` | `CvdXswbV4GxWVso1Zbp856SM7MvcnbMNAtkRBSn6LBwV` |
-| `01a96686eb2231d4099f799d3cd9d23817198b324a1f9ef0cba315b154ebaf4b` | `AeG5apW7iy7r8g2VLwRXv6UHNieekxpeT4wqVnrpBvnk` |
-| `0f3a6e1bb020a8d871032e88899f3ecf360c441adbe7595842ea96fc0cb579b1` | `GoGBFxxe5XUdARGUvWNLxC7W1p9dGESZCgWUg2BUXq8q` |
-| `1e79327b0afa2a0f026aee519bd0d1801272e21cb21205d31788e4d1452231f0` | `ehJ474W4mveFLAQPRWjbPddfohCfJRwYcJciRvKF6rm` |
-| `b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0` | `8Fh8qAgxxm3Mv4UbR9Aa7wF3MY7FzfmsshLZHPGnmwft` |
-| `09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294` | `fx9nHsyEj5EBiiJsrT7S82nzPwy9CJKZhAg2gNFjGuh` |
-| `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` | `DVrEmKPZYYfLiUfWqYza1MU4Y1ppaap3cxWPSQWS4mGt` |
-| `8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef` | `43bo2qfj5D9sAa9HAhSazLoZ6M8RFxbHcRGtGPL82v4R` |
-| `d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c` | `DrfrUVF9yDgz69QmCu7qVfFvRYB1u4daeNWk4TH5CJcc` |
-| `cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258` | `Ec9vQCbEUU9R1BvEo3445Mp7RP1FGLuNffhtTN7RGnD1` |
-| `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5` | `7Cz6EU3JUyrGhnSXvdTfZZ1xKbotUbYTpa2dbRSfH4LZ` |
-| `566e8cbc874b92a805d84360e6bab5c4f1c5b4eb276b518a207142be06fefbc9` | `HMGcJwPwzwdt4KFB3z6NJGLgP1ZhWuQ1MgtUoh1p2DGw` |
-| `f56ba0e8942a5fcd1b2ed500bf9013953bccefb22b375c2830c2b0a01508e7cb` | `57ApreDGvT2eNSa1TTibgDKi2GrcNBKUWkyLqYbEkGAb` |
-| `b0f53da49a3f7ece81a99879d6c1c9af30343d0c5ae9c0c46e6a850d2f64bff3` | `4QE5CsQ8EPQbrNkJBrc3EvYrxuS3z86ApPSuewqcHWkc` |
-| `599755ada81762764b0d387a632bc12f5402f11d80e050b510e111995bdedf2f` | `6cgoAhzcwapPAsm2BFSwXgGRAb6r3VSoy3arsAgjDBwY` |
-| `ca07893319b7d3f7861630acd081d169e9ed6b09027c9f20e7a592260ada6306` | `D5C369RFHPQ4J2mAdRvygRE2arVSqiXTa3R9JSnTH2QY` |
-| `6725917bd01355f08bb402271dff6265c0d03650c1b1acf8d0992b2537d65ef1` | `4ZtHGEF1APPZandcgc4TNoa2K4XMPRYppDEbcC12QejU` |
-| `9b0609fa1e46e5d8b6b00f96b10b375c248e8cf200ccea8e1adbbc8ea52d44eb` | `6iwvjJ9pFPB6eCzBXci8j43dDrXPivELYUowtgEsVgqL` |
-| `92c5416de98e944ca669ed10cd028ea9ab5e10b1baa87460c45eddeb6c1dc88f` | `7vudJNtaMt39MU9Ym7LB4cAzdfdXb3ov52axs427LnA7` |
-| `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` | `CvJE8onw3jNYvZmpnYwQY1FJpjS58pDEYtZzYSgCWL2V` |
-| `febb4cb84b09285a541fbbf7d74176504fc7be24f09055f86c4cf3f68349ad00` | `CuXTVDf8uGY74qzyXnZNcDh5mXhXjLHPY8wH4kWjumCP` |
-| `e322edae8c1497a4ecbc6f51ee67c9b25ef08cd48bcf2cd64fa7f5f6fba3af09` | `Hy8vPoAS7S2CLALpLqyXCbABLBqPfTAnmnFJCyuCkUd4` |
+The callers use only these two builds. The OutLayer project also holds the
+two builds of 0.14.1 (`1e7c6968…8a5c` and `344b8b47…d3c8`), which no caller
+uses.
 
 ## Build and test
 
@@ -179,10 +109,6 @@ Checks on 2026-11-10, each from a fresh clone:
 | `build.sh --docker` from the same two clones                                              | `x86_64-unknown-linux-gnu` | `cdb46fea…` |
 | `build.sh` with a fresh rustup and rust-src, another `CARGO_HOME`, a folder with a space  | `x86_64-unknown-linux-gnu` | `cdb46fea…` |
 
-The versions up to 0.5.1 in the Versions table were built on a Mac before
-these changes. Their version keys depend on the folders of that Mac, so
-another machine cannot build them again.
-
 ## Size and load time
 
 OutLayer loads the compiled WASM on each call: it reads the file, checks its
@@ -191,41 +117,31 @@ memory (`worker/src/compiled_cache.rs` of OutLayer). So the size of the WASM
 is time on each call.
 
 Measured on OutLayer testnet on 2026-11-12, with an input that does no work
-(`{"op":"none"}`), five calls for each version, in turn:
+(`{"op":"none"}`) and five builds from 373,865 to 1,038,333 bytes: the
+median `time_ms` went from 1,169 to 2,723. That is about 2.3 ms for each KB.
+The value changes with the day (about 1 ms for each KB on 2026-11-11), so
+compare two builds only in the same run.
 
-| Version | WASM bytes | `time_ms`, median |
-| ------- | ---------- | ----------------- |
-| 0.5.2   | 373,865    | 1,169             |
-| 0.10.0  | 460,283    | 1,440             |
-| 0.12.0  | 536,004    | 1,622             |
-| 0.13.0  | 548,960    | 1,641             |
-| 0.14.0 with dcap-qvl (`2f8e75a3…`) | 1,038,333 | 2,723 |
-
-That is about 2.3 ms for each KB. The value changes with the day (about
-1 ms for each KB on 2026-11-11), so compare two versions only in the same
-run. What made the worker smaller, for the source with the NEAR AI check
-(`./build.sh --docker`):
+So the worker is small (495,848 bytes, `./build.sh --docker`). These steps
+made it small, for the source with the NEAR AI check:
 
 | Step                                                         | WASM bytes |
 | ------------------------------------------------------------ | ---------- |
-| The first build of 0.14.0, with dcap-qvl                     | 1,038,333  |
+| A first build with dcap-qvl                                  | 1,038,333  |
 | `wasm-opt -Oz` in `build.sh`                                 | 851,975    |
 | The worker's own TDX quote check in place of dcap-qvl        | 560,034    |
 | The inputs and two model replies read by hand, without serde | 494,339    |
-
-The time of the last three builds on OutLayer is not measured.
 
 ## Services
 
 - Speaker: ReDimNet B1 in a Phala dstack CVM (`config::SPEAKER_HOST`). Each
   embedding is signed; the worker checks the signature, the nonce, the audio
   digest, the model digest and the pinned key `config::SPEAKER_PINNED_KEY_HEX`.
-- Words: Whisper large-v3 on NEAR AI Cloud. Secret `NEAR_AI_API_KEY`. In
-  0.14.0 and later, the whole request (with the key) goes sealed with
+- Words: Whisper large-v3 on NEAR AI Cloud. Secret `NEAR_AI_API_KEY`. The whole request (with the key) goes sealed with
   Oblivious HTTP to the NEAR AI gateway that the worker checked, and the
   worker reads the attestation report of NEAR AI and Intel's collateral when
   its stored check is older than 6 hours. See "NEAR AI attestation".
-- Note summary (0.13.0 and later): JEV (`typesafe/jev-1.13`, Typesafe System
+- Note summary: JEV (`typesafe/jev-1.13`, Typesafe System
   One) on NEAR AI Cloud (`config::NEAR_AI_SYSTEMONE_URL`), with the same
   secret. Only a `community_note` request calls it.
 - NEAR RPC: `https://test.rpc.fastnear.com` (`config::NEAR_RPC_URL`), for the
@@ -244,7 +160,7 @@ payment key).
 | Build | `./build.sh` | `./build.sh --local-speaker` |
 | Speaker model | In the speaker service (Phala), signed embeddings | Inside the worker, in `tract` (`src/local_model.rs`) |
 | Manifest | `manifest/outlayer.json` | `manifest/outlayer-local-speaker.json` |
-| Hosts | Phala, NEAR AI, NEAR RPC, Intel PCS (0.14.0 and later) | FastFS (first run only), NEAR AI, NEAR RPC, Intel PCS (0.14.0 and later) |
+| Hosts | Phala, NEAR AI, NEAR RPC, Intel PCS | FastFS (first run only), NEAR AI, NEAR RPC, Intel PCS |
 | WASM (macOS arm64 build) | about 0.45 MB | about 8.3 MB |
 | Trust for the speaker | The Phala app and its pinned key | Only the worker and the pinned model digest |
 | Cost | A second service to operate and pay | More worker time for each call |
@@ -317,7 +233,7 @@ more expensive for each call. Where its time goes:
   (`model_fetch`, with `model_cached` 1).
 - 0.3 to 0.7 s is the model run for one clip (`redimnet`).
 
-A later run (0.11.0, 2026-11-11) showed that the read of the model from
+A later run (2026-11-11) showed that the read of the model from
 the worker storage does not have a stable time. Four enrollments in a row
 had `model_fetch` of 1.8 s, 8.0 s, 69.6 s and 4.6 s, each with
 `model_cached` 1 and about 18.9 billion instructions. In the same hour,
@@ -448,7 +364,7 @@ goes to NEAR AI before the gateway is checked. `post_add` did not yet run
 on OutLayer.
 
 `verify` reads the template, then writes the used-audio mark with one atomic
-set-if-absent, while the requests are in flight (0.5.1 and later). So the
+set-if-absent, while the requests are in flight. So the
 mark is off the critical path, and a reused recording is refused by the same
 write. A refusal or a service outage after the mark also uses up the
 recording; the Wallet records new audio for each try. An owner without a
@@ -466,9 +382,9 @@ Stage times (`ms`, not signed), in ms:
 | `parallel`   | yes      | yes      | start of the requests to the last response (send + storage + wait) |
 | `speaker`    | yes      | yes      | speaker service response (`enroll`: the slowest of three)          |
 | `transcribe` | yes      |          | NEAR AI response (at most the template read late)                  |
-| `tee`        | yes      |          | 0.14.0 and later: get the checked NEAR AI gateway, while the speaker request is in flight |
+| `tee`        | yes      |          | Get the checked NEAR AI gateway, while the speaker request is in flight |
 | `tee_cached` | yes      |          | 1: the stored check; 0: a new check; 2: the stored check, because the new one could not reach a service |
-| `summary`    | yes      |          | JEV response, a community note only (0.13.0 and later)             |
+| `summary`    | yes      |          | JEV response, a community note only             |
 | `redimnet`   | yes      |          | the service's own model time                                       |
 | `rpc`        |          | yes      | NEAR RPC access-key view response                                  |
 | `mark`       | yes      |          | used-audio write, inside `storage`                                 |
@@ -479,27 +395,25 @@ Stage times (`ms`, not signed), in ms:
 
 ## Inputs
 
-- `audio_key` (0.12.0 and later): `{"op":"audio_key"}`.
-- Each recording is a plain WAV in `audio_wav_b64`, as below, or a sealed one in `audio_sealed_b64` (0.12.0 and later, see "Sealed audio").
+- `audio_key`: `{"op":"audio_key"}`.
+- Each recording is a plain WAV in `audio_wav_b64`, as below, or a sealed one in `audio_sealed_b64` (see "Sealed audio").
 - `enroll`: `{"op":"enroll","owner","audio_wav_b64":[3 WAVs],"authorization":{"public_key","signature_b64","nonce_b64"}}`.
 - `verify`: `{"op":"verify","owner","request":{"kind":"transfer","receiver","amount_yocto"},"contacts":[...],"audio_wav_b64"}`.
   - `request` is tagged by `kind`:
     - `transfer`: a native NEAR transfer from `owner` to `receiver`, as
       `spoken_intent::SpokenRequestV1::AccountTransfer`. The receiver must be
       a named account that the text can say, and not the owner.
-    - `community_note` (0.4.0 and later):
+    - `community_note`:
       `{"contract","post_id","note_text","summary"}`, as
       `SpokenRequestV1::CommunityNote`. The owner says only the summary:
       1 to 12 words of ASCII letters (`spoken_intent::SpokenSummary`). The
       note is bound by the SHA-256 of `note_text` (1 to 280 characters, not
-      only white space), which the verifier calculates. The builds before
-      0.13.0 take `note_sha256_hex` (64 lowercase hex characters) in place
-      of `note_text`, and do not check the summary.
-    - `note_rating` (0.4.0 and later): `{"contract","note_id","rating"}` with
+      only white space), which the verifier calculates.
+    - `note_rating`: `{"contract","note_id","rating"}` with
       `rating` `helpful`, `somewhat_helpful` or `not_helpful`, as
       `SpokenRequestV1::NoteRating`. The owner says "this note is helpful",
       "this note is somewhat helpful" or "this note is not helpful".
-    - `merge_approval` (0.5.0 and later):
+    - `merge_approval`:
       `{"contract","repo_sha256_hex","pull_request","base","head_commit_hex"}`,
       as `SpokenRequestV1::MergeApproval`. The owner says "merge pull request
       <number> into <base>", for example "merge pull request forty two into
@@ -509,7 +423,7 @@ Stage times (`ms`, not signed), in ms:
       by its 20-byte id (40 lowercase hex characters). It moves no value: the
       Wallet calls only `approve_merge`, with no deposit. Any other value
       refuses with `unsupported`.
-    - `multisig_propose` (0.6.0 and later):
+    - `multisig_propose`:
       `{"multisig","proposal_id","receiver","amount_yocto"}`. The proposer
       says "approve proposal <id>, send <amount> NEAR to <receiver>". The
       worker draws a 32-byte salt and builds
@@ -518,14 +432,14 @@ Stage times (`ms`, not signed), in ms:
       On an accept the worker stores the proposal and the salt, and the
       output has `"multisig":{"commitment","salt"}` (base64url) and no stage
       times, so that it stays below 1,024 bytes.
-    - `multisig_hide_note` (0.7.0 and later):
+    - `multisig_hide_note`:
       `{"multisig","proposal_id","note_id"}`, with `note_id` 1 or more. The
       proposer says "approve proposal <id>, hide note <note id>" with the
       exact words. Like `multisig_propose`, the worker draws the salt,
       stores the proposal (`{"proposal_id","note_id","salt_hex"}`) and
       returns the commitment and the salt. The near misses are the note id
       one lower, one higher, and with each digit changed.
-    - `multisig_confirm` (0.6.0 and later):
+    - `multisig_confirm`:
       `{"multisig","proposal_id","commitment_hex"}`. Another member says the
       same sentence from memory: the input does not hold the proposal. The
       worker loads it by the commitment and refuses `proposal_missing` if it
@@ -543,41 +457,38 @@ Stage times (`ms`, not signed), in ms:
       summary. The verdict binds the owner, the context (1 to 64 characters
       of `a-z`, `0-9`, `.`, `_`, `-`, `:`, `/`) and the SHA-256 of the
       payload. The application defines the payload bytes.
-    - Numbers in a summary (all summary kinds, version 0.10.0 and later):
+    - Numbers in a summary (all summary kinds):
       write the number in words ("Pay forty dollars for two books"). The
       model can write it as a numeral, and the worker reads "40", "$40" and
       "40 dollars" as the same words. It reads `$`, the euro sign and the
       pound sign before a whole number, and `%` after a number. An amount
       with a decimal point ("$2.50") has no single spoken form: do not put
-      one in a summary. In the builds before 0.10.0, "$40" fails the word
-      check (seen on testnet).
+      one in a summary.
     - The contract `demo/contracts/voice-multisig` checks each verdict of
-      these kinds on chain. `Transfer` and `HideNote` proposals exist. A
-      0.6 record of a transfer still reads in 0.7.0.
+      these kinds on chain. `Transfer` and `HideNote` proposals exist.
   - The words must match the rendered text of the request. A rating and a
     merge approval need the exact words. Two kinds of forgiveness exist;
     each applies to words that hold no value:
-    - Send sentence (0.3.1 and later; `spoken-intent` commit `92c21bc`,
-      `976167297` in seams-wallet): the
+    - Send sentence: the
       first word "sent" or "sends" counts as "send"; a closed list of
       sound-alikes of "near" and of "testnet" counts as the word itself; a
       number sound-alike counts as the number word in the amount slot; and a
       receiver one sound from a known account (the receiver or a contact)
       counts as that account. The amount and the receiver are still compared
       with the request. Negations, other units and added clauses are refused.
-    - Multisig proposal of a transfer (0.6.1 and later): in "approve
+    - Multisig proposal of a transfer: in "approve
       proposal <number> send …", the send part gets the same forgiveness. So
       "seams grants point testnet" and "seams dash grants dot testnet" both
       count as `seams-grants.testnet`. A confirmation (`multisig_confirm`)
       adds no receiver to the known accounts: a match by sound would write
       the hidden receiver into `heard`. Its send part gets only the verb,
       amount and unit rules.
-    - Community note summary (0.4.0 and later): a summary of 4 or more words
+    - Community note summary: a summary of 4 or more words
       also passes with one word changed or dropped, when the heard words are
       still closer to the summary than to every near miss (an added or dropped
-      "not" never passes). From 0.10.0, the changed or dropped word is never
+      "not" never passes). The changed or dropped word is never
       a number word: "pay fourteen dollars" does not pass for "pay forty
-      dollars". The builds before 0.10.0 let it pass.
+      dollars".
   - `contacts`: at most 32 named accounts that the owner knows, for the
     account names and the confusion set. The receiver is added if missing,
     except for `multisig_confirm`.
@@ -616,7 +527,7 @@ Stage times (`ms`, not signed), in ms:
     value.
   - Shared vectors: `testdata/signed_transcript_v1.json`
     (`tests/signed_transcript_vector.rs`).
-- `detect` (0.11.0 and later):
+- `detect`:
   `{"op":"detect","owner","intents":[1 to 16 intents],"audio_wav_b64"}`.
   - An intent is `{"name","description","slots":{"<slot>":"text"|"number"}}`.
     A name is 1 to 32 characters of `a-z`, `0-9` and `_`. A description is
@@ -661,7 +572,7 @@ Stage times (`ms`, not signed), in ms:
 
 ## Note summary check
 
-Verifier 0.13.0 and later. The owner of a community note says a summary of
+The owner of a community note says a summary of
 the note, not the note. The word check shows that the voice said the
 summary. The summary check shows that the summary gives the main point of
 the note. So an app cannot show one note and sign another note.
@@ -705,7 +616,7 @@ gives none. So an application cannot choose the words that the owner says.
 
 ## NEAR AI attestation
 
-Verifier 0.14.0 and later. The worker sends each recording to Whisper only
+The worker sends each recording to Whisper only
 sealed to the NEAR AI gateway, and only after it checked the gateway's
 attestation. Older versions send it over HTTPS and check nothing about
 NEAR AI.
@@ -866,7 +777,7 @@ Tests, with the two recorded quotes and Intel's recorded collateral:
 
 ## Sealed audio
 
-Verifier 0.12.0 and later. A Wallet seals each WAV to the audio key, so the
+A Wallet seals each WAV to the audio key, so the
 Seams server and OutLayer's coordinator carry only ciphertext
 (`src/envelope.rs`; the Wallet side is
 `packages/voice-verdict/src/audioEnvelope.ts`, `sealAudio` of
@@ -960,7 +871,7 @@ Exactly 10 NEAR is allowed. A step-up still marks the audio used.
 - The output stays below 1,024 bytes; `heard` of a `words` refusal is cut to
   fit.
 - `heard` has the heard words only in a refusal with the reason `words`
-  (0.15.0 and later). In an `accept`, a `step_up` and each other refusal it
+ . In an `accept`, a `step_up` and each other refusal it
   is `null`: a verdict that passes goes to a contract as a call argument,
   and the arguments are public on chain. No check reads `heard`
   ([spec 8.2](../../docs/voice-intents-spec.md#82-the-heard-words)).

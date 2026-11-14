@@ -427,8 +427,9 @@ for, and it stays the same across versions. The verifier has
 
 ## Live run on testnet
 
-The demo page `/multisig/` uses a third account since 2026-11-14:
-`voice-multisig-3.seams-v1.testnet`. It runs the same verified build of
+The live run is on a second account, `voice-multisig-3.seams-v1.testnet`.
+The demo page `/multisig/` uses it since 2026-11-14. It runs the same
+verified build of
 commit `99231f6` (code hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`,
 SourceScan verified), with 2 of 2 signers. Each signer is a Seams Wallet
 account with an enrolled voice. The account was created with 3 NEAR (tx
@@ -445,7 +446,7 @@ arguments (`verdict_json` and `signature_b64`). The contract checked the
 signature, the owner and the commitment before it changed its state. To read
 a verdict, open the transaction and look at the arguments of the call.
 
-### Proposal 1 on `voice-multisig-3`: the chain shows no spoken words (2026-11-14)
+### Proposal 1: the chain shows no spoken words (2026-11-14)
 
 This run is with verifier 0.15.0. Each signer said the same sentence:
 "Approve proposal one: send zero point one NEAR to bob dot testnet".
@@ -475,92 +476,11 @@ Facts of this proposal:
 - Proposal 2 of this account is open with 1 of 2. Signer A proposed it (tx
   `GA2DqpGN2fygPEqujPtksMfSkkjTUCyojRusrZegqcZt`), and that verdict also has
   `"heard":null`.
-
-### Earlier runs on `voice-multisig-2` (2026-11-12)
-
-These runs are with verifier 0.14.1 and older, which wrote the heard words
-in each verdict.
-
-A second account, `voice-multisig-2.seams-v1.testnet`, runs the same verified
-build of commit `99231f6` (code hash
-`CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`), with 2 of 2 signers. Each
-signer is a Seams Wallet account with an enrolled voice. The page
-`/multisig/` of the demo (`demo/frontend/src/multisig/`) used this account
-until 2026-11-14.
-
-| Signer | Account |
-| --- | --- |
-| A | `67f83c69190537f2432abd961be298ac44f5e161e152dc310a1d29a88a284577` |
-| B | `c3abe0951c8d0659e4d3514c2625afc47bad082c821ef76726dac3e766ef4632` |
-
-#### Proposal 3: two persons, two voices (2026-11-12)
-
-Before this proposal, each signer enrolled a voice again: signer A is one
-person, and signer B is another person. Each said the same sentence:
-"Approve proposal three: send zero point one NEAR to seams dash faucet dot
-testnet".
-
-| Step | Transaction | What the verdict says |
-| --- | --- | --- |
-| Signer A proposes | [`9VhY5XVYFaT5jXpYGVvpnz3GFnNVkUnX8CH4AY5Yd9kb`](https://testnet.nearblocks.io/txns/9VhY5XVYFaT5jXpYGVvpnz3GFnNVkUnX8CH4AY5Yd9kb) | `accept`, speaker score 746 (the cutoff is 450), heard "approve proposal three send zero point one near to seams dash faucet dot testnet" |
-| Signer B approves | [`7sBTQskwjpmZMgiUa5bTD4WTJB45HKtvjpU2H4E82mKP`](https://testnet.nearblocks.io/txns/7sBTQskwjpmZMgiUa5bTD4WTJB45HKtvjpU2H4E82mKP) | `accept`, speaker score 790. The verifier did not refuse it as `same_speaker`: the voice of signer B is not the voice of signer A. |
-| Signer A executes | [`27rHJo5reVM1vokTakJ9z53VmhTQV2fKAmfyKMwvNZ5x`](https://testnet.nearblocks.io/txns/27rHJo5reVM1vokTakJ9z53VmhTQV2fKAmfyKMwvNZ5x) | No verdict: `execute` opens the hidden transfer with its salt. The contract checked that the receiver, the amount and the salt give the stored hash. |
-
-The contract logged `proposed` for the first transaction, `approved` with
-`"approvals":2` for the second, and `executed` for the third. The chain held
-only the salted hash of the transfer (`89fe7771…20df`) until `execute`. Then
-0.1 NEAR went to `seams-faucet.testnet`, and `get_proposals` shows proposal 3
-as `executed`.
-
-Facts of this proposal:
-
-- Both verdicts hold the heard words, because verifier 0.14.1 wrote them in
-  an `accept`. So the chain showed this proposal before `execute`. From
-  verifier 0.15.0, an `accept` has `"heard":null`: see proposal 1 on
-  `voice-multisig-3` above.
-- Both verdicts name the verifier `0.14.1+venice`. NEAR AI Whisper gave no
-  reply on that day, so the `venice` build heard the words: Venice AI, which
-  has no TEE (`crates/voice-verifier/README.md`, "Speech-to-text service").
-  The speaker check and the signature are the same as in the default build.
-
-#### Proposal 2: one person cannot approve two times (2026-11-12)
-
-Signer B proposed the same transfer by voice:
-[`6WcVLmKtVT5JRK1ECAQCfMNVstAB6yRnPxx48HN9W2cB`](https://testnet.nearblocks.io/txns/6WcVLmKtVT5JRK1ECAQCfMNVstAB6yRnPxx48HN9W2cB)
-(`accept`, verifier 0.12.0, speaker score 748).
-
-Then the same person tried to approve as signer A, with a higher and a lower
-tone of the same voice. The verifier refused the recording as `same_speaker`: it matched the
-voice that had said the proposal. So no approval of signer A exists, and the
-proposal stays open with 1 of 2. This refusal was an answer of the verifier
-to the page. It is not on chain, so this file has no link for it.
-
-Later, a different person said the proposal as signer A. The verifier did not
-refuse that voice as `same_speaker`. It refused the words, because the
-speech-to-text model heard the account name wrong ("scenes fawcett" for
-"seams dash faucet"). An approval needs the exact words. This refusal is not
-on chain either.
-
-#### Proposal 1: two persons, and a speech-to-text error (2026-11-12)
-
-Signer A proposed the transfer by voice:
-[`4ZnfvisXw1TaakV9ASkJBviReao7sUYa4XfckvhmJNMn`](https://testnet.nearblocks.io/txns/4ZnfvisXw1TaakV9ASkJBviReao7sUYa4XfckvhmJNMn)
-(`accept`, verifier 0.12.0, speaker score 627).
-
-Another person said the proposal as signer B. The voice passed (speaker
-score 773), and the verifier did not refuse it as `same_speaker`. But NEAR AI
-Whisper heard "zero point one nil to seamsfaucet dot testnet" for "zero
-point one NEAR to seams dash faucet dot testnet", so the verifier refused
-the words. The page sent that signed refusal to the contract as a record:
-[`13UoZ4hXS6nmeBqrPAL6mjbWfBsbuL7GqkRGoKfMwPSL`](https://testnet.nearblocks.io/txns/13UoZ4hXS6nmeBqrPAL6mjbWfBsbuL7GqkRGoKfMwPSL).
-The contract refused it with "the verdict outcome must be accept": only an
-`accept` verdict counts as an approval. The page no longer offers this
-record for a `words` refusal, because that verdict holds the heard words.
-
-After three recordings with wrong heard words, signer B has no tries left
-for this proposal (`attempts_exhausted`). The proposal stays open with 1 of
-2. This is a limit: a made-up account name such as `seams-faucet` is hard
-for a speech-to-text model, and an approval needs the exact words.
+- A limit: an approval needs the exact words, and a made-up account name is
+  hard for a speech-to-text model. Before this run, the receiver was
+  `seams-faucet.testnet`, and the model heard "scenes" for "seams" each
+  time. The verifier refused those recordings with `words`, and no refusal
+  is on chain. So the run used `bob.testnet`.
 
 ## Deployed code
 
@@ -573,7 +493,7 @@ and the threshold is 2. The notes contract is `notes.seams-v1.testnet`, and
 the notes contract names this multisig as its moderator since 2026-11-12.
 The transactions are in "Deploy to testnet". No proposal exists on this
 account: its two signers have no enrolled voices. The proposals by voice ran
-on `voice-multisig-3.seams-v1.testnet` and `voice-multisig-2.seams-v1.testnet`; see "Live run on testnet" above.
+on `voice-multisig-3.seams-v1.testnet`; see "Live run on testnet" above.
 
 `multisig.seams-v1.testnet` ran version 2.x until 2026-11-12, when the
 account was deleted. In 2.x, any account that was not an admin proposed by

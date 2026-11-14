@@ -176,7 +176,7 @@ Each verdict has `"heard":null`, so the chain showed only the salted hash of
 the proposal. The contract then executed the transfer of 0.1 NEAR to
 `bob.testnet`
 ([`execute`](https://testnet.nearblocks.io/txns/EjEPMVDfVKNpzgctd1wgVS3dukhUSYNmBjCHrY9MvCG2)).
-The details, and the earlier runs of 2026-11-12, are in
+The details are in
 [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
 
 **For a judge:** you do not need the page `/multisig/`. Only the 2 signers

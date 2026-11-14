@@ -107,10 +107,8 @@ fn the_accept_vector_passes() {
     let verdict =
         check_verdict(&accept.verdict_json, &accept.signature_b64, &key(), &check).unwrap();
     assert_eq!(verdict.outcome, Outcome::Accept);
-    assert_eq!(
-        verdict.heard.as_deref(),
-        Some("send two near to alice dot testnet")
-    );
+    // A verdict that passes has no heard words.
+    assert_eq!(verdict.heard, None);
     assert_eq!(verdict.speaker_score_milli, Some(655));
 }
 
@@ -195,7 +193,10 @@ fn bad_signatures() {
         check_verdict(&accept.verdict_json, &other.signature_b64, &key(), &check),
         Err(Refusal::BadSignature)
     );
-    let changed = accept.verdict_json.replace("two near", "ten near");
+    let changed = accept.verdict_json.replace(
+        r#""speaker_score_milli":655"#,
+        r#""speaker_score_milli":999"#,
+    );
     assert_eq!(
         check_verdict(&changed, &accept.signature_b64, &key(), &check),
         Err(Refusal::BadSignature)

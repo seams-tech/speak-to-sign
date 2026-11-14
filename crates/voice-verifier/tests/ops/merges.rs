@@ -32,7 +32,7 @@ fn verify_accepts_a_spoken_merge_approval_with_exact_words() {
     let wav = clip(0.03);
     let (result, verdict) = spoken(merge_input(&wav, 42, "main"), "Merge pull request 42 into main.");
     assert_eq!(result, "accept");
-    assert_eq!(verdict.heard.as_deref(), Some("merge pull request forty two into main"));
+    assert_eq!(verdict.heard, None);
     assert_eq!(verdict.policy_rule, None);
     let request = SpokenRequestV1::MergeApproval {
         network: Network::Testnet,

@@ -232,7 +232,7 @@ fn a_proposal_can_say_point_for_dot_and_leave_out_dash() {
     let said = "approve proposal seven send twenty five near to seams grants point testnet";
     let (out, verdict) = say(&mut fake, |wav| propose_input(wav, receiver), 0, 0.9, said);
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
-    assert_eq!(verdict.heard.as_deref(), Some("approve proposal seven send twenty five near to seams dash grants dot testnet"));
+    assert_eq!(verdict.heard, None);
 }
 
 #[test]
@@ -282,7 +282,8 @@ fn a_hide_and_its_recalled_confirmation_are_accepted() {
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     let commitment = hide_commitment(42);
     assert_eq!(verdict.request_digest, Some(digest(OWNER, &commitment)));
-    assert_eq!(verdict.heard.as_deref(), Some("approve proposal seven hide note forty two"));
+    // The accept goes to `propose` on chain, and the proposal stays hidden.
+    assert_eq!(verdict.heard, None);
     assert_eq!(out["multisig"], json!({ "commitment": b64u(&commitment), "salt": b64u(&SALT) }));
 
     // The worker keeps the note id, with no receiver or amount.

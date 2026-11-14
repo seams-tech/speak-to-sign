@@ -34,7 +34,7 @@ fn verify_accepts_a_spoken_bet_with_exact_words() {
     // What Whisper wrote for the spoken sentence.
     let (result, verdict) = spoken(bet_input(&wav, 9, "yes", "500000"), " Bet 0.5 USDC yes on market 9.");
     assert_eq!(result, "accept");
-    assert_eq!(verdict.heard.as_deref(), Some("bet zero point five usdc yes on market nine"));
+    assert_eq!(verdict.heard, None);
     let request = SpokenRequestV1::MarketBet {
         network: Network::Testnet,
         owner: NearAccount::new(OWNER).unwrap(),

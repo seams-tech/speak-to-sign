@@ -47,6 +47,7 @@ export interface VoiceVerdict {
   expires_at_ms: number;
   speaker_score_milli: number | null;
   word_margin_milli: number | null;
+  /** The heard words, for display only. Verifier 0.15.0 and later sets them only on a `words` refusal. No check reads it. */
   heard: string | null;
 }
 

@@ -36,8 +36,11 @@ import './multisig.css';
 const POLL_MS = 1500;
 const DEFAULT_RECEIVER = 'seams-faucet.testnet';
 const DEFAULT_AMOUNT = '0.1';
-/** The refusals that the page offers to send to the contract as a record. */
-const RECORDED_REFUSALS: ReadonlySet<string> = new Set(['words', 'speaker', 'same_speaker', 'attempts_exhausted']);
+/**
+ * The refusals that the page offers to send to the contract as a record. A `words` refusal is not
+ * one of them: its verdict holds the heard words, and the arguments of a call are public.
+ */
+const RECORDED_REFUSALS: ReadonlySet<string> = new Set(['speaker', 'same_speaker', 'attempts_exhausted']);
 const NO_WALLET: MultisigSigner =createMultisigSigner({ seams: null, walletId: null, contract: config.multisigContract });
 
 export function MultisigPage({ seams }: { seams: boolean }) {
@@ -477,7 +480,7 @@ function ApproveByVoice({ context, proposal }: { context: Context; proposal: Pro
     setRecord({ busy: false, message: result.kind === 'refused' ? result.reason : sendFailure(result) });
   };
 
-  // Only a decision about the voice or the words is worth a record; a service failure is not.
+  // Only a decision about the voice is worth a record; a service failure is not.
   const refused = step.kind === 'refused' && RECORDED_REFUSALS.has(step.check.code) ? step.check : null;
   return (
     <div className="ms-form ms-approve">

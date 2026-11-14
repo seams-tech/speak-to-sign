@@ -29,7 +29,8 @@ fn verify_accepts_and_signs_the_verdict() {
     assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "accept");
     assert_eq!(verdict.policy_rule, None);
     assert_eq!(verdict.expires_at_ms, NOW_MS + VERDICT_TTL_MS);
-    assert_eq!(verdict.heard.as_deref(), Some("send two near to alice dot testnet"));
+    // A verdict that passes has no heard words: its bytes go on chain.
+    assert_eq!(verdict.heard, None);
     assert_eq!(verdict.audio_digest, Some(b64u(&Sha256::digest(&wav))));
     // The same digests as the shared vector, which the Wallet checks.
     let vector: Value = serde_json::from_str(include_str!("../../testdata/signed_verdict_v2.json")).unwrap();
@@ -210,7 +211,7 @@ fn a_long_transcript_still_fits_and_is_signed() {
 }
 
 #[test]
-fn a_step_up_with_the_longest_heard_text_still_fits() {
+fn a_step_up_with_the_longest_receiver_fits_and_has_no_heard_words() {
     let mut fake = enrolled();
     let receiver = format!("{}.testnet", "a".repeat(56));
     fake.transcript = Some(format!("Send 999999.99 NEAR to {receiver}."));
@@ -220,6 +221,7 @@ fn a_step_up_with_the_longest_heard_text_still_fits() {
     let verdict = checked_verdict(&out);
     assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "step_up", "{out}");
     assert_eq!(out["policy_text"], STUB_AMOUNT_RULE.text);
+    assert_eq!(verdict.heard, None);
 }
 
 #[test]

@@ -46,7 +46,7 @@ fn case(name: &str, amount_yocto: u128, outcome: Outcome, key: &SigningKey) -> V
     verdict.expires_at_ms = EXPIRES_AT_MS;
     verdict.speaker_score_milli = Some(655);
     verdict.word_margin_milli = Some(142);
-    verdict.heard = Some(rendered.spoken_text.clone());
+    // An `accept` and a `step_up` have no heard words.
     let text = verdict_json(&verdict);
     let message = verdict_message(text.as_bytes());
     json!({

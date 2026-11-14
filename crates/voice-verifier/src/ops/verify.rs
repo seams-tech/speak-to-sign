@@ -212,7 +212,8 @@ pub(super) fn verify_storage(
     Ok(record)
 }
 
-/// Sets the expiry, fits the output below the size limit, then signs the
+/// Sets the expiry, removes the heard words from a verdict that is not a
+/// `words` refusal, fits the output below the size limit, then signs the
 /// verdict. `selected` is the index of the said request of a `select`.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn finish(
@@ -226,6 +227,13 @@ pub(super) fn finish(
     started: Instant,
 ) -> VerifyOutput {
     verdict.expires_at_ms = host.now_ms().saturating_add(VERDICT_TTL_MS);
+    // The heard words leave the worker in a verdict only on a `words`
+    // refusal, where they show the person what the verifier heard. Every
+    // other verdict has none: a verdict that passes goes to a contract, and
+    // its bytes are public on chain.
+    if verdict.reason != Some(Reason::Words) {
+        verdict.heard = None;
+    }
     if opening.is_some() {
         // The stage times make room for the commitment and the salt.
         ms = Stages::default();

@@ -131,7 +131,7 @@ fn a_confirmation_binds_the_context_and_the_payload() {
         call(&mut fake, verify_input(USER, confirmation("shop.example/login", "Log in to the example shop"), &wav));
     let verdict = checked_verdict(&out);
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
-    assert_eq!(verdict.heard.as_deref(), Some("log in to the example shop"));
+    assert_eq!(verdict.heard, None);
     assert_eq!(verdict.request_digest, Some(confirmation_digest("shop.example/login", "Log in to the example shop")));
     // The same digest as the golden vector of `spoken-intent`.
     let vectors: Value =
@@ -165,7 +165,7 @@ fn a_summary_with_an_amount_matches_the_models_numerals() {
         let out = call(&mut fake, verify_input(USER, request, &wav));
         let verdict = checked_verdict(&out);
         assert_eq!(outcome_name(&verdict), "accept", "{transcript}: {out}");
-        assert_eq!(verdict.heard.as_deref(), Some("pay forty dollars for two books"));
+        assert_eq!(verdict.heard, None);
     }
     // Another amount is other words.
     let mut fake = app_enrolled();
@@ -239,7 +239,7 @@ fn select_signs_the_request_that_the_owner_said() {
     assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert_eq!(out["selected"], 1);
     assert_eq!(verdict.request_digest, Some(confirmation_digest("shop.example/order", "Cancel my order")));
-    assert_eq!(verdict.heard.as_deref(), Some("cancel my order"));
+    assert_eq!(verdict.heard, None);
     assert!(verdict.spoken_text_digest.is_some());
     assert_eq!(fake.posts, [SPEAKER_EMBED_URL, WORDS_URL]);
     assert_eq!(fake.events, events_of(&["start", "worker_get", "add", "get", "poll", "marker_set", "wait"]));

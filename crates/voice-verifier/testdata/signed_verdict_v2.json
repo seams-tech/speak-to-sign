@@ -8,7 +8,7 @@
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
       "expires_at_ms": 1762700120000,
-      "message_sha256_hex": "fa94a1f1545c63aa57c59c3d0b3ae6de34fada7886bb92bf60fe7f94f6ed993a",
+      "message_sha256_hex": "1cea31c91705ba6ec2d4602484d7c4763bf22f40a3daba5286e41593aa65ef53",
       "name": "accept",
       "outcome": "accept",
       "policy_rule": null,
@@ -22,15 +22,15 @@
       },
       "request_borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000042db999d3784a7010000000000",
       "request_digest": "uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws",
-      "signature_b64": "XtoJ5OhFQXE1XqpwpZemvdm3la//ZYzpELI0P4cch9rd3w4wKZbza31TShR06UD4ETT/2VC4sB+P+Y6AhEhzCg==",
+      "signature_b64": "qWYK81j8cLNNpCWutrTrppDNNKZVb3r1O+qOhNp5WhItHJynBeuXgf8BDEE6d17W+OnkCOCSIc8LrxYDit5aAw==",
       "spoken_text": "send two near to alice dot testnet",
       "spoken_text_digest": "mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys",
-      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.14.1\",\"request_digest\":\"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws\",\"spoken_text_digest\":\"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"policy_rule\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send two near to alice dot testnet\"}"
+      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.15.0\",\"request_digest\":\"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws\",\"spoken_text_digest\":\"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"accept\",\"reason\":null,\"policy_rule\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":null}"
     },
     {
       "audio_digest": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
       "expires_at_ms": 1762700120000,
-      "message_sha256_hex": "d92f50a3a434be293ea12fcca0d2cb9b637f28d4948b820f395fe16e57fa7d43",
+      "message_sha256_hex": "f661b70c507bcd26117772178579df3fcf920811d3112faea363a606d2a5c7bf",
       "name": "step_up",
       "outcome": "step_up",
       "policy_rule": "stub_voice_amount_above_10_near",
@@ -44,10 +44,10 @@
       },
       "request_borsh_hex": "02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000eb35cee2315719090000000000",
       "request_digest": "xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs",
-      "signature_b64": "GEhlIpy/F4Ot2pO23Gz0rJLloMSPRVcsYQGY7H893Td9u8FldfcIj+l0lVzBkFFLl/0aZW3L0fHAruokjPEGDw==",
+      "signature_b64": "NxVSZzeNHEMorQdbdd6QYVV/NsJ4z1pxyYg9gRGZ+PEVnVeyhcCz0R6YiWT+S6O0GMcj41hqrYD/NzQetJU7Ag==",
       "spoken_text": "send eleven near to alice dot testnet",
       "spoken_text_digest": "KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk",
-      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.14.1\",\"request_digest\":\"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs\",\"spoken_text_digest\":\"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"step_up\",\"reason\":null,\"policy_rule\":\"stub_voice_amount_above_10_near\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":\"send eleven near to alice dot testnet\"}"
+      "verdict_json": "{\"kind\":\"seams_voice_signed_verdict_v2\",\"renderer\":\"spoken-intent/1\",\"verifier\":\"0.15.0\",\"request_digest\":\"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs\",\"spoken_text_digest\":\"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"outcome\":\"step_up\",\"reason\":null,\"policy_rule\":\"stub_voice_amount_above_10_near\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"word_margin_milli\":142,\"heard\":null}"
     }
   ]
 }

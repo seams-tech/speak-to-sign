@@ -90,6 +90,8 @@ pub struct Verdict {
     pub speaker_score_milli: Option<i32>,
     #[serde(deserialize_with = "Option::deserialize")]
     pub word_margin_milli: Option<i32>,
+    /// The heard words, for display only. Verifier 0.15.0 and later sets
+    /// them only on a refusal with the reason `words`. No check reads it.
     #[serde(deserialize_with = "Option::deserialize")]
     pub heard: Option<String>,
 }

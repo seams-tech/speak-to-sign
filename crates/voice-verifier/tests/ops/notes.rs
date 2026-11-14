@@ -44,7 +44,7 @@ fn verify_accepts_a_spoken_note_summary() {
     let summary = "The bridge stays open, only one lane closes.";
     let (result, verdict) = spoken(note_input(&wav, summary), " The bridge stays open. Only one lane closes.");
     assert_eq!(result, "accept");
-    assert_eq!(verdict.heard.as_deref(), Some("the bridge stays open only one lane closes"));
+    assert_eq!(verdict.heard, None);
     assert_eq!(verdict.policy_rule, None);
     let request = SpokenRequestV1::CommunityNote {
         network: Network::Testnet,
@@ -145,9 +145,10 @@ fn a_note_is_signed_only_if_its_summary_gives_its_main_point() {
     let (outcome, out, _) = note_with_fit(Some(0.48));
     assert_eq!(outcome, "summary_mismatch");
     assert_eq!(out["detail"], "summary: fit_480");
-    // The voice and the words passed, and the refusal is still signed.
+    // The voice and the words passed, and the refusal is still signed. Only
+    // a `words` refusal has the heard words.
     let verdict = checked_verdict(&out);
-    assert_eq!(verdict.heard.as_deref(), Some("the bridge stays open"));
+    assert_eq!(verdict.heard, None);
     assert!(verdict.spoken_text_digest.is_some());
 }
 

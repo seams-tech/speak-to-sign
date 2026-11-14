@@ -84,7 +84,8 @@ test('the accept vector passes with each form of the key and of the digest', asy
       const result = await checkVerdict({ ...input(item), publicKey, requestDigest: digest, audioDigest: item.audio_digest });
       assert.ok(result.ok);
       assert.equal(result.verdict.outcome, 'accept');
-      assert.equal(result.verdict.heard, 'send two near to alice dot testnet');
+      // A verdict that passes has no heard words.
+      assert.equal(result.verdict.heard, null);
       assert.equal(result.verdict.speaker_score_milli, 655);
     }
   }
@@ -153,7 +154,7 @@ test('a bad signature', async () => {
   const cases = [
     { ...input(accept), signatureB64: other.signature_b64 },
     { ...input(accept), verdictJson: accept.verdict_json.replace('"accept"', '"accept" ') },
-    { ...input(accept), verdictJson: accept.verdict_json.replace('two near', 'ten near') },
+    { ...input(accept), verdictJson: accept.verdict_json.replace('"speaker_score_milli":655', '"speaker_score_milli":999') },
     { ...input(accept), publicKey: new Uint8Array(32).fill(1) },
     // Bytes that are not a point of the curve.
     { ...input(accept), publicKey: new Uint8Array(32).fill(0xff) },

@@ -8,12 +8,12 @@
 
 import type { SpeakToSignEnrollmentResult, SpeakToSignResult, SpeakToSignSentTransaction } from '@seams/wallet';
 import type { useSeams } from '@seams/wallet/react';
-import { toastOutlayerTimeout } from '../components/Toasts';
-import { isVerifierTimeout, OUTLAYER_TIMEOUT_TEXT } from '../verifierTimeout';
+import { toastOutlayerTimeout, watchOutlayer } from '../components/Toasts';
+import { isVerifierTimeout, OUTLAYER_TIMEOUT_TEXT, watchEnrollmentCard, watchRequestProgress } from '../verifierTimeout';
 import { enrollRefusalText, withDetail } from './enrollment';
 import type { NotesSigner, SetupOutcome, SignResult, SignerSetup, SignerStatus } from './notesSigner';
 import { isCancelError, isUserRejection } from './rejection';
-import { inVoiceCard } from './voiceCard';
+import { inVoiceCard, withCardProgress } from './voiceCard';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 /** The typed spoken requests and the enrollment: `seams.near.spoken` (Wallet 0.72.0). */
@@ -44,12 +44,12 @@ export function createMissingKeySigner(): NotesSigner & SignerSetup {
 export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup {
   const { seams, walletId, nearAccountId, contract } = owner;
 
-  const run = async (call: (spoken: Spoken, walletId: string) => Promise<SpokenSent>): Promise<SignResult> => {
+  const run = async (call: (spoken: Spoken, walletId: string, onProgress: SpokenProgress) => Promise<SpokenSent>): Promise<SignResult> => {
     if (!walletId) return { kind: 'unavailable', reason: 'Sign in to Seams Wallet first.' };
     const spoken = seams.near.spoken;
     if (!spoken) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     const id = walletId;
-    return await spokenRequest(seams, id, () => call(spoken, id));
+    return await spokenRequest(seams, id, (onProgress) => call(spoken, id, onProgress));
   };
 
   return {
@@ -61,7 +61,7 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
 
     // The Seams server writes the summary, and the Wallet card shows it under the note.
     requestNote: ({ postId, text }) =>
-      run((spoken, id) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, ...place }))),
+      run((spoken, id, onProgress) => inVoiceCard((place) => spoken.note({ walletSession: id, contract, postId, text, onProgress, ...place }))),
 
     // A warm-up of the Wallet (`seams.near.spoken.prepare`). Its failure is no
     // error of the page: the request that follows does the same steps itself.
@@ -72,7 +72,7 @@ export function createSeamsSigner(owner: SeamsOwner): NotesSigner & SignerSetup 
     },
 
     requestRating: ({ noteId, rating }) =>
-      run((spoken, id) => inVoiceCard((place) => spoken.rating({ walletSession: id, contract, noteId, rating, ...place }))),
+      run((spoken, id, onProgress) => inVoiceCard((place) => spoken.rating({ walletSession: id, contract, noteId, rating, onProgress, ...place }))),
 
     async enableVoice(): Promise<SetupOutcome> {
       if (!walletId) return { kind: 'failed', message: 'Sign in to Seams Wallet first.' };
@@ -146,14 +146,23 @@ export function contractReason(error: string): string {
   return match ? `The contract refused: ${match[1]}.` : `The transaction failed: ${error}`;
 }
 
-/** One spoken request that sends a transaction, as a result for the page. */
-export async function spokenRequest(seams: Seams, walletId: string, call: () => Promise<SpokenSent>): Promise<SignResult> {
+/** The listener for the stages of a spoken request: pass it to the request as `onProgress`. */
+export type SpokenProgress = (event: { stage: string }) => void;
+
+/**
+ * One spoken request that sends a transaction, as a result for the page. `call` gets the
+ * listener that times the wait for the verifier: a toast says that OutLayer is busy after 10 s.
+ */
+export async function spokenRequest(seams: Seams, walletId: string, call: (onProgress: SpokenProgress) => Promise<SpokenSent>): Promise<SignResult> {
+  const wait = watchOutlayer();
   try {
-    const result = await afterUnlock(seams, walletId, call);
+    const result = await afterUnlock(seams, walletId, () => call((event) => watchRequestProgress(wait, event.stage)));
     if (result.kind === 'unavailable' && isVerifierTimeout(result)) toastOutlayerTimeout();
     return toSignResult(result);
   } catch (cause) {
     return closedByOwner(cause) ? { kind: 'cancelled' } : { kind: 'unavailable', reason: walletErrorText(cause) };
+  } finally {
+    wait.stop();
   }
 }
 
@@ -171,7 +180,16 @@ const CLOSED: SetupOutcome = { kind: 'cancelled', message: 'You closed a Wallet 
 
 /** One verifier enrollment. A thrown error goes to setupStep. */
 async function enrollOnce(spoken: Spoken, walletId: string): Promise<SetupOutcome> {
-  const result: SpeakToSignEnrollmentResult = await inVoiceCard((place) => spoken.enroll({ walletSession: walletId, ...place }));
+  // A card in a dialog of the page reports its stage, so the page can time the verifier.
+  const wait = watchOutlayer();
+  let result: SpeakToSignEnrollmentResult;
+  try {
+    result = await inVoiceCard((place) =>
+      spoken.enroll({ walletSession: walletId, ...withCardProgress(place, (progress) => watchEnrollmentCard(wait, progress)) }),
+    );
+  } finally {
+    wait.stop();
+  }
   switch (result.kind) {
     case 'enrolled':
       return { kind: 'done', message: `The verifier stored your voice (template ${result.templateEpoch}).` };

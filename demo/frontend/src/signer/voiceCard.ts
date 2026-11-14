@@ -3,6 +3,7 @@
 // shows in the Wallet's own modal, on top of the page.
 
 import type { AnchoredWalletPresentation } from '@seams/wallet';
+import type { WalletStepProgress } from '@seams/wallet/react';
 import { holdVoice } from '../voice/hold';
 
 /** The card's place over an element of the host's dialog, and the card's events. */
@@ -42,4 +43,22 @@ export async function inVoiceCard<T>(send: (place: VoiceCardPlace) => Promise<T>
   } finally {
     release();
   }
+}
+
+/**
+ * The place of a card, with one more listener for its stage. A card in a dialog of the page
+ * reports its stage; a card in the Wallet's own modal has no place here and reports none.
+ */
+export function withCardProgress(place: VoiceCardPlace, listen: (progress: WalletStepProgress) => void): VoiceCardPlace {
+  const card = place.presentation;
+  if (!card) return place;
+  return {
+    presentation: {
+      ...card,
+      onProgress: (progress) => {
+        card.onProgress?.(progress);
+        listen(progress);
+      },
+    },
+  };
 }

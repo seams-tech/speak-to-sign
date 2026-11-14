@@ -1,14 +1,14 @@
-/* The NEAR AI warning in the nav (NearAiWarning.tsx). It has its own ground, so it reads on the
-   hero field of the notes page and on the plain nav of /multisig/. The tokens are at the top of
-   src/styles.css. */
+/* A warning pill in the nav (NavWarning.tsx): the NEAR AI warning and the OutLayer warning. It has
+   its own ground, so it reads on the hero field of the notes page and on the plain nav of
+   /multisig/. The tokens are at the top of src/styles.css. */
 
-.nearai-warning {
+.nav-warning {
   position: relative;
   display: inline-flex;
   min-width: 0;
 }
 
-.nearai-warning-pill {
+.nav-warning-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -24,7 +24,7 @@
 }
 
 /* The icon and the words: a button, because on a phone a tap opens the sentence. */
-.nearai-warning-words {
+.nav-warning-words {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -37,12 +37,51 @@
   cursor: default;
 }
 
-.nearai-warning svg {
+.nav-warning svg {
   flex: none;
 }
 
+/* The link of a warning, after its words: "Executions" and an arrow out. */
+.nav-warning-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  padding: 3px 4px 3px 2px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.nav-warning-link:focus-visible {
+  outline: 2px solid var(--warn-ink);
+  outline-offset: 1px;
+}
+
+/* A warning that comes in with the nav's setup step, when the sheet covers the hero. The pill
+   moves, not the whole warning: a transform there would hold the open sentence of a phone. */
+.nav-warning[data-enter] .nav-warning-pill {
+  animation: nav-warning-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes nav-warning-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-warning[data-enter] .nav-warning-pill {
+    animation: none;
+  }
+}
+
 /* The close button: a 24px target in the pill. */
-.nearai-warning-close {
+.nav-warning-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -57,39 +96,47 @@
   cursor: pointer;
 }
 
-.nearai-warning-close:focus-visible,
-.nearai-warning-words:focus-visible {
+.nav-warning-close:focus-visible,
+.nav-warning-words:focus-visible {
   outline: 2px solid var(--warn-ink);
   outline-offset: 1px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .nearai-warning-close:hover {
+  .nav-warning-close:hover {
     background: var(--warn-line);
   }
 }
 
-.nearai-warning-long,
-.nearai-warning-short {
+.nav-warning-long,
+.nav-warning-short {
   white-space: nowrap;
 }
 
-.nearai-warning-short,
-.nearai-warning-pop {
+.nav-warning-short,
+.nav-warning-pop {
   display: none;
 }
 
 /* A middle nav: the short words. The sentence stays for a screen reader. */
 @media (max-width: 1100px) {
-  .nearai-warning-long {
+  .nav-warning-long {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip: rect(0 0 0 0);
   }
-  .nearai-warning-short {
+  .nav-warning-short {
     display: inline;
+  }
+  /* The link keeps its arrow, and its words stay for a screen reader. */
+  .nav-warning-pill .nav-warning-link > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
   }
 }
 
@@ -98,23 +145,28 @@
    pill is static, so the nav (positioned) holds the sentence. The notes nav hides its GitHub
    link for the room. */
 @media (max-width: 820px) {
-  .nearai-warning {
+  .nav-warning {
     position: static;
   }
-  .nearai-warning-short {
+  .nav-warning-short {
     display: none;
   }
-  .nearai-warning-pill {
+  .nav-warning-pill {
     padding: 3px 6px;
   }
-  .nearai-warning-words {
+  .nav-warning-words {
     cursor: pointer;
   }
-  /* The pill has room for the icon only, so the close button is in the open sentence. */
-  .nearai-warning-pill .nearai-warning-close {
+  /* The pill has room for the icon only, so the link and the close button are in the open
+     sentence. */
+  .nav-warning-pill .nav-warning-close,
+  .nav-warning-pill .nav-warning-link {
     display: none;
   }
-  .nearai-warning[data-open] .nearai-warning-pop {
+  .nav-warning-pop > :first-child {
+    flex: 1;
+  }
+  .nav-warning[data-open] .nav-warning-pop {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -134,7 +186,7 @@
     line-height: 1.35;
     white-space: normal;
   }
-  .ss-nav-inner:has(.nearai-warning) .ss-nav-source {
+  .ss-nav-inner:has(.nav-warning) .ss-nav-source {
     display: none;
   }
 }

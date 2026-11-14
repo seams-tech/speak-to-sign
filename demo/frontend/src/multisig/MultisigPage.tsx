@@ -25,7 +25,7 @@ import { useSeams } from '@seams/wallet/react';
 import { BrandMark } from '../components/BrandMark';
 import { NearAiWarning } from '../components/NearAiWarning';
 import { SignInModal } from '../components/SignInModal';
-import { toastOutlayerTimeout } from '../components/Toasts';
+import { toastOutlayerTimeout, watchOutlayer } from '../components/Toasts';
 import { accountUrl, config, shortAccount, shortHash, transactionUrl } from '../config';
 import { KeylessOnboarding, SeamsOnboarding } from '../showcase/Onboarding';
 import { SeamsSettingsPill } from '../showcase/SeamsSettingsPill';
@@ -38,6 +38,20 @@ import { getBalance, getConfig, getFactoryConfig, getProposal, getProposals, get
 import { checkVoice, type SignedVerdict, type VoiceCheck } from './voiceVerify';
 import { VoiceRecorder } from './VoiceRecorder';
 import './multisig.css';
+
+/**
+ * `checkVoice`, with the wait for the verifier timed: the whole call is the page's verify route,
+ * which waits for OutLayer. After 10 s a toast says that OutLayer is busy.
+ */
+async function checkVoiceTimed(...input: Parameters<typeof checkVoice>): Promise<VoiceCheck> {
+  const wait = watchOutlayer();
+  wait.start();
+  try {
+    return await checkVoice(...input);
+  } finally {
+    wait.stop();
+  }
+}
 
 const POLL_MS = 1500;
 /** The multisig that the page shows when its address names none. */
@@ -503,7 +517,7 @@ function ProposeForm({ context, proposalId }: { context: Context; proposalId: nu
     const account = context.account;
     if (!account || !amount.ok || !receiverOk) return;
     setStep({ kind: 'checking' });
-    const check = await checkVoice(
+    const check = await checkVoiceTimed(
       account,
       { kind: 'multisig_propose', multisig: context.contract, proposal_id: proposalId, receiver: to, amount_yocto: amount.yocto },
       wav,
@@ -652,7 +666,7 @@ function ApproveByVoice({ context, proposal }: { context: Context; proposal: Pro
     if (!account) return;
     setRecord({ busy: false, message: null });
     setStep({ kind: 'checking' });
-    const check = await checkVoice(
+    const check = await checkVoiceTimed(
       account,
       { kind: 'multisig_confirm', multisig: context.contract, proposal_id: proposal.id, commitment_hex: proposal.commitment_hex },
       wav,

@@ -167,10 +167,14 @@ export function createSeamsMarketSigner(owner: MarketOwner): MarketSigner {
     const voice = seams.near.spoken;
     if (!voice) return { kind: 'unavailable', reason: 'Speak-to-Sign is not in the Wallet configuration.' };
     const id = walletId;
-    const onProgress = (event: { stage: string }) => {
-      if (event.stage === 'transaction_sent') progress?.('sent');
-    };
-    const result = await spokenRequest(seams, id, () => inVoiceCard((place) => call(voice, id, onProgress, place)));
+    const result = await spokenRequest(seams, id, (watch) => {
+      // `watch` times the wait for the verifier (spokenRequest).
+      const onProgress = (event: { stage: string }) => {
+        watch(event);
+        if (event.stage === 'transaction_sent') progress?.('sent');
+      };
+      return inVoiceCard((place) => call(voice, id, onProgress, place));
+    });
     if (result.kind !== 'sent' || !nearAccountId) return result;
     // The Wallet reports a transaction that succeeded. The market can still have refused it.
     const outcome = await finalOutcome(rpcUrl, result.transactionHash, nearAccountId).catch(() => null);

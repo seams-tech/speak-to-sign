@@ -223,10 +223,14 @@
 .notes-app:has(.voice-bar) .column {
   padding-bottom: 100px;
 }
-/* The toasts (sonner, on document.body) stay over the bar. */
+/* The toasts (sonner, on document.body) stay over the bar. A toast at the right (an OutLayer
+   toast, components/Toasts.tsx) is beside the bar on a wide screen, so it stays in the corner. On
+   a phone each toast has the full width, so it stays over the bar. */
 body:has(.notes-app .voice-bar) [data-sonner-toaster] {
-  --offset-bottom: 104px !important;
   --mobile-offset-bottom: calc(53px + 96px + env(safe-area-inset-bottom)) !important;
+}
+body:has(.notes-app .voice-bar) [data-sonner-toaster][data-x-position='center'] {
+  --offset-bottom: 104px !important;
 }
 @container notes (max-width: 500px) {
   .voice-bar {

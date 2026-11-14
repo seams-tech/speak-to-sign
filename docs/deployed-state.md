@@ -57,18 +57,17 @@ view outlayer.testnet get_version_count '{"project_id":"seams-v1.testnet/voice-v
 | --- | --- | --- | --- |
 | `notes.seams-v1.testnet` | `724jz1XP…btU7c` = SHA-256 `596beeb3…d9c3`, the build of commit `119ef0e` | The same | **Yes.** `get_voice_config` returns `"required":true`. |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHg…nQ9Z` = `657c3b07…`, the build of commit `777b844` | The same | **Yes.** `get_voice_config` returns `"required":true`. |
-| `voice-multisig.seams-v1.testnet` | `CkYrt1XM…QTnA` = `ae988e20…`, the build of commit `99231f6` (version 3.0.0) | The same | **Yes.** Each `propose` and `approve` needs a verdict. No proposal has run on this account: its signers have no enrolled voices. The live run is on `voice-multisig-3.seams-v1.testnet`, which runs the same build: see [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
-| `voice-multisig-3.seams-v1.testnet` | `CkYrt1XM…QTnA` = `ae988e20…`, the same build of commit `99231f6`. Deployed on 2026-11-14 (create tx `AUsJCRrhgGCutsUFMJw1nbFDf7HmkPaVJ57qiGhi6kYH`, deploy and `new` tx `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m`). SourceScan verified it. | The same | **Yes.** It is the multisig of the demo page `/multisig/` since 2026-11-14: 2 of 2, with two new signer wallets (`ed3915f4…7b53` and `b6d438f1…e4ea`). Proposal 1 ran on it on 2026-11-14 with verifier 0.15.0: `propose`, `approve` and `execute` of 0.1 NEAR to `bob.testnet`. Both verdicts have `"heard":null`. See [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). Proposal 2 is open with 1 of 2. |
+| `voice-multisig-3.seams-v1.testnet` | `CkYrt1XM…QTnA` = `ae988e20…`, the build of commit `99231f6` (version 3.0.0). Deployed on 2026-11-14 (create tx `AUsJCRrhgGCutsUFMJw1nbFDf7HmkPaVJ57qiGhi6kYH`, deploy and `new` tx `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m`). SourceScan verified it. | The same | **Yes.** Each `propose` and `approve` needs a verdict. It has 2 of 2 signers, and it is the multisig of the demo page `/multisig/` and the moderator of the notes contract. Proposal 1 ran on 2026-11-14 with verifier 0.15.0: `propose`, `approve` and `execute` of 0.1 NEAR to `bob.testnet`. Both verdicts have `"heard":null`. See [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
 | `seams-faucet.testnet` | `6d8BGwTR…fR2z` = `538b7580…`, the build of commit `777b844` | The same | No voice step (it is the faucet). |
 
 ```bash
-for a in notes.seams-v1.testnet pm-notes.seams-v1.testnet voice-multisig.seams-v1.testnet seams-faucet.testnet; do echo "$a $(code_hash $a)"; done
+for a in notes.seams-v1.testnet pm-notes.seams-v1.testnet voice-multisig-3.seams-v1.testnet seams-faucet.testnet; do echo "$a $(code_hash $a)"; done
 view notes.seams-v1.testnet get_voice_config '{}'
 view pm-notes.seams-v1.testnet get_voice_config '{}'
 view notes.seams-v1.testnet get_moderator '{}'
 ```
 
-The moderator of the notes contract is `voice-multisig.seams-v1.testnet`.
+The moderator of the notes contract is `voice-multisig-3.seams-v1.testnet` (since 2026-11-14, `set_moderator` tx `9iJaF51uf1TXQM9ZBA3JP76NNTigvKe597N3xsW7d3fC`).
 
 ## The Wallet and the site
 

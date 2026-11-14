@@ -109,8 +109,7 @@ signer's mouth.
 
 **Not done.** The signers of `voice-multisig` are fixed at `new`: a
 voice-approved change of the signers does not exist yet. A 2-of-2 transfer ran
-on `voice-multisig-3.seams-v1.testnet` (`/multisig/` on the demo site), while
-`voice-multisig.seams-v1.testnet` has no proposal yet
+on `voice-multisig-3.seams-v1.testnet` (`/multisig/` on the demo site)
 ([`docs/deployed-state.md`](deployed-state.md#the-contracts)).
 
 ## 4. Where is the agent? Does JEV approve payments?

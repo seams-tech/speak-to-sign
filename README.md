@@ -267,15 +267,13 @@ as verified.
 | Contract | Testnet account | Source | Code hash (base58) |
 | -------- | --------------- | ------ | ------------------ |
 | Community notes | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) | [`demo/contracts/community-notes/`](demo/contracts/community-notes/) at commit `119ef0e` | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` |
-| Voice multisig (version 3.0.0, voice only, 2 of 2 signers) | [`voice-multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig/`](demo/contracts/voice-multisig/) at commit `99231f6` | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
+| Voice multisig (version 3.0.0, voice only, 2 of 2 signers) | [`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract) | [`demo/contracts/voice-multisig/`](demo/contracts/voice-multisig/) at commit `99231f6` | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` |
 | Note market | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) | [`demo/contracts/jev-prediction-market/`](demo/contracts/jev-prediction-market/) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` |
 | Faucet | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) | [`demo/contracts/faucet/`](demo/contracts/faucet/) | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` |
 
-The live multisig run is on a second account with the same code hash,
-[`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet).
-Its signers have enrolled voices, the demo page `/multisig/` uses it, and
-the run of 2026-11-14 with verifier 0.15.0 is there.
-`voice-multisig.seams-v1.testnet` has no proposal.
+The signers of the voice multisig have enrolled voices, and the demo page
+`/multisig/` uses it. Its live run of 2026-11-14 with verifier 0.15.0 is in
+[the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
 
 The deploy transactions and the way to build each contract again are in
 [`demo/contracts/README.md`](demo/contracts/README.md#the-deployed-code).

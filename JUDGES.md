@@ -162,14 +162,13 @@ changed page do not match.
 - The contract checks each verdict on chain: key, expiry, owner, commitment.
   One recording counts once, and no call without a verdict can approve. The
   unit tests and a local nearcore sandbox test show this.
-- It is on `voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2
+- It is on `voice-multisig-3.seams-v1.testnet` since 2026-11-14, with 2 of 2
   signers, and SourceScan verified its code.
 - The notes contract names this multisig as its moderator. So the hide of a
   note needs a proposal that 2 of 2 signers approve by voice.
 
 **Live run:** on 2026-11-14 two signers proposed and approved one transfer
-by voice on `voice-multisig-3.seams-v1.testnet`, which runs the same build.
-Each transaction holds the signed verdict of verifier 0.15.0:
+by voice on this contract. Each transaction holds the signed verdict of verifier 0.15.0:
 [`propose`](https://testnet.nearblocks.io/txns/6fztuBbTfu6evJUXvqAPoUn5eisGY2kYNXEm6Sdpt7wm),
 [`approve`](https://testnet.nearblocks.io/txns/DWkEVXvE6erK8ZCfjDMEQJKqVoCiCNQBAWiJiQ7SPrXn).
 Each verdict has `"heard":null`, so the chain showed only the salted hash of
@@ -200,7 +199,7 @@ the OutLayer TEE on chain, with the crate `seams-voice-verdict`:
 | --- | --- |
 | `notes.seams-v1.testnet` | Each note and each rating |
 | `pm-notes.seams-v1.testnet` | Each bet: the bettor, the market, the side and the amount |
-| `voice-multisig.seams-v1.testnet` | Each proposal and each approval |
+| `voice-multisig-3.seams-v1.testnet` | Each proposal and each approval |
 
 Each contract checks the ed25519 signature against the pinned key, the
 expiry, and that the verdict is for this exact action. Each verdict counts
@@ -370,7 +369,7 @@ git clone https://github.com/seams-tech/speak-to-sign
 | A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
 | With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.71.0: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L199) and its [test](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/tests/unit/speakToSignHost.unit.test.ts#L1168) |
 | The notes contract takes a note or a rating only with its own verdict: the key, the outcome, the expiry and the digest. Each verdict counts once. On testnet, `get_voice_config` of `notes.seams-v1.testnet` gives `"required":true`. | `check_spoken` in `demo/contracts/community-notes/src/lib.rs`; `src/tests.rs` and `spoken_notes_in_the_sandbox` in `sandbox/tests/sandbox.rs` |
-| The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig.seams-v1.testnet`; no proposal ran there yet. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
+| The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig-3.seams-v1.testnet`, and proposal 1 ran there on 2026-11-14. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |
 | In verifier 0.15.0 (the active version), a recording goes to Whisper only sealed to a NEAR AI gateway whose TDX quote passed the check. A failed check sends nothing to NEAR AI. | `the_recorded_report_passes`, `a_wrong_key_fails`, `a_wrong_measurement_fails` in `crates/voice-verifier/tests/nearai_attestation.rs`; `no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper`, `a_failed_check_refuses_even_within_the_grace_period` in `tests/ops/whisper.rs`; check 5 above |
 | A sealed recording opens only for its owner and operation. | `sealed_audio_opens_only_for_its_owner_and_operation` in `crates/voice-verifier/tests/ops/sealed.rs`; spec 5.1 |

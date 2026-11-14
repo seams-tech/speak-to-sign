@@ -3,7 +3,7 @@
 | Folder | Contract | Testnet account |
 | ------ | -------- | --------------- |
 | [`community-notes/`](community-notes/) | community notes and ratings, with 0 deposit | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) |
-| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (version 3.0.0, 2 of 2 signers); the older account `multisig.seams-v1.testnet` (2.x, admins approved by key) was deleted on 2026-11-12 | [`voice-multisig.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract) |
+| [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (version 3.0.0, 2 of 2 signers) | [`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract) |
 | [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
 | [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 
@@ -66,20 +66,17 @@ rebase.
 
 ### The deployed code
 
-From 2026-11-11, the four older testnet contracts ran the builds of commit
-`777b844`, with no init call (the state stayed). On 2026-11-12,
-`multisig.seams-v1.testnet` was deleted, `voice-multisig.seams-v1.testnet` was
-deployed from commit `99231f6` (version 3.0.0), and `notes.seams-v1.testnet`
-was upgraded to commit `119ef0e` (version 1.1.0, with the voice rule). The
-note market and the faucet still run the builds of `777b844`. SourceScan built
+`notes.seams-v1.testnet` runs the build of commit `119ef0e` (version 1.1.0,
+with the voice rule) since 2026-11-12. `voice-multisig-3.seams-v1.testnet`
+runs the build of commit `99231f6` (version 3.0.0) since 2026-11-14. The
+note market and the faucet run the builds of `777b844` since 2026-11-11. SourceScan built
 each contract again and got the same code hash, so NearBlocks shows each one
 as verified on its contract page.
 
 | Contract                    | Code hash (base58)                             | Redeploy transaction                           |
 | --------------------------- | ---------------------------------------------- | ---------------------------------------------- |
 | `notes.seams-v1.testnet` (commit `119ef0e`, 2026-11-12, no init call) | `724jz1XPE5sEQU8HXMXf4Ub1WWem8csJyhAKSeabtU7c` | `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse` |
-| `multisig.seams-v1.testnet` (deleted on 2026-11-12) | `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh` | `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t` |
-| `voice-multisig.seams-v1.testnet` (commit `99231f6`, 2026-11-12, deploy with `new`) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` | `FUAfW1AeZMMarjVThdDtmdXAhPw1ghZt2U6FSMF83rxs` |
+| `voice-multisig-3.seams-v1.testnet` (commit `99231f6`, 2026-11-14, deploy with `new`) | `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA` | `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m` |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` | `88qJEJPcSpay99MSV4ZVecp88XasDfD3zSv27Cgk6Zx6` |
 | `seams-faucet.testnet`      | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` | `7uczvTN3tAhD4sw3G7VwFWL1xJXH1gkaLMjXjyrwVq4k` |
 

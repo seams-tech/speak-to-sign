@@ -19,10 +19,9 @@ that the grammar can speak (0.01 to 1,000,000 NEAR), and the balance of the
 multisig limits it. Testnet only.
 
 This README is for version 3.0.0, the source in `src/`. Version 3.0.0 is on
-`voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2 signers
-(see "Deployed code"). No demo page uses it yet. The older account
-`multisig.seams-v1.testnet` (version 2.x, with two admins that approved by
-plain calls) was deleted on 2026-11-12 (see "Deployed code").
+`voice-multisig-3.seams-v1.testnet` since 2026-11-14, with 2 of 2 signers
+(see "Deployed code"). The demo page `/multisig/` drives it, and the notes
+contract names it as its moderator.
 
 The specification is in `docs/voice-intents-spec.md`, section 10. The
 sequence diagram is in `docs/architecture.md`, section 7.
@@ -207,8 +206,8 @@ EVENT_JSON:{"standard":"voice_multisig","version":"3.0.0","event":"execute_faile
 The rows of each method are in the order that the contract checks them.
 near-sdk checks the deposit, the private method, the JSON arguments and the
 second `new` before the contract's own checks. So an `approve` with only
-`{"proposal_id"}`, the plain approve of 2.x, fails with `Failed to
-deserialize input from JSON` (missing field `verdict_json`).
+`{"proposal_id"}` and no verdict fails with `Failed to deserialize input
+from JSON` (missing field `verdict_json`).
 
 | Message | Method |
 | ------- | ------ |
@@ -260,8 +259,7 @@ are the total of the call, the transfer and the callback.
 | `execute`, the transfer fails       | 5.14 Tgas |
 | `execute`, a hide (50 Tgas attached)| 6.68 Tgas |
 
-`approve` checks a verdict now, so it burns about 0.55 Tgas more than the
-plain `approve` of 2.x (1.93 Tgas). A 2 of 3 proposal (`propose`, one
+The check of the verdict is about 0.55 Tgas of an `approve`. A 2 of 3 proposal (`propose`, one
 `approve` and `execute`) burns about 9.9 Tgas in total.
 
 One proposal with 3 voice approvals uses 388 bytes of contract storage, with
@@ -283,9 +281,7 @@ git and cargo-near 0.22.0.
 ```
 
 The build of 12 Nov 2026 of version 3.0.0 is the code on
-`voice-multisig.seams-v1.testnet`. The code on `multisig.seams-v1.testnet`
-was the 2.x build of commit `777b844`, until that account was deleted (see
-"Deployed code").
+`voice-multisig-3.seams-v1.testnet` (see "Deployed code").
 
 | Item               | Value |
 | ------------------ | ----- |
@@ -298,7 +294,7 @@ was the 2.x build of commit `777b844`, until that account was deleted (see
 pass with this WASM (`VOICE_MULTISIG_WASM=res/voice_multisig.wasm`).
 SourceScan built the commit again and got the same code hash, so NearBlocks
 shows the code as verified at
-<https://testnet.nearblocks.io/address/voice-multisig.seams-v1.testnet/contract>.
+<https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract>.
 
 ### Local build
 
@@ -347,14 +343,7 @@ community-notes contract with 2 of 2 voice approvals.
 
 ## Deploy to testnet
 
-Version 3.0.0 has its own contract account. Its state (signers, threshold,
-recordings) is not the state of 2.x (admins), and the open 2.x proposals
-have admin approvals that are not voices. So a migration in place on
-`multisig.seams-v1.testnet` would carry approvals that no voice gave. So
-3.0.0 got a new account. The 2.x account was deleted later on 2026-11-12
-(see "Deployed code").
-
-The steps below are the record of the deploy of 2026-11-12 and the way to
+The steps below are the record of the deploy of 2026-11-14 and the way to
 deploy again. Each step waits for the owner's go-ahead. Each signer must
 have an enrolled voice in the verifier (`enroll`) before it proposes or
 approves, and two signers need two different voices (`same_speaker`).
@@ -367,43 +356,42 @@ approves, and two signers need two different voices (`same_speaker`).
    ../reproducible.sh build voice-multisig
    ```
 
-2. Create the contract account. 3 NEAR covers the code (about 2.15 NEAR).
-   Tx `5PWHCXLPb6aKyZGRkevkoMhfPVhfqH3Fn5uQ12DV6R9x`:
+2. Create the contract account. 3 NEAR covers the code (about 2.15 NEAR)
+   and leaves about 0.85 NEAR for transfers. Tx
+   `AUsJCRrhgGCutsUFMJw1nbFDf7HmkPaVJ57qiGhi6kYH`:
 
    ```bash
-   near account create-account fund-myself voice-multisig.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+   near account create-account fund-myself voice-multisig-3.seams-v1.testnet '3 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. Deploy the WASM with the signers, the threshold and the verifier key.
-   Tx `FUAfW1AeZMMarjVThdDtmdXAhPw1ghZt2U6FSMF83rxs` (17.4 Tgas):
+3. Deploy the WASM with the signers, the threshold and the verifier key. The
+   WASM must have the SHA-256 of `reproducible.sha256`. Tx
+   `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m`:
 
    ```bash
-   near contract deploy voice-multisig.seams-v1.testnet use-file res/voice_multisig.wasm with-init-call new json-args '{"signers":["cyan-loong.testnet","seams-v1.testnet"],"threshold":2,"verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
+   near contract deploy voice-multisig-3.seams-v1.testnet use-file res/voice_multisig.wasm with-init-call new json-args '{"signers":["ed3915f4844cab707c94b3e840aeaad1fa398903aff8bf235bd11bc878107b53","b6d438f14197c4b769cd56792a585153553fd60c6c32b487813612768181e4ea"],"threshold":2,"verifier_public_key":"ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U"}' prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send
    ```
 
 4. Name the notes contract. Tx
-   `9xESGGc9s7kkfs8W7pHEcWhjx1mnZpBaKkdTQXZVv2y7`:
+   `3vYpH6NpjMmXpCsZ62pg5h2USpbzAbedMP4K3yt1FqzR`:
 
    ```bash
-   near contract call-function as-transaction voice-multisig.seams-v1.testnet set_notes_contract json-args '{"account_id":"notes.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as voice-multisig.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+   near contract call-function as-transaction voice-multisig-3.seams-v1.testnet set_notes_contract json-args '{"account_id":"notes.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as voice-multisig-3.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
    A hide works only when the notes contract names this multisig as its
-   moderator. The notes contract has one moderator. It was
-   `multisig.seams-v1.testnet` (2.x) until that account was deleted on
-   2026-11-12. The switch to this multisig ran on 2026-11-12, tx
-   `67yt21jDwFhcRXc6Ku8xeKutiyhPN8B2pnkL7iX1QM5D`:
+   moderator. The notes contract has one moderator. Tx
+   `9iJaF51uf1TXQM9ZBA3JP76NNTigvKe597N3xsW7d3fC`:
 
    ```bash
-   near contract call-function as-transaction notes.seams-v1.testnet set_moderator json-args '{"account_id":"voice-multisig.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as notes.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
+   near contract call-function as-transaction notes.seams-v1.testnet set_moderator json-args '{"account_id":"voice-multisig-3.seams-v1.testnet"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as notes.seams-v1.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-5. Fund the multisig with a plain transfer. Tx
-   `HWAFhCd7zWWM3ZrPK1tRQFhfD9Agc9NFNbdvB66uqW7o` (2 NEAR, 5.00 NEAR in
-   all, of which about 2.15 NEAR holds the code):
+5. If a proposal needs more than the free balance, fund the multisig with a
+   plain transfer:
 
    ```bash
-   near tokens seams-v1.testnet send-near voice-multisig.seams-v1.testnet '2 NEAR' network-config testnet sign-with-legacy-keychain send
+   near tokens seams-v1.testnet send-near voice-multisig-3.seams-v1.testnet '2 NEAR' network-config testnet sign-with-legacy-keychain send
    ```
 
 6. Read the config, and ask SourceScan to verify the code (see
@@ -411,25 +399,22 @@ approves, and two signers need two different voices (`same_speaker`).
    `{"message":"Contract verified successfully","checksum":"CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA"}`:
 
    ```bash
-   near contract call-function as-read-only voice-multisig.seams-v1.testnet get_config json-args '{}' network-config testnet now
+   near contract call-function as-read-only voice-multisig-3.seams-v1.testnet get_config json-args '{}' network-config testnet now
    ```
 
    ```bash
-   curl -s -X POST https://api-v2.sourcescan.dev/api/verify/rust -H 'Content-Type: application/json' -d '{"accountId":"voice-multisig.seams-v1.testnet","networkId":"testnet"}'
+   curl -s -X POST https://api-v2.sourcescan.dev/api/verify/rust -H 'Content-Type: application/json' -d '{"accountId":"voice-multisig-3.seams-v1.testnet","networkId":"testnet"}'
    ```
 
 The verifier key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
 It is the verdict key of the OutLayer project
 `seams-v1.testnet/voice-verifier` for runs that the Seams payment key pays
-for, and it stays the same across versions. The verifier has
-`multisig_propose`, `multisig_hide_note` and `multisig_confirm` since 0.6.0
-(the hide since 0.7.0), so 3.0.0 needs no new verifier version.
+for, and it stays the same across versions.
 
 ## Live run on testnet
 
-The live run is on a second account, `voice-multisig-3.seams-v1.testnet`.
-The demo page `/multisig/` uses it since 2026-11-14. It runs the same
-verified build of
+The live run is on `voice-multisig-3.seams-v1.testnet`, the account of the
+demo page `/multisig/`. It runs the verified build of
 commit `99231f6` (code hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`,
 SourceScan verified), with 2 of 2 signers. Each signer is a Seams Wallet
 account with an enrolled voice. The account was created with 3 NEAR (tx
@@ -484,43 +469,12 @@ Facts of this proposal:
 
 ## Deployed code
 
-`voice-multisig.seams-v1.testnet` runs version 3.0.0 since 2026-11-12: the
+`voice-multisig-3.seams-v1.testnet` runs version 3.0.0 since 2026-11-14: the
 reproducible build of commit `99231f6` (214,166 bytes, SHA-256
 `ae988e20b474a4f673ca983a6949f9654cd16fc2dfc50ba6615dd26aa7e715eb`, code
 hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`, verified by
-SourceScan). The signers are `cyan-loong.testnet` and `seams-v1.testnet`,
-and the threshold is 2. The notes contract is `notes.seams-v1.testnet`, and
-the notes contract names this multisig as its moderator since 2026-11-12.
-The transactions are in "Deploy to testnet". No proposal exists on this
-account: its two signers have no enrolled voices. The proposals by voice ran
-on `voice-multisig-3.seams-v1.testnet`; see "Live run on testnet" above.
-
-`multisig.seams-v1.testnet` ran version 2.x until 2026-11-12, when the
-account was deleted. In 2.x, any account that was not an admin proposed by
-voice, and the admins `admin-a.seams-v1.testnet` and
-`admin-b.seams-v1.testnet` approved with plain signed calls. Its source is
-commit `777b844` (`git show 777b844:demo/contracts/voice-multisig/README.md`
-has its interface). The demo site had no page for it since `d412a9a`.
-
-- 2026-11-10: deploy and `new`, tx
-  `BcBCruDvJ5MCyDPxRKqm7BCCXgUuyr1NfmeFXXZg6Dwz` (code `c3f420b8…e037`),
-  with about 10.5 NEAR.
-- 2026-11-11: the code of `dev` 01dde86, with the hide of a note, no init
-  call: tx `DfXs4nJpJTMgiK5RnvfwAWdzEwiF6BnkokXGkY7J4rSk`.
-  `set_notes_contract` to `notes.seams-v1.testnet`: tx
-  `A3zL4SZ4iDXXLAzpYZNzZf8n3VqsFbEBTzR9Qk2mfDMu`.
-- 2026-11-11: the reproducible build of commit `777b844` (210,878 bytes,
-  SHA-256 `95208e2a2b5091c677ad0e521fea43f7bc74d5a661981553b8ed5d835110e644`,
-  code hash `B38YGRGymzWML2WoNz2TLqLe5z1vmKc1wjcHYRCEUahh`), no init call:
-  tx `Exeu3mx8x1VZdheteCWAVvduEZo3H6FSeNLqsfusDD7t`. SourceScan built the
-  commit again and got the same code hash, so NearBlocks showed the code as
-  verified.
-- 2026-11-12: the account was deleted. NEAR refuses to delete an account
-  with more than 10 kB of storage, so an empty 8-byte WASM module replaced
-  the code first: tx `5VHiCTSsjYgFEgKtwYaeJpziLgnVjxG3gr85PusSSwAX`. Then
-  `delete-account` with the beneficiary `seams-faucet.testnet` sent its
-  10.49 NEAR to the faucet: tx
-  `946SabSDyNPet3s9cTFT9EWcjEGR1tByyVq7pJVaa4y5`.
-
-The first deploy, `team.seams-v1.testnet` (2026-11-10, code
-`d82479ab…e327`), had a cap of 0.05 NEAR. It stays on chain.
+SourceScan). The signers are the two Seams Wallet accounts of "Live run on
+testnet", and the threshold is 2. The notes contract is
+`notes.seams-v1.testnet`, and the notes contract names this multisig as its
+moderator since 2026-11-14. The transactions are in "Deploy to testnet", and
+the proposals by voice are in "Live run on testnet".

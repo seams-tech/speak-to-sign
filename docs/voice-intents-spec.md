@@ -490,9 +490,7 @@ only. It has a fixed set of signers and a threshold M of N, and no admin.
 
 No call without a verdict approves, and no call changes the signers. Its
 README has the interface. Version 3.0.0 is on
-`voice-multisig.seams-v1.testnet` since 2026-11-12, with 2 of 2 signers. The
-older account `multisig.seams-v1.testnet` (version 2.x, where two admin
-accounts approved with plain signed calls) was deleted on 2026-11-12.
+`voice-multisig-3.seams-v1.testnet` since 2026-11-14, with 2 of 2 signers.
 
 ## 11. Trust limits
 

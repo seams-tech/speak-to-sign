@@ -102,10 +102,8 @@ refuses a verdict for another digest.
   default.
 - `hide_note` needs no verdict here: the voice multisig checks the verdicts
   of its signers. In version 3.0.0 of the multisig, each approval is a
-  verdict too. The older account `multisig.seams-v1.testnet` (2.x, where two
-  admins approved by key) was deleted on 2026-11-12. Since then, the
-  moderator of the deployed notes contract is
-  `voice-multisig.seams-v1.testnet`.
+  verdict too. The moderator of the deployed notes contract is
+  `voice-multisig-3.seams-v1.testnet`.
 - The key and the switch are kept outside the contract state, as the
   moderator is.
 
@@ -142,7 +140,7 @@ Each change call logs one NEP-297 event. `data` is an array with one object.
 ```text
 EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_added","data":[{"note_id":1,"post_id":42,"author":"alice.testnet"}]}
 EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_rated","data":[{"note_id":1,"account_id":"bob.testnet","rating":"helpful","previous_rating":null,"status":"needs_more_ratings"}]}
-EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_hidden","data":[{"note_id":7,"post_id":900,"moderator":"voice-multisig.seams-v1.testnet","proposal_id":3}]}
+EVENT_JSON:{"standard":"community_notes","version":"1.1.0","event":"note_hidden","data":[{"note_id":7,"post_id":900,"moderator":"voice-multisig-3.seams-v1.testnet","proposal_id":3}]}
 ```
 
 Version 1.1.0 adds `note_hidden`. Version 1.0.0 had the first two events
@@ -276,9 +274,9 @@ Deployed on 9 Nov 2026 from commit `7f0e014`.
 | Create account      | transaction `GxZNoaKqZnoR9kmoFK2PVJqYqDaPUDBrScd1Eks7h9fa`             |
 | Deploy              | transaction `7eVv1CLTX5MTaanpJvJVHj2PXNv23aztqQHqmJyCc5a4`             |
 | Smoke test          | `add_note` from `seams-v1.testnet`, transaction `4QQh3AXaz64BhGqhCjd72qGYt2iFuNB8LGfn4HtdQowM`, 2.2 Tgas |
-| Upgrade (2026-11-11) | Code of `dev` 01dde86 with the moderator and `hide_note` (177,329 bytes, SHA-256 `e6093bb1…26be` in this build folder), no init call, the notes stay: transaction `EbvY3JzUmc4S6cDCfVr1bgbF55CLTexKGwAVqh2H9spr`. `set_moderator` to `multisig.seams-v1.testnet`: transaction `BKXvKf4YrNwhDA1uQZF6ez7p3H3fzw57ivQuH1Mxh3mr` |
+| Upgrade (2026-11-11) | Code of `dev` 01dde86 with the moderator and `hide_note` (177,329 bytes, SHA-256 `e6093bb1…26be` in this build folder), no init call, the notes stay: transaction `EbvY3JzUmc4S6cDCfVr1bgbF55CLTexKGwAVqh2H9spr`. |
 | Redeploy (2026-11-11) | The reproducible build of commit `777b844` (146,408 bytes, SHA-256 `0b821a5c…7f80`). Its contract source is the same as in `dev` 01dde86. No init call; note 1 and the moderator stay: transaction `9d5SW81rQ2BQXrvqA5z78gYYxdEhP8JVVj4pu3tFFAEW` |
-| Moderator (2026-11-12) | `set_moderator` to `voice-multisig.seams-v1.testnet`, the voice-only multisig 3.0.0, after the 2.x account was deleted: transaction `67yt21jDwFhcRXc6Ku8xeKutiyhPN8B2pnkL7iX1QM5D` |
+| Moderator (2026-11-14) | `set_moderator` to `voice-multisig-3.seams-v1.testnet`, the voice-only multisig 3.0.0: transaction `9iJaF51uf1TXQM9ZBA3JP76NNTigvKe597N3xsW7d3fC` |
 | Upgrade to 1.1.0 (2026-11-12) | The reproducible build of commit `119ef0e` (204,970 bytes, SHA-256 `596beeb3…d9c3`, with the voice rule). No init call; all notes, ratings and the moderator stay: transaction `3ujaWY7JxKNDBm5QvGnesGNxpa8uwL3KJXRpF57VcYse` |
 
 The smoke test added note 1 on post 9999, which is not a demo post. The

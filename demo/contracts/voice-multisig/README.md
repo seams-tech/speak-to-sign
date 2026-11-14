@@ -427,6 +427,19 @@ for, and it stays the same across versions. The verifier has
 
 ## Live run on testnet
 
+The demo page `/multisig/` uses a third account since 2026-11-14:
+`voice-multisig-3.seams-v1.testnet`. It runs the same verified build (code
+hash `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`, SourceScan verified),
+with 2 of 2 signers: `ed3915f4844cab707c94b3e840aeaad1fa398903aff8bf235bd11bc878107b53`
+and `b6d438f14197c4b769cd56792a585153553fd60c6c32b487813612768181e4ea`. The
+account was created with 3 NEAR (tx
+`AUsJCRrhgGCutsUFMJw1nbFDf7HmkPaVJ57qiGhi6kYH`), and the deploy with `new`
+is tx `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m`. It is for a run with
+verifier 0.15.0, where a verdict that passes has no heard words. No proposal
+has run on it yet.
+
+The run below is the earlier one, on the second account.
+
 A second account, `voice-multisig-2.seams-v1.testnet`, runs the same verified
 build of commit `99231f6` (code hash
 `CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA`), with 2 of 2 signers. Each

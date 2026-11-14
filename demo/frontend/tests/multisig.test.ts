@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readMultisigConfig, readProposal, readProposalId, readProposals } from '../src/multisig/contractViews.ts';
 import { isFactoryMultisig, multisigOfSearch, otherSignerError, readCreated, readFactoryConfig, searchOfMultisig } from '../src/multisig/factory.ts';
+import { ownMultisigsOf } from '../src/multisig/ownMultisigs.ts';
 import { formatBalance, formatNear, hexOfBase64Url, hundredthsOfYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from '../src/multisig/intent.ts';
 import { readVerifyOutput } from '../src/multisig/voiceVerify.ts';
 
@@ -141,4 +142,61 @@ test('the answers of the factory are read with checks', () => {
   // `create` answers null when the creation failed.
   assert.equal(readCreated(null, FACTORY), null);
   assert.equal(readCreated('evil.testnet', FACTORY), null);
+});
+
+function created(account: string, signers: string[], threshold = 2): string {
+  const data = [{ account, creator: signers[0], signers, threshold }];
+  return `EVENT_JSON:${JSON.stringify({ standard: 'voice_multisig_factory', version: '1.0.0', event: 'created', data })}`;
+}
+
+/** A `create` transaction as the transactions API gives it: the callback of the factory has the event. */
+function createTransaction(hash: string, logs: string[], receiver = FACTORY) {
+  return {
+    transaction: { hash, receiver_id: FACTORY },
+    execution_outcome: { block_timestamp: '1794670928809441498' },
+    receipts: [
+      { receipt: { receiver_id: `m9.${FACTORY}` }, execution_outcome: { outcome: { logs: [] } } },
+      { receipt: { receiver_id: receiver }, execution_outcome: { outcome: { logs } } },
+    ],
+  };
+}
+
+test('a wallet finds each multisig of the factory that names it as a signer', () => {
+  const body = {
+    transactions: [
+      createTransaction('NEW', [created(`m3.${FACTORY}`, [SIGNER_B, SIGNER_A])]),
+      createTransaction('OTHERS', [created(`m2.${FACTORY}`, [SIGNER_B, 'carol.testnet'])]),
+      createTransaction('OLD', [created(`m1.${FACTORY}`, [SIGNER_A], 1)]),
+    ],
+  };
+  assert.deepEqual(ownMultisigsOf(body, FACTORY, SIGNER_A), [
+    { contract: `m3.${FACTORY}`, signers: [SIGNER_B, SIGNER_A], threshold: 2, createdAtMs: 1794670928809 },
+    { contract: `m1.${FACTORY}`, signers: [SIGNER_A], threshold: 1, createdAtMs: 1794670928809 },
+  ]);
+  assert.deepEqual(
+    ownMultisigsOf(body, FACTORY, SIGNER_B).map((multisig) => multisig.contract),
+    [`m3.${FACTORY}`, `m2.${FACTORY}`],
+  );
+  assert.deepEqual(ownMultisigsOf(body, FACTORY, 'dave.testnet'), []);
+});
+
+test('only a created event of the factory for an account of the factory counts', () => {
+  const failed = `EVENT_JSON:${JSON.stringify({ standard: 'voice_multisig_factory', version: '1.0.0', event: 'create_failed', data: [{ account: `m4.${FACTORY}`, creator: SIGNER_A }] })}`;
+  const body = {
+    transactions: [
+      createTransaction('FAILED', [failed]),
+      // Another contract logs the same event.
+      createTransaction('ELSEWHERE', [created(`m5.${FACTORY}`, [SIGNER_A])], 'evil.testnet'),
+      // The event names an account that the factory cannot create.
+      createTransaction('OTHER_NAME', [created('evil.testnet', [SIGNER_A])]),
+      createTransaction('BROKEN', ['EVENT_JSON:{not json']),
+      createTransaction('TWICE', [created(`m6.${FACTORY}`, [SIGNER_A]), created(`m6.${FACTORY}`, [SIGNER_A])]),
+    ],
+  };
+  assert.deepEqual(
+    ownMultisigsOf(body, FACTORY, SIGNER_A).map((multisig) => multisig.contract),
+    [`m6.${FACTORY}`],
+  );
+  assert.deepEqual(ownMultisigsOf({ error: 'down' }, FACTORY, SIGNER_A), []);
+  assert.deepEqual(ownMultisigsOf(null, FACTORY, SIGNER_A), []);
 });

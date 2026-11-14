@@ -457,3 +457,30 @@
 .ms-share .ms-action {
   margin-top: 8px;
 }
+
+.ms-own-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ms-own-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  font-size: 14px;
+}
+
+.ms-own-list a {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ms-own-list a[aria-current='page'] {
+  color: var(--ink);
+  text-decoration: none;
+}
+

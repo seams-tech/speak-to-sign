@@ -4,6 +4,8 @@
 // The page shows the demo multisig first. A visitor is not one of its signers, so the page lets
 // them create a 2 of 2 multisig with one other signer (demo/contracts/voice-multisig-factory).
 // The page address then names that multisig (`?m=<account>`), and the other signer opens it.
+// A signed-in wallet also sees the list "Your multisigs": the multisigs of the factory that name
+// it as a signer.
 //
 // - A signer proposes a transfer: the signer types it, then reads it aloud. The verifier checks
 //   the voice and the words, keeps the proposal and its salt, and signs a verdict; the Seams
@@ -34,6 +36,7 @@ import { formatBalance, formatNear, formatYocto, isSpeakableAccount, parseNearAm
 import { multisigOfSearch, otherSignerError, readCreated, searchOfMultisig } from './factory';
 import { createMultisig, createMultisigSigner, type MultisigSigner, type SendResult, type WalletOwner } from './multisigSigner';
 import { readOpening, removeOpening, writeOpening, type Opening } from './openings';
+import { findOwnMultisigs, type OwnMultisig } from './ownMultisigs';
 import { getBalance, getConfig, getFactoryConfig, getProposal, getProposals, getTransactionValue, nextProposalId } from './views';
 import { checkVoice, type SignedVerdict, type VoiceCheck } from './voiceVerify';
 import { VoiceRecorder } from './VoiceRecorder';
@@ -231,6 +234,7 @@ function Board({
       ) : (
         <ShareMultisig />
       )}
+      {account && <OwnMultisigs account={account} shown={contract} onShow={onShow} />}
       <section className="ms-card ms-summary" aria-label="The multisig">
         <div>
           <p className="ms-label">Multisig</p>
@@ -446,6 +450,69 @@ function ShareMultisig() {
         <CopyButton text={window.location.href} label="Copy the link" />
         <a href={window.location.pathname}>Back to the demo multisig</a>
       </div>
+    </section>
+  );
+}
+
+/** The transactions API can be a few seconds behind the chain. */
+const LIST_RETRY_MS = 6000;
+
+/**
+ * The multisigs of the factory that name the wallet as a signer, so that a signer needs no link.
+ * It shows nothing when the wallet has none or the transactions API fails.
+ */
+function OwnMultisigs({ account, shown, onShow }: { account: string; shown: string; onShow: (contract: string) => void }) {
+  const [list, setList] = useState<OwnMultisig[]>([]);
+
+  useEffect(() => {
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const read = async (again: boolean) => {
+      const found = await findOwnMultisigs(config.txApiUrl, FACTORY, account, abort.signal).catch(() => null);
+      if (abort.signal.aborted) return;
+      if (found) setList(found);
+      // A multisig that was created a moment ago can be absent: read one more time.
+      const absent = shown !== DEMO_MULTISIG && !found?.some((multisig) => multisig.contract === shown);
+      if (again && absent) timer = setTimeout(() => void read(false), LIST_RETRY_MS);
+    };
+    void read(true);
+    return () => {
+      abort.abort();
+      clearTimeout(timer);
+    };
+  }, [account, shown]);
+
+  if (list.length === 0) return null;
+  return (
+    <section className="ms-card" aria-label="Your multisigs">
+      <h2>Your multisigs</h2>
+      <ul className="ms-own-list">
+        {list.map(({ contract, signers, threshold, createdAtMs }) => {
+          const others = signers.filter((id) => id !== account);
+          return (
+            <li key={contract}>
+              <a
+                href={searchOfMultisig(contract, DEMO_MULTISIG)}
+                aria-current={contract === shown ? 'page' : undefined}
+                onClick={(event) => {
+                  // A click with a modifier key opens a new tab, as for each link.
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                  event.preventDefault();
+                  onShow(contract);
+                }}
+              >
+                {contract}
+              </a>
+              <span className="ms-muted">
+                {threshold} of {signers.length}
+                {others.length > 0 && ` with ${others.map(shortAccount).join(', ')}`}
+                {createdAtMs !== null && ` · ${new Date(createdAtMs).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}`}
+                {contract === shown && ' · shown below'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

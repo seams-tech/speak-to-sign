@@ -27,7 +27,14 @@ both.
   visitor sends that address to the other signer. The page takes only the
   demo multisig or an account `m<N>.<factory>` from its address
   (`src/multisig/factory.ts`), so a link cannot point it at another contract.
-  The form shows only when the factory account answers `get_config`. One
+  The form shows only when the factory account answers `get_config`.
+
+  A signed-in wallet also sees the list "Your multisigs": each multisig of
+  the factory that names the wallet as a signer. So the other signer needs
+  no link. The factory keeps no list, so the page reads the `created` events
+  in the newest 20 transactions of the factory from FastNEAR's transactions
+  API (`src/multisig/ownMultisigs.ts`). If that API fails, the page shows no
+  list, and the link of a multisig still opens it. One
   person has one voice, so the two signers must be two persons: the verifier
   refuses a voice that already approved the proposal.
 

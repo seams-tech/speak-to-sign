@@ -24,27 +24,21 @@ last line of the contract's `reproducible.sha256`.
 
 | Item | Live | Source | Differs? |
 | --- | --- | --- | --- |
-| Active version on OutLayer (a call with no `version_key`) | 0.15.0, `21af4130…27d9`, since 2026-11-14 (`set_active_version` tx `859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`). It is the worker with the NEAR AI check. Its verdicts have the heard words only in a `words` refusal. Before it: 0.14.1, `1e7c6968…8a5c`, from 2026-11-12. | Commit `a4c7b48`; JUDGES.md check 3 builds it | No |
-| 0.14.1 and 0.14.1+venice | `1e7c6968…8a5c` and `344b8b47…d3c8`. Still in the project. No caller uses them since 2026-11-14. An `accept` of these versions has the heard words. | Commit `62cd438` | |
-| 0.12.0 and 0.13.0 | `bfe81633…c946` and `1b777154…f930`. Removed from the project on 2026-11-12, when no caller used them: the Seams staging server moved to 0.14.1 (`remove_version` txs `2XGQZT5GGJkoVbiCe34VaTZiPkaVDvFxHTLMnhscJVc4` and `3AVPXQTpVkh7cwCvUyDRrN1fdrQ2QyJtSPec53mrWMZB`). A call with one of these keys fails. | Commits `a816798` and `a4d6ce7` | |
+| Active version on OutLayer (a call with no `version_key`) | 0.15.0, `21af4130…27d9`, since 2026-11-14 (`set_active_version` tx `859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`). It is the worker with the NEAR AI check. Its verdicts have the heard words only in a `words` refusal. | Commit `a4c7b48`; JUDGES.md check 3 builds it | No |
 | Versions that the Seams staging server calls (a transfer, a note, a rating, a bet) | Since the deploy of 2026-11-14: 0.15.0, `21af4130…27d9`, while NEAR AI Whisper answers, and 0.15.0+venice, `5f475dd2…fcdf`, while it is down. The server checks NEAR AI once a minute and selects the build by `version_key`; the page cannot select it. The TDX quote check accepts only the hash of the build that the server called. | `seams-monorepo` `deployment/wallet-system/targets.json` (`versionKey`, `veniceVersionKey`), commit `d0c481ae` | No |
 | Versions that the demo route `/api/voice-verify` calls (the multisig page) | Since the deploy of 2026-11-14: 0.15.0 while NEAR AI Whisper answers, and 0.15.0+venice while it is down. The route checks Whisper before each call, and a request can name the service. The answer names it in the header `X-Speech-To-Text`. | `demo/frontend/functions/api/voice-verify.ts` | No |
 | Verdict key | `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`, bound to the project, so every version signs with it | `crates/voice-verifier/manifest/outlayer.json` | No |
 | HTTPS API and secrets | `https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier`, with `secrets_ref` `{"profile":"main","account_id":"cyan-loong.testnet"}` | `crates/voice-verifier/README.md` | No |
-| Worker with the NEAR AI check | 0.15.0, `21af4130…27d9` (495,848 bytes), added on 2026-11-14, **active**. Both the Seams staging server and the demo route select it while NEAR AI Whisper answers. On 2026-11-14 one `verify` call on it gave an `accept` with `"heard":null`, and one gave a `words` refusal with the heard words. On the same day, the two verdicts of [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet) came from it. Its quote check is the check of 0.14.1, which was verified live on OutLayer with both cached (`tee_cached` 1) and fresh (`tee_cached` 0) quote checks: see [trust-chain.md](trust-chain.md#the-near-ai-check). | Commit `a4c7b48` | No |
+| Worker with the NEAR AI check | 0.15.0, `21af4130…27d9` (495,848 bytes), added on 2026-11-14, **active**. Both the Seams staging server and the demo route select it while NEAR AI Whisper answers. On 2026-11-14 one `verify` call on it gave an `accept` with `"heard":null`, and one gave a `words` refusal with the heard words. On the same day, the two verdicts of [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet) came from it. Each of these calls passed the check of the NEAR AI quotes: a failed check refuses with `transcriber_not_attested`. See [trust-chain.md](trust-chain.md#the-near-ai-check). | Commit `a4c7b48` | No |
 | Worker for a NEAR AI Whisper outage (the `venice` build) | 0.15.0+venice, `5f475dd2…fcdf` (400,341 bytes), added on 2026-11-14, **not active**. The demo route selects it by its key while NEAR AI Whisper is down. It sends the recording to Venice AI over TLS, with no TEE check. On 2026-11-14 one `verify` call on it gave an `accept` with `"heard":null`, and one gave a `words` refusal. | Commit `a4c7b48`, `./build.sh --venice --docker` | No |
 | The verifier source on `dev` | 0.15.0: both of its builds are on OutLayer. The default build is active. | Commit `a4c7b48` | No |
-| Builds that were removed | 0.14.0+venice, `59ee371c…fa66` (Venice AI answered 422 to each request), 0.14.0 with `dcap-qvl`, `2f8e75a3…7ffb5` (it loaded about 1 s slower), and 0.14.0, `b9a315b7…9293` (the same worker as 0.14.1, before the `venice` fix). Removed from the project on 2026-11-12 (`remove_version` txs `8qEVS3jc68r8WAaVGGoP7NpWp2etexeiwsw8GBMTBxX`, `Akuxz76BL6H9CRZWEsR525dfYv3Um2SoFTcPtYUBGV9E` and `GCQXS8oMUiastKAv6u4cyrMBiK1w9huVpTvRtJZgGku9`). A call with one of these keys fails. | Commits `454c76e` and `6f0d43f` | |
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -r .active_version
 ```
 
-The project has four versions: 0.15.0, 0.15.0+venice, 0.14.1 and
-0.14.1+venice. No caller uses the two 0.14.1 builds. On 2026-11-12 the
-owner removed the 27 other versions, when no caller used them. A call with the key of a removed version fails. The history of each
-version and the transaction of each removal are in
-[`crates/voice-verifier/README.md`](../crates/voice-verifier/README.md#versions).
+The callers use two builds: 0.15.0 and 0.15.0+venice. The project also
+holds the two builds of 0.14.1, which no caller uses.
 
 ```bash
 # See: 4

@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@seams/voiceid':
-        specifier: 0.71.0
-        version: 0.71.0(@seams/wallet@0.71.0(@seams/voice-capture@0.71.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 0.72.0
+        version: 0.72.0(@seams/wallet@0.72.0(@seams/voice-capture@0.72.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@seams/wallet':
-        specifier: 0.71.0
-        version: 0.71.0(@seams/voice-capture@0.71.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 0.72.0
+        version: 0.72.0(@seams/voice-capture@0.72.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -591,28 +591,28 @@ packages:
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
 
-  '@seams/voice-capture@0.71.0':
-    resolution: {integrity: sha512-4KbVve/cWBihDiIToBCundWpeCr8kdrVbkPipBiDY7djRjspBNCWaHsVZ/gtgwIAykRZ21VmTsyGWcaBA7SD+A==}
+  '@seams/voice-capture@0.72.0':
+    resolution: {integrity: sha512-wrIL45lS/5rrHgjClPAbjfOOK94YbuwCKMOU3ORXera1igjhB5Ud/WLwF9bmSd2jtg0NIDjSTBt4Qyz+fQgg2A==}
     engines: {node: '>=24'}
 
-  '@seams/voice-sign@0.71.0':
-    resolution: {integrity: sha512-k6jIroya6bHDTIoCk7thveOge3ze0Oe3yu6VBSPn3tNu7aNsdiSaux3PSWwpaWTKdRT24LXMsvoylZCJMYUDtQ==}
+  '@seams/voice-sign@0.72.0':
+    resolution: {integrity: sha512-2nw/92dqZPsa3MZXS93cuivdu/Xq1l5JCajlT9GZ6R56Cd1XqwabwJMibdjFTNfUjL6YNf9PbEOuHP/qmpwT1w==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@seams/voice-capture': 0.71.0
+      '@seams/voice-capture': 0.72.0
     peerDependenciesMeta:
       '@seams/voice-capture':
         optional: true
 
-  '@seams/voice-verdict@0.71.0':
-    resolution: {integrity: sha512-wwqZC+W/2D5ASjQQGwDimuYCUaE9tEChkFriHutnIenRvKP5c6/rYcxVBRR5JLROnuL+fCF5gK52hTwhWM7f9Q==}
+  '@seams/voice-verdict@0.72.0':
+    resolution: {integrity: sha512-UZZpm1MOYkzEAIJcpexONcff4S2r3k0lBx6M/w1CsMdgpxbVcNKTfS2K3kr07EshpzDiOj9ckqfbsLm8huaRjw==}
     engines: {node: '>=20'}
 
-  '@seams/voiceid@0.71.0':
-    resolution: {integrity: sha512-GwZaJuxg6KS3ARMAYYpDnJJ76jsk/tdun+CJHFjjVQU/TCtjBefNBQ8lhldLTi/MrtWE9Xwh+493UGBo66RXjw==}
+  '@seams/voiceid@0.72.0':
+    resolution: {integrity: sha512-TYRVcMycvgNSckqZfBVotvTiDxCjs2y7EaKAOISPtfIjBx+Bi5WKNLkKAJfS17OiPRAKtShGUoIth/kj9eYOCQ==}
     hasBin: true
     peerDependencies:
-      '@seams/wallet': 0.71.0
+      '@seams/wallet': 0.72.0
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
     peerDependenciesMeta:
@@ -621,8 +621,8 @@ packages:
       react-dom:
         optional: true
 
-  '@seams/wallet@0.71.0':
-    resolution: {integrity: sha512-cgfuf/5XF+kUu48sH/cEK3jtPimd0/ZrgM/hE/Ku4eFWBQplWfi6/zmdQ+Rz25EgiDenogjaqSCjBK96aCym0w==}
+  '@seams/wallet@0.72.0':
+    resolution: {integrity: sha512-E8WaciPqZ87pehgryYhaRj60IOMDew/Kj7G2LgBgfihxo/EW6uLUhSA8wbtw7RY1VznKPdFHR4/o3jCJ5Y35PQ==}
     peerDependencies:
       jsqr: 1.4.0
       react: '>=19.0.0'
@@ -1605,27 +1605,27 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
-  '@seams/voice-capture@0.71.0':
+  '@seams/voice-capture@0.72.0':
     dependencies:
       onnxruntime-web: 1.30.0
       preact: 10.29.8
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@seams/voice-sign@0.71.0(@seams/voice-capture@0.71.0)':
+  '@seams/voice-sign@0.72.0(@seams/voice-capture@0.72.0)':
     dependencies:
-      '@seams/voice-verdict': 0.71.0
+      '@seams/voice-verdict': 0.72.0
     optionalDependencies:
-      '@seams/voice-capture': 0.71.0
+      '@seams/voice-capture': 0.72.0
 
-  '@seams/voice-verdict@0.71.0':
+  '@seams/voice-verdict@0.72.0':
     dependencies:
       '@noble/ciphers': 1.3.0
 
-  '@seams/voiceid@0.71.0(@seams/wallet@0.71.0(@seams/voice-capture@0.71.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@seams/voiceid@0.72.0(@seams/wallet@0.72.0(@seams/voice-capture@0.72.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@seams/voice-capture': 0.71.0
-      '@seams/wallet': 0.71.0(@seams/voice-capture@0.71.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+      '@seams/voice-capture': 0.72.0
+      '@seams/wallet': 0.72.0(@seams/voice-capture@0.72.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       preact: 10.29.8
       voice-glow: 0.2.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
     optionalDependencies:
@@ -1634,12 +1634,12 @@ snapshots:
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@seams/wallet@0.71.0(@seams/voice-capture@0.71.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)':
+  '@seams/wallet@0.72.0(@seams/voice-capture@0.72.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)':
     dependencies:
       '@levischuck/tiny-cbor': 0.2.11
       '@near-js/types': 2.4.0
-      '@seams/voice-sign': 0.71.0(@seams/voice-capture@0.71.0)
-      '@seams/voice-verdict': 0.71.0
+      '@seams/voice-sign': 0.72.0(@seams/voice-capture@0.72.0)
+      '@seams/voice-verdict': 0.72.0
       borsh: 1.0.0
       bs58: 6.0.0
       idb: 8.0.3

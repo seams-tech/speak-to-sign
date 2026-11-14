@@ -89,7 +89,7 @@ that opens a signing step waits for the end of the sentence.
 
 The Wallet's voice card is in the Wallet's frame, so the page cannot press its
 buttons. The Wallet presses them for the page (`onControls` of `WalletStep`,
-Wallet 0.71.0), and the dialog gives the bar the card (`showCard` in
+Wallet 0.72.0), and the dialog gives the bar the card (`showCard` in
 `hold.ts`).
 
 - "Try again" presses the card's own "Try again" or Record: after a recording

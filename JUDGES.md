@@ -167,10 +167,16 @@ changed page do not match.
 - The notes contract names this multisig as its moderator. So the hide of a
   note needs a proposal that 2 of 2 signers approve by voice.
 
-**Live run:** on 2026-11-12 two persons proposed and approved one transfer
-by voice on `voice-multisig-2.seams-v1.testnet`, which runs the same build.
-Each transaction holds the signed verdict. The contract then executed the
-transfer of 0.1 NEAR. The transactions are in
+**Live run:** on 2026-11-14 two signers proposed and approved one transfer
+by voice on `voice-multisig-3.seams-v1.testnet`, which runs the same build.
+Each transaction holds the signed verdict of verifier 0.15.0:
+[`propose`](https://testnet.nearblocks.io/txns/6fztuBbTfu6evJUXvqAPoUn5eisGY2kYNXEm6Sdpt7wm),
+[`approve`](https://testnet.nearblocks.io/txns/DWkEVXvE6erK8ZCfjDMEQJKqVoCiCNQBAWiJiQ7SPrXn).
+Each verdict has `"heard":null`, so the chain showed only the salted hash of
+the proposal. The contract then executed the transfer of 0.1 NEAR to
+`bob.testnet`
+([`execute`](https://testnet.nearblocks.io/txns/EjEPMVDfVKNpzgctd1wgVS3dukhUSYNmBjCHrY9MvCG2)).
+The details, and the earlier runs of 2026-11-12, are in
 [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
 
 **For a judge:** you do not need the page `/multisig/`. Only the 2 signers

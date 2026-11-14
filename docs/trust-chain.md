@@ -114,8 +114,8 @@ to the gateway that it checked. The details are in the
   AI over TLS and checks no TEE on that path. A caller selects it by its
   version key. A verdict of that build names it: `"verifier":"0.15.0+venice"`.
   On 2026-11-12 the two verdicts of
-  [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet)
-  came from it.
+  [the earlier multisig run](../demo/contracts/voice-multisig/README.md#earlier-runs-on-voice-multisig-2-2026-11-12)
+  came from the build before it, 0.14.1+venice.
 
 **The cost.** OutLayer loads the WASM on each call, and the load time grows
 with its size: about 2.3 ms for each KB on 2026-11-12. The first build with

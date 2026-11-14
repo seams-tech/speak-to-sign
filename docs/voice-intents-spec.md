@@ -321,7 +321,10 @@ version wrote the heard words in each verdict that had them.
 - **A verdict that passes has no transcript.** A contract gets `verdict_json`
   as an argument of a call, and the arguments of a call are public on chain.
   So the spoken words do not go on chain. For a multisig, the chain then
-  shows only the commitment of a proposal until `execute` (section 10).
+  shows only the commitment of a proposal until `execute` (section 10). The
+  [live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet)
+  of 2026-11-14 shows it: the verdicts of its `propose` and `approve` have
+  `"heard":null`.
 - **A `words` refusal has the transcript.** The Wallet card and the demo
   pages show it, so that the person sees what the verifier heard and can say
   the sentence again. It can be speech that is not in a request. No contract

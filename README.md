@@ -60,8 +60,9 @@ post, the side and the amount) and opens the correct sheet. JEV never
 proposes or signs a payment. You approve the exact call when you say it.
 
 The spoken multisig is for its 2 signers, not for a visitor, and you do not
-need it to try the demo. As evidence that it works: on 2026-11-12 two persons
-proposed, approved and executed one transfer by voice
+need it to try the demo. As evidence that it works: on 2026-11-14 two signers
+proposed, approved and executed one transfer by voice, and no verdict on
+chain holds the spoken words
 ([the live run](demo/contracts/voice-multisig/README.md#live-run-on-testnet)).
 
 ## Try it in 2 minutes
@@ -270,10 +271,16 @@ as verified.
 | Note market | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) | [`demo/contracts/jev-prediction-market/`](demo/contracts/jev-prediction-market/) | `7qA3mFHgGa31dsUJ3BjdCuh8yHS8jnnS79aMNPmSnQ9Z` |
 | Faucet | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) | [`demo/contracts/faucet/`](demo/contracts/faucet/) | `6d8BGwTR88jjFFaYEfhnTnLaQet2FmRE3d5DvYxefR2z` |
 
-The live multisig run was on a second account,
-[`voice-multisig-2.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-2.seams-v1.testnet),
-which has the same code hash. Its signers have enrolled voices, and its
-proposals are there. `voice-multisig.seams-v1.testnet` has no proposal.
+The live multisig runs are on two more accounts with the same code hash.
+Their signers have enrolled voices, and their proposals are there:
+
+- [`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet):
+  the run of 2026-11-14 with verifier 0.15.0. The demo page `/multisig/`
+  uses this account.
+- [`voice-multisig-2.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-2.seams-v1.testnet):
+  the runs of 2026-11-12.
+
+`voice-multisig.seams-v1.testnet` has no proposal.
 
 The deploy transactions and the way to build each contract again are in
 [`demo/contracts/README.md`](demo/contracts/README.md#the-deployed-code).
@@ -298,7 +305,7 @@ which uses Whisper on Venice AI, until NEAR AI answers again.
 | Version | State | WASM that runs | On chain |
 | --- | --- | --- | --- |
 | 0.15.0 | Active, the default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. | [`21af4130…27d9`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9.wasm) | Added: [`DP5ieNgw…DSMw`](https://testnet.nearblocks.io/txns/DP5ieNgwfqaZU2uPfDBZt6oRMhBSwb3mXhfRVaYeDSMw). Made active: [`859jnFSe…FS8Z`](https://testnet.nearblocks.io/txns/859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z) |
-| 0.15.0+venice | Not active (only while NEAR AI's Whisper is down): Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used the build before it, 0.14.1+venice. | [`5f475dd2…fcdf`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/5f475dd26794bc09b1f1e157276a19800a4ed3f8df1184c004c49de54e3ffcdf.wasm) | Added: [`HLbQGpe9…ScvG`](https://testnet.nearblocks.io/txns/HLbQGpe93sGmZaSSrKoezSFTD2pqYCZq8BB1ZRTYScvG) |
+| 0.15.0+venice | Not active (only while NEAR AI's Whisper is down): Whisper on Venice AI, which has no TEE. Proposal 3 of the earlier multisig run (2026-11-12) used the build before it, 0.14.1+venice. | [`5f475dd2…fcdf`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/5f475dd26794bc09b1f1e157276a19800a4ed3f8df1184c004c49de54e3ffcdf.wasm) | Added: [`HLbQGpe9…ScvG`](https://testnet.nearblocks.io/txns/HLbQGpe93sGmZaSSrKoezSFTD2pqYCZq8BB1ZRTYScvG) |
 
 The name of each WASM file is its SHA-256, and OutLayer uses that hash as the
 version key. To check it, download the file and run `shasum -a 256` on it, or

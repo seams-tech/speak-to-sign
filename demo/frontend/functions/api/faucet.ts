@@ -2,8 +2,8 @@
 //
 // The testnet faucet of the setup card. One transaction: the faucet account calls `drip` on
 // its own contract (demo/contracts/faucet), which registers the account with testnet USDC,
-// sends it 2 USDC, then sends it 0.2 NEAR. Each account gets it once; the contract keeps the
-// list. The key here is a function-call key that can call `drip` and nothing else.
+// sends it USDC, then sends it NEAR (the amounts of `get_config`). Each account gets it once;
+// the contract keeps the list. The key here is a function-call key that can call `drip` and nothing else.
 //
 // A new Seams wallet is an implicit account, which is not on the chain until its first NEAR.
 // The drip's NEAR transfer creates it, so the faucet takes such an account as it is. A named

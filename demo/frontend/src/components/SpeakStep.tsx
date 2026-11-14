@@ -101,7 +101,7 @@ const PREPARE_VIEW: Record<PrepareStep, { icon: ReactNode; title: string; text: 
   funds: {
     icon: <IconCoins size={22} stroke={1.8} />,
     title: 'Getting testnet NEAR for gas',
-    text: 'The faucet sends a new account 0.2 NEAR and 2 USDC.',
+    text: 'The faucet sends a new account 0.3 NEAR and 2 USDC.',
   },
 };
 

@@ -1,5 +1,6 @@
 // The page side of the testnet faucet (functions/api/faucet.ts): one request, and the faucet
-// sends the account 0.2 NEAR and 2 USDC in one transaction, once.
+// sends the account NEAR and USDC (the amounts of the contract's `get_config`) in one
+// transaction, once.
 
 export type FaucetResult =
   | { ok: true; transactionHash: string; near: bigint; usdc: bigint }

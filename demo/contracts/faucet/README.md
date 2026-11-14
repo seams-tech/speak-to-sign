@@ -78,17 +78,19 @@ SHA-256 `c963c346736b5c67fa0f611c5042170d82f7779faabdfecedba3b79dda1bc619`).
 | USDC registration of the faucet | transaction `3ZrCs6REMC9RhzAGig1doCoyhtoEZBXqKjkadXTgAvk7` |
 | `drip` key | `ed25519:2WVRyde9Adz9f28ZjA4KzfdSk166Hz4e4r3oAii7GHqM`, function-call access to `drip` on `seams-faucet.testnet`, allowance 1 NEAR, transaction `Bx4eZEE9EcsreukRcz1GP2nqchMFVW9s11jp8w8HZ9Bp`. The secret is in `demo/frontend/.dev.vars` (not in git). |
 | `drip` key allowance (2026-11-12) | 10 NEAR. Each change is one transaction that deletes the key and adds the same public key again with the new allowance, so the secret stays the same: 5 NEAR in `AxBbR6GTtvJY3YpkhPErHzaVvKtTTaNB7FmnQJFbTu9q`, then 10 NEAR in `73UXW4KewZ8pJCHqHKeZ2qiCDnoektjkAmcMFiDLmZJL`. Each drip takes its burnt gas from the allowance, about 0.008 NEAR, so 10 NEAR is about 1250 drips. |
-| Top-up (2026-11-12) | 10 throwaway accounts from the NEAR testnet faucet service (10 NEAR each), each deleted with `seams-faucet.testnet` as the beneficiary, and 1000 USDC from the owner: about 127 NEAR free and 1482 USDC after 9 drips, enough for about 600 accounts. |
+| Amounts | 0.3 NEAR and 2 USDC for each account, set with `set_amounts` on 2026-11-14: transaction `GnbaRwc5C1JqdJPyGeCmMSHrBSpFrUbDfowowjvwjxBq` |
+| Top-ups | Throwaway accounts from the NEAR testnet faucet service (10 NEAR each), each deleted with `seams-faucet.testnet` as the beneficiary, and USDC from the owner. On 2026-11-14, after 13 drips: about 190.9 NEAR free and 1474 USDC. |
 | Empty-faucet test | transaction `FdrcGFHZv9zV24AiwgHV69ZV38hTZDop4ECHtos5X6ms`: the USDC receipt failed as one unit ("not enough balance"), `on_drip` returned `false`, no NEAR left the faucet, and the account could try again. |
 | Funding | 500 USDC from the project owner (10 Nov 2026). |
 | First real drip | transaction `tNMCqaLzpsMmFbpAf362Dg34G4sWuybYkt7XpbUVTWp`, through the page's `/api/faucet`, to a new account `seams-faucet-check.testnet`: it was registered with USDC and got 2 USDC and 0.2 NEAR (10.0 → 10.2); the faucet went from 500 to 498 USDC; a second claim answered "This account already got testnet NEAR and USDC from the faucet." |
 
-About 8.38 NEAR was free after the contract's storage: about 40 drips at
-0.2 NEAR. Then NEAR runs out before USDC does (500 USDC is 250 drips): top up
-the account's NEAR to serve more accounts.
+One drip costs the faucet about 0.31 NEAR: 0.3 NEAR, 0.00125 NEAR of USDC
+storage and about 0.008 NEAR of gas. So 190.9 NEAR is about 615 drips, and
+1474 USDC is 737 drips. NEAR runs out first: top up the account's NEAR to
+serve more accounts.
 
 To change the amounts:
 
 ```bash
-near contract call-function as-transaction seams-faucet.testnet set_amounts json-args '{"near_amount":"200000000000000000000000","token_amount":"2000000"}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as seams-faucet.testnet network-config testnet sign-with-legacy-keychain send
+near contract call-function as-transaction seams-faucet.testnet set_amounts json-args '{"near_amount":"300000000000000000000000","token_amount":"2000000"}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as seams-faucet.testnet network-config testnet sign-with-legacy-keychain send
 ```

@@ -227,7 +227,7 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_SEAMS_WALLET_ORIGIN`          | `https://staging.sign.seams.sh`       |
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
-| `VITE_MULTISIG_CONTRACT`            | `voice-multisig-2.seams-v1.testnet`   |
+| `VITE_MULTISIG_CONTRACT`            | `voice-multisig-3.seams-v1.testnet`   |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
 | `VITE_VOICE_AUDIO_KEY`              | in `.env.example`: seals recordings on `/multisig/` |

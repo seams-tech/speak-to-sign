@@ -565,7 +565,7 @@ NEAR AI) gave a YES probability of N%."
 
 What a judge can do on the demo page (<https://speak-to-sign.pages.dev/>):
 
-1. **Get money.** The setup card's faucet gives a new account 0.2 NEAR and 2
+1. **Get money.** The setup card's faucet gives a new account 0.3 NEAR and 2
    USDC in one transaction (`seams-faucet.testnet`, from the demo page
    session).
 2. **Bet.** On a note with an open market, press **Bet**. The bet sheet

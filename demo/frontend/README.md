@@ -212,7 +212,7 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
 3. **Testnet NEAR and USDC.** Each note or rating pays a little gas, and a bet
    on the note market pays USDC (1 USDC or more). After sign-in the page asks
    the demo's faucet (`/api/faucet`) by itself: in one transaction it sends
-   0.2 NEAR and 2 USDC, once per account. A new wallet is an implicit account,
+   0.3 NEAR and 2 USDC, once per account. A new wallet is an implicit account,
    and the faucet's NEAR puts it on testnet. Each network (IP address) gets the
    faucet for 10 accounts in one day (UTC). The faucet is a small contract on
    `seams-faucet.testnet` (`../contracts/faucet/`). If the faucet refuses or is

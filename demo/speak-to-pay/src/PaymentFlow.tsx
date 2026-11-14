@@ -94,10 +94,10 @@ function BalanceStep(props: {
           <LoadingButton
             onClick={getFaucet}
             loading={faucetOutcome.kind === 'working'}
-            loadingText="Sending 0.2 NEAR..."
+            loadingText="Sending testnet NEAR..."
             style={{ width: '100%' }}
           >
-            Get 0.2 NEAR from the demo faucet
+            Get testnet NEAR from the demo faucet
           </LoadingButton>
           <p className="svi-hint">
             Or copy your account and get testnet NEAR from the{' '}
@@ -110,7 +110,7 @@ function BalanceStep(props: {
       ) : null}
       {faucetOutcome.kind === 'result' && faucetOutcome.value.ok ? (
         <Notice tone="success">
-          Sent 0.2 NEAR (
+          Sent {formatNear(faucetOutcome.value.near)} (
           <a
             href={`${RECEIPT_BASE_URL}${encodeURIComponent(faucetOutcome.value.transactionHash)}`}
             target="_blank"

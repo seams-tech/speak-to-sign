@@ -86,8 +86,8 @@ export async function readFunds(account: string): Promise<Balance | null> {
 }
 
 /**
- * Makes sure that `account` has the funds for `need`. If it has less, the faucet sends 0.2 NEAR
- * and 2 USDC (once per account), and this waits until they land. True when the account has them.
+ * Makes sure that `account` has the funds for `need`. If it has less, the faucet sends NEAR and
+ * USDC (once per account), and this waits until they land. True when the account has them.
  * Calls at the same time share one run.
  */
 export function ensureFunds(account: string, need: FundsNeed = 'bet'): Promise<boolean> {

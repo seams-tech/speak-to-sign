@@ -9,7 +9,7 @@ not use real funds.
 The page has four steps:
 
 0. Sign in to your Seams Wallet with a passkey, or create a wallet.
-1. Check that your NEAR account has testnet NEAR (or press **Get 0.2 NEAR from the demo faucet**). A new wallet is an implicit account, so funding puts its key on testnet before enrollment.
+1. Check that your NEAR account has testnet NEAR (or press **Get testnet NEAR from the demo faucet**). A new wallet is an implicit account, so funding puts its key on testnet before enrollment.
 2. Set up your voice: read three short phrases and confirm one signed message. The same recordings turn on VoiceID on this device and enroll your voice with the verifier.
 3. Type an amount and a receiver, then click **Pay by voice** and read the sentence.
 

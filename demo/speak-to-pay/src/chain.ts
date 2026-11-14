@@ -17,7 +17,7 @@ export type SpokenAmount =
   | Readonly<{ ok: false; message: string }>;
 
 export type FaucetReply =
-  | Readonly<{ ok: true; transactionHash: string }>
+  | Readonly<{ ok: true; transactionHash: string; near: bigint }>
   | Readonly<{ ok: false; message: string }>;
 
 type RpcReply = Readonly<{ result?: unknown; error?: unknown }>;
@@ -71,7 +71,7 @@ export function formatNear(value: bigint): string {
   return `${sign}${whole}${trimmed ? `.${trimmed}` : ''} NEAR`;
 }
 
-/** Asks the demo faucet (`/api/faucet`) to send 0.2 NEAR and 2 USDC once to `accountId`. */
+/** Asks the demo faucet (`/api/faucet`) to send its NEAR and USDC amounts once to `accountId`. */
 export async function requestDemoFaucet(accountId: string): Promise<FaucetReply> {
   let response: Response;
   try {
@@ -84,8 +84,14 @@ export async function requestDemoFaucet(accountId: string): Promise<FaucetReply>
     return { ok: false, message: 'The demo faucet is not reachable.' };
   }
   const body: unknown = await response.json().catch(() => null);
-  if (response.ok && isRecord(body) && typeof body.transactionHash === 'string') {
-    return { ok: true, transactionHash: body.transactionHash };
+  if (
+    response.ok &&
+    isRecord(body) &&
+    typeof body.transactionHash === 'string' &&
+    typeof body.near === 'string' &&
+    /^\d+$/.test(body.near)
+  ) {
+    return { ok: true, transactionHash: body.transactionHash, near: BigInt(body.near) };
   }
   const message =
     isRecord(body) && typeof body.error === 'string'

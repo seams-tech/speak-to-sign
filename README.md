@@ -17,6 +17,10 @@ said.
 Speak-to-Sign is an entry for the NEAR hackathon. It runs on NEAR testnet
 only.
 
+
+https://github.com/user-attachments/assets/c5d2143f-6bee-426c-b0eb-fde78ff92b1b
+
+
 | Start here | |
 | --- | --- |
 | Try it | <https://speak-to-sign.pages.dev/>, on a laptop with a microphone. It takes about 2 minutes. |

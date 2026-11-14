@@ -64,13 +64,13 @@ Step 3 checks the digest of each of these requests again, in TypeScript.
 (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep -E 'Running|Doc-tests|test result')
 ```
 
-Expected (200 tests). The 16-digit hex suffix of each verifier test binary
+Expected (198 tests). The 16-digit hex suffix of each verifier test binary
 depends on the folder of your clone, so yours can differ; the test names and
 counts do not.
 
 ```text
      Running unittests src/lib.rs (target/debug/deps/seams_voice_verifier-b547c026a37514f2)
-test result: ok. 82 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
      Running unittests src/main.rs (target/debug/deps/seams_voice_verifier-5b7aadd805855bfc)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/detect_live.rs (target/debug/deps/detect_live-3bf632f4f866f524)

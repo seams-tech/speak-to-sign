@@ -153,7 +153,7 @@ fn a_step_up_verdict_passes_only_on_request() {
     };
     assert_eq!(
         verdict.policy_rule.as_deref(),
-        Some("stub_voice_amount_above_10_near")
+        Some("example_rule")
     );
     let allowed = check_verdict(
         &step_up.verdict_json,

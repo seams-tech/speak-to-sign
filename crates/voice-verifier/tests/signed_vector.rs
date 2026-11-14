@@ -4,6 +4,10 @@
 //! serializes for that request, and each signature is what its signing path
 //! gives with the vector's test key. So both sides agree on the signed bytes.
 //!
+//! The verifier signs no `step_up`: it has no policy rule. The `step_up`
+//! case is a verdict of format v2 with an example rule, so that each checker
+//! can test that it refuses one.
+//!
 //! To write the file again: delete it, or set `SEAMS_WRITE_VECTOR=1`, and
 //! run `cargo test --test signed_vector`.
 // The shared vectors are those of the default build. The `venice` build
@@ -18,7 +22,6 @@ use seams_voice_verifier::config::VERDICT_DOMAIN;
 use seams_voice_verifier::digest::{b64u, from_hex, hex, near_ed25519_key};
 use seams_voice_verifier::ops::transfer_request;
 use seams_voice_verifier::output::{verdict_json, verdict_message, Outcome, Verdict};
-use seams_voice_verifier::policy::STUB_AMOUNT_RULE;
 use spoken_intent::{render, request_digest, spoken_text_digest};
 
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/signed_verdict_v2.json");
@@ -27,6 +30,9 @@ const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/signed_verdict
 const TEST_SEED_HEX: &str = "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a";
 /// The fixed expiry of every vector verdict, in ms since the UNIX epoch.
 const EXPIRES_AT_MS: u64 = 1_762_700_120_000;
+/// The rule of the `step_up` case: an example, not a rule of the verifier.
+const EXAMPLE_RULE_ID: &str = "example_rule";
+const EXAMPLE_RULE_TEXT: &str = "An example rule asks for a second approval.";
 const OWNER: &str = "owner.testnet";
 const RECEIVER: &str = "alice.testnet";
 
@@ -41,7 +47,7 @@ fn case(name: &str, amount_yocto: u128, outcome: Outcome, key: &SigningKey) -> V
     verdict.outcome = outcome;
     verdict.reason = None;
     if outcome == Outcome::StepUp {
-        verdict.policy_rule = Some(STUB_AMOUNT_RULE.id.to_string());
+        verdict.policy_rule = Some(EXAMPLE_RULE_ID.to_string());
     }
     verdict.expires_at_ms = EXPIRES_AT_MS;
     verdict.speaker_score_milli = Some(655);
@@ -65,7 +71,7 @@ fn case(name: &str, amount_yocto: u128, outcome: Outcome, key: &SigningKey) -> V
         "audio_digest": verdict.audio_digest,
         "outcome": serde_json::to_value(outcome).unwrap(),
         "policy_rule": verdict.policy_rule,
-        "policy_text": (outcome == Outcome::StepUp).then_some(STUB_AMOUNT_RULE.text),
+        "policy_text": (outcome == Outcome::StepUp).then_some(EXAMPLE_RULE_TEXT),
         "expires_at_ms": EXPIRES_AT_MS,
         "verdict_json": text,
         "message_sha256_hex": hex(&message),

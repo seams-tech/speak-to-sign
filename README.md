@@ -53,7 +53,7 @@ voice verifier also approves payments and multisig transfers.
 | Post a community note | A short summary of the note. | The verifier, Wallet core, and the contract `notes.seams-v1.testnet` |
 | Rate a note | "This note is helpful" | The same |
 | Bet on a note | "Bet 0.5 USDC yes on market 12" | The verifier, and the market contract `pm-notes.seams-v1.testnet`, which takes the USDC only with a verdict for that bettor, market, side and amount |
-| Pay someone (the page [`demo/speak-to-pay`](demo/speak-to-pay/), which you run on your machine) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet. Above 10 NEAR, a passkey too. |
+| Pay someone (the page [`demo/speak-to-pay`](demo/speak-to-pay/), which you run on your machine) | "Send 2 NEAR to alice.testnet" | The verifier and the Wallet |
 
 In the voice bar, JEV, an AI classifier, turns your words into a command (the
 post, the side and the amount) and opens the correct sheet. JEV never
@@ -152,13 +152,11 @@ sequenceDiagram
     Whisper-->>Verifier: Heard words
   end
   Verifier->>Verifier: 3. Check the voice, the words and that the audio is new
-  Verifier-->>Wallet: 4. Signed verdict (accept, step_up or refuse)
+  Verifier-->>Wallet: 4. Signed verdict (accept or refuse)
   alt accept
     Wallet->>Wallet: 5. Check the verdict key and the request digest
     Wallet->>Contract: Signed call with the verdict
     Contract->>Contract: Check the verdict again
-  else step_up
-    Wallet->>You: Ask for a passkey too (a transfer above 10 NEAR)
   else refuse
     Wallet->>You: Show the reason and the heard words. Nothing is signed.
   end
@@ -325,8 +323,8 @@ is not done.
 - **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID.
 - **Sealed audio after the verifier.** The verifier sends the opened recording to two services: the speaker service (a Phala TDX VM, its key pinned from its attestation), and NEAR AI Whisper, sealed to the gateway whose TDX quote the verifier checked. While NEAR AI's Whisper is down, the `venice` build of the verifier sends the recording to Whisper on Venice AI over TLS. Venice has no TEE, so Venice can read that audio. Each verdict of that build says `+venice` in its `verifier` field.
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.
-- **Seams Wallet.** Seams Wallet is an embedded wallet with threshold signing. It existed before the hackathon, and Speak-to-Sign uses it as a dependency. The device and the Seams co-signer sign each call jointly, so neither can sign alone. A native NEAR payment has no contract that checks the verdict: the Wallet and the co-signer guard it, and above 10 NEAR the verifier asks for a passkey too.
-- **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/threat-model.md`](docs/threat-model.md#1-a-remote-attacker-with-a-clone-of-the-owners-voice)). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check and no fresh words, and only a NEAR transfer above 10 NEAR also needs a passkey.
+- **Seams Wallet.** Seams Wallet is an embedded wallet with threshold signing. It existed before the hackathon, and Speak-to-Sign uses it as a dependency. The device and the Seams co-signer sign each call jointly, so neither can sign alone. A native NEAR payment has no contract that checks the verdict: the Wallet and the co-signer guard it.
+- **Voice clones.** A voice clone works only on the person's own device, with the Wallet unlocked. VoiceID runs in the Wallet's isolated iframe on that device, and the keys stay there, so on another device a clone alone cannot unlock the Wallet (see [`docs/threat-model.md`](docs/threat-model.md#1-a-remote-attacker-with-a-clone-of-the-owners-voice)). An attacker needs that device in hand (or malware that controls it) and an unlocked Wallet, and with those, the attacker can do much more harm than a voice clone. On that device, this build has no liveness check, no fresh words and no passkey step after the voice.
 - **Synthetic voices (future work).** The verifier does not detect synthetic speech yet, so a text-to-speech voice can enroll and pass. It also does not refuse one voice on many accounts. The detection of synthetic speech is future work: an anti-spoofing model that we can add to the TEE, next to the speaker check.
 
 ## Baseline and hackathon work

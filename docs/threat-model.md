@@ -13,8 +13,8 @@ is in [`trust-chain.md`](trust-chain.md), and the live state is in
 | 1 | A remote attacker with a clone of the owner's voice | **Yes** |
 | 2 | A changed page, a phishing site or a prompt-injected agent | **Yes** |
 | 3 | A replay of an old recording or verdict | **Yes** |
-| 4 | A person who holds the owner's unlocked device | Partly: a passkey above 10 NEAR |
-| 5 | Malware on the owner's device that feeds audio to the browser | Partly: a passkey above 10 NEAR |
+| 4 | A person who holds the owner's unlocked device | No: the voice is the only approval |
+| 5 | Malware on the owner's device that feeds audio to the browser | No: the voice is the only approval |
 | 6 | A bot farm with text-to-speech voices | Partly: a cost for each action |
 | 7 | One multisig signer who approves for another | **Yes** |
 | 8 | The owner of the OutLayer project | Partly: through the Seams verify route |
@@ -24,8 +24,8 @@ is in [`trust-chain.md`](trust-chain.md), and the live state is in
 | 12 | A contract caller with a plain key | Key check only |
 | 13 | The holder of a full-access key of a demo contract | No |
 
-"Above 10 NEAR" means a NEAR transfer of more than 10 NEAR. A bet, a note
-and a rating have no passkey step at any size.
+No action has a passkey step after the voice: the verifier has no policy
+rule ([spec 7.3](voice-intents-spec.md#73-no-policy-step)).
 
 ## 1. A remote attacker with a clone of the owner's voice
 
@@ -76,12 +76,14 @@ contract, the market and the multisig count each verdict once on chain.
 
 This is the same class of risk as a forced fingerprint on a phone.
 
-**What stops it.** A NEAR transfer above 10 NEAR gets a `step_up` verdict, and
-the Wallet then asks for a passkey too.
+**What stops it.** Only the speaker check: this person also needs the owner's
+voice. With a clone of that voice, or with the owner under force, nothing
+stops this person. No action asks for a passkey after the voice.
 
-**Evidence.** `verify_steps_up_above_ten_near`.
+**Evidence.** `verify_refuses_another_speaker`;
+`verify_accepts_a_transfer_of_any_amount`.
 
-**What is left.** A NEAR transfer of 10 NEAR or less, a bet of any size, and
+**What is left.** Each action: a NEAR transfer and a bet of any size, and
 notes and ratings.
 
 ## 5. Malware on the owner's device
@@ -89,11 +91,12 @@ notes and ratings.
 Malware can feed a clone or a text-to-speech voice to the browser as
 microphone input, with no physical access.
 
-**What stops it.** The same passkey step as 4. Malware cannot fake a passkey
-check, because the device's secure hardware checks the user.
+**What stops it.** Only the speaker check, as in 4. A clone of the owner's
+voice works on this device, and malware can feed it to the browser.
 
 **What is left.** The same as 4. This build has no liveness check (fresh words
-that the verifier picks at random) and no detection of synthetic speech.
+that the verifier picks at random), no detection of synthetic speech and no
+passkey step after the voice.
 
 ## 6. A bot farm with text-to-speech voices
 

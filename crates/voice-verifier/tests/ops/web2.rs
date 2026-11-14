@@ -309,7 +309,7 @@ fn select_refuses_a_bad_set_of_candidates() {
 }
 
 #[test]
-fn select_works_for_near_requests_and_keeps_the_policy_step() {
+fn select_works_for_near_requests() {
     let transfer = |near: u128| json!({ "kind": "transfer", "receiver": "alice.testnet", "amount_yocto": (near * ONE_NEAR).to_string() });
     let mut fake = enrolled();
     let wav = said(&mut fake, "Send 2 NEAR to alice.testnet.");
@@ -324,6 +324,6 @@ fn select_works_for_near_requests_and_keeps_the_policy_step() {
     let wav = said(&mut fake, "Send 11 NEAR to alice.testnet.");
     let out = call(&mut fake, select_input(OWNER, vec![transfer(5), transfer(2), transfer(11)], &wav));
     let verdict = checked_verdict(&out);
-    assert_eq!(outcome_name(&verdict), "step_up", "{out}");
+    assert_eq!(outcome_name(&verdict), "accept", "{out}");
     assert_eq!(out["selected"], 2);
 }

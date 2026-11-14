@@ -9,8 +9,7 @@
 //! the same time, reads the template and the used-audio marker while those
 //! requests are in flight, checks the speaker against the template and the
 //! words against `render(request)`, marks the audio used (only after a
-//! decision), runs the policy step and signs the verdict with the manifest
-//! signing key.
+//! decision) and signs the verdict with the manifest signing key.
 //!
 //! `enroll` needs the owner's authorization: a NEP-413 signature of the
 //! enrollment digest by a full-access key of the owner (see

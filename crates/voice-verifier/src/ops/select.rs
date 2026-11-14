@@ -28,7 +28,6 @@ use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
 use crate::input::SelectInput;
 use crate::output::{Outcome, Reason, Stages, Verdict, VerifyOutput};
-use crate::policy::{self, Decision};
 use crate::speaker_client::service_request;
 use crate::words::check_words;
 
@@ -38,26 +37,20 @@ pub(super) fn select(value: Value, host: &mut dyn Host, pins: &Pins) -> VerifyOu
     let mut verdict = Verdict::new();
     let mut ms = Stages::default();
     let mut selected = None;
-    let (policy_text, detail) = match select_steps(value, host, pins, &mut verdict, &mut ms, &mut selected) {
-        Ok(Decision::Allow) => {
+    let detail = match select_steps(value, host, pins, &mut verdict, &mut ms, &mut selected) {
+        Ok(()) => {
             verdict.outcome = Outcome::Accept;
             verdict.reason = None;
-            (None, None)
-        }
-        Ok(Decision::StepUp(rule)) => {
-            verdict.outcome = Outcome::StepUp;
-            verdict.reason = None;
-            verdict.policy_rule = Some(rule.id.to_string());
-            (Some(rule.text), None)
+            None
         }
         Err(refusal) => {
             verdict.outcome = Outcome::Refuse;
             verdict.reason = Some(refusal.reason);
             selected = None;
-            (None, refusal.detail)
+            refusal.detail
         }
     };
-    finish(verdict, ms, policy_text, detail, None, selected, host, started)
+    finish(verdict, ms, detail, None, selected, host, started)
 }
 
 fn select_steps(
@@ -67,7 +60,7 @@ fn select_steps(
     verdict: &mut Verdict,
     ms: &mut Stages,
     selected: &mut Option<usize>,
-) -> Result<Decision, Refusal> {
+) -> Result<(), Refusal> {
     let started = Instant::now();
     let input = SelectInput::parse(value).ok_or(Reason::Unsupported)?;
     if input.op != "select"
@@ -174,7 +167,5 @@ fn select_steps(
     if let Some(at) = summary_at[index] {
         check_summary(&results, at, ms)?;
     }
-
-    // 8. The policy step, for the selected request.
-    Ok(ms.time("policy", || policy::decide(request)))
+    Ok(())
 }

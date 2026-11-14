@@ -4,7 +4,7 @@
 /// The verifier version that every output names. A build with the feature
 /// `venice` sends the audio to Venice AI in place of NEAR AI, and says so
 /// here (see `transcriber`).
-pub const VERIFIER_VERSION: &str = if cfg!(feature = "venice") { "0.15.0+venice" } else { "0.15.0" };
+pub const VERIFIER_VERSION: &str = if cfg!(feature = "venice") { "0.16.0+venice" } else { "0.16.0" };
 
 /// The manifest, for the test that checks it against these values.
 /// `main.rs` links the same file into the `outlayer.manifest` custom section.

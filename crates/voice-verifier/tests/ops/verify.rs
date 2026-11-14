@@ -1,5 +1,5 @@
-//! `verify` of a transfer: the signed verdict, the step-up, each refusal and
-//! the output size.
+//! `verify` of a transfer: the signed verdict, each refusal and the output
+//! size.
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde_json::{json, Value};
@@ -8,7 +8,6 @@ use sha2::{Digest, Sha256};
 use seams_voice_verifier::config::{audio_used_key, SPEAKER_EMBED_URL, VERDICT_TTL_MS};
 use seams_voice_verifier::digest::b64u;
 use seams_voice_verifier::ops::transfer_request;
-use seams_voice_verifier::policy::STUB_AMOUNT_RULE;
 
 use crate::fake::{
     call, checked_verdict, clip, embedding, enrolled, events_of, outcome_name, verify_input, verify_input_for, Fake,
@@ -49,7 +48,6 @@ fn verify_accepts_and_signs_the_verdict() {
         "transcribe",
         "redimnet",
         "mark",
-        "policy",
         "sign",
         "total",
     ] {
@@ -71,35 +69,18 @@ fn verify_accepts_and_signs_the_verdict() {
 }
 
 #[test]
-fn verify_steps_up_above_ten_near() {
+fn verify_accepts_a_transfer_of_any_amount() {
+    // No rule asks for a second approval: a large amount is a plain accept.
     let wav = clip(0.03);
-
     let mut fake = enrolled();
     fake.transcript = Some("Send 11 NEAR to alice.testnet.".into());
     let out = call(&mut fake, verify_input_for(&wav, 11 * ONE_NEAR));
     let verdict = checked_verdict(&out);
-    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "step_up", "{out}");
+    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "accept", "{out}");
     assert_eq!(verdict.reason, None);
-    assert_eq!(verdict.policy_rule.as_deref(), Some(STUB_AMOUNT_RULE.id));
-    assert_eq!(out["policy_text"], STUB_AMOUNT_RULE.text);
-    assert_eq!(verdict.expires_at_ms, NOW_MS + VERDICT_TTL_MS);
-    assert!(fake.markers.contains_key(&audio_used_key(&b64u(&Sha256::digest(&wav)))), "a step-up uses the audio");
-
-    // Exactly 10 NEAR needs no step-up.
-    let mut fake = enrolled();
-    fake.transcript = Some("Send 10 NEAR to alice.testnet.".into());
-    let verdict = checked_verdict(&call(&mut fake, verify_input_for(&wav, 10 * ONE_NEAR)));
-    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "accept");
-    assert_eq!(verdict.policy_rule, None);
-
-    // A refusal before the policy step names no rule.
-    let mut fake = enrolled();
-    fake.transcript = Some("Send 12 NEAR to alice.testnet.".into());
-    let out = call(&mut fake, verify_input_for(&wav, 11 * ONE_NEAR));
-    let verdict = checked_verdict(&out);
-    assert_eq!(outcome_name(&verdict), "words");
     assert_eq!(verdict.policy_rule, None);
     assert_eq!(out["policy_text"], Value::Null);
+    assert!(fake.markers.contains_key(&audio_used_key(&b64u(&Sha256::digest(&wav)))), "an accept uses the audio");
 }
 
 #[test]
@@ -211,7 +192,7 @@ fn a_long_transcript_still_fits_and_is_signed() {
 }
 
 #[test]
-fn a_step_up_with_the_longest_receiver_fits_and_has_no_heard_words() {
+fn an_accept_with_the_longest_receiver_fits_and_has_no_heard_words() {
     let mut fake = enrolled();
     let receiver = format!("{}.testnet", "a".repeat(56));
     fake.transcript = Some(format!("Send 999999.99 NEAR to {receiver}."));
@@ -219,8 +200,7 @@ fn a_step_up_with_the_longest_receiver_fits_and_has_no_heard_words() {
     input["request"]["receiver"] = json!(receiver);
     let out = call(&mut fake, input);
     let verdict = checked_verdict(&out);
-    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "step_up", "{out}");
-    assert_eq!(out["policy_text"], STUB_AMOUNT_RULE.text);
+    assert_eq!(serde_json::to_value(verdict.outcome).unwrap(), "accept", "{out}");
     assert_eq!(verdict.heard, None);
 }
 

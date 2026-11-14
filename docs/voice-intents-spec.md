@@ -195,9 +195,7 @@ checks before it.
 6. **Words.** Read the transcript with `normalize_punctuated`. The heard
    tokens must equal the rendered tokens (section 7.2). If not, refuse with
    `words`.
-7. **Policy.** `policy::decide` can only change an accept to a `step_up`
-   (section 7.3).
-8. **Sign.** Set the expiry. Remove the heard words, unless the verdict is a
+7. **Sign.** Set the expiry. Remove the heard words, unless the verdict is a
    `words` refusal (section 8.2). Sign the verdict (section 8).
 
 ### 7.1 Speaker reply
@@ -245,17 +243,15 @@ added clause. The verifier never accepts a near miss. An added or dropped
 `(distance to the closest near miss - distance to the expected words) * 1000 / expected word count`.
 The distances are word edit distances.
 
-### 7.3 Policy step
+### 7.3 No policy step
 
-The step runs after the speaker and the words pass. Today it has one fixed
-rule:
+The verifier has no policy rule. If the speaker and the words pass, the
+verdict is an `accept`, for any amount. The verifier signs no `step_up`.
 
-| Rule id | Text |
-| --- | --- |
-| `stub_voice_amount_above_10_near` | A voice payment above 10 NEAR needs a passkey. |
-
-Exactly 10 NEAR is allowed. On a `step_up`, the Wallet also asks for a fresh
-passkey approval.
+The verdict format keeps the outcome `step_up` and the field `policy_rule`
+for a later rule (section 8). A `step_up` means that the voice and the words
+passed, and that a rule asks for a second approval. Each checker refuses a
+`step_up`, if its caller does not ask for one (section 9).
 
 ## 8. Verdict
 
@@ -274,9 +270,9 @@ fields, all present, in this order:
 | 4 | `request_digest` | Section 4 |
 | 5 | `spoken_text_digest` | Section 4 |
 | 6 | `audio_digest` | Section 4 |
-| 7 | `outcome` | `accept`, `step_up` or `refuse` |
+| 7 | `outcome` | `accept`, `step_up` or `refuse`. The verifier signs no `step_up` (section 7.3) |
 | 8 | `reason` | Only on `refuse` (section 8.1) |
-| 9 | `policy_rule` | The rule id, only on `step_up` |
+| 9 | `policy_rule` | The rule id, only on `step_up`. Else `null` |
 | 10 | `expires_at_ms` | The worker clock before the signature, plus 120 s |
 | 11 | `speaker_score_milli` | The cosine in thousandths |
 | 12 | `word_margin_milli` | Section 7.2 |
@@ -528,8 +524,8 @@ what each attacker can do with it.
   [`threat-model.md`](threat-model.md#1-a-remote-attacker-with-a-clone-of-the-owners-voice)). An attacker needs that device in hand (or malware that
   controls it) and an unlocked Wallet, and with those, the attacker can do
   much more harm than a voice clone. On that device, this build has no
-  liveness check and no fresh words, and only a NEAR transfer above 10 NEAR
-  also needs a passkey (section 7.3).
+  liveness check, no fresh words and no passkey step after the voice
+  (section 7.3).
 
 ## 12. Where the details are
 

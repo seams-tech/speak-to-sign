@@ -129,8 +129,7 @@ person does not type, and does not click through a prompt.
 
 **Today, speak to pay** (`demo/speak-to-pay/`, a page that you run on your
 machine): the person says the payment, and the Wallet pays one exact amount
-to one exact account. Above 10 NEAR, the verifier asks for a passkey too
-(`step_up`).
+to one exact account.
 
 **Not done:**
 
@@ -223,8 +222,7 @@ nothing checks who spoke, or binds the words to the call.
 ## Questions a judge asks
 
 - **Voice can be cloned.** A clone alone gets nothing. The keys stay on the
-  person's device, and voice unlock is bound to that device. A NEAR transfer
-  above 10 NEAR also needs a passkey.
+  person's device, and voice unlock is bound to that device.
 - **A changed page or an injected agent** needs no clone, and it fails. The
   person must say the exact call aloud, and the verifier refuses other words.
 - **JEV approves nothing.** It classifies the spoken command and opens the
@@ -300,7 +298,7 @@ git clone https://github.com/seams-tech/speak-to-sign
    ```bash
    # See: 9 "ok" lines, 39 passed. The golden vectors match the code.
    (cd speak-to-sign/crates/spoken-intent && cargo test 2>&1 | grep 'test result')
-   # See: 13 "ok" lines, 200 passed.
+   # See: 13 "ok" lines, 198 passed.
    (cd speak-to-sign/crates/voice-verifier && cargo test 2>&1 | grep 'test result')
    # See: 8 notes:: tests ok, the summary rules of docs/terminal-checks.md step 2.
    (cd speak-to-sign/crates/voice-verifier && cargo test --test ops notes:: 2>&1 | grep '^test')
@@ -383,7 +381,6 @@ git clone https://github.com/seams-tech/speak-to-sign
 | Another voice is refused (cosine below 0.45). | `verify_refuses_another_speaker` in `crates/voice-verifier/tests/ops/verify.rs` |
 | The speaker key comes from a TDX attestation, and a reply that fails its signature is refused. | `SPEAKER_PINNED_KEY_HEX` in `crates/voice-verifier/src/config.rs`; `verify_refuses_a_speaker_reply_that_fails_its_signature`; spec 7.1 |
 | Each recording passes one time, also after a refusal. | `verify_refuses_other_words_and_uses_the_audio`; spec section 5 |
-| A voice payment above 10 NEAR needs a passkey too (`step_up`). | `verify_steps_up_above_ten_near`; spec 7.3 |
 | The verifier signs fixed verdict vectors that the Wallet tests also read. A verdict expires after 120 s. | `tests/signed_vector.rs` of the verifier (`testdata/signed_verdict_v2.json`); `VERDICT_TTL_MS` in `src/config.rs`; spec section 8 |
 | A verdict for another note is refused (`request_mismatch`). | "a verdict for one community note does not pass for another note" in `packages/voice-verdict/tests/verdict.test.ts`; check 2 above; spec section 9 |
 | With the verdict of this note, Wallet core signs one `add_note` and nothing more. | In the dependency, at 0.71.0: [`signNoteWithVerdict`](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/packages/wallet/src/core/transactionFeatures/hostOperations.ts#L199) and its [test](https://github.com/seams-tech/seams-wallet/blob/a761e385ce244dfa6854e10073a08ca04de802b5/tests/unit/speakToSignHost.unit.test.ts#L1168) |
@@ -448,8 +445,7 @@ boundaries", spec section 11, and the READMEs of the contracts:
   the keys stay there. An attacker needs that device in hand (or malware
   that controls it) and an unlocked Wallet, and with those, the attacker can
   do much more harm than a voice clone. On that device, this build has no
-  liveness check and no fresh words, and only a NEAR transfer above 10 NEAR
-  also needs a passkey.
+  liveness check, no fresh words and no passkey step after the voice.
 - A text-to-speech voice can enroll and pass. The verifier does not detect
   synthetic speech yet, and it does not refuse one voice on many accounts.
   The detection of synthetic speech is future work: an anti-spoofing model

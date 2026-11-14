@@ -21,8 +21,11 @@ use crate::words::cut_at;
 /// The verdict kind. The Wallet accepts only this one.
 const VERDICT_KIND: &str = "seams_voice_signed_verdict_v2";
 
-/// `accept`, `step_up` or `refuse`. On `step_up` the voice and the words
-/// passed, and a policy rule asks the Wallet for a fresh passkey as well.
+/// `accept`, `step_up` or `refuse`. This verifier signs only `accept` and
+/// `refuse`. `step_up` stays in the verdict format v2 for a policy rule: the
+/// voice and the words passed, and a rule asks for a second approval. Each
+/// checker of a verdict refuses a `step_up`, if its caller does not ask for
+/// one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
@@ -134,7 +137,8 @@ pub struct Verdict {
     pub outcome: Outcome,
     /// Set only on `refuse`.
     pub reason: Option<Reason>,
-    /// The id of the policy rule, set only on `step_up`.
+    /// The id of the policy rule, set only on `step_up`. This verifier has
+    /// no policy rule, so it signs `null`.
     pub policy_rule: Option<String>,
     /// The worker clock before signing plus [`crate::config::VERDICT_TTL_MS`],
     /// in ms since the UNIX epoch. The Wallet refuses the verdict after it.
@@ -234,8 +238,9 @@ pub struct VerifyOutput {
     pub signature_b64: Option<String>,
     /// `ed25519:<base58>`: the key that the Wallet pins.
     pub public_key: Option<String>,
-    /// The sentence of the policy rule on `step_up`, for the Wallet to show
-    /// (not signed; the verdict names the rule id).
+    /// The sentence of the policy rule on `step_up` (not signed). This
+    /// verifier has no policy rule, so the value is always `null`. The field
+    /// stays, so that the output format v2 does not change.
     pub policy_text: Option<&'static str>,
     pub ms: Stages,
     /// A short error text for a refusal or a failed signature (not signed).
@@ -267,7 +272,6 @@ impl VerifyOutput {
     pub fn new(
         verdict_json: String,
         signed: Option<(String, String)>,
-        policy_text: Option<&'static str>,
         ms: Stages,
         detail: Option<String>,
     ) -> Self {
@@ -277,7 +281,7 @@ impl VerifyOutput {
             verdict_json,
             signature_b64,
             public_key,
-            policy_text,
+            policy_text: None,
             ms,
             detail,
             multisig: None,
@@ -305,7 +309,6 @@ const STAGE_TIME_ROOM: usize = 48;
 /// signature and a key of full length.
 pub fn fit_heard(
     mut verdict: Verdict,
-    policy_text: Option<&'static str>,
     ms: &Stages,
     detail: Option<&str>,
     multisig: Option<&MultisigOpening>,
@@ -314,7 +317,7 @@ pub fn fit_heard(
     let heard = verdict.heard.take();
     let longest_signature = ("A".repeat(SIGNATURE_B64_LEN), format!("ed25519:{}", "1".repeat(KEY_BASE58_MAX_LEN)));
     let detail = detail.map(str::to_owned);
-    let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), policy_text, ms.clone(), detail);
+    let mut sized = VerifyOutput::new(String::new(), Some(longest_signature), ms.clone(), detail);
     sized.multisig = multisig.cloned();
     sized.selected = selected;
     for cap in HEARD_CAPS {
@@ -673,11 +676,11 @@ mod tests {
     #[test]
     fn verdict_has_thirteen_fields_in_order() {
         let text = verdict_json(&Verdict::new());
-        // The `venice` build writes `0.15.0+venice`.
+        // The `venice` build writes `0.16.0+venice`.
         assert!(text.contains(&format!(r#""verifier":"{VERIFIER_VERSION}""#)));
         assert_eq!(
-            text.replace(VERIFIER_VERSION, "0.15.0"),
-            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.15.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
+            text.replace(VERIFIER_VERSION, "0.16.0"),
+            r#"{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.16.0","request_digest":null,"spoken_text_digest":null,"audio_digest":null,"outcome":"refuse","reason":"unsupported","policy_rule":null,"expires_at_ms":0,"speaker_score_milli":null,"word_margin_milli":null,"heard":null}"#
         );
         let value: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 13);

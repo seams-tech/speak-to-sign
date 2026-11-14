@@ -16,8 +16,8 @@ section 9.1 (each checker). The live state is in
 | 2 | The verifier runs in a TEE (OutLayer, Intel TDX) | The TDX quote of each call. Its report data binds the WASM hash, the input and the output, and the verdict is in the output. | The Seams verify route, against the pinned WASM hash. It refuses with `attestation_<code>`. | Live on the Seams staging server since 2026-11-12 (Seams Wallet 0.70.0, `seams-wallet` `35649a05b`, `speakToSignAttestation.ts`). |
 | 3 | The verifier is this source | The reproducible build: Docker gives the same SHA-256 as the OutLayer version | Anyone: JUDGES.md check 3 | Live |
 | 4 | The speaker check runs in a TEE (Phala dstack CVM, Intel TDX) | The service signs each embedding with a key from its TDX attestation | The verifier pins that key (`SPEAKER_PINNED_KEY_HEX`), after a check of the attestation on 2026-11-07 | Live |
-| 5 | The transcript comes from a TEE (NEAR AI Cloud, Whisper large-v3) | The Intel TDX quotes of NEAR AI's gateway and of its Whisper VM, each with a fresh nonce of the verifier. The gateway's quote names the gateway key, and that key signs the key to which the verifier seals each recording (Oblivious HTTP). So only the gateway's TDX VM opens the request, and the sealed reply comes from that VM. | The verifier, from 0.14.0: it checks both quotes with Intel's collateral, at least each 6 hours, before it sends a recording. It refuses with `transcriber_not_attested`. | **Live in verifier 0.14.1, the active version.** The Seams staging server and the demo route call it. See [The NEAR AI check](#the-near-ai-check). |
-| 6 | The verdict | An ed25519 signature by the verdict key over the request digest, the audio digest, the heard words, the outcome and an expiry of 120 s | Wallet core, the Seams co-signer and the contracts, against the pinned key | Live |
+| 5 | The transcript comes from a TEE (NEAR AI Cloud, Whisper large-v3) | The Intel TDX quotes of NEAR AI's gateway and of its Whisper VM, each with a fresh nonce of the verifier. The gateway's quote names the gateway key, and that key signs the key to which the verifier seals each recording (Oblivious HTTP). So only the gateway's TDX VM opens the request, and the sealed reply comes from that VM. | The verifier, from 0.14.0: it checks both quotes with Intel's collateral, at least each 6 hours, before it sends a recording. It refuses with `transcriber_not_attested`. | **Live in verifier 0.15.0, the active version.** The Seams staging server and the demo route call it. See [The NEAR AI check](#the-near-ai-check). |
+| 6 | The verdict | An ed25519 signature by the verdict key over the request digest, the audio digest, the outcome and an expiry of 120 s. Only a `words` refusal also has the heard words ([spec 8.2](voice-intents-spec.md#82-the-heard-words)). | Wallet core, the Seams co-signer and the contracts, against the pinned key | Live |
 | 7 | The Wallet signs only the matching call | Threshold signing with two parts: a co-signer on the device (in an origin-isolated iframe) and the Seams co-signer. Each builds the request itself and checks the verdict for it. This also guards actions with no receiver contract code, such as native NEAR transfers (`demo/speak-to-pay`). | Each co-signer refuses a verdict for another request. A `step_up` verdict needs a passkey too. | Live |
 | 8 | The contract takes only a spoken action | `notes`, `pm-notes` and `voice-multisig` check the ed25519 verdict and its key on chain, and count each verdict once, so a plain NEAR key outside Seams Wallet cannot skip the voice rule | The contract itself ([spec 9](voice-intents-spec.md#9-who-checks-the-verdict)) | Live |
 
@@ -46,7 +46,7 @@ section 9.1 (each checker). The live state is in
 - **Intel TDX** and its collateral, and the OutLayer worker image that
   `worker.outlayer.testnet` approves.
 - **The Phala app owner.** It can change the speaker service and keep its key.
-- **NEAR AI.** Verifier 0.14.1, the active version, checks the TDX quotes of
+- **NEAR AI.** Verifier 0.15.0, the active version, checks the TDX quotes of
   its gateway and of Whisper, and seals the audio to the gateway. This is
   left: the code of NEAR AI's VMs, the link from its gateway to Whisper, and
   a correct transcript, because the transcript has no signature of the model.
@@ -56,20 +56,24 @@ section 9.1 (each checker). The live state is in
 
 ## The NEAR AI check
 
-Verifier 0.14.1, the active version, checks NEAR AI's attestation
+Verifier 0.15.0, the active version, checks NEAR AI's attestation
 inside the OutLayer worker, and sends each recording to Whisper only sealed
 to the gateway that it checked. The details are in the
 [verifier README](../crates/voice-verifier/README.md#near-ai-attestation).
 
 **The state.**
-- The worker with the check is version 0.14.1 (`1e7c6968…`), the active
-  version on OutLayer since 2026-11-12. The demo route `/api/voice-verify` (the multisig page)
+- The worker with the check is version 0.15.0 (`21af4130…`), the active
+  version on OutLayer since 2026-11-14. The demo route `/api/voice-verify` (the multisig page)
   selects it while NEAR AI Whisper answers.
-- On 2026-11-12, 6 of 6 `verify` calls on it gave `accept` on OutLayer. Each
-  recording went sealed to the checked gateway, and the sealed reply gave the
-  heard words. In the same run it was not slower than 0.13.0.
+- The check came to OutLayer with 0.14.1, the version before it, which has
+  the same check. On 2026-11-12, 6 of 6 `verify` calls on 0.14.1 gave `accept`
+  on OutLayer. Each recording went sealed to the checked gateway, and the
+  sealed reply gave the heard words. In the same run it was not slower than
+  0.13.0.
+- On 2026-11-14, 0.15.0 gave an `accept` and a `words` refusal on OutLayer,
+  each with a recording that went sealed to the checked gateway.
 - The Seams staging server (a transfer, a note, a rating, a bet) calls
-  0.14.1 too.
+  0.15.0 too.
 - The worker's own quote check runs on OutLayer. On 2026-11-13 the stored
   result was more than 6 hours old, and the next `verify` call made a new
   check: the report of NEAR AI, Intel's collateral and the two quote checks
@@ -106,9 +110,9 @@ to the gateway that it checked. The details are in the
 - The stored result is one record for all versions of the OutLayer project.
   A new version of the project can write it.
 - The `venice` build. It is a second worker for a NEAR AI Whisper outage
-  (0.14.1+venice on OutLayer, not active). It sends the recording to Venice
+  (0.15.0+venice on OutLayer, not active). It sends the recording to Venice
   AI over TLS and checks no TEE on that path. A caller selects it by its
-  version key. A verdict of that build names it: `"verifier":"0.14.1+venice"`.
+  version key. A verdict of that build names it: `"verifier":"0.15.0+venice"`.
   On 2026-11-12 the two verdicts of
   [the live multisig run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet)
   came from it.

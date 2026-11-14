@@ -11,7 +11,8 @@ signers approved, a signer executes the proposal. No call without a verdict
 can approve.
 
 The chain holds only a salted hash of the proposal, the commitment, until
-`execute`. For a hide, this contract is the moderator of the notes contract
+`execute`. The verdicts in the calls do not open it: from verifier 0.15.0, a
+verdict that passes has no heard words. For a hide, this contract is the moderator of the notes contract
 (`../community-notes/`) that `set_notes_contract` names, and `execute`
 calls its `hide_note`. The contract has no cap: a transfer is any amount
 that the grammar can speak (0.01 to 1,000,000 NEAR), and the balance of the
@@ -463,6 +464,10 @@ as `executed`.
 
 Facts of this proposal:
 
+- Both verdicts hold the heard words, because verifier 0.14.1 wrote them in
+  an `accept`. So the chain showed this proposal before `execute`. From
+  verifier 0.15.0, an `accept` has `"heard":null`
+  ([spec 8.2](../../../docs/voice-intents-spec.md#82-the-heard-words)).
 - Both verdicts name the verifier `0.14.1+venice`. NEAR AI Whisper gave no
   reply on that day, so the `venice` build heard the words: Venice AI, which
   has no TEE (`crates/voice-verifier/README.md`, "Speech-to-text service").
@@ -499,7 +504,8 @@ point one NEAR to seams dash faucet dot testnet", so the verifier refused
 the words. The page sent that signed refusal to the contract as a record:
 [`13UoZ4hXS6nmeBqrPAL6mjbWfBsbuL7GqkRGoKfMwPSL`](https://testnet.nearblocks.io/txns/13UoZ4hXS6nmeBqrPAL6mjbWfBsbuL7GqkRGoKfMwPSL).
 The contract refused it with "the verdict outcome must be accept": only an
-`accept` verdict counts as an approval.
+`accept` verdict counts as an approval. The page no longer offers this
+record for a `words` refusal, because that verdict holds the heard words.
 
 After three recordings with wrong heard words, signer B has no tries left
 for this proposal (`attempts_exhausted`). The proposal stays open with 1 of

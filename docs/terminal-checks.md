@@ -290,9 +290,9 @@ Expected:
 ```
 
 The active version, which a caller gets when it sets no `version_key`, is
-`1e7c6968…`, verifier 0.14.1, since 2026-11-12 (`set_active_version` tx
-`GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC`). Before, 0.12.0 (`bfe81633…`) was
-active from 2026-11-11, and 0.14.1+venice for some minutes on 2026-11-12.
+`21af4130…`, verifier 0.15.0, since 2026-11-14 (`set_active_version` tx
+`859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`). Before, 0.14.1 (`1e7c6968…`) was
+active from 2026-11-12.
 
 ```bash
 view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifier"}' | jq -c '{owner, active_version}'
@@ -301,17 +301,17 @@ view outlayer.testnet get_project '{"project_id":"seams-v1.testnet/voice-verifie
 Expected:
 
 ```text
-{"owner":"seams-v1.testnet","active_version":"1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c"}
+{"owner":"seams-v1.testnet","active_version":"21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9"}
 ```
 
 ```bash
-view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c"}' | jq -c '{wasm_hash, is_active, added_at}'
+view outlayer.testnet get_version '{"project_id":"seams-v1.testnet/voice-verifier","version_key":"21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9"}' | jq -c '{wasm_hash, is_active, added_at}'
 ```
 
 Expected:
 
 ```text
-{"wasm_hash":"1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c","is_active":true,"added_at":1794512550592416147}
+{"wasm_hash":"21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9","is_active":true,"added_at":1794652416313324074}
 ```
 
 jq 1.6 rounds the large number of `added_at`.

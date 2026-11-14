@@ -460,12 +460,15 @@ Limits:
 
 - **Who opens the recording after the verifier.** The Phala speaker service
   runs in a TDX VM, and the verifier pins its key from its TDX attestation.
-  For NEAR AI, verifier 0.14.1 (the active version) checks the Intel TDX
+  For NEAR AI, verifier 0.15.0 (the active version) checks the Intel TDX
   quotes of NEAR AI's gateway and of Whisper inside the worker, and sends the
   recording only sealed to the key of the checked gateway. The path with no
   such check is in [`trust-chain.md`](trust-chain.md#the-near-ai-check).
 - **The request is not secret.** The Wallet sends the request fields in plain
-  text, and the verdict names the heard words.
+  text. The transcript is not secret from the person, but it does not go on
+  chain: a verdict names the heard words only in a `words` refusal, and no
+  contract accepts a refusal
+  ([spec 8.2](voice-intents-spec.md#82-the-heard-words)).
 - **The project owner.** A new verifier version of the same OutLayer project
   gets the audio key. The OutLayer access rule "One build only" limits the
   key to one WASM hash; it is not set.

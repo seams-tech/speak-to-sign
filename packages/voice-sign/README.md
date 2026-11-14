@@ -44,7 +44,7 @@ Each developer has its own accounts. The verifier is an OutLayer worker.
 2. A NEAR AI Cloud API key, stored as the OutLayer secret `NEAR_AI_API_KEY`.
 3. The version key of a verifier build with application owners: verifier
    0.10.0 or later, or 0.11.0 or later for `detect`. On testnet, the project
-   `seams-v1.testnet/voice-verifier` has 0.14.1 (see `crates/voice-verifier/README.md`, "Versions").
+   `seams-v1.testnet/voice-verifier` has 0.15.0 (see `crates/voice-verifier/README.md`, "Versions").
 
 ## The browser
 
@@ -163,8 +163,9 @@ so set `verifier.timeoutMs` and `verifier.resourceLimits` for it.
 when the page builds the input itself, for example with a recording that
 the page sealed to the verifier's audio key (`sealAudio` of
 `@seams/voice-verdict`, field `audio_sealed_b64`, verifier 0.12.0 and
-later). Your server then carries only ciphertext. The Seams Wallet server
-relays the Wallet's calls this way.
+later). Your server then carries only ciphertext for the recording; the
+request fields stay in plain text. The Seams Wallet server relays the
+Wallet's calls this way.
 
 ```ts
 import { relayToVerifier, VerifierCallError } from '@seams/voice-sign/server';

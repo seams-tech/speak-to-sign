@@ -18,7 +18,7 @@ is in [`trust-chain.md`](trust-chain.md), and the live state is in
 | 6 | A bot farm with text-to-speech voices | Partly: a cost for each action |
 | 7 | One multisig signer who approves for another | **Yes** |
 | 8 | The owner of the OutLayer project | Partly: through the Seams verify route |
-| 9 | NEAR AI | Partly: verifier 0.14.1 checks its TDX quotes, but the transcript has no signature |
+| 9 | NEAR AI | Partly: verifier 0.15.0 checks its TDX quotes, but the transcript has no signature |
 | 10 | The owner of the Phala app | No: trusted |
 | 11 | The Seams team | No: trusted |
 | 12 | A contract caller with a plain key | Key check only |
@@ -137,7 +137,7 @@ key check only, for example a caller that does not use the Seams Wallet (see
 
 ## 9. NEAR AI
 
-**What stops it.** In verifier 0.14.1, the active version: the
+**What stops it.** In verifier 0.15.0, the active version: the
 verifier checks the Intel TDX quotes of NEAR AI's gateway and of its Whisper
 VM, with Intel's collateral and a fresh nonce. It sends each recording to
 Whisper only sealed to the key of the checked gateway, so only that TDX VM
@@ -159,7 +159,7 @@ verifier records the compose hash of the gateway and does not pin it, so the
 code of NEAR AI's VMs is trusted. The verifier does not check the link from
 the gateway to Whisper, or the NVIDIA GPU evidence.
 
-**The `venice` build.** A second worker (0.14.1+venice) is for a NEAR AI
+**The `venice` build.** A second worker (0.15.0+venice) is for a NEAR AI
 Whisper outage. It sends the recording to Venice AI over TLS and checks no
 TEE there, so Venice AI is trusted for the audio and for the transcript. A
 caller selects it by its version key, and its verdict names the build.

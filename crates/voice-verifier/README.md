@@ -14,11 +14,12 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.14.1 (`config::VERIFIER_VERSION`). The
+The source on this branch is version 0.15.0 (`config::VERIFIER_VERSION`). The
 sections below say when a feature needs a later version than 0.3.1.
 
 On 2026-11-12 the owner removed every version from the OutLayer project,
-except these two: 0.14.1 (active) and 0.14.1+venice. So a
+except these two: 0.14.1 and 0.14.1+venice. On 2026-11-14 the owner added
+0.15.0 (active) and 0.15.0+venice. So a
 row of another version below is history: where it says "Not active" or
 "Added", that version is no longer on OutLayer, and a call with its key
 fails. The file of each version is still on FastFS. The removals are in
@@ -49,8 +50,10 @@ fails. The file of each version is still on FastFS. The removals are in
 | 0.14.0 (before the speech-to-text adapter) | Not on OutLayer | The source at commit `ab8f6bc` (494,721 bytes, sha256 `d265bf0588700be099c74e7c905f9b542004e95aad28fce8a2db71b4398a3416`, `build.sh --docker`). The same check as the first build, with the worker's own TDX quote check in place of `dcap-qvl`. It writes `0.14.0` in a verdict, as the first build does, so that text does not name one build. |
 | 0.14.0 | `b9a315b7a5f7c730437b432d860e6e5b8d8216a9e753eb66bd74d4c788849293` | The source at commit `454c76e`, with the speech-to-text adapter (495,707 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `EgHoTjLDS1NHMU5oYet9cGbW7Z8kKDd1qkmEGMEuTncK`, `add_version` tx `7JB9gA17Xn8LWkNB2iGyvuTnBhP6tP3Smi3UbqGUF29q`). **Removed** from the project on 2026-11-12 (`remove_version` tx `GCQXS8oMUiastKAv6u4cyrMBiK1w9huVpTvRtJZgGku9`), because 0.14.1 is the same worker with the `venice` fix. Before that, three `verify` calls got the checked gateway from the worker storage (`tee` 49 to 230 ms) and then no reply of NEAR AI Whisper, which was down. It writes `0.14.0`, as two earlier builds do. Use 0.14.1. |
 | 0.14.0+venice | `59ee371cac571d8ef611baf0d1f6f9a9a9b568f87f56f5d2e2a2a38e3b07fa66` | The `venice` build of commit `454c76e` (400,206 bytes, `build.sh --venice --docker`). Added on 2026-11-12 (FastFS tx `4uZrJVGTfht1kKHRrQxx45De3HnAeW4cXW8YGFYhsDBm`, `add_version` tx `Bnapmuj5E4kXxfpezSxXBVoaqK4b68gQ94mP5Ga8Rf2c`). **Removed from the OutLayer project on 2026-11-12** (`remove_version` tx `8qEVS3jc68r8WAaVGGoP7NpWp2etexeiwsw8GBMTBxX`), so a call with this key fails. The reason: it sends the file part as `audio/wav`, and Venice answers 422, so each call with words refuses with `transcriber_unavailable` (`transcriber: status_422`). |
-| 0.14.1 | `1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c` | The default build of commit `62cd438` (495,774 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `DSd4t1o5qmhVsexzQcGnTtKbKLs3NS7jAU2UfSK8xKzt`, `add_version` tx `AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9`). **Active** since 2026-11-12 (`set_active_version` tx `GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC`): a call with no `version_key` runs it. The Seams staging server and the demo route call it. On that day, 6 of 6 `verify` calls on it gave `accept`, each with the recording sealed to the checked NEAR AI gateway (`tee_cached` 1); in turn with 0.13.0, its `time_ms` median was 3,119 against 3,523. It answers `audio_key` as `0.14.1`. The same behaviour as 0.14.0 `b9a315b7…`; the version number says that it is a build with the Venice fix. |
+| 0.14.1 | `1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c` | The default build of commit `62cd438` (495,774 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-12 (FastFS tx `DSd4t1o5qmhVsexzQcGnTtKbKLs3NS7jAU2UfSK8xKzt`, `add_version` tx `AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9`). Active from 2026-11-12 (`set_active_version` tx `GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC`) to 2026-11-14. The Seams staging server and the demo route called it in that time. No caller uses it now. On that day, 6 of 6 `verify` calls on it gave `accept`, each with the recording sealed to the checked NEAR AI gateway (`tee_cached` 1); in turn with 0.13.0, its `time_ms` median was 3,119 against 3,523. It answers `audio_key` as `0.14.1`. The same behaviour as 0.14.0 `b9a315b7…`; the version number says that it is a build with the Venice fix. |
 | 0.14.1+venice | `344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8` | The `venice` build of commit `62cd438` (400,267 bytes, `build.sh --venice --docker`). Added on 2026-11-12 (FastFS tx `3GoiG3msinq45Hue3P2eBarsJ8KyGqcQqPaW2v8DzaR6`, `add_version` tx `7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip`). **Not active**: a call reaches it only with `version_key`. It sends the file part as `audio/x-wav`, which Venice accepts. The first real recordings through it are the two verdicts of proposal 3 of the voice multisig (`demo/contracts/voice-multisig/README.md`, "Live run on testnet"). See "Speech-to-text service". |
+| 0.15.0 | `21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9` | The default build of commit `a4c7b48` (495,848 bytes, `build.sh --docker`). Added to the OutLayer project on 2026-11-14 (FastFS tx `ADpoV5KwXN5PALj8hG3aeNGsv399P5YFrEy6svmS92kP`, `add_version` tx `DP5ieNgwfqaZU2uPfDBZt6oRMhBSwb3mXhfRVaYeDSMw`). **Active** since 2026-11-14 (`set_active_version` tx `859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z`): a call with no `version_key` runs it. The Seams staging server and the demo route call it. The one change from 0.14.1: a verdict has the heard words only in a refusal with the reason `words` (see "Signed verdict"). On 2026-11-14, one `verify` call on it gave an `accept` with `"heard":null` (speaker score 822), and one gave a `words` refusal with `"heard":"approve the weekly budget"`. It answers `audio_key` as `0.15.0`. |
+| 0.15.0+venice | `5f475dd26794bc09b1f1e157276a19800a4ed3f8df1184c004c49de54e3ffcdf` | The `venice` build of commit `a4c7b48` (400,341 bytes, `build.sh --venice --docker`). Added on 2026-11-14 (FastFS tx `GFMLppbgBrJGPXtEpD4veLZBHxFSwjaF9zFeBQL2WrxT`, `add_version` tx `HLbQGpe93sGmZaSSrKoezSFTD2pqYCZq8BB1ZRTYScvG`). **Not active**: a call reaches it only with `version_key`. On 2026-11-14, one `verify` call on it gave an `accept` with `"heard":null`, and one gave a `words` refusal with the heard words. See "Speech-to-text service". |
 
 Three builds on OutLayer write `"verifier":"0.8.0"` in a verdict:
 `b0f53da4…bff3` and the two "standalone preview" builds. So that text does
@@ -135,13 +138,13 @@ takes about 40 s.
 crates/voice-verifier/build.sh --docker
 ```
 
-Expected for the source of version 0.13.0 (commit `a4d6ce7`; the later
-commits change only this README), on 2026-11-12:
+Expected for the source of version 0.15.0 (commit `a4c7b48`; the later
+commits change only documents), on 2026-11-14:
 
 ```text
 host   x86_64-unknown-linux-gnu
-bytes  548960
-sha256 1b7771544f3bcf5b3ba9e9bf3ac611f6abad21e7538f67b2666fd8aafc8cf930
+bytes  495848
+sha256 21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9
 ```
 
 A change to the source of this crate or of `spoken-intent`, to
@@ -361,10 +364,10 @@ service it is.
 | Transport | Oblivious HTTP, sealed to the gateway that the worker checked (see "NEAR AI attestation") | Plain HTTPS |
 | Check of the service | The TDX quotes of the gateway and of the model. No checked gateway, no request. | None. Venice gives no TEE quote. |
 | Who can read the audio | The worker and the NEAR AI TDX VMs | The worker and Venice AI |
-| Version in each signed output | `0.14.1` | `0.14.1+venice` |
+| Version in each signed output | `0.15.0` | `0.15.0+venice` |
 | OutLayer secret | `NEAR_AI_API_KEY` | `VENICE_API_KEY`, and `NEAR_AI_API_KEY` for a note and for `detect` |
 | Manifest | `manifest/outlayer.json` | `manifest/outlayer-venice.json`: `api.venice.ai` in place of the two Intel hosts |
-| Worker (`--docker`, this commit) | 495,774 bytes | 400,267 bytes: the gateway check is not in it |
+| Worker (`--docker`, this commit) | 495,848 bytes | 400,341 bytes: the gateway check is not in it |
 
 The `venice` build is the fallback for an outage of NEAR AI Whisper. On
 2026-11-12 Whisper gave no reply for more than an hour, while the rest of
@@ -378,7 +381,7 @@ Facts of the `venice` build:
   outside a TEE reads each recording. Do not say that only TEEs open the
   audio for a verdict that ends in `+venice`.
 - **The verdict says so.** The field `verifier` of each verdict, transcript
-  and intent is `0.14.1+venice`, and the TDX quote of the call names the
+  and intent is `0.15.0+venice`, and the TDX quote of the call names the
   WASM hash of this build. The verdict key is the same (it is bound to the
   project), so a contract or a Wallet that pins only the key accepts it. A
   checker that must refuse Venice reads `verifier`.
@@ -954,7 +957,13 @@ Exactly 10 NEAR is allowed. A step-up still marks the audio used.
   core pins it and refuses a verdict of any other key.
 - `policy_text` (not signed): the sentence of the rule on `step_up`, else
   `null`.
-- The output stays below 1,024 bytes; `heard` is cut to fit.
+- The output stays below 1,024 bytes; `heard` of a `words` refusal is cut to
+  fit.
+- `heard` has the heard words only in a refusal with the reason `words`
+  (0.15.0 and later). In an `accept`, a `step_up` and each other refusal it
+  is `null`: a verdict that passes goes to a contract as a call argument,
+  and the arguments are public on chain. No check reads `heard`
+  ([spec 8.2](../../docs/voice-intents-spec.md#82-the-heard-words)).
 
 ## Owners
 

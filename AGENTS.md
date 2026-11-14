@@ -72,7 +72,7 @@ contract and the demo site.
    ([trust chain](docs/trust-chain.md), [spec 9.1](docs/voice-intents-spec.md#91-the-verdict-key-and-the-tdx-quote))
 8. **Where the audio is opened.** The OutLayer worker opens it, then sends it
    to the Phala speaker service (a TDX VM, its key pinned from its
-   attestation) and to Whisper. Verifier 0.14.1, the active version, checks
+   attestation) and to Whisper. Verifier 0.15.0, the active version, checks
    the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the worker,
    and sends the audio to Whisper only sealed to the checked gateway. One
    path has no such check: the `venice` build, which the Seams staging server
@@ -85,12 +85,15 @@ contract and the demo site.
    used verdict, so a bot with a plain NEAR key outside Seams Wallet cannot
    skip the voice rule over RPC. The Wallet guards actions that have no
    receiver contract code, such as native NEAR transfers
-   (`demo/speak-to-pay`).
+   (`demo/speak-to-pay`). A verdict that passes holds no transcript, so the
+   spoken words do not go on chain; only a `words` refusal has the heard
+   words.
    ([deployed state](docs/deployed-state.md#the-contracts),
-   [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict))
-10. **The active verifier is 0.14.1.** The Seams staging server (a transfer, a
+   [spec 9](docs/voice-intents-spec.md#9-who-checks-the-verdict),
+   [spec 8.2](docs/voice-intents-spec.md#82-the-heard-words))
+10. **The active verifier is 0.15.0.** The Seams staging server (a transfer, a
     note, a rating, a bet) and the demo route of the multisig page call it.
-    Both call 0.14.1+venice while NEAR AI Whisper is down.
+    Both call 0.15.0+venice while NEAR AI Whisper is down.
     ([deployed state](docs/deployed-state.md#the-verifier))
 11. **Seams Wallet ships Speak-to-Sign** in `@seams/wallet` 0.70.6 on npm, and
     the voice libraries are separate npm packages.
@@ -107,7 +110,7 @@ contract and the demo site.
 - When a live fact changes (a deploy, a new verifier version, a check that
   ships), update `docs/deployed-state.md` first.
 - Do not change a statement to an older verifier version. The docs describe
-  0.14.1. An older version stays only in the version history of
+  0.15.0. An older version stays only in the version history of
   `crates/voice-verifier/README.md` and in a measurement that compares
   versions.
 - Do not keep a plan or a work log in `docs/`. When the work ships, move its

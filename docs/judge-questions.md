@@ -234,7 +234,7 @@ run".
 
 **Not done.** Testnet only. The verifier sends the opened recording to the
 Phala speaker service, whose key it pins from its attestation, and to NEAR
-AI. Verifier 0.14.1, the active version, checks the TDX quotes of NEAR AI's
+AI. Verifier 0.15.0, the active version, checks the TDX quotes of NEAR AI's
 gateway and of Whisper, and sends the recording only sealed to the checked
 gateway (see [`trust-chain.md`](trust-chain.md#the-near-ai-check)). There is no mainnet
 date yet.

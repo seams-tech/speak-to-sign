@@ -52,13 +52,13 @@ const requestBorsh = Uint8Array.from(
 
 // 3. The reply of the verifier (`verdict_json` and `signature_b64` of the verify output).
 const verdictJson =
-  '{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.8.0",' +
+  '{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.15.0",' +
   '"request_digest":"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws",' +
   '"spoken_text_digest":"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys",' +
   '"audio_digest":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc","outcome":"accept","reason":null,' +
   '"policy_rule":null,"expires_at_ms":1762700120000,"speaker_score_milli":655,' +
-  '"word_margin_milli":142,"heard":"send two near to alice dot testnet"}';
-const signatureB64 = 'xyQ8inRlFw7gnOCuyNiabKMjyO9DX2x4v91x+82sFX6Lzvt5SvrNojR2haMBJfD6R4IPE5Zyr5vMyL8h15fnDg==';
+  '"word_margin_milli":142,"heard":null}';
+const signatureB64 = 'qWYK81j8cLNNpCWutrTrppDNNKZVb3r1O+qOhNp5WhItHJynBeuXgf8BDEE6d17W+OnkCOCSIc8LrxYDit5aAw==';
 
 const result = await checkVerdict({
   verdictJson,
@@ -70,7 +70,8 @@ const result = await checkVerdict({
 });
 
 if (result.ok) {
-  console.log('confirmed by voice:', result.verdict.heard);
+  // A verdict that passes has no heard words (`heard` is null).
+  console.log('confirmed by voice, speaker score:', result.verdict.speaker_score_milli);
 } else {
   console.log('not confirmed:', result.refusal.code);
 }

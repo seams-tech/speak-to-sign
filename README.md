@@ -173,8 +173,10 @@ The numbers in the diagram are these steps:
 3. The verifier checks the heard words against the sentence of the request.
    It refuses words that add or drop a "not", and it refuses a recording that
    was used before.
-4. The verifier signs a verdict. The verdict binds the speaker, the heard
-   words and the digest of the exact request. It expires after 120 s.
+4. The verifier signs a verdict. The verdict binds the speaker, the spoken
+   sentence and the digest of the exact request. It expires after 120 s. A
+   verdict that passes holds no transcript, so the spoken words do not go on
+   chain.
 5. Wallet core checks the verdict against a pinned key, then signs the call
    from your own account. The contract checks the verdict again on chain, so
    a bot with a plain NEAR key cannot skip the voice step over RPC.
@@ -182,7 +184,7 @@ The numbers in the diagram are these steps:
 The audio is sealed. The device seals each recording to a key that exists
 only inside the OutLayer TEE, and the servers between them carry ciphertext.
 The verifier opens it and sends it to two services. The speaker service is a
-Phala TDX VM with a pinned key. For NEAR AI Whisper, the verifier (0.14.1)
+Phala TDX VM with a pinned key. For NEAR AI Whisper, the verifier (0.15.0)
 checks the Intel TDX quotes of NEAR AI's gateway and of Whisper inside the
 worker. Then it sends the recording with Oblivious HTTP (HPKE), sealed to the
 key of the checked gateway, so the server that ends the TLS connection sees
@@ -287,7 +289,7 @@ files that run.
 Its verdict key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`.
 The key is bound to the project, and the Wallet and the contracts pin it.
 
-The verifier gets the heard words from Whisper on NEAR AI by default: 0.14.1
+The verifier gets the heard words from Whisper on NEAR AI by default: 0.15.0
 is the active version. NEAR AI's Whisper gave no reply for about 2.5 hours on
 2026-11-12. For such an outage, the Seams staging server and the demo route select
 the `venice` build,
@@ -295,8 +297,8 @@ which uses Whisper on Venice AI, until NEAR AI answers again.
 
 | Version | State | WASM that runs | On chain |
 | --- | --- | --- | --- |
-| 0.14.1 | Active, the default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. | [`1e7c6968…8a5c`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c.wasm) | Added: [`AJ6excNh…Bki9`](https://testnet.nearblocks.io/txns/AJ6excNhQnY4MRkQdAxqoqNXX88yCPA2iV2oMcrfBki9). Made active: [`GnXazq3d…c6rC`](https://testnet.nearblocks.io/txns/GnXazq3d4UukDyGMm6FPGoCvrCEQhwniHKGAMr8vc6rC) |
-| 0.14.1+venice | Not active (only while NEAR AI's Whisper is down): Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used it. | [`344b8b47…d3c8`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/344b8b479a42de612942c2811f21e0e09462deb9c1d873dd2929b052bdabd3c8.wasm) | Added: [`7spkQGnf…u8ip`](https://testnet.nearblocks.io/txns/7spkQGnfQGbDJm8dFQnxY7MapYkk4LoDjhdZQzF5u8ip) |
+| 0.15.0 | Active, the default: Whisper on NEAR AI. It checks the TDX quotes of NEAR AI before it sends audio there. | [`21af4130…27d9`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9.wasm) | Added: [`DP5ieNgw…DSMw`](https://testnet.nearblocks.io/txns/DP5ieNgwfqaZU2uPfDBZt6oRMhBSwb3mXhfRVaYeDSMw). Made active: [`859jnFSe…FS8Z`](https://testnet.nearblocks.io/txns/859jnFSeuLjfaDns57EnmA1DVZQJrXC3tV81asdjFS8Z) |
+| 0.15.0+venice | Not active (only while NEAR AI's Whisper is down): Whisper on Venice AI, which has no TEE. Proposal 3 of the live multisig run used the build before it, 0.14.1+venice. | [`5f475dd2…fcdf`](https://test.fastfs.io/seams-v1.testnet/outlayer.testnet/5f475dd26794bc09b1f1e157276a19800a4ed3f8df1184c004c49de54e3ffcdf.wasm) | Added: [`HLbQGpe9…ScvG`](https://testnet.nearblocks.io/txns/HLbQGpe93sGmZaSSrKoezSFTD2pqYCZq8BB1ZRTYScvG) |
 
 The name of each WASM file is its SHA-256, and OutLayer uses that hash as the
 version key. To check it, download the file and run `shasum -a 256` on it, or
@@ -318,8 +320,8 @@ stops it, and [`JUDGES.md`, "Not covered"](JUDGES.md#not-covered) lists what
 is not done.
 
 - **OutLayer.** The TEE run of pinned code, its storage of the template and the used audio, its signing key, and the NEAR AI secret. If OutLayer's TEE or governance fails, the verdict means nothing.
-- **Project owner.** The owner of the OutLayer project can deploy a new version that signs with the same project-bound key. The Wallet pins the key, not the code.
-- **NEAR AI.** Whisper does not sign a transcript, and a false transcript could pass the words check. The verifier (0.14.1) checks the Intel TDX quotes of NEAR AI's gateway and of Whisper, and it accepts only a reply that the checked gateway sealed for that request. It still trusts the code of NEAR AI's VMs and the link from the gateway to Whisper ([details](docs/trust-chain.md#the-near-ai-check)).
+- **Project owner.** The owner of the OutLayer project can deploy a new version that signs with the same project-bound key. Wallet core on the device and the contracts pin the key, not the WASM hash; the Seams verify route checks the TDX quote against the pinned WASM hash off chain ([`docs/trust-chain.md`](docs/trust-chain.md)).
+- **NEAR AI.** Whisper does not sign a transcript, and a false transcript could pass the words check. The verifier (0.15.0) checks the Intel TDX quotes of NEAR AI's gateway and of Whisper, and it accepts only a reply that the checked gateway sealed for that request. It still trusts the code of NEAR AI's VMs and the link from the gateway to Whisper ([details](docs/trust-chain.md#the-near-ai-check)).
 - **Phala.** The speaker service key comes from Phala's dstack KMS, per app ID.
 - **Sealed audio after the verifier.** The verifier sends the opened recording to two services: the speaker service (a Phala TDX VM, its key pinned from its attestation), and NEAR AI Whisper, sealed to the gateway whose TDX quote the verifier checked. While NEAR AI's Whisper is down, the `venice` build of the verifier sends the recording to Whisper on Venice AI over TLS. Venice has no TEE, so Venice can read that audio. Each verdict of that build says `+venice` in its `verifier` field.
 - **Contract accounts.** Each of the four demo contract accounts still has a full-access key. Its holder can deploy new code, or name another moderator of the notes contract.

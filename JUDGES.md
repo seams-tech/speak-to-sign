@@ -301,13 +301,13 @@ git clone https://github.com/seams-tech/speak-to-sign
    (cd speak-to-sign/packages/voice-verdict && pnpm install --frozen-lockfile >/dev/null && pnpm test 2>&1 | grep -E '^✔ a (step-up |verdict)|^ℹ (pass|fail)' | sed 's/ ([0-9.]*ms)//')
    ```
 
-3. The active verifier comes from this source. Build commit `62cd438` in
+3. The active verifier comes from this source. Build commit `a4c7b48` in
    Docker, then read the active version on OutLayer.
 
    ```bash
-   # See: sha256 1e7c6968bbfcf6d3193874d12988054114a004f7e10ccf8c1aeddfdca6d38a5c
-   (cd speak-to-sign && git checkout --quiet 62cd438 && crates/voice-verifier/build.sh --docker 2>&1 | tail -1; git checkout --quiet dev)
-   # See: the same hash (verifier 0.14.1).
+   # See: sha256 21af4130b8209ff593dd5b2e6131ffb85a0c68dec81b8bcbf857688519cd27d9
+   (cd speak-to-sign && git checkout --quiet a4c7b48 && crates/voice-verifier/build.sh --docker 2>&1 | tail -1; git checkout --quiet dev)
+   # See: the same hash (verifier 0.15.0).
    curl -s https://rpc.testnet.fastnear.com -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"outlayer.testnet\",\"method_name\":\"get_project\",\"args_base64\":\"$(printf '%s' '{"project_id":"seams-v1.testnet/voice-verifier"}' | base64 | tr -d '\n')\"}}" | jq -r '.result.result | implode | fromjson | .active_version'
    ```
 
@@ -338,7 +338,7 @@ git clone https://github.com/seams-tech/speak-to-sign
    gateway. The first command shows only that the report has them. The second
    command runs the verifier's own check of the two quotes on a recorded
    report, with Intel's recorded collateral, and compares that check with
-   `dcap-qvl`. The check is in verifier 0.14.1, the active version: see
+   `dcap-qvl`. The check is in verifier 0.15.0, the active version: see
    [`docs/trust-chain.md`](docs/trust-chain.md#the-near-ai-check).
 
    ```bash
@@ -366,9 +366,9 @@ git clone https://github.com/seams-tech/speak-to-sign
 | The notes contract takes a note or a rating only with its own verdict: the key, the outcome, the expiry and the digest. Each verdict counts once. On testnet, `get_voice_config` of `notes.seams-v1.testnet` gives `"required":true`. | `check_spoken` in `demo/contracts/community-notes/src/lib.rs`; `src/tests.rs` and `spoken_notes_in_the_sandbox` in `sandbox/tests/sandbox.rs` |
 | The voice multisig contract checks the verdict on chain: key, expiry, owner, commitment. Each approval is a verdict too: no admin, no plain approve, one recording counts once, M of N to execute. Version 3.0.0 is on `voice-multisig.seams-v1.testnet`; no proposal ran there yet. | `a_verdict_of_another_key_fails`, `an_expired_verdict_fails`, `a_verdict_for_another_commitment_fails`, `a_plain_approve_without_a_verdict_fails`, `a_verdict_of_a_non_signer_fails`, `the_same_verdict_twice_fails`, `one_recording_for_two_signers_fails`, `an_approval_for_another_commitment_fails`, `execute_below_the_threshold_fails` in `demo/contracts/voice-multisig/src/tests.rs` |
 | The note market takes a bet only with the verdict of that bet: the key, the expiry, and the bettor, market, side and amount. Each verdict counts once. On testnet, `get_voice_config` of `pm-notes.seams-v1.testnet` gives `"required":true`. | `a_spoken_bet_with_its_verdict_is_taken_once`, `a_bet_without_a_verdict_is_refused`, `a_verdict_is_for_one_account_market_outcome_and_amount`, `a_verdict_of_another_key_is_refused`, `an_old_verdict_is_refused`, `a_changed_verdict_is_refused`, `a_verdict_passes_only_once` in `demo/contracts/jev-prediction-market/src/tests.rs` (7 passed on 2026-11-12); `a_bet_needs_the_verdict_of_its_own_spoken_sentence` in `sandbox/tests/spoken_bet.rs` |
-| In verifier 0.14.1 (the active version), a recording goes to Whisper only sealed to a NEAR AI gateway whose TDX quote passed the check. A failed check sends nothing to NEAR AI. | `the_recorded_report_passes`, `a_wrong_key_fails`, `a_wrong_measurement_fails` in `crates/voice-verifier/tests/nearai_attestation.rs`; `no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper`, `a_failed_check_refuses_even_within_the_grace_period` in `tests/ops/whisper.rs`; check 5 above |
+| In verifier 0.15.0 (the active version), a recording goes to Whisper only sealed to a NEAR AI gateway whose TDX quote passed the check. A failed check sends nothing to NEAR AI. | `the_recorded_report_passes`, `a_wrong_key_fails`, `a_wrong_measurement_fails` in `crates/voice-verifier/tests/nearai_attestation.rs`; `no_record_and_no_answer_refuses_before_any_audio_goes_to_whisper`, `a_failed_check_refuses_even_within_the_grace_period` in `tests/ops/whisper.rs`; check 5 above |
 | A sealed recording opens only for its owner and operation. | `sealed_audio_opens_only_for_its_owner_and_operation` in `crates/voice-verifier/tests/ops/sealed.rs`; spec 5.1 |
-| The active verifier (0.14.1) comes from this source. The Seams staging server and the demo route call it. | Check 3 above; `crates/voice-verifier/README.md`, "Reproducible build" |
+| The active verifier (0.15.0) comes from this source. The Seams staging server and the demo route call it. | Check 3 above; `crates/voice-verifier/README.md`, "Reproducible build" |
 
 ## Scope of the hackathon work
 
@@ -419,10 +419,12 @@ boundaries", spec section 11, and the READMEs of the contracts:
 - The NEAR AI transcript has no signature. A false transcript can pass the
   word check.
 - The owner of the OutLayer project can deploy new code that signs with the
-  same key. The Wallet pins the key, not the code.
+  same key. Wallet core on the device and the contracts pin the key, not the
+  WASM hash; the Seams verify route checks the TDX quote against the pinned
+  WASM hash off chain ([`docs/trust-chain.md`](docs/trust-chain.md)).
 - The device seals each recording. The verifier opens it and sends it to the
   Phala speaker service (an Intel TDX VM, its key pinned from its
-  attestation) and to Whisper. Verifier 0.14.1, the active version, checks
+  attestation) and to Whisper. Verifier 0.15.0, the active version, checks
   the TDX quotes of NEAR AI's gateway and of Whisper, and sends the recording
   only sealed to the checked gateway (see check 5). It still trusts the code
   of NEAR AI's VMs and the link from its gateway to Whisper. One path has

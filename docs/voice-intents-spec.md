@@ -145,8 +145,8 @@ is section 9 of [`architecture.md`](architecture.md#9-confidential-audio).
   plain clip of the same WAV are the same audio.
 
 Sealed audio hides the recording on the path. It does not hide the request:
-the Wallet sends `request` in plain text, and the verdict names what was
-heard.
+the Wallet sends `request` in plain text. A verdict names what was heard
+only in a `words` refusal (section 8.2).
 
 ## 6. Enrollment (`enroll`)
 
@@ -197,7 +197,8 @@ checks before it.
    `words`.
 7. **Policy.** `policy::decide` can only change an accept to a `step_up`
    (section 7.3).
-8. **Sign.** Set the expiry and sign the verdict (section 8).
+8. **Sign.** Set the expiry. Remove the heard words, unless the verdict is a
+   `words` refusal (section 8.2). Sign the verdict (section 8).
 
 ### 7.1 Speaker reply
 
@@ -269,7 +270,7 @@ fields, all present, in this order:
 | --- | --- | --- |
 | 1 | `kind` | `seams_voice_signed_verdict_v2` |
 | 2 | `renderer` | `spoken-intent/1` |
-| 3 | `verifier` | The verifier version, for example `0.7.0` |
+| 3 | `verifier` | The verifier version, for example `0.15.0` |
 | 4 | `request_digest` | Section 4 |
 | 5 | `spoken_text_digest` | Section 4 |
 | 6 | `audio_digest` | Section 4 |
@@ -279,7 +280,7 @@ fields, all present, in this order:
 | 10 | `expires_at_ms` | The worker clock before the signature, plus 120 s |
 | 11 | `speaker_score_milli` | The cosine in thousandths |
 | 12 | `word_margin_milli` | Section 7.2 |
-| 13 | `heard` | The heard words, cut to fit |
+| 13 | `heard` | The heard words, cut to fit, only on a refusal with the reason `words`. In each other verdict: `null` (section 8.2) |
 
 The signed message is
 `SHA-256("seams:outlayer:voice-verdict:v2" || verdict_json bytes)`. The key
@@ -305,6 +306,36 @@ key stays the same across verifier versions.
 | `storage` | The worker storage failed. |
 | `not_authorized`, `authorization_unavailable`, `template_exists` | `enroll` only. |
 | `proposal_missing`, `same_speaker`, `attempts_exhausted` | Multisig only (section 10). |
+
+### 8.2 The heard words
+
+`heard` is a transcript. It holds the words that the speech-to-text model
+made from the recording, after the cleanup of the word check (section 7.2).
+It holds no part of the voice.
+
+The verifier writes `heard` only in a refusal with the reason `words`. In
+each other verdict, `heard` is `null`: an `accept`, a `step_up` and each
+other refusal. This is the rule of verifier 0.15.0 and later. An older
+version wrote the heard words in each verdict that had them.
+
+- **A verdict that passes has no transcript.** A contract gets `verdict_json`
+  as an argument of a call, and the arguments of a call are public on chain.
+  So the spoken words do not go on chain. For a multisig, the chain then
+  shows only the commitment of a proposal until `execute` (section 10).
+- **A `words` refusal has the transcript.** The Wallet card and the demo
+  pages show it, so that the person sees what the verifier heard and can say
+  the sentence again. It can be speech that is not in a request. No contract
+  accepts this verdict, and the multisig page does not send it to the chain.
+  The Seams server and OutLayer carry it to the person.
+- **No check reads `heard`.** `outcome` gives the result of the word check,
+  and `spoken_text_digest` names the sentence. A checker must accept `null`,
+  and it must make no decision from `heard`.
+
+The request is not secret: its fields say what the call does, and the call
+is public on chain. The transcript is a different thing, and only the person
+gets it. The `transcribe` and `detect` operations also return heard words,
+to the application that asked for them. Their results are not verdicts, and
+no contract takes them.
 
 ## 9. Who checks the verdict
 
@@ -411,6 +442,8 @@ scoped core operations `openPrompt`, `receiverExists`, `verify`,
 ## 10. Multisig requests
 
 A multisig proposal is hidden behind a salted commitment until `execute`.
+The verdicts that `propose` and `approve` take have no heard words (section
+8.2), so they do not open it.
 
 - **`multisig_propose`** `{"multisig","proposal_id","receiver","amount_yocto"}`
   and **`multisig_hide_note`** `{"multisig","proposal_id","note_id"}`:
@@ -468,13 +501,15 @@ what each attacker can do with it.
   and the NEAR AI secret. If the TEE or its governance fails, a verdict means
   nothing.
 - **Project owner.** The owner of the OutLayer project can deploy a version
-  that signs with the same key. The Wallet pins the key, not the code. Such a
+  that signs with the same key. Wallet core on the device and the contracts
+  pin the key, not the WASM hash; the Seams verify route checks the TDX quote
+  against the pinned WASM hash off chain (section 9.1). Such a
   version also reads the audio key and can open sealed audio. The OutLayer
   access rule "One build only" on the secrets profile limits this to one
   WASM hash, until the owner moves the lock.
 - **Sealed audio after the verifier.** The verifier sends the opened WAV to
   the speaker service (a Phala TDX VM, its key pinned from its attestation)
-  and to Whisper. Verifier 0.14.1 (the active version) checks the Intel TDX
+  and to Whisper. Verifier 0.15.0 (the active version) checks the Intel TDX
   quotes of NEAR AI's gateway and of Whisper, and sends the WAV only sealed
   to the checked gateway. The code of NEAR AI's VMs and the link from its
   gateway to Whisper stay trusted. The path with no such check is in

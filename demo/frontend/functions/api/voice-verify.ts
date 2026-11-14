@@ -60,10 +60,12 @@ const MAX_BODY_BYTES = 400 * 1024;
 /**
  * The verifier calls two remote models, and OutLayer can hold a job before a worker runs it.
  * On 2026-11-11 that wait swung from 1 s to more than 90 s within minutes, while the
- * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s. This wait
- * is longer than the run limit below, so that a run that uses all of its time still answers.
+ * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s. On
+ * 2026-11-14 a job waited 75 to more than 155 s in the queue, while its run took 1 to 3 s: the
+ * two testnet executors of OutLayer started again about each 50 s. So this wait is long. It is
+ * also longer than the run limit below, so that a run that uses all of its time still answers.
  */
-const TIMEOUT_MS = 60_000;
+const TIMEOUT_MS = 180_000;
 /**
   * The two kinds of the spoken multisig: a new transfer (the verifier keeps it and its salt) and
  * a confirmation of a stored proposal from memory. `market_bet` is only for the dev page

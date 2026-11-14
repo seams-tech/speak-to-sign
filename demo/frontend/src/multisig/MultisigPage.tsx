@@ -270,7 +270,7 @@ function TxLink({ hash, label }: { hash: string; label?: string }) {
   );
 }
 
-/** A refusal, a failure, or the two-minute note while the Wallet asks. */
+/** A refusal, a failure, the note while the verifier checks, or the two-minute note while the Wallet asks. */
 function VoiceMessage({ step }: { step: VoiceStep }) {
   if (step.kind === 'refused') {
     return (
@@ -290,6 +290,8 @@ function VoiceMessage({ step }: { step: VoiceStep }) {
     );
   }
   if (step.kind === 'signing') return <p className="ms-hint">The verdict is valid for two minutes. Confirm the transaction in the Wallet now.</p>;
+  // OutLayer can hold a job in its queue for minutes, and the route waits up to three (voice-verify.ts).
+  if (step.kind === 'checking') return <p className="ms-hint">The check takes a few seconds. If OutLayer is busy, it can take up to three minutes.</p>;
   return null;
 }
 

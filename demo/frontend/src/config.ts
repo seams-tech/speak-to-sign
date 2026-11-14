@@ -1,7 +1,7 @@
 // Build-time settings. The Seams defaults are the staging deployment, the only one whose
 // Seams server runs the Speak-to-Sign verifier.
 
-import { isImplicitAccount } from './guards';
+export { shortAccount } from './guards';
 
 function env(value: string | undefined, fallback = ''): string {
   const trimmed = (value ?? '').trim();
@@ -48,9 +48,4 @@ export function accountUrl(accountId: string): string {
 
 export function shortHash(hash: string): string {
   return hash.length > 12 ? `${hash.slice(0, 6)}…${hash.slice(-4)}` : hash;
-}
-
-/** Shortens an implicit (64-hex) account for display. Named accounts stay as they are. */
-export function shortAccount(accountId: string): string {
-  return isImplicitAccount(accountId) ?`${accountId.slice(0, 6)}…${accountId.slice(-4)}` : accountId;
 }

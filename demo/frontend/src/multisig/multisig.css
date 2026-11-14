@@ -16,7 +16,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 820px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 14px 16px;
 }
@@ -58,7 +58,7 @@
 .ms-main {
   display: grid;
   gap: 16px;
-  max-width: 820px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 8px 16px 64px;
 }
@@ -103,12 +103,6 @@
 
 .ms-list h2 {
   margin: 8px 0 0;
-}
-
-.ms-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
 }
 
 .ms-label {
@@ -168,14 +162,6 @@
 
 .ms-dot-b {
   background: linear-gradient(135deg, #00ba7c, #e2b719);
-}
-
-.ms-you {
-  border-radius: 999px;
-  padding: 1px 8px;
-  background: var(--accent-bg);
-  color: var(--accent-ink);
-  font-size: 12px;
 }
 
 .ms-muted {
@@ -407,58 +393,97 @@
   color: #8a1019;
 }
 
-/* The form that creates a multisig, and the note of a multisig from the factory. */
-.ms-hint-first {
-  margin-top: 0;
+/* Two columns: the open multisig, and the list of the multisigs with the form that creates one. */
+.ms-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 16px;
 }
 
-.ms-own {
+.ms-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .ms-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The header of the open multisig. */
+.ms-head-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 10px;
+}
+
+.ms-card .ms-head-top h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.ms-badge {
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ms-head .ms-account {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.ms-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
   margin-top: 12px;
 }
 
-.ms-own .ms-label {
-  flex-basis: 100%;
+.ms-facts > div {
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--panel);
 }
 
-.ms-own code {
-  min-width: 0;
-  font-size: 13px;
-  overflow-wrap: anywhere;
+.ms-facts .ms-signers {
+  margin-top: 0;
 }
 
-.ms-create {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: start;
-  gap: 12px;
-  margin-top: 16px;
+.ms-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 12px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--accent-bg);
+  font-weight: 500;
 }
 
-/* The button stands on the line of the input, under the height of the label. */
-.ms-create .ms-btn {
-  margin-top: 21px;
+.ms-next svg {
+  flex: none;
+  color: var(--accent-ink);
 }
 
-@media (max-width: 560px) {
-  .ms-create {
-    grid-template-columns: 1fr;
-  }
-
-  .ms-create .ms-btn {
-    justify-self: start;
-    margin-top: 0;
-  }
+.ms-next p {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
 }
 
-.ms-share .ms-action {
-  margin-top: 8px;
-}
-
-.ms-own-list {
+/* The right column. */
+.ms-rows {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -466,21 +491,84 @@
   list-style: none;
 }
 
-.ms-own-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 12px;
-  font-size: 14px;
-}
-
-.ms-own-list a {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.ms-own-list a[aria-current='page'] {
+.ms-row {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 8px 12px;
   color: var(--ink);
   text-decoration: none;
 }
 
+.ms-row:hover {
+  background: var(--panel);
+}
+
+.ms-row[aria-current='page'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.ms-row span {
+  font-size: 13px;
+}
+
+.ms-side-part {
+  margin-top: 16px;
+  border-top: 1px solid var(--line-strong);
+  padding-top: 14px;
+}
+
+.ms-side-part h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.ms-side-part .ms-hint {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.ms-side-part .ms-field,
+.ms-side-part .ms-btn {
+  margin-top: 10px;
+}
+
+.ms-side-part .ms-btn {
+  justify-content: center;
+  width: 100%;
+}
+
+.ms-own {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 14px;
+}
+
+.ms-own .ms-label {
+  flex-basis: 100%;
+}
+
+.ms-own code {
+  font-size: 13px;
+}
+
+.ms-own .ms-btn {
+  width: auto;
+  margin-top: 0;
+}
+
+/* When each step of the setup is done, the steps are one line. */
+.ms-setup:not(:has(.step:not(.step-done))) .steps {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 0;
+}
+
+.ms-setup:not(:has(.step:not(.step-done))) .step-text {
+  flex: none;
+}

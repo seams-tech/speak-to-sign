@@ -5,6 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { multisigName, nextStep, signerName, timeAgo } from '../src/multisig/boardText.ts';
 import { readMultisigConfig, readProposal, readProposalId, readProposals } from '../src/multisig/contractViews.ts';
 import { isFactoryMultisig, multisigOfSearch, otherSignerError, readCreated, readFactoryConfig, searchOfMultisig } from '../src/multisig/factory.ts';
 import { ownMultisigsOf } from '../src/multisig/ownMultisigs.ts';
@@ -199,4 +200,60 @@ test('only a created event of the factory for an account of the factory counts',
   );
   assert.deepEqual(ownMultisigsOf({ error: 'down' }, FACTORY, SIGNER_A), []);
   assert.deepEqual(ownMultisigsOf(null, FACTORY, SIGNER_A), []);
+});
+
+test('a multisig and a signer have short names', () => {
+  assert.equal(multisigName(DEMO, DEMO), 'Demo multisig');
+  assert.equal(multisigName(`m12.${FACTORY}`, DEMO), 'm12');
+  assert.equal(signerName(SIGNER_A, SIGNER_A), 'You');
+  assert.equal(signerName(SIGNER_B, SIGNER_A), 'bbbbbb…bbbb');
+  assert.equal(signerName('bob.testnet', undefined), 'bob.testnet');
+});
+
+test('the next step follows the newest open proposal', () => {
+  const pair = { signers: [SIGNER_A, SIGNER_B], threshold: 2, demo: false };
+  const proposal = (id: number, approvals: string[], status: 'open' | 'executed' = 'open') => ({
+    id,
+    commitment_hex: COMMITMENT,
+    proposer: approvals[0] ?? SIGNER_A,
+    approvals,
+    status,
+    created_at_ms: 1794300000000,
+  });
+  const step = (account: string | undefined, proposals: ReturnType<typeof proposal>[], demo = false) =>
+    nextStep({ ...pair, demo, account, proposals });
+
+  // Nobody is signed in, or the wallet is not a signer.
+  assert.deepEqual(step(undefined, []), { text: 'Sign in with the wallet of a signer to propose or approve.', signIn: true });
+  assert.equal(step(undefined, [], true).signIn, true);
+  assert.match(step(undefined, [], true).text, /for its 2 signers\. Sign in to create a multisig of your own/);
+  assert.deepEqual(step('carol.testnet', []), { text: 'Your wallet is not a signer of this multisig.', signIn: false });
+  assert.match(step('carol.testnet', [], true).text, /create a multisig of your own/);
+
+  // A signer.
+  assert.equal(step(SIGNER_A, []).text, 'Send the link to the other signer. Then propose a transfer, and tell them the sentence.');
+  assert.equal(step(SIGNER_A, [], true).text, 'Propose a transfer. Then tell the other signer the sentence.');
+  assert.equal(step(SIGNER_A, [proposal(1, [SIGNER_A, SIGNER_B], 'executed')]).text, 'Propose a transfer. Then tell the other signer the sentence.');
+  assert.equal(step(SIGNER_A, [proposal(1, [SIGNER_A])]).text, 'Proposal 1 waits for the other signer. Tell them the sentence.');
+  assert.equal(step(SIGNER_B, [proposal(1, [SIGNER_A])]).text, 'Proposal 1 waits for your approval. Say the proposal that the proposer told you.');
+  assert.equal(step(SIGNER_A, [proposal(1, [SIGNER_A, SIGNER_B])]).text, 'Proposal 1 has all of its approvals. Execute it.');
+  assert.equal(step(SIGNER_B, [proposal(1, [SIGNER_A, SIGNER_B])]).text, 'Proposal 1 has all of its approvals. The proposer executes it.');
+  // The newest open proposal decides, also behind an executed one.
+  assert.match(step(SIGNER_B, [proposal(3, [SIGNER_A, SIGNER_B], 'executed'), proposal(2, [SIGNER_A])]).text, /^Proposal 2 waits for your approval/);
+  // Three signers are "the other signers".
+  assert.equal(
+    nextStep({ signers: [SIGNER_A, SIGNER_B, 'carol.testnet'], threshold: 2, demo: true, account: SIGNER_A, proposals: [] }).text,
+    'Propose a transfer. Then tell the other signers the sentence.',
+  );
+});
+
+test('a time is a short age, and a date after a week', () => {
+  const now = Date.UTC(2026, 10, 14, 16);
+  assert.equal(timeAgo(now - 20_000, now), 'just now');
+  assert.equal(timeAgo(now + 5_000, now), 'just now');
+  assert.equal(timeAgo(now - 60_000, now), '1 minute ago');
+  assert.equal(timeAgo(now - 8 * 60_000, now), '8 minutes ago');
+  assert.equal(timeAgo(now - 3 * 3_600_000, now), '3 hours ago');
+  assert.equal(timeAgo(now - 2 * 86_400_000, now), '2 days ago');
+  assert.match(timeAgo(now - 30 * 86_400_000, now), /Oct 1\d, 2026/);
 });

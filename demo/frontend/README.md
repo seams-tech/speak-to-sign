@@ -18,25 +18,33 @@ both.
   Seams Wallet signs `propose`, `approve` and `execute` with its normal confirm
   step. Its code is in `src/multisig/` (`MultisigPage.tsx`).
 
-  A visitor is not a signer of the demo multisig. So the page has the form
-  "Create your own multisig": the visitor names the account of one other
-  signer, and the Wallet calls `create` on the factory
-  (`../contracts/voice-multisig-factory`, `config.multisigFactory`,
-  `VITE_MULTISIG_FACTORY`) with 0.15 NEAR. The page then shows the new 2 of 2
-  multisig, and its address names it: `/multisig/?m=m<N>.<factory>`. The
-  visitor sends that address to the other signer. The page takes only the
-  demo multisig or an account `m<N>.<factory>` from its address
-  (`src/multisig/factory.ts`), so a link cannot point it at another contract.
-  The form shows only when the factory account answers `get_config`.
+  The page has two columns (one column on a phone):
 
-  A signed-in wallet also sees the list "Your multisigs": each multisig of
-  the factory that names the wallet as a signer. So the other signer needs
-  no link. The factory keeps no list, so the page reads the `created` events
-  in the newest 20 transactions of the factory from FastNEAR's transactions
-  API (`src/multisig/ownMultisigs.ts`). If that API fails, the page shows no
-  list, and the link of a multisig still opens it. One
-  person has one voice, so the two signers must be two persons: the verifier
-  refuses a voice that already approved the proposal.
+  - **Left: the open multisig.** Its header shows the short name, the
+    balance, the signers and the next step of the person
+    (`src/multisig/boardText.ts`), for example "Proposal 1 waits for your
+    approval". Below it are the proposal form (for a signer) and the
+    proposals.
+  - **Right: "Multisigs".** The list has each multisig of the factory that
+    names the signed-in wallet as a signer, the multisig of the page address,
+    and the demo multisig. A click opens one. So the other signer needs no
+    link. The factory keeps no list, so the page reads the `created` events
+    in the newest 20 transactions of the factory from FastNEAR's transactions
+    API (`src/multisig/ownMultisigs.ts`). If that API fails, the list has
+    fewer rows, and the link of a multisig still opens it.
+  - **Right: "Create a 2 of 2 multisig".** A visitor is not a signer of the
+    demo multisig. So the visitor names the account of one other signer, and
+    the Wallet calls `create` on the factory
+    (`../contracts/voice-multisig-factory`, `config.multisigFactory`,
+    `VITE_MULTISIG_FACTORY`) with 0.15 NEAR. The page then opens the new
+    multisig, and its address names it: `/multisig/?m=m<N>.<factory>`. The
+    form shows only when the factory account answers `get_config`.
+
+  The page takes only the demo multisig or an account `m<N>.<factory>` from
+  its address (`src/multisig/factory.ts`), so a link cannot point it at
+  another contract. One person has one voice, so the two signers must be two
+  persons: the verifier refuses a voice that already approved the proposal.
+  When the three setup steps are done, they are one line.
 
 ## The voice route (`/api/voice-verify`)
 

@@ -29,6 +29,11 @@ export function isImplicitAccount(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 }
 
+/** Shortens an implicit (64-hex) account for display. Named accounts stay as they are. */
+export function shortAccount(accountId: string): string {
+  return isImplicitAccount(accountId) ? `${accountId.slice(0, 6)}…${accountId.slice(-4)}` : accountId;
+}
+
 /** An object with exactly these keys: no key missing and no other key. */
 export function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   const own = Object.keys(value);

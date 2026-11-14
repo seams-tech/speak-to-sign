@@ -202,6 +202,9 @@ The global code `3cUt9ft8YWaEMdYhQj6B4td54w66a4KL3VCfSAWvKErX` is the
 reproducible build of voice-multisig 3.1.0 at the same commit (see
 [the multisig README](../voice-multisig/README.md#reproducible-build)).
 
+SourceScan built commit `ad9b9d8` again and got both code hashes: for the
+factory, and for `m1`, the first multisig on the global code.
+
 To check a multisig of the factory, read its account. `global_contract_hash`
 is the code hash above, `code_hash` is `1111…1111` (no code of its own), and
 the key list is empty:

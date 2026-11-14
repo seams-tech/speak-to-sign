@@ -1,10 +1,12 @@
 // Unit tests of the pure parts of the spoken multisig page (/multisig/): the contract view
-// readers, the amount and receiver rules, and the reading of the verifier's answer. Run with
+// readers, the amount and receiver rules, the reading of the verifier's answer, and the rules
+// for a multisig of the factory. Run with
 // `pnpm test` (Node's own test runner, which strips the types).
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readMultisigConfig, readProposal, readProposalId, readProposals } from '../src/multisig/contractViews.ts';
+import { isFactoryMultisig, multisigOfSearch, otherSignerError, readCreated, readFactoryConfig, searchOfMultisig } from '../src/multisig/factory.ts';
 import { formatBalance, formatNear, hexOfBase64Url, hundredthsOfYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from '../src/multisig/intent.ts';
 import { readVerifyOutput } from '../src/multisig/voiceVerify.ts';
 
@@ -90,4 +92,53 @@ test('a refusal keeps the signed verdict, and a words refusal shows only what wa
   const speaker = readVerifyOutput(output({ outcome: 'refuse', reason: 'speaker', heard: 'x' }), false);
   assert.equal(speaker.kind === 'refused' && speaker.heard, undefined);
   assert.equal(readVerifyOutput({ kind: 'seams_voice_error_v1', reason: 'unsupported' }, false).kind, 'refused');
+});
+
+const DEMO = 'voice-multisig-3.seams-v1.testnet';
+const FACTORY = 'voice-multisig-factory.seams-v1.testnet';
+
+test('a multisig of the factory is the account m<N>.<factory>', () => {
+  assert.equal(isFactoryMultisig(`m1.${FACTORY}`, FACTORY), true);
+  assert.equal(isFactoryMultisig(`m250.${FACTORY}`, FACTORY), true);
+  assert.equal(isFactoryMultisig(`m0.${FACTORY}`, FACTORY), false);
+  assert.equal(isFactoryMultisig(`m01.${FACTORY}`, FACTORY), false);
+  assert.equal(isFactoryMultisig(`x1.${FACTORY}`, FACTORY), false);
+  assert.equal(isFactoryMultisig(`a.m1.${FACTORY}`, FACTORY), false);
+  assert.equal(isFactoryMultisig(FACTORY, FACTORY), false);
+  assert.equal(isFactoryMultisig('m1.other-factory.testnet', FACTORY), false);
+  // A build with no factory shows no other multisig.
+  assert.equal(isFactoryMultisig('m1.', ''), false);
+});
+
+test('the page address names the demo multisig or a multisig of the factory, and no other contract', () => {
+  assert.deepEqual(multisigOfSearch('', DEMO, FACTORY), { contract: DEMO, refused: false });
+  assert.deepEqual(multisigOfSearch(`?m=${DEMO}`, DEMO, FACTORY), { contract: DEMO, refused: false });
+  assert.deepEqual(multisigOfSearch(`?m=m7.${FACTORY}`, DEMO, FACTORY), { contract: `m7.${FACTORY}`, refused: false });
+  assert.deepEqual(multisigOfSearch('?m=evil.testnet', DEMO, FACTORY), { contract: DEMO, refused: true });
+  assert.deepEqual(multisigOfSearch('?m=', DEMO, FACTORY), { contract: DEMO, refused: true });
+  assert.equal(searchOfMultisig(DEMO, DEMO), '');
+  assert.equal(searchOfMultisig(`m7.${FACTORY}`, DEMO), `?m=m7.${FACTORY}`);
+  assert.deepEqual(multisigOfSearch(searchOfMultisig(`m7.${FACTORY}`, DEMO), DEMO, FACTORY), { contract: `m7.${FACTORY}`, refused: false });
+});
+
+test('the other signer is a NEAR account that is not the creator', () => {
+  assert.equal(otherSignerError(SIGNER_B, SIGNER_A), null);
+  assert.equal(otherSignerError('bob.testnet', SIGNER_A), null);
+  assert.match(otherSignerError(SIGNER_A, SIGNER_A) ?? '', /your own account/);
+  assert.match(otherSignerError('', SIGNER_A) ?? '', /NEAR account/);
+  assert.match(otherSignerError('Bob.testnet', SIGNER_A) ?? '', /NEAR account/);
+  assert.match(otherSignerError(`${SIGNER_B}0`, SIGNER_A) ?? '', /NEAR account/);
+});
+
+test('the answers of the factory are read with checks', () => {
+  const config = { code_hash: 'CkYrt1XM3NDsdd7B8PVx2eyUh36nM3nQtmvbta8eQTnA', verifier_public_key: 'ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U', names: 3 };
+  assert.deepEqual(readFactoryConfig(config), config);
+  assert.equal(readFactoryConfig({ ...config, names: -1 }), null);
+  assert.equal(readFactoryConfig({ ...config, extra: 1 }), null);
+  // The config of a multisig is not the config of a factory.
+  assert.equal(readFactoryConfig({ signers: [SIGNER_A], threshold: 1, verifier_public_key: 'ed25519:x' }), null);
+  assert.equal(readCreated(`m4.${FACTORY}`, FACTORY), `m4.${FACTORY}`);
+  // `create` answers null when the creation failed.
+  assert.equal(readCreated(null, FACTORY), null);
+  assert.equal(readCreated('evil.testnet', FACTORY), null);
 });

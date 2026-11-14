@@ -406,3 +406,54 @@
 .ms-sent-failed {
   color: #8a1019;
 }
+
+/* The form that creates a multisig, and the note of a multisig from the factory. */
+.ms-hint-first {
+  margin-top: 0;
+}
+
+.ms-own {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 12px;
+}
+
+.ms-own .ms-label {
+  flex-basis: 100%;
+}
+
+.ms-own code {
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ms-create {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* The button stands on the line of the input, under the height of the label. */
+.ms-create .ms-btn {
+  margin-top: 21px;
+}
+
+@media (max-width: 560px) {
+  .ms-create {
+    grid-template-columns: 1fr;
+  }
+
+  .ms-create .ms-btn {
+    justify-self: start;
+    margin-top: 0;
+  }
+}
+
+.ms-share .ms-action {
+  margin-top: 8px;
+}

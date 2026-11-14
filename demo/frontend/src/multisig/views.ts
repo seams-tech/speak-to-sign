@@ -1,6 +1,6 @@
 // Reads the voice multisig contract (demo/contracts/voice-multisig) with its views over NEAR
-// JSON-RPC: `get_config`, `get_proposals`, `get_proposal` and `next_proposal_id`. Each answer is
-// checked (contractViews.ts). A failure is an Error whose message is a full sentence for the page.
+// JSON-RPC: `get_config`, `get_proposals`, `get_proposal` and `next_proposal_id`, and `get_config`
+// of its factory. Each answer is checked (contractViews.ts, factory.ts). A failure is an Error whose message is a full sentence for the page.
 
 import { isDecimalText, isObject } from '../guards';
 import {
@@ -12,6 +12,7 @@ import {
   type MultisigConfig,
   type Proposal,
 } from './contractViews';
+import { readFactoryConfig, type FactoryConfig } from './factory';
 
 const RPC_ERRORS: Record<string, string> = {
   UNKNOWN_ACCOUNT: 'The multisig contract account does not exist yet.',
@@ -74,6 +75,11 @@ export async function getConfig(rpcUrl: string, contract: string): Promise<Multi
   return checked(readMultisigConfig(await view(rpcUrl, contract, 'get_config', {})));
 }
 
+/** The settings of the factory. It fails when the factory account has no factory code. */
+export async function getFactoryConfig(rpcUrl: string, factory: string): Promise<FactoryConfig> {
+  return checked(readFactoryConfig(await view(rpcUrl, factory, 'get_config', {})));
+}
+
 export async function nextProposalId(rpcUrl: string, contract: string): Promise<number> {
   return checked(readProposalId(await view(rpcUrl, contract, 'next_proposal_id', {})));
 }
@@ -87,6 +93,27 @@ export async function getProposals(rpcUrl: string, contract: string): Promise<Pr
 export async function getProposal(rpcUrl: string, contract: string, proposalId: number): Promise<Proposal | null> {
   const value = await view(rpcUrl, contract, 'get_proposal', { proposal_id: proposalId });
   return value === null ? null : checked(readProposal(value));
+}
+
+/**
+ * The JSON that a transaction's call returned, after all of its receipts ran. Null for no value.
+ * It fails when the transaction failed or NEAR RPC does not know it.
+ */
+export async function getTransactionValue(rpcUrl: string, hash: string, sender: string): Promise<unknown> {
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'multisig-demo',
+      method: 'tx',
+      params: { tx_hash: hash, sender_account_id: sender, wait_until: 'EXECUTED_OPTIMISTIC' },
+    }),
+  });
+  const body: unknown = await response.json().catch(() => null);
+  const status = isObject(body) && isObject(body.result) ? body.result.status : null;
+  if (!isObject(status) || typeof status.SuccessValue !== 'string') throw new Error('NEAR RPC gave no result for the transaction.');
+  return status.SuccessValue === '' ? null : (JSON.parse(atob(status.SuccessValue)) as unknown);
 }
 
 /** The NEAR balance of the multisig account, in yoctoNEAR. */

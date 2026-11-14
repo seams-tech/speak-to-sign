@@ -12,9 +12,9 @@
 // Each network (IP address) gets the faucet for ACCOUNTS_PER_DAY accounts in one day (UTC), so
 // that a script with new account IDs cannot empty the faucet (lib/networkLimit.ts).
 
-import { isImplicitAccount } from '../../src/guards.ts';
+import { isAccountId, isImplicitAccount } from '../../src/guards.ts';
 import { accountExists, signAndSendCall, viewCall } from '../../src/faucet/nearTx.ts';
-import { DEFAULT_RPC_URL, isAccountId, json, refuseOtherOrigin } from '../lib/http.ts';
+import { DEFAULT_RPC_URL, json, refuseOtherOrigin } from '../lib/http.ts';
 import { ACCOUNTS_PER_DAY, takeAccount } from '../lib/networkLimit.ts';
 
 interface Env {

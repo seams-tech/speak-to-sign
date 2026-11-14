@@ -51,7 +51,9 @@ view outlayer.testnet get_version_count '{"project_id":"seams-v1.testnet/voice-v
 | --- | --- | --- | --- |
 | `notes.seams-v1.testnet` | `724jz1XP…btU7c` = SHA-256 `596beeb3…d9c3`, the build of commit `119ef0e` | The same | **Yes.** `get_voice_config` returns `"required":true`. |
 | `pm-notes.seams-v1.testnet` | `7qA3mFHg…nQ9Z` = `657c3b07…`, the build of commit `777b844` | The same | **Yes.** `get_voice_config` returns `"required":true`. |
-| `voice-multisig-3.seams-v1.testnet` | `CkYrt1XM…QTnA` = `ae988e20…`, the build of commit `99231f6` (version 3.0.0). Deployed on 2026-11-14 (create tx `AUsJCRrhgGCutsUFMJw1nbFDf7HmkPaVJ57qiGhi6kYH`, deploy and `new` tx `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m`). SourceScan verified it. | The same | **Yes.** Each `propose` and `approve` needs a verdict. It has 2 of 2 signers, and it is the multisig of the demo page `/multisig/` and the moderator of the notes contract. Proposal 1 ran on 2026-11-14 with verifier 0.15.0: `propose`, `approve` and `execute` of 0.1 NEAR to `bob.testnet`. Both verdicts have `"heard":null`. See [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
+| `voice-multisig-3.seams-v1.testnet` | `CkYrt1XM…QTnA` = `ae988e20…`, the build of commit `99231f6` (version 3.0.0). Deployed on 2026-11-14 (create tx `AUsJCRrhgGCutsUFMJw1nbFDf7HmkPaVJ57qiGhi6kYH`, deploy and `new` tx `vnhv55JXYutq9iu4namXP3tzGSVTDLT9zgGokogd75m`). SourceScan verified it. The contract's `reproducible.sha256` names the 3.1.0 build of the global code; [the contract README](../demo/contracts/voice-multisig/README.md#reproducible-build) has both builds. | The same | **Yes.** Each `propose` and `approve` needs a verdict. It has 2 of 2 signers, and it is the multisig of the demo page `/multisig/` and the moderator of the notes contract. Proposal 1 ran on 2026-11-14 with verifier 0.15.0: `propose`, `approve` and `execute` of 0.1 NEAR to `bob.testnet`. Both verdicts have `"heard":null`. See [the live run](../demo/contracts/voice-multisig/README.md#live-run-on-testnet). |
+| `voice-multisig-factory.seams-v1.testnet` | `JBt7zAY8…DjpK` = `ff6049b4…`, the build of commit `ad9b9d8` (version 1.0.0). Deployed on 2026-11-14 (create tx `J6ABP9zGKjpnZUAhCR48ro48Znw6Nxm4Mv8ZA1eheatK`, deploy and `new` tx `687iHX1iqYUjjmuWM8fm7mLkakoAaSLNwfRcmSFs53M3`). | The same | No voice step: it creates a voice multisig for a visitor of `/multisig/`, the account `m<N>.voice-multisig-factory.seams-v1.testnet`. Its `get_config` names the global code and the verifier key. See [the factory README](../demo/contracts/voice-multisig-factory/README.md). |
+| Each `m<N>.voice-multisig-factory.seams-v1.testnet` | No code of its own. It uses the global code `3cUt9ft8…KErX` = `26ce3a73…`, the build of voice-multisig 3.1.0 at commit `ad9b9d8` (global deploy tx `GYb8gPmbrNnXeE9K86rMzKkNP9zdeeMGXZrqRs8MUQBt`, 2026-11-14). | The same | **Yes**, as `voice-multisig-3`. The account has no access key. `m1` is a test with one signer, `seams-v1.testnet` (create tx `CtseRyUxxtt3Vy2fxLGH1Wyj5nAH5qbi8RVCfPRFCpnq`). |
 | `seams-faucet.testnet` | `6d8BGwTR…fR2z` = `538b7580…`, the build of commit `777b844` | The same | No voice step (it is the faucet). |
 
 ```bash
@@ -59,6 +61,8 @@ for a in notes.seams-v1.testnet pm-notes.seams-v1.testnet voice-multisig-3.seams
 view notes.seams-v1.testnet get_voice_config '{}'
 view pm-notes.seams-v1.testnet get_voice_config '{}'
 view notes.seams-v1.testnet get_moderator '{}'
+# See: the code hash 3cUt9ft8…KErX of the global voice-multisig code.
+view voice-multisig-factory.seams-v1.testnet get_config '{}'
 ```
 
 The moderator of the notes contract is `voice-multisig-3.seams-v1.testnet` (since 2026-11-14, `set_moderator` tx `9iJaF51uf1TXQM9ZBA3JP76NNTigvKe597N3xsW7d3fC`).

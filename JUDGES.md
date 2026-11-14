@@ -154,8 +154,8 @@ changed page do not match.
 
 **Today:**
 
-- `demo/contracts/voice-multisig/` (version 3.0.0) is voice only: M of N
-  signers and no admin.
+- `demo/contracts/voice-multisig/` is voice only: M of N signers and no
+  admin.
 - A signer proposes a transfer, or the hide of a note, by voice. Each other
   signer says the same proposal from memory, and approves with a verdict of
   its own (the verifier's `multisig_confirm`).
@@ -164,6 +164,10 @@ changed page do not match.
   unit tests and a local nearcore sandbox test show this.
 - It is on `voice-multisig-3.seams-v1.testnet` since 2026-11-14, with 2 of 2
   signers, and SourceScan verified its code.
+- A visitor creates a 2 of 2 multisig of their own on the page `/multisig/`.
+  The factory `voice-multisig-factory.seams-v1.testnet` makes an account
+  that uses the same contract as global code, with no access key
+  ([the factory](demo/contracts/voice-multisig-factory/README.md)).
 - The notes contract names this multisig as its moderator. So the hide of a
   note needs a proposal that 2 of 2 signers approve by voice.
 
@@ -178,9 +182,12 @@ the proposal. The contract then executed the transfer of 0.1 NEAR to
 The details are in
 [the contract README](demo/contracts/voice-multisig/README.md#live-run-on-testnet).
 
-**For a judge:** you do not need the page `/multisig/`. Only the 2 signers
-of the multisig can propose or approve there. The live run above is the
-evidence that it works.
+**For a judge:** the live run above is the evidence that it works. Only the
+2 signers of that multisig can propose or approve on it. To try it, you
+need a second person, because one voice cannot approve twice. On
+[`/multisig/`](https://speak-to-sign.pages.dev/multisig/), each of you makes
+a wallet with a voice. One of you names the account of the other, creates a
+2 of 2 multisig, and sends the page to the other.
 
 **Not done:**
 

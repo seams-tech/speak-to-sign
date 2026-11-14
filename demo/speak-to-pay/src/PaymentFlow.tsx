@@ -250,8 +250,7 @@ function PayStep(props: { owner: Owner; ready: boolean; onPaid: () => void }): R
         name, you can say "dash" and "dot", or leave them out: "seams faucet" is enough.
       </p>
       <p className="svi-hint">
-        An accepted payment needs no confirm. A payment above 10 NEAR asks you to confirm again: a
-        passkey when you unlocked with your passkey.
+        An accepted payment needs no confirm.
       </p>
       <LoadingButton
         onClick={pay}

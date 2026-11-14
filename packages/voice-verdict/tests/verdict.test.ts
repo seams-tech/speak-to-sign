@@ -115,7 +115,7 @@ test('a step-up verdict passes only on request', async () => {
   const result = await checkVerdict(input(item));
   assert.ok(!result.ok);
   assert.equal(result.refusal.code, 'step_up');
-  assert.equal(result.refusal.code === 'step_up' && result.refusal.policyRule, 'stub_voice_amount_above_10_near');
+  assert.equal(result.refusal.code === 'step_up' && result.refusal.policyRule, 'example_rule');
   const allowed = await checkVerdict({ ...input(item), acceptStepUp: true, requestDigest: item.request_digest });
   assert.ok(allowed.ok);
   assert.equal(allowed.verdict.policy_rule, item.policy_rule);
@@ -229,7 +229,7 @@ test('an approval names its request, sentence and recording, and only a step-up 
     { ...good, spoken_text_digest: null },
     { ...good, audio_digest: null },
     { ...good, reason: 'words' },
-    { ...good, policy_rule: 'stub_voice_amount_above_10_near' },
+    { ...good, policy_rule: 'example_rule' },
     { ...stepUp, policy_rule: null },
     { ...stepUp, policy_rule: '' },
     { ...stepUp, reason: 'words' },

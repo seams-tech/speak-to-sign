@@ -110,8 +110,6 @@ Wallet protocol is another one, and the page then asks you to upgrade.
 
 ## What to know
 
-- A payment above 10 NEAR asks you to confirm again. This is a stub rule of
-  the verifier.
 - Your audio leaves the browser. It goes to the Seams Gateway, the verifier on
   OutLayer, the speaker service on Phala and NEAR AI. Your voice template stays
   in the verifier's storage.

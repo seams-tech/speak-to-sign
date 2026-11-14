@@ -54,8 +54,11 @@ contract and the demo site.
 3. **A changed page or a prompt-injected agent needs no clone, and it fails.**
    The person must say the exact call, and the verifier refuses other words.
    ([threat model 2](docs/threat-model.md#2-a-changed-page-a-phishing-site-or-a-prompt-injected-agent))
-4. **The passkey step is only for a NEAR transfer above 10 NEAR.** A bet, a
-   note and a rating have none. ([threat model](docs/threat-model.md#summary))
+4. **No action has a passkey step after the voice.** The verifier has no
+   policy rule: it signs `accept` or `refuse`, and no `step_up`. The verdict
+   format keeps `step_up` for a later rule.
+   ([spec 7.3](docs/voice-intents-spec.md#73-no-policy-step),
+   [threat model](docs/threat-model.md#summary))
 5. **JEV is a classifier, by design.** It turns a spoken command into the
    post, the side and the amount, and opens a sheet. It approves nothing; the
    person approves the exact call.

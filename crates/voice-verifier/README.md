@@ -14,8 +14,10 @@ There is no vault contract.
 
 ## Versions
 
-The source on this branch is version 0.15.0 (`config::VERIFIER_VERSION`). Its
-two builds are on OutLayer:
+The source on this branch is version 0.16.0 (`config::VERIFIER_VERSION`). No
+build of 0.16.0 is on OutLayer. The two builds on OutLayer are of 0.15.0,
+which has one policy rule more than this source: see
+[deployed state](../../docs/deployed-state.md#the-verifier).
 
 | Version | OutLayer version key (WASM SHA-256) | State |
 | ------- | ----------------------------------- | ----- |
@@ -68,8 +70,9 @@ takes about 40 s.
 crates/voice-verifier/build.sh --docker
 ```
 
-Expected for the source of version 0.15.0 (commit `a4c7b48`; the later
-commits change only documents), on 2026-11-14:
+Expected for version 0.15.0, the active version, on 2026-11-14. Its source
+is commit `a4c7b48`: check out that commit before the build, because the
+source on this branch is 0.16.0.
 
 ```text
 host   x86_64-unknown-linux-gnu
@@ -388,7 +391,6 @@ Stage times (`ms`, not signed), in ms:
 | `redimnet`   | yes      |          | the service's own model time                                       |
 | `rpc`        |          | yes      | NEAR RPC access-key view response                                  |
 | `mark`       | yes      |          | used-audio write, inside `storage`                                 |
-| `policy`     | yes      |          | the policy step                                                    |
 | `write`      |          | yes      | used-audio writes and the template write                           |
 | `sign`       | yes      |          | verdict signature                                                  |
 | `total`      | yes      | yes      | the whole operation                                                |
@@ -502,7 +504,6 @@ Stage times (`ms`, not signed), in ms:
     `words` and the detail `select: ambiguous`.
   - Two candidates with one sentence, fewer than 2 or more than 16
     candidates, or a multisig kind refuse with `unsupported`.
-  - The policy step runs for the selected request.
 - `transcribe`: `{"op":"transcribe","owner","audio_wav_b64"}`. No request.
   - The output is
     `{"kind":"seams_voice_transcript_output_v1","transcript_json","signature_b64","public_key","ms","detail"}`.
@@ -831,18 +832,11 @@ Do not store a row of this profile again with "Create New Secrets" or
 "Replace": that replaces the row and its `NEAR_AI_API_KEY`. Use "Update" in
 the mode "Append".
 
-## Policy step
+## No policy step
 
-After the speaker and the words pass, `policy::decide` can only tighten the
-decision: an accept becomes a `step_up`, and the Wallet then asks for a fresh
-passkey as well. A plain-English policy engine plugs in here later. Today one
-fixed rule stands in for it:
-
-| Rule id                           | Text                                             |
-| --------------------------------- | ------------------------------------------------ |
-| `stub_voice_amount_above_10_near` | A voice payment above 10 NEAR needs a passkey.   |
-
-Exactly 10 NEAR is allowed. A step-up still marks the audio used.
+The verifier has no policy rule. If the speaker and the words pass, the
+verdict is an `accept`, for any amount. The verdict format keeps `step_up`, `policy_rule` and `policy_text` for a later rule: see
+[spec 7.3](../../docs/voice-intents-spec.md#73-no-policy-step).
 
 ## Signed verdict
 
@@ -867,11 +861,12 @@ Exactly 10 NEAR is allowed. A step-up still marks the audio used.
   testnet key is `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`. Wallet
   core pins it and refuses a verdict of any other key.
 - `policy_text` (not signed): the sentence of the rule on `step_up`, else
-  `null`.
+  `null`. The verifier signs no `step_up`, so `policy_rule` and `policy_text`
+  are always `null`.
 - The output stays below 1,024 bytes; `heard` of a `words` refusal is cut to
   fit.
-- `heard` has the heard words only in a refusal with the reason `words`
- . In an `accept`, a `step_up` and each other refusal it
+- `heard` has the heard words only in a refusal with the reason `words`.
+  In an `accept`, a `step_up` and each other refusal it
   is `null`: a verdict that passes goes to a contract as a call argument,
   and the arguments are public on chain. No check reads `heard`
   ([spec 8.2](../../docs/voice-intents-spec.md#82-the-heard-words)).
@@ -936,7 +931,8 @@ only.
 
 - `testdata/signed_verdict_v2.json` (`tests/signed_vector.rs`): `domain`,
   `test_seed_hex`, `public_key`, `public_key_hex`, and `verdicts`, a list of
-  named cases (`accept` for 2 NEAR, `step_up` for 11 NEAR), each with
+  named cases (`accept` for 2 NEAR, and `step_up` for 11 NEAR with an
+  example rule, for the tests of the checkers), each with
   `request` (`kind`, `network`, `owner`, `receiver`, `amount_yocto`),
   `request_borsh_hex`, `spoken_text`, `request_digest`, `spoken_text_digest`,
   `audio_digest`, `outcome`, `policy_rule`, `policy_text`, `expires_at_ms`,

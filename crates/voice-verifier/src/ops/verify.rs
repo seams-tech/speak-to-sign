@@ -19,7 +19,6 @@ use crate::embedding::{similarity_milli, speaker_passes};
 use crate::host::Host;
 use crate::input::VerifyInput;
 use crate::output::{fit_heard, short, sign_verdict, MultisigOpening, Outcome, Reason, Stages, Verdict, VerifyOutput};
-use crate::policy::{self, Decision};
 use crate::speaker_client::service_request;
 use crate::template::{model_sha256, TemplateRecord};
 use crate::words::{check_words, words_pass};
@@ -31,26 +30,20 @@ pub(super) fn verify(value: Value, host: &mut dyn Host, pins: &Pins) -> VerifyOu
     let mut verdict = Verdict::new();
     let mut ms = Stages::default();
     let mut opening = None;
-    let (policy_text, detail) = match verify_steps(value, host, pins, &mut verdict, &mut ms, &mut opening) {
-        Ok(Decision::Allow) => {
+    let detail = match verify_steps(value, host, pins, &mut verdict, &mut ms, &mut opening) {
+        Ok(()) => {
             verdict.outcome = Outcome::Accept;
             verdict.reason = None;
-            (None, None)
-        }
-        Ok(Decision::StepUp(rule)) => {
-            verdict.outcome = Outcome::StepUp;
-            verdict.reason = None;
-            verdict.policy_rule = Some(rule.id.to_string());
-            (Some(rule.text), None)
+            None
         }
         Err(refusal) => {
             verdict.outcome = Outcome::Refuse;
             verdict.reason = Some(refusal.reason);
             opening = None;
-            (None, refusal.detail)
+            refusal.detail
         }
     };
-    finish(verdict, ms, policy_text, detail, opening, None, host, started)
+    finish(verdict, ms, detail, opening, None, host, started)
 }
 
 /// The checks in order. Each one fills the verdict fields that it knows, so
@@ -63,7 +56,7 @@ fn verify_steps(
     verdict: &mut Verdict,
     ms: &mut Stages,
     opening: &mut Option<MultisigOpening>,
-) -> Result<Decision, Refusal> {
+) -> Result<(), Refusal> {
     let started = Instant::now();
     let input = VerifyInput::parse(value).ok_or(Reason::Unsupported)?;
     if input.op != "verify" || input.contacts.len() > MAX_CONTACTS {
@@ -174,15 +167,11 @@ fn verify_steps(
         check_summary(&results, at, ms)?;
     }
 
-    // 8. The policy step, after the deterministic checks. It can only
-    //    tighten an accept into a step-up.
-    let decision = ms.time("policy", || policy::decide(&request));
-
-    // 9. A multisig accept: keep a new proposal, and count the voice.
-    if let (Decision::Allow, Some(ready)) = (&decision, &prepared) {
+    // 8. A multisig accept: keep a new proposal, and count the voice.
+    if let Some(ready) = &prepared {
         *opening = ms.time("record", || multisig::record_accept(host, ready))?;
     }
-    Ok(decision)
+    Ok(())
 }
 
 /// The owner's template for the pinned model, then the used-audio mark.
@@ -215,11 +204,9 @@ pub(super) fn verify_storage(
 /// Sets the expiry, removes the heard words from a verdict that is not a
 /// `words` refusal, fits the output below the size limit, then signs the
 /// verdict. `selected` is the index of the said request of a `select`.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn finish(
     mut verdict: Verdict,
     mut ms: Stages,
-    policy_text: Option<&'static str>,
     detail: Option<String>,
     opening: Option<MultisigOpening>,
     selected: Option<usize>,
@@ -238,13 +225,13 @@ pub(super) fn finish(
         // The stage times make room for the commitment and the salt.
         ms = Stages::default();
     }
-    let verdict_json = fit_heard(verdict, policy_text, &ms, detail.as_deref(), opening.as_ref(), selected);
+    let verdict_json = fit_heard(verdict, &ms, detail.as_deref(), opening.as_ref(), selected);
     let signed = ms.time("sign", || sign_verdict(host, &verdict_json));
     ms.since("total", started);
     let mut output = match signed {
-        Ok(signed) => VerifyOutput::new(verdict_json, Some(signed), policy_text, ms, detail),
+        Ok(signed) => VerifyOutput::new(verdict_json, Some(signed), ms, detail),
         Err(error) => {
-            return VerifyOutput::new(verdict_json, None, policy_text, ms, Some(short(&format!("sign: {error}"))))
+            return VerifyOutput::new(verdict_json, None, ms, Some(short(&format!("sign: {error}"))))
         }
     };
     output.multisig = opening;

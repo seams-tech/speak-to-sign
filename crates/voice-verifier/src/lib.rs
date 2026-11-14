@@ -6,10 +6,9 @@
 //!   full-access key. The embeddings come from the speaker service (ReDimNet
 //!   in a Phala CVM, signed embeddings with a pinned key).
 //! - `verify`: the speaker (Phala) and the words (Whisper large-v3 on NEAR AI
-//!   Cloud), called at the same time, against one typed request, then the
-//!   policy step. The verdict is signed with the manifest signing key
-//!   (`bind: "project"`), and the Wallet checks that signature against the
-//!   key that it pins.
+//!   Cloud), called at the same time, against one typed request. The
+//!   verdict is signed with the manifest signing key (`bind: "project"`),
+//!   and the Wallet checks that signature against the key that it pins.
 //!
 //! The feature `local-speaker` gives a second variant of the worker: ReDimNet
 //! runs inside the worker (`local_model`), and no request goes to Phala.
@@ -35,7 +34,6 @@ pub mod nearai_attestation;
 pub mod ohttp;
 pub mod ops;
 pub mod output;
-pub mod policy;
 pub mod speaker_client;
 pub mod summary_check;
 pub mod tdx_quote;

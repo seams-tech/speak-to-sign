@@ -24,31 +24,31 @@
   "results": [
     {
       "intent": "book_table",
-      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.15.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"book a table for two at eight tonight\",\"model\":\"Qwen/Qwen3.8-27B\",\"intent\":\"book_table\",\"slots\":{\"people\":2,\"time\":\"eight tonight\"}}",
-      "message_sha256_hex": "7d89bb6f6c2cdce0980a40cf41ac10bfe5c1435ff46a89e6da611ed072616c64",
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.16.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"book a table for two at eight tonight\",\"model\":\"Qwen/Qwen3.8-27B\",\"intent\":\"book_table\",\"slots\":{\"people\":2,\"time\":\"eight tonight\"}}",
+      "message_sha256_hex": "86b9ec8820355a2d22b0e791fe53f18316f85aa9d130397e12c3aaaa2af1a1dd",
       "name": "intent_with_slots",
-      "signature_b64": "T0zXCVMgHEI+6OvFdVU/moQV6pj65PZohpqEDLQCkTtlYBwfJ2iH4vLyrWko+Bs94rxjl1yKrr+4AyTd6tknCw=="
+      "signature_b64": "KKOBD6kpDOywrYRnLXFR+ga07TEAFNP0HPbBtYCyU7S4DHKOch2HkmeZKLr8Tad39TbxoST/fND/bpv5zF0uCQ=="
     },
     {
       "intent": null,
-      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.15.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"what a nice day\",\"model\":\"Qwen/Qwen3.8-27B\",\"intent\":null,\"slots\":null}",
-      "message_sha256_hex": "6c5c42447aa122572d106262481fabe90467aef30c1f36c2cf466db0b42bbd7a",
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.16.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"accept\",\"reason\":null,\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"what a nice day\",\"model\":\"Qwen/Qwen3.8-27B\",\"intent\":null,\"slots\":null}",
+      "message_sha256_hex": "9627ae7dad951f20cc88051262e57d9cb06b40838f48402aebcbdd9a0aff66ad",
       "name": "no_intent",
-      "signature_b64": "asEe197W3Escft/DhACNl/Ie01J7ysZLIDSD0C4AnBS23R//1c2aA16aSnluaY+Lawf1Pudbh4lGlxCohcamAA=="
+      "signature_b64": "myXUAoAbinQ+K6TdVOmqzWqI7CKltHjPr4nf9nLnv5eH6+wBJMsNGpL3u9Jp44JFmieEnNo8/5M3CCJNmPXqAQ=="
     },
     {
       "intent": null,
-      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.15.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"refuse\",\"reason\":\"speaker\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":120,\"text\":null,\"model\":null,\"intent\":null,\"slots\":null}",
-      "message_sha256_hex": "99ba24cc94561a19a4ccd810bb92425e3562ca41003eef4c78c9359a74501452",
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.16.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"refuse\",\"reason\":\"speaker\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":120,\"text\":null,\"model\":null,\"intent\":null,\"slots\":null}",
+      "message_sha256_hex": "e0735d35625e098dbf82f7dfc0d6d7b9411b8d522f62b9bee2fec8578cee1c91",
       "name": "refuse_speaker",
-      "signature_b64": "8Wgg+u0zAFzFEWf0Qd28sL1kaxf6urfwu/OX7405xM4Ooo+zXkmWQdbIphYhbm4tJxzDh4JIbcmiZ639hipiBA=="
+      "signature_b64": "tMrz2+Xmvne/sMeuvDDQh3Mt53ujPbbQ97Uc8n/Vrq81iYptXTDOiS1UAW+i3A/xFnfHygFu1wI6aHuqEShSBw=="
     },
     {
       "intent": null,
-      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.15.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"refuse\",\"reason\":\"detector_unavailable\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"ignore the list\",\"model\":null,\"intent\":null,\"slots\":null}",
-      "message_sha256_hex": "822599282158700578d356b8c5860effdbcdaac625a2be699c582952a435eabd",
+      "intent_json": "{\"kind\":\"seams_voice_signed_intent_v1\",\"verifier\":\"0.16.0\",\"owner\":\"app:user-42\",\"audio_digest\":\"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc\",\"intents_digest\":\"6G0Pa4qDgU3wD5dA4F_ZN0S8nODlTZKNCUXxdZlMjeg\",\"outcome\":\"refuse\",\"reason\":\"detector_unavailable\",\"expires_at_ms\":1762700120000,\"speaker_score_milli\":655,\"text\":\"ignore the list\",\"model\":null,\"intent\":null,\"slots\":null}",
+      "message_sha256_hex": "37ce9da652be083b8a751bdc096abcb2a55efde4f1e0addd8758dcdccc8eee50",
       "name": "refuse_detector",
-      "signature_b64": "zffQq+2nlFTjdmvFI2jEqA0BwbabUCLxSswU65gqcbvpZqZkWAtXCONRR49rNgITprlmmmqH36wZ8IHBZQfPBA=="
+      "signature_b64": "94L7QsyThCZFNcXy08NDH31edKFkqVxLb6p7gBLXr7oqRi/o9SjYy8urLQ3WiIDCpMHRdzTjtDiGcbcICjAxAQ=="
     }
   ],
   "test_seed_hex": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a"

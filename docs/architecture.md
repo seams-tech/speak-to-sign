@@ -149,7 +149,6 @@ sequenceDiagram
   Note over Verifier: During the calls, read the template and write the used-audio mark
   Verifier->>Verifier: Speaker check, cosine 0.45 or more
   Verifier->>Verifier: Word check against the rendered words
-  Verifier->>Verifier: Policy step
   Verifier->>Verifier: Sign the verdict, expiry 120 s
   Verifier-->>Wallet: Verdict and signature
   Wallet->>Wallet: Check the key, the digests and the expiry
@@ -157,8 +156,6 @@ sequenceDiagram
     Wallet->>Cosigner: Signing request with the verdict
     Cosigner-->>Wallet: Co-signature
     Wallet->>Chain: One transaction from the owner
-  else step_up
-    Wallet->>Owner: Ask for a passkey approval
   else refuse
     Wallet->>Owner: Show the reason and the heard words
   end
@@ -166,7 +163,7 @@ sequenceDiagram
 
 ## 5. Decision in the verifier
 
-Each check can refuse. The policy step can only make the decision stricter.
+Each check can refuse.
 
 ```mermaid
 flowchart TD
@@ -184,9 +181,7 @@ flowchart TD
   Spk -- no --> SpeakerR["refuse: speaker"]
   Spk -- yes --> Words{"Heard words equal the sentence?"}
   Words -- no --> WordsR["refuse: words"]
-  Words -- yes --> Pol{"Transfer above 10 NEAR?"}
-  Pol -- yes --> StepUp["step_up: passkey needed"]
-  Pol -- no --> Accept["accept"]
+  Words -- yes --> Accept["accept"]
 ```
 
 Every result, also a refusal, is a signed verdict.

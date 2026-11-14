@@ -6,6 +6,10 @@
 //! proposal stays open.
 //!
 //! Run `./build.sh` first, or set `VOICE_MULTISIG_WASM` to a WASM path.
+//!
+//! A second test hides a note of the community-notes contract. A third test
+//! publishes the WASM as global code, and the factory
+//! (`../voice-multisig-factory`) creates a multisig that uses it.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -679,7 +683,11 @@ async fn voice_multisig_in_the_sandbox() -> anyhow::Result<()> {
         NearToken::from_yoctonear(0),
     )
     .await?;
-    check_failure("new by a signer", &result, "Method new is private");
+    check_failure(
+        "new by a signer",
+        &result,
+        "The contract has already been initialized",
+    );
     let result = multisig
         .call("new")
         .args_json(init_args.clone())
@@ -796,5 +804,224 @@ async fn hide_a_note_in_the_sandbox() -> anyhow::Result<()> {
     assert_eq!(result.json::<Value>()?, json!(false), "on_hide returns false");
     let proposal = view(&multisig, "get_proposal", json!({ "proposal_id": 2 })).await?;
     assert_eq!(proposal["status"], json!("open"));
+    Ok(())
+}
+
+/// The factory WASM: `VOICE_MULTISIG_FACTORY_WASM`, or the release build of
+/// `../voice-multisig-factory` (run its `./build.sh` first).
+fn factory_wasm() -> anyhow::Result<Vec<u8>> {
+    let path = std::env::var("VOICE_MULTISIG_FACTORY_WASM").unwrap_or_else(|_| {
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../voice-multisig-factory/res/voice_multisig_factory.wasm"
+        )
+        .to_string()
+    });
+    std::fs::read(&path).map_err(|e| {
+        anyhow::anyhow!("cannot read {path}: {e}. Run ../voice-multisig-factory/build.sh first.")
+    })
+}
+
+/// Publishes `code` as global code under its code hash, signed by `account`.
+/// The chain burns 10 times the storage price of the code for it.
+async fn deploy_global(
+    worker: &near_workspaces::Worker<near_workspaces::network::Sandbox>,
+    account: &Account,
+    code: &[u8],
+) -> anyhow::Result<()> {
+    use near_jsonrpc_client::{JsonRpcClient, methods};
+    use near_primitives::action::{Action, DeployGlobalContractAction, GlobalContractDeployMode};
+    use near_primitives::transaction::SignedTransaction;
+    use near_primitives::views::FinalExecutionStatus;
+
+    let secret_key: near_crypto::SecretKey = account.secret_key().to_string().parse()?;
+    let signer = near_crypto::InMemorySigner::from_secret_key(account.id().clone(), secret_key);
+    let nonce = account
+        .view_access_key(&account.secret_key().public_key())
+        .await?
+        .nonce;
+    let block_hash = near_primitives::hash::CryptoHash(worker.view_block().await?.hash().0);
+    let action = Action::DeployGlobalContract(DeployGlobalContractAction {
+        code: code.into(),
+        deploy_mode: GlobalContractDeployMode::CodeHash,
+    });
+    let signed_transaction = SignedTransaction::from_actions(
+        nonce + 1,
+        account.id().clone(),
+        account.id().clone(),
+        &signer,
+        vec![action],
+        block_hash,
+    );
+    let outcome = JsonRpcClient::connect(worker.rpc_addr())
+        .call(methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest { signed_transaction })
+        .await?;
+    anyhow::ensure!(
+        matches!(outcome.status, FinalExecutionStatus::SuccessValue(_)),
+        "the global deploy failed: {:?}",
+        outcome.status
+    );
+    Ok(())
+}
+
+/// The factory creates a multisig that uses the global code. The multisig
+/// has no access key, and it runs a full proposal.
+#[tokio::test]
+async fn the_factory_creates_a_multisig_in_the_sandbox() -> anyhow::Result<()> {
+    /// The gas of `create`: the creation and `new` (10 Tgas), and the callback (10 Tgas).
+    const CREATE_GAS: Gas = Gas::from_tgas(100);
+    /// The NEAR that the page attaches to `create`: 0.15 NEAR.
+    const CREATE_NEAR: NearToken = NearToken::from_millinear(150);
+
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account()?;
+    let alice = subaccount(&root, "alice", 5).await?;
+    let bob = subaccount(&root, "bob", 5).await?;
+    let stranger = subaccount(&root, "stranger", 5).await?;
+    let grants = subaccount(&root, "grants", 1).await?;
+    let publisher = subaccount(&root, "publisher", 40).await?;
+    let factory_account = subaccount(&root, "factory", 5).await?;
+
+    // The global code, under its code hash.
+    let code = wasm()?;
+    let code_hash: [u8; 32] = Sha256::digest(&code).into();
+    let before = publisher.view_account().await?.balance;
+    deploy_global(&worker, &publisher, &code).await?;
+    let burnt = before.saturating_sub(publisher.view_account().await?.balance);
+    println!(
+        "global deploy of {} bytes: {:.2} NEAR",
+        code.len(),
+        burnt.as_yoctonear() as f64 / 1e24
+    );
+
+    let factory = factory_account.deploy(&factory_wasm()?).await?.into_result()?;
+    let verifier_public_key = format!(
+        "ed25519:{}",
+        bs58::encode(verifier().verifying_key().as_bytes()).into_string()
+    );
+    let init = factory
+        .call("new")
+        .args_json(json!({
+            "code_hash": bs58::encode(code_hash).into_string(),
+            "verifier_public_key": verifier_public_key
+        }))
+        .gas(WALLET_GAS)
+        .transact()
+        .await?;
+    check_success("factory new", &init, GAS_BUDGET);
+
+    let create = |who: &Account, signers: Value, threshold: u32, deposit: NearToken| {
+        who.call(factory.id(), "create")
+            .args_json(json!({ "signers": signers, "threshold": threshold }))
+            .deposit(deposit)
+            .gas(CREATE_GAS)
+            .transact()
+    };
+    let pair = json!([alice.id(), bob.id()]);
+
+    // Create rules that fail on the real chain.
+    check_failure(
+        "create by an account that is not a signer",
+        &create(&stranger, pair.clone(), 2, CREATE_NEAR).await?,
+        "the caller must be one of the signers",
+    );
+    check_failure(
+        "create with a small deposit",
+        &create(&alice, pair.clone(), 2, NearToken::from_millinear(49)).await?,
+        "attach at least 0.05 NEAR",
+    );
+
+    // Alice creates a 2 of 2 multisig with Bob.
+    let created = create(&alice, pair.clone(), 2, CREATE_NEAR).await?;
+    check_success("create", &created, Gas::from_tgas(30));
+    let name = format!("m1.{}", factory.id());
+    assert_eq!(
+        events(&created),
+        vec![json!({
+            "standard": "voice_multisig_factory",
+            "version": "1.0.0",
+            "event": "created",
+            "data": [{ "account": name, "creator": alice.id(), "signers": pair, "threshold": 2 }]
+        })]
+    );
+    assert_eq!(created.json::<Value>()?, json!(name));
+
+    // The multisig: the global code, the signers, all of the NEAR, and no key.
+    let multisig = Contract::from_secret_key(name.parse()?, alice.secret_key().clone(), &worker);
+    let details = multisig.view_account().await?;
+    assert_eq!(
+        details.contract_state,
+        near_workspaces::ContractState::GlobalHash(near_workspaces::CryptoHash(code_hash))
+    );
+    assert_eq!(details.balance, CREATE_NEAR);
+    println!("the multisig uses {} bytes of storage", details.storage_usage);
+    assert!(multisig.view_access_keys().await?.is_empty());
+    assert_eq!(
+        view(&multisig, "get_config", json!({})).await?,
+        init_args(&[&alice, &bob], 2)
+    );
+
+    // `new` ran in the creation, so no account can set other signers.
+    let result = call(
+        &stranger,
+        &multisig,
+        "new",
+        init_args(&[&stranger], 1),
+        NearToken::from_yoctonear(0),
+    )
+    .await?;
+    check_failure(
+        "a second new",
+        &result,
+        "The contract has already been initialized",
+    );
+
+    // A full proposal: 0.1 NEAR to grants, with two voice approvals.
+    let open = opening(&multisig, 1, grants.id().as_str(), 10, SALT);
+    check_success(
+        "propose",
+        &propose(&alice, &multisig, 1, &open).await?,
+        GAS_BUDGET,
+    );
+    check_success(
+        "approve",
+        &approve(&bob, &multisig, 1, &open.commitment).await?,
+        GAS_BUDGET,
+    );
+    let grants_before = grants.view_account().await?.balance;
+    let executed = execute(&alice, &multisig, 1, &open).await?;
+    check_success("execute", &executed, GAS_BUDGET);
+    assert_eq!(executed.json::<bool>()?, true);
+    assert_eq!(
+        grants.view_account().await?.balance,
+        grants_before.saturating_add(NearToken::from_yoctonear(10 * ONE_HUNDREDTH_NEAR))
+    );
+
+    // `new` refuses a threshold of 3 for 2 signers: no account, and the NEAR
+    // comes back to the creator.
+    let alice_before = alice.view_account().await?.balance;
+    let failed = create(&alice, pair.clone(), 3, CREATE_NEAR).await?;
+    assert!(failed.is_success(), "create with a bad threshold: {failed:#?}");
+    assert_eq!(events(&failed)[0]["event"], "create_failed");
+    assert_eq!(failed.json::<Value>()?, Value::Null);
+    let spent = alice_before.saturating_sub(alice.view_account().await?.balance);
+    assert!(
+        spent < NearToken::from_millinear(10),
+        "the creator lost {spent} for a failed create"
+    );
+    let missing: near_workspaces::AccountId = format!("m2.{}", factory.id()).parse()?;
+    assert!(worker.view_account(&missing).await.is_err());
+
+    // The next multisig gets the next name. One signer is enough for `new`.
+    let created = create(&bob, json!([bob.id()]), 1, CREATE_NEAR).await?;
+    assert_eq!(created.json::<Value>()?, json!(format!("m3.{}", factory.id())));
+    assert_eq!(
+        view(&factory, "get_config", json!({})).await?,
+        json!({
+            "code_hash": bs58::encode(code_hash).into_string(),
+            "verifier_public_key": verifier_public_key,
+            "names": 3
+        })
+    );
     Ok(())
 }

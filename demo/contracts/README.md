@@ -4,10 +4,11 @@
 | ------ | -------- | --------------- |
 | [`community-notes/`](community-notes/) | community notes and ratings, with 0 deposit | [`notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/notes.seams-v1.testnet/contract) |
 | [`voice-multisig/`](voice-multisig/) | a NEAR transfer or the hide of a note, proposed and approved by voice (version 3.0.0, 2 of 2 signers) | [`voice-multisig-3.seams-v1.testnet`](https://testnet.nearblocks.io/address/voice-multisig-3.seams-v1.testnet/contract) |
+| [`voice-multisig-factory/`](voice-multisig-factory/) | creates a voice multisig for a visitor: an account that uses the global voice-multisig code | not on testnet yet |
 | [`jev-prediction-market/`](jev-prediction-market/) | a market on a note, resolved by an OutLayer AI call | [`pm-notes.seams-v1.testnet`](https://testnet.nearblocks.io/address/pm-notes.seams-v1.testnet/contract) |
 | [`faucet/`](faucet/) | testnet USDC and NEAR for a new account, once | [`seams-faucet.testnet`](https://testnet.nearblocks.io/address/seams-faucet.testnet/contract) |
 
-The first three contracts check the ed25519 voice verdict on chain (`seams-voice-verdict`
+The notes contract, the voice multisig and the note market check the ed25519 voice verdict on chain (`seams-voice-verdict`
 and `spoken-intent`) and count each verdict once. A caller with a plain NEAR
 key outside Seams Wallet cannot post a note, rate a note, place a bet or
 approve a multisig action over RPC without a fresh spoken verdict. None of the

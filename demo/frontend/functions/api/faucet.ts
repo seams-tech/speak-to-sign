@@ -9,18 +9,18 @@
 // The drip's NEAR transfer creates it, so the faucet takes such an account as it is. A named
 // account must exist first: its USDC would go to an account that nobody holds.
 //
-// Each network (IP address) gets the faucet for ACCOUNTS_PER_NETWORK accounts, so that a script
-// with new account IDs cannot empty the faucet (lib/networkLimit.ts).
+// Each network (IP address) gets the faucet for ACCOUNTS_PER_DAY accounts in one UTC day, so that
+// a script with new account IDs cannot empty the faucet (lib/networkLimit.ts).
 
-import { isImplicitAccount } from '../../src/guards.ts';
+import { isAccountId, isImplicitAccount } from '../../src/guards.ts';
 import { accountExists, signAndSendCall, viewCall } from '../../src/faucet/nearTx.ts';
-import { DEFAULT_RPC_URL, isAccountId, json, refuseOtherOrigin } from '../lib/http.ts';
-import { ACCOUNTS_PER_NETWORK, takeAccount } from '../lib/networkLimit.ts';
+import { DEFAULT_RPC_URL, json, refuseOtherOrigin } from '../lib/http.ts';
+import { ACCOUNTS_PER_DAY, takeAccount } from '../lib/networkLimit.ts';
 
 interface Env {
   /** "ed25519:..." The function-call key of the faucet account for `drip`. */
   FAUCET_PRIVATE_KEY?: string;
-  /** KV: the accounts that each network got. No faucet without it. */
+  /** KV: the accounts that each network got today. No faucet without it. */
   FAUCET_LIMITS?: KVNamespace;
   /** Optional. Default seams-faucet.testnet. */
   FAUCET_ACCOUNT?: string;
@@ -71,7 +71,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const config = await viewCall<FaucetConfig>(rpcUrl, faucet, 'get_config', {});
     const giveBack = await takeAccount(limits, request.headers.get('CF-Connecting-IP'));
     if (!giveBack) {
-      return json({ error: `Your network already got testnet funds for ${ACCOUNTS_PER_NETWORK} accounts.` }, 429);
+      return json(
+        { error: `Your network already got testnet funds for ${ACCOUNTS_PER_DAY} accounts today. The count starts again at 00:00 UTC.` },
+        429,
+      );
     }
     // From here an error keeps the network's account: the drip may have gone through.
     const outcome = await signAndSendCall(rpcUrl, faucet, faucet, env.FAUCET_PRIVATE_KEY, {

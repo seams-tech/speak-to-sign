@@ -9,14 +9,27 @@ both.
   page style follows the Seams Wallet site. Its code is in `src/showcase/`
   ([the page](src/showcase/README.md)) and `src/x/`
   ([the posts and the timeline](src/x/README.md)).
-- `/multisig/` (`multisig/index.html`): the spoken multisig, version 3.0.0 of
-  `../contracts/voice-multisig` (`config.multisigContract`,
-  `VITE_MULTISIG_CONTRACT`). A signer types a transfer and reads it aloud; each
-  other signer says it from memory; the proposer's browser executes it. Every
-  visitor sees the signers and the proposals, but only a signer of the
-  multisig can propose or approve. The
+- `/multisig/` (`multisig/index.html`): the spoken multisig of
+  `../contracts/voice-multisig`. The page shows the demo multisig first
+  (`config.multisigContract`, `VITE_MULTISIG_CONTRACT`). A signer types a
+  transfer and reads it aloud; each other signer says it from memory; the
+  proposer's browser executes it. Every visitor sees the signers and the
+  proposals, but only a signer of the multisig can propose or approve. The
   Seams Wallet signs `propose`, `approve` and `execute` with its normal confirm
   step. Its code is in `src/multisig/` (`MultisigPage.tsx`).
+
+  A visitor is not a signer of the demo multisig. So the page has the form
+  "Create your own multisig": the visitor names the account of one other
+  signer, and the Wallet calls `create` on the factory
+  (`../contracts/voice-multisig-factory`, `config.multisigFactory`,
+  `VITE_MULTISIG_FACTORY`) with 0.15 NEAR. The page then shows the new 2 of 2
+  multisig, and its address names it: `/multisig/?m=m<N>.<factory>`. The
+  visitor sends that address to the other signer. The page takes only the
+  demo multisig or an account `m<N>.<factory>` from its address
+  (`src/multisig/factory.ts`), so a link cannot point it at another contract.
+  The form shows only when the factory account answers `get_config`. One
+  person has one voice, so the two signers must be two persons: the verifier
+  refuses a voice that already approved the proposal.
 
 ## The voice route (`/api/voice-verify`)
 
@@ -191,7 +204,7 @@ To sign in on the built site, open it through Caddy at https://localhost:8443
    the demo's faucet (`/api/faucet`) by itself: in one transaction it sends
    0.2 NEAR and 2 USDC, once per account. A new wallet is an implicit account,
    and the faucet's NEAR puts it on testnet. Each network (IP address) gets the
-   faucet for 3 accounts. The faucet is a small contract on
+   faucet for 3 accounts in one UTC day. The faucet is a small contract on
    `seams-faucet.testnet` (`../contracts/faucet/`). If the faucet refuses or is
    empty, the step links to the public NEAR and USDC (faucet.circle.com)
    faucets.
@@ -228,6 +241,7 @@ for `pnpm dev`, or in `demo/frontend/.env.production.local` for a build (see `.e
 | `VITE_SEAMS_RELAYER_URL`            | `https://staging.api.wallet.seams.sh` |
 | `VITE_NOTES_CONTRACT`               | `notes.seams-v1.testnet`              |
 | `VITE_MULTISIG_CONTRACT`            | `voice-multisig-3.seams-v1.testnet`   |
+| `VITE_MULTISIG_FACTORY`             | `voice-multisig-factory.seams-v1.testnet` |
 | `VITE_NEAR_RPC_URL`                 | `https://test.rpc.fastnear.com`       |
 | `VITE_NEAR_EXPLORER_URL`            | `https://testnet.nearblocks.io`       |
 | `VITE_VOICE_AUDIO_KEY`              | in `.env.example`: seals recordings on `/multisig/` |

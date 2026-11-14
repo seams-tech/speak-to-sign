@@ -167,11 +167,13 @@ pub struct VoiceMultisig {
 
 #[near]
 impl VoiceMultisig {
-    /// Sets the signers, the threshold and the verifier key. Only the
-    /// contract account can call it, in the deploy transaction. No method
-    /// changes them later.
+    /// Sets the signers, the threshold and the verifier key. No method
+    /// changes them later. `new` runs one time: a second call fails. The
+    /// caller is the contract account, or the factory that creates the
+    /// account (`../multisig-factory/`). So the call must be in the
+    /// transaction that deploys the code: between a deploy and `new`, any
+    /// account can set the signers.
     #[init]
-    #[private]
     pub fn new(signers: Vec<AccountId>, threshold: u32, verifier_public_key: String) -> Self {
         if !(MIN_SIGNERS..=MAX_SIGNERS).contains(&signers.len()) {
             env::panic_str("signers must have 1 to 10 accounts");

@@ -4,7 +4,7 @@ version = "0.0.0"
 edition = "2024"
 rust-version = "1.95"
 publish = false
-description = "Sandbox test: deploys the voice-multisig release WASM to a local nearcore sandbox and runs a full proposal"
+description = "Sandbox test: deploys the voice-multisig release WASM to a local nearcore sandbox and runs a full proposal, also for a multisig that the factory creates"
 
 [dev-dependencies]
 near-workspaces = "=0.24.0"
@@ -16,3 +16,8 @@ ed25519-dalek = { version = "=2.2.0", default-features = false }
 sha2 = "=0.10.9"
 base64 = "0.22"
 bs58 = "0.5"
+# The factory test sends a DeployGlobalContract action, which near-workspaces
+# 0.24.0 cannot build. These are the versions that near-workspaces uses.
+near-primitives = "=0.38.0"
+near-crypto = "=0.38.0"
+near-jsonrpc-client = "=0.23.0"

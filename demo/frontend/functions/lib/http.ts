@@ -1,15 +1,9 @@
-// The parts that the Pages Functions share: the same-origin rule, the bounded body, the JSON
-// answer and the account check. This file exports no onRequest handler, so it is not a route.
+// The parts that the Pages Functions share: the same-origin rule, the bounded body and the JSON
+// answer. This file exports no onRequest handler, so it is not a route.
 
 /** The NEAR testnet RPC when NEAR_RPC_URL is not set. */
 export const DEFAULT_RPC_URL = 'https://test.rpc.fastnear.com';
 
-const ACCOUNT_ID = /^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
-
-/** A NEAR account ID: named or implicit. */
-export function isAccountId(value: unknown): value is string {
-  return typeof value === 'string' && ACCOUNT_ID.test(value);
-}
 
 /** A 403 answer for a request from another site, or null. A request with no Origin header passes. */
 export function refuseOtherOrigin(request: Request): Response | null {

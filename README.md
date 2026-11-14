@@ -370,6 +370,7 @@ speak-to-sign/
 │   │   ├── community-notes/        notes.seams-v1.testnet
 │   │   ├── jev-prediction-market/  pm-notes.seams-v1.testnet, with its resolver
 │   │   ├── voice-multisig/         the voice-only multisig, and its live run
+│   │   ├── voice-multisig-factory/ creates a voice multisig for a visitor
 │   │   └── faucet/                 seams-faucet.testnet
 │   ├── speak-to-pay/               pay a NEAR account by voice; you run it on your machine
 │   └── x-refresh-worker/           a scheduled worker that gets new posts from X

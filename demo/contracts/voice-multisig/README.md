@@ -18,10 +18,13 @@ calls its `hide_note`. The contract has no cap: a transfer is any amount
 that the grammar can speak (0.01 to 1,000,000 NEAR), and the balance of the
 multisig limits it. Testnet only.
 
-This README is for version 3.0.0, the source in `src/`. Version 3.0.0 is on
-`voice-multisig-3.seams-v1.testnet` since 2026-11-14, with 2 of 2 signers
-(see "Deployed code"). The demo page `/multisig/` drives it, and the notes
-contract names it as its moderator.
+This README is for version 3.1.0, the source in `src/`. Version 3.1.0 has
+one more rule than 3.0.0: a factory can call `new` in the transaction that
+creates the account (see "Design"). `voice-multisig-3.seams-v1.testnet` runs
+version 3.0.0 since 2026-11-14, with 2 of 2 signers (see "Deployed code").
+The demo page `/multisig/` shows it first, and the notes contract names it
+as its moderator. A visitor of the page creates a multisig of their own with
+the factory ([`../voice-multisig-factory/`](../voice-multisig-factory/)).
 
 The specification is in `docs/voice-intents-spec.md`, section 10. The
 sequence diagram is in `docs/architecture.md`, section 7.
@@ -32,6 +35,11 @@ sequence diagram is in `docs/architecture.md`, section 7.
   threshold from 1 to the number of signers. No method changes them later.
   A change of the signers needs a new contract account. A voice-approved
   proposal that changes the signers does not exist yet.
+- **`new` runs one time.** A second call fails. The call is in the
+  transaction that puts the code on the account: the deploy transaction of
+  the contract account, or the `create` call of the factory, which creates
+  the account, gives it the code and calls `new` in one receipt. So no other
+  account can call `new` first.
 - **Propose.** The caller is a signer. The verdict is for the caller, this
   contract, the proposal id and the commitment. It is the first approval.
 - **Approve.** The caller is a signer who did not approve yet. The verdict
@@ -68,7 +76,9 @@ sequence diagram is in `docs/architecture.md`, section 7.
 
 The full-access key of the contract account can deploy new code. That is a
 trust limit of each NEAR contract. For real funds, delete that key after
-`new` and `set_notes_contract`. The testnet demo keeps it.
+`new` and `set_notes_contract`. The testnet demo keeps it. A multisig that
+the factory creates has no access key, and it uses global code by its hash,
+so its code cannot change.
 
 ## Toolchain
 
@@ -102,7 +112,8 @@ to its account.
 
 Rules:
 
-- `new`: only the contract account can call it, in the deploy transaction.
+- `new`: it runs one time. Call it in the transaction that deploys the
+  code: before `new`, any account can call it and set the signers.
   1 to 10 distinct signers. `threshold` is 1 to the number of signers. The
   verifier key is `ed25519:` and the base58 text of 32 bytes.
 - `propose`: the caller is a signer, and it becomes the proposer.
@@ -188,7 +199,8 @@ hide succeeds, in the same way. A proposal has at most one of the two:
 ## Events
 
 Each change logs one NEP-297 event, standard `voice_multisig`, version
-`3.0.0`. `execute` itself logs nothing; its callback logs `executed` or
+`3.0.0`: the events of contract version 3.1.0 are the events of 3.0.0.
+`execute` itself logs nothing; its callback logs `executed` or
 `execute_failed`. Version 3.0.0 names the approver `signer` in place of
 `admin`. The other events are the same as in 2.1.0. `propose` logs only
 `proposed`, which is also the first approval.
@@ -215,7 +227,6 @@ from JSON` (missing field `verdict_json`).
 | `signers must be distinct` | `new` |
 | `threshold must be from 1 to the number of signers` | `new` |
 | `verifier_public_key must be ed25519:<base58 of 32 bytes>` | `new` |
-| `Method new is private` | `new` |
 | `The contract has already been initialized` | `new` |
 | `the caller is not a signer` | `propose`, `approve`, `execute` |
 | `proposal_id must be next_proposal_id, <n>` | `propose` |
@@ -265,7 +276,8 @@ The check of the verdict is about 0.55 Tgas of an `approve`. A 2 of 3 proposal (
 One proposal with 3 voice approvals uses 388 bytes of contract storage, with
 the 3 recordings (`alice.test.near`-length accounts; 0.0039 NEAR at 10^19
 yoctoNEAR a byte). The reproducible build of the code is 214,166 bytes,
-about 2.15 NEAR. The contract balance pays for all storage and for the transfers.
+about 2.15 NEAR. A multisig of the factory holds no code: it uses 271 bytes
+after `new`. The contract balance pays for all storage and for the transfers.
 
 ## Build and test
 
@@ -304,9 +316,7 @@ shows the code as verified at
 
 The script builds `res/voice_multisig.wasm` with the local toolchain. It is
 fast, and the sandbox test uses it. Its bytes depend on the computer, because
-the WASM holds the local source paths of panic locations. The build of 12 Nov
-2026 of 3.0.0 gave 258,856 bytes, SHA-256
-`2f91d85e9e933e2d10b89ce08c32dda35d43ff99eeb3f6d3efbafffcf1fbfd54`.
+the WASM holds the local source paths of panic locations.
 
 ### Tests
 
@@ -326,7 +336,7 @@ proposal again. One test checks the verifier's shared vector
 passes, and the contract refuses it as a transfer verdict.
 
 ```bash
-./build.sh && ../community-notes/build.sh && cargo test -p voice-multisig-sandbox -- --nocapture
+./build.sh && ../community-notes/build.sh && ../voice-multisig-factory/build.sh && cargo test -p voice-multisig-sandbox -- --nocapture
 ```
 
 The sandbox test deploys the contract with 3 signers, a threshold of 2 and
@@ -339,7 +349,10 @@ approves or executes, the verdict of a non-signer, a verdict for another
 commitment, the same verdict twice, a recording that counted, an execute
 below the threshold, a wrong signature, an expired verdict, a wrong salt,
 deposits and the private methods. A second test hides a note of the
-community-notes contract with 2 of 2 voice approvals.
+community-notes contract with 2 of 2 voice approvals. A third test publishes
+the WASM as global code, and the factory creates a 2 of 2 multisig that
+uses it; a full proposal runs on that multisig (see
+[the factory README](../voice-multisig-factory/README.md#build-and-test)).
 
 ## Deploy to testnet
 

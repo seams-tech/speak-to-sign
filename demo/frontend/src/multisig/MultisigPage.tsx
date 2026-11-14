@@ -1,5 +1,9 @@
-// The spoken multisig page (/multisig/): a live voice multisig, version 3.0.0, on NEAR testnet
+// The spoken multisig page (/multisig/): a live voice multisig on NEAR testnet
 // (demo/contracts/voice-multisig, docs/voice-intents-spec.md section 10).
+//
+// The page shows the demo multisig first. A visitor is not one of its signers, so the page lets
+// them create a 2 of 2 multisig with one other signer (demo/contracts/voice-multisig-factory).
+// The page address then names that multisig (`?m=<account>`), and the other signer opens it.
 //
 // - A signer proposes a transfer: the signer types it, then reads it aloud. The verifier checks
 //   the voice and the words, keeps the proposal and its salt, and signs a verdict; the Seams
@@ -16,7 +20,7 @@
 // refusal and its reason. The page has the light theme only.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCircleDashed, IconExternalLink, IconSend } from '@tabler/icons-react';
+import { IconCheck, IconCircleDashed, IconCopy, IconExternalLink, IconSend } from '@tabler/icons-react';
 import { useSeams } from '@seams/wallet/react';
 import { BrandMark } from '../components/BrandMark';
 import { NearAiWarning } from '../components/NearAiWarning';
@@ -26,25 +30,50 @@ import { KeylessOnboarding, SeamsOnboarding } from '../showcase/Onboarding';
 import { SeamsSettingsPill } from '../showcase/SeamsSettingsPill';
 import type { MultisigConfig, Proposal } from './contractViews';
 import { formatBalance, formatNear, formatYocto, isSpeakableAccount, parseNearAmount, proposalSentence } from './intent';
-import { createMultisigSigner, type MultisigSigner, type SendResult } from './multisigSigner';
+import { multisigOfSearch, otherSignerError, readCreated, searchOfMultisig } from './factory';
+import { createMultisig, createMultisigSigner, type MultisigSigner, type SendResult, type WalletOwner } from './multisigSigner';
 import { readOpening, removeOpening, writeOpening, type Opening } from './openings';
-import { getBalance, getConfig, getProposal, getProposals, nextProposalId } from './views';
+import { getBalance, getConfig, getFactoryConfig, getProposal, getProposals, getTransactionValue, nextProposalId } from './views';
 import { checkVoice, type SignedVerdict, type VoiceCheck } from './voiceVerify';
 import { VoiceRecorder } from './VoiceRecorder';
 import './multisig.css';
 
 const POLL_MS = 1500;
-const DEFAULT_RECEIVER = 'seams-faucet.testnet';
+/** The multisig that the page shows when its address names none. */
+const DEMO_MULTISIG = config.multisigContract;
+const FACTORY = config.multisigFactory;
+/** A short, common name: the speech-to-text model hears it well. */
+const DEFAULT_RECEIVER = 'bob.testnet';
 const DEFAULT_AMOUNT = '0.1';
 /**
  * The refusals that the page offers to send to the contract as a record. A `words` refusal is not
  * one of them: its verdict holds the heard words, and the arguments of a call are public.
  */
 const RECORDED_REFUSALS: ReadonlySet<string> = new Set(['speaker', 'same_speaker', 'attempts_exhausted']);
-const NO_WALLET: MultisigSigner =createMultisigSigner({ seams: null, walletId: null, contract: config.multisigContract });
+const NO_WALLET: WalletOwner = { seams: null, walletId: null };
+
+/** The multisig that the page address names. */
+function shownMultisig() {
+  return multisigOfSearch(window.location.search, DEMO_MULTISIG, FACTORY);
+}
 
 export function MultisigPage({ seams }: { seams: boolean }) {
   const [signIn, setSignIn] = useState(false);
+  const [shown, setShown] = useState(shownMultisig);
+
+  useEffect(() => {
+    const onHistory = () => setShown(shownMultisig());
+    window.addEventListener('popstate', onHistory);
+    return () => window.removeEventListener('popstate', onHistory);
+  }, []);
+
+  /** Shows `contract` and puts it in the page address, so that a copy of the address opens it. */
+  const show = useCallback((contract: string) => {
+    window.history.pushState(null, '', `${window.location.pathname}${searchOfMultisig(contract, DEMO_MULTISIG)}`);
+    setShown({ contract, refused: false });
+  }, []);
+
+  const board = { contract: shown.contract, onShow: show };
   return (
     <div className="ms-page">
       <header className="ms-nav">
@@ -67,19 +96,34 @@ export function MultisigPage({ seams }: { seams: boolean }) {
         <section className="ms-setup" aria-label="Set up">
           {seams ? <SeamsOnboarding onSignIn={() => setSignIn(true)} /> : <KeylessOnboarding />}
         </section>
-        {seams ? <SeamsBoard onSignIn={() => setSignIn(true)} /> : <Board account={undefined} signer={NO_WALLET} />}
+        {shown.refused && (
+          <p className="ms-error" role="alert">
+            The link names an account that the factory of this demo did not create. The page shows the demo multisig.
+          </p>
+        )}
+        {seams ? (
+          <SeamsBoard key={shown.contract} {...board} onSignIn={() => setSignIn(true)} />
+        ) : (
+          <Board key={shown.contract} {...board} account={undefined} owner={NO_WALLET} />
+        )}
       </main>
       {seams && signIn && <SignInModal onClose={() => setSignIn(false)} onSignedIn={() => setSignIn(false)} />}
     </div>
   );
 }
 
-function SeamsBoard({ onSignIn }: { onSignIn: () => void }) {
+/** The multisig that the board shows, and the way to show another one. */
+interface BoardTarget {
+  contract: string;
+  onShow: (contract: string) => void;
+}
+
+function SeamsBoard({ onSignIn, ...target }: BoardTarget & { onSignIn: () => void }) {
   const { seams, loginState } = useSeams();
   const walletId = loginState.isLoggedIn && loginState.access === 'wallet' ? loginState.walletId : null;
   const account = walletId ? (loginState.nearAccountId ?? undefined) : undefined;
-  const signer = useMemo(() => createMultisigSigner({ seams, walletId, contract: config.multisigContract }), [seams, walletId]);
-  return <Board account={account} signer={signer} onSignIn={onSignIn} />;
+  const owner = useMemo(() => ({ seams, walletId }), [seams, walletId]);
+  return <Board {...target} account={account} owner={owner} onSignIn={onSignIn} />;
 }
 
 interface Loaded {
@@ -107,8 +151,14 @@ interface Context {
   onSent: (proposalId: number, tx: SentTx) => void;
 }
 
-function Board({ account, signer, onSignIn }: { account: string | undefined; signer: MultisigSigner; onSignIn?: () => void }) {
-  const contract = config.multisigContract;
+function Board({
+  contract,
+  onShow,
+  account,
+  owner,
+  onSignIn,
+}: BoardTarget & { account: string | undefined; owner: WalletOwner; onSignIn?: () => void }) {
+  const signer = useMemo(() => createMultisigSigner({ ...owner, contract }), [owner, contract]);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [sent, setSent] = useState<Record<number, SentTx[]>>({});
 
@@ -161,6 +211,11 @@ function Board({ account, signer, onSignIn }: { account: string | undefined; sig
 
   return (
     <>
+      {contract === DEMO_MULTISIG ? (
+        <CreateMultisig account={account} owner={owner} onCreated={onShow} onSignIn={onSignIn} />
+      ) : (
+        <ShareMultisig />
+      )}
       <section className="ms-card ms-summary" aria-label="The multisig">
         <div>
           <p className="ms-label">Multisig</p>
@@ -217,7 +272,10 @@ function Board({ account, signer, onSignIn }: { account: string | undefined; sig
               )}
             </div>
           ) : !isSigner ? (
-            <p className="ms-hint">This wallet is not a signer of this multisig. Only its signers can propose and approve.</p>
+            <p className="ms-hint">
+              This wallet is not a signer of this multisig. Only its signers can propose and approve.
+              {contract === DEMO_MULTISIG && ' To try it, create your own multisig.'}
+            </p>
           ) : loaded?.nextId ? (
             <ProposeForm context={context} proposalId={loaded.nextId} />
           ) : (
@@ -240,6 +298,140 @@ function Board({ account, signer, onSignIn }: { account: string | undefined; sig
         )}
       </section>
     </>
+  );
+}
+
+/** A button that copies `text`, and says so for two seconds. */
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  const copy = () => {
+    void navigator.clipboard.writeText(text).then(
+      () => setCopied(true),
+      () => undefined,
+    );
+  };
+  return (
+    <button type="button" className="ms-btn ms-btn-ghost ms-btn-sm" onClick={copy}>
+      <IconCopy size={14} stroke={2} /> <span aria-live="polite">{copied ? 'Copied' : label}</span>
+    </button>
+  );
+}
+
+/**
+ * The form that creates a 2 of 2 multisig of the signed-in wallet and one other signer. It shows
+ * only when the factory account has the factory code.
+ */
+function CreateMultisig({
+  account,
+  owner,
+  onCreated,
+  onSignIn,
+}: {
+  account: string | undefined;
+  owner: WalletOwner;
+  onCreated: (contract: string) => void;
+  onSignIn?: () => void;
+}) {
+  const [available, setAvailable] = useState(false);
+  const [other, setOther] = useState('');
+  const [state, setState] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+
+  useEffect(() => {
+    let live = true;
+    getFactoryConfig(config.rpcUrl, FACTORY).then(
+      () => live && setAvailable(true),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!available) return null;
+
+  const name = other.trim();
+  const problem = account ? otherSignerError(name, account) : null;
+
+  const create = async () => {
+    if (!account || problem) return;
+    setState({ busy: true, error: null });
+    const result = await createMultisig(owner, FACTORY, { signers: [account, name], threshold: 2 });
+    if (result.kind !== 'sent') return setState({ busy: false, error: sendFailure(result) });
+    // The answer of the call is the account. If the Wallet gave none, the transaction has it.
+    const value = result.value ?? (await getTransactionValue(config.rpcUrl, result.transactionHash, account).catch(() => null));
+    const created = readCreated(value, FACTORY);
+    if (created) return onCreated(created);
+    setState({ busy: false, error: 'The factory did not create the multisig, and your NEAR came back. Check the account of the other signer.' });
+  };
+
+  return (
+    <section className="ms-card" aria-label="Create your own multisig">
+      <h2>Create your own multisig</h2>
+      <p className="ms-hint ms-hint-first">
+        Try a 2 of 2 multisig with another person. Each signer needs a wallet with a voice from this page. Ask the other signer for
+        their account, create the multisig, then send them the page.
+      </p>
+      {!account ? (
+        <div className="ms-action">
+          <p className="ms-hint">Sign in to create a multisig.</p>
+          {onSignIn && (
+            <button type="button" className="ms-btn" onClick={onSignIn}>
+              Sign in
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="ms-own">
+            <p className="ms-label">Your account</p>
+            <code>{account}</code>
+            <CopyButton text={account} label="Copy" />
+          </div>
+          <div className="ms-create">
+            <label className="ms-field">
+              <span>Account of the other signer</span>
+              <input
+                value={other}
+                onChange={(event) => setOther(event.target.value.trim().toLowerCase())}
+                placeholder="The account of their wallet"
+                spellCheck={false}
+                autoComplete="off"
+                disabled={state.busy}
+              />
+              {name !== '' && problem && <em>{problem}</em>}
+            </label>
+            <button type="button" className="ms-btn" disabled={state.busy || problem !== null} onClick={() => void create()}>
+              {state.busy ? 'Confirm in the Wallet…' : 'Create multisig'}
+            </button>
+          </div>
+          <p className="ms-hint">The Wallet sends 0.15 NEAR to the new multisig. It pays for the storage and for a first transfer.</p>
+          {state.error && (
+            <p className="ms-error" role="alert">
+              {state.error}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+/** For a multisig of the factory: the link for the other signer, and the way back. */
+function ShareMultisig() {
+  return (
+    <section className="ms-card ms-share" aria-label="Share this multisig">
+      <p className="ms-hint ms-hint-first">
+        This is a multisig from the factory of this demo. Send this page to the other signer. They open it and sign in with their wallet.
+      </p>
+      <div className="ms-action">
+        <CopyButton text={window.location.href} label="Copy the link" />
+        <a href={window.location.pathname}>Back to the demo multisig</a>
+      </div>
+    </section>
   );
 }
 
